@@ -8,6 +8,7 @@ import {
 	ArcanumUnlockSection,
 } from "../../../module/model/CharacterSnapshot.js";
 import {FakeArcanaRepository} from "../../fakes/FakeArcanaRepository.js";
+import { CONDENSED_MOVE_SLUG } from "../../../module/data/arcana-moves.js";
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -280,22 +281,22 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		// The Mindgem and the Twisted Spear print their unlock steps as □ tasks in the FRONT text,
 		// with no option requirements or ○ — they used to read as unlocked from the start, which
 		// showed the owner the back and hid the GM's reveal toggle.
-		function taskArcanum(slug, taskCount) {
+		function taskArcanum(slug, taskCount, lead = "When you've completed the tasks, see reverse.") {
 			return {
 				slug,
 				front: {
 					title: slug, item: null,
 					description: `<p>Tasks:</p><ul>${"<li>□ A task.</li>".repeat(taskCount)}</ul>`,
-					unlock: { description: "When you've completed the tasks, see reverse.", requirements: [] },
+					unlock: { description: lead, requirements: [] },
 				},
 				back: { title: "Mysteries", item: null, description: "<p>Back.</p>", resource: null, move: null, options: [] },
 			};
 		}
 		const frontBoxes = (slug, n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`${slug}:front:${i}`, true]));
-		async function taskUnlocked(slug, taskCount, marked) {
+		async function taskUnlocked(slug, taskCount, marked, lead) {
 			const arcana = new CharacterArcana(
 				makeFlags({ owned: [slug], boxes: frontBoxes(slug, marked) }),
-				new FakeArcanaRepository([taskArcanum(slug, taskCount)]),
+				new FakeArcanaRepository([taskArcanum(slug, taskCount, lead)]),
 			);
 			const snap = await arcana.buildSnapshot();
 			return [...snap.major.items, ...snap.minor.items][0].unlocked;
@@ -308,8 +309,18 @@ describe("CharacterArcana.buildSnapshot()", () => {
 		});
 
 		it("the Twisted Spear unlocks at 3 of its 5 tasks, as its lead prints", async () => {
-			expect(await taskUnlocked("twisted-spear", 5, 2)).toBe(false);
-			expect(await taskUnlocked("twisted-spear", 5, 3)).toBe(true);
+			const lead = "When you have marked 3 tasks, you unlock the mysteries of the Twisted Spear.";
+			expect(await taskUnlocked("twisted-spear", 5, 2, lead)).toBe(false);
+			expect(await taskUnlocked("twisted-spear", 5, 3, lead)).toBe(true);
+			// The count is the lead's, not the slug's: a homebrew card saying so reads the same.
+			expect(await taskUnlocked("homebrew-spear", 4, 2, "When you have marked two tasks, see reverse.")).toBe(true);
+		});
+
+		it("a □ on a card whose lead names no tasks is not its lock (a homebrew one-shot box)", async () => {
+			expect(await taskUnlocked("homebrew-charm", 1, 0, "When you learn its true name, see reverse.")).toBe(true);
+			const arcana = new CharacterArcana(makeFlags({ owned: ["homebrew-charm"] }),
+				new FakeArcanaRepository([taskArcanum("homebrew-charm", 1, "When you learn its true name, see reverse.")]));
+			expect((await arcana.masteryGrant("homebrew-charm")).boxes).toEqual([]);
 		});
 
 		it("mastering a front-task card marks its tasks", async () => {
@@ -902,6 +913,23 @@ describe("CharacterArcana — moves printed on a card's back", () => {
 			const move = await arcana.getArcanumMove("boxless", "sole-power");
 			expect(move.boxIndex).toBeNull();
 			expect(move.learned).toBe(true);
+		});
+
+		it("reports a card's condensed back move learned only once the back is realised", async () => {
+			const condensed = {
+				...ARCANUM_WITH_MOVES,
+				slug: "condensed",
+				front: { ...ARCANUM_WITH_MOVES.front, unlock: { description: "Mark ○○ to unlock.", requirements: [] } },
+				back: { ...ARCANUM_WITH_MOVES.back, move: { name: "When you blow the horn", description: "<p>Roll +CHA.</p>" } },
+			};
+			const learned = async store => (await makeArcana({ owned: ["condensed"], ...store }, [condensed])
+				.getArcanumMove("condensed", CONDENSED_MOVE_SLUG)).learned;
+			// Identified, even revealed or owed, but still locked: readable, not rollable.
+			expect(await learned({ identified: ["condensed"], revealed: ["condensed"], backOwed: ["condensed"] })).toBe(false);
+			expect(await learned({ identified: ["condensed"], boxes: { "condensed:unlock:0": true } })).toBe(false);
+			expect(await learned({ identified: ["condensed"], boxes: { "condensed:unlock:0": true, "condensed:unlock:1": true } })).toBe(true);
+			// Every ○ ticked on a card never identified is not a realised back either.
+			expect(await learned({ boxes: { "condensed:unlock:0": true, "condensed:unlock:1": true } })).toBe(false);
 		});
 
 		it("answers null for an unknown card or move", async () => {

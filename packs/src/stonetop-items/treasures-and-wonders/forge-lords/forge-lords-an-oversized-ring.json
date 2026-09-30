@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "beautiful, magical, Value 4",
+    "note": "<em>beautiful</em>, <em>magical</em>, Value 4",
     "isTreasure": true,
     "artifactLore": "<p>A fist-sized signet, large even by the Makers’ standards, made of orichalcum. It glows like a dying ember, but is cool to the touch. When anyone lies in the ring’s presence, their tongue blisters and burns. The greater the lie, the more damage is done.</p><p>Something interesting: This was the signet ring of a Forge Lord, one of great wealth and importance; the Ustrina often show keen interest in such things.</p><p>Something useful: This was the signet ring of Omelor Xonane, a storied artificer. Many of their works were said to be keyed to this signet ring. Who knows what wonders it could unlock?</p>"
   },
@@ -17,7 +17,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "beautiful, magical, Value 4"
+      "note": "<em>beautiful</em>, <em>magical</em>, Value 4"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",

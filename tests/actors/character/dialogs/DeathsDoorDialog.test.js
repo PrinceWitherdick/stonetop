@@ -416,8 +416,11 @@ describe("DeathsDoorDialog: Burn Brightly and giving it your all, before the tie
 			id: `m${Math.random()}`, flavor: "<p>Death's Door</p>", speaker: { alias: "Wren" }, whisper: [],
 			rolls: [{ total, formula: "2d6" }],
 			getFlag: (scope, key) => (scope === SCOPE ? store[key] : undefined),
+			// Posted by this window's client, so this client may write it.
+			canUserModify: () => true,
 			update: vi.fn(async data => {
 				if (data.flavor !== undefined) message.flavor = data.flavor;
+				if (data.rolls) message.rolls = data.rolls;
 				Object.assign(store, data.flags?.[SCOPE] ?? {});
 			}),
 			store,
@@ -809,8 +812,11 @@ describe("DeathsDoorDialog: a roll under way, seen from every owner's window", (
 			id: `m${world.messages.length + 1}`, flavor: "<p>Death's Door</p>", speaker: { alias: "Wren" }, whisper: [],
 			rolls: [{ total, formula: "2d6" }],
 			getFlag: (scope, key) => (scope === SCOPE ? store[key] : undefined),
+			// Posted by this window's client, so this client may write it.
+			canUserModify: () => true,
 			update: vi.fn(async data => {
 				if (data.flavor !== undefined) message.flavor = data.flavor;
+				if (data.rolls) message.rolls = data.rolls;
 				Object.assign(store, data.flags?.[SCOPE] ?? {});
 			}),
 			store,
@@ -1444,6 +1450,22 @@ describe("DeathsDoorDialog: a roll under way, seen from every owner's window", (
 			expect(stateOf(actor)).toBe(DEATHS_DOOR_STATE.OUT_OF_ACTION);
 			expect(rollingOn(actor)).toBeNull();
 			expect(bea.getData().tierNote).toBe("Burn Brightly: 5 → 6. Impetuous Youth: 6 → 7, and got hurt.");
+		});
+
+		// One client writes a card's dice while a GM is connected (utils/roll-card-writer.js): the window's own
+		// card too, so a Judge's +1 relayed to the GM and this Burn Brightly cannot erase each other.
+		it("has the GM's client write even a card this window can read, while a GM is connected", async () => {
+			const gm = withGM();
+			as("p1");
+			const { actor, character } = dyingHero({ xp: 8 });
+			const win = windowOn(character);
+			const card = await rollAt(win, 5);
+			await win._onBurnBrightly();
+			expect(gm.query).toHaveBeenLastCalledWith(DEATHS_DOOR_BOOST_QUERY,
+				expect.objectContaining({ boost: "burn", messageId: card.id, userId: "p1" }), expect.anything());
+			expect(card.rolls[0].total).toBe(6);
+			expect(actor.system.attributes.xp.value).toBe(6);
+			expect(win.getData()).toMatchObject({ boostsPending: true, rolledTotal: 6, canBurnBrightly: false });
 		});
 
 		it("with no GM connected, offers Accept only and says why", async () => {

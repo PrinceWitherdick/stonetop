@@ -317,10 +317,13 @@ describe("+1d6 on a damage roll they just made", () => {
 	it("adds the die to a plain card's roll and total, spends 1, and only once", async () => {
 		const wren = pc({ id: "wren", held: 2 });
 		const card = plainCard();
+		const before = card.rolls[0];
 		const addDie = vi.fn(async (roll, n) => { roll.total += n; roll.formula += ` + ${n}`; });
 		const cardFlavor = vi.fn((flavor, total) => `${flavor}<!--${total}-->`);
 		expect(await addInspirationDie(card, wren, { rollDie: async () => 4, addDie, cardFlavor, scope: SCOPE })).toBe(true);
-		expect(addDie).toHaveBeenCalledWith(card.rolls[0], 4);
+		expect(addDie.mock.calls[0][1]).toBe(4);
+		expect(addDie.mock.calls[0][0]).not.toBe(before);
+		expect(card.rolls[0].total).toBe(10);
 		expect(card.flavor).toContain("<!--10-->");
 		expect(card.getFlag(SCOPE, DIE_FLAG)).toEqual({ by: "Actor.wren", name: "wren", amount: 4 });
 		expect(inspirationHeld(wren)).toBe(1);
@@ -352,6 +355,23 @@ describe("+1d6 on a damage roll they just made", () => {
 		await expect(addInspirationDie(failing, wren, { rollDie: async () => { throw new Error("dice"); }, scope: SCOPE }))
 			.rejects.toThrow("dice");
 		expect(inspirationHeld(wren)).toBe(1);
+	});
+
+	// The die goes on a copy of the card's roll: a refused write leaves the card's own roll as it was, so
+	// the press after the refund adds one die, not a second on top of a first nobody saw.
+	it("leaves the card's roll untouched when the write is refused", async () => {
+		const wren = pc({ id: "wren", held: 1 });
+		const card = plainCard();
+		const update = card.update;
+		card.update = vi.fn(async () => { throw new Error("refused"); });
+		const addDie = async (roll, n) => { roll.total += n; roll.terms.push(n); };
+		await expect(addInspirationDie(card, wren, { rollDie: async () => 4, addDie, scope: SCOPE })).rejects.toThrow("refused");
+		expect(card.rolls[0]).toEqual({ total: 6, formula: "1d8+1", terms: [] });
+
+		card.update = update;
+		expect(await addInspirationDie(card, wren, { rollDie: async () => 4, addDie, scope: SCOPE })).toBe(true);
+		expect(card.rolls[0].total).toBe(10);
+		expect(card.rolls[0].terms).toEqual([4]);
 	});
 
 	describe("on the card", () => {

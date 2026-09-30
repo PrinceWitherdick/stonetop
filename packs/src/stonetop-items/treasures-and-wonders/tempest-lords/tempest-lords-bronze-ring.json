@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "magical, fireproof, <em>hours</em>",
+    "note": "<em>magical</em>, fireproof, <em>hours</em>",
     "resource": {
       "max": 3,
       "title": "hours",
@@ -26,7 +26,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "magical, fireproof, <em>hours</em>",
+      "note": "<em>magical</em>, fireproof, <em>hours</em>",
       "resource": {
         "max": 3,
         "title": "hours",

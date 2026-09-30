@@ -94,6 +94,22 @@ const _PURPOSE = {
  */
 export const NEVER_CHOSEN_OPTIONS = ["final-consequence"];
 
+/**
+ * The Consequences a "mark a consequence" may take, out of CharacterPostDeath#sectionOptions (which
+ * honours `requires`): less NEVER_CHOSEN_OPTIONS. The one filter for UndeathDialog and the tab's button.
+ */
+export function markableConsequences(options) {
+	return options.filter(o => !o.blocked && !NEVER_CHOSEN_OPTIONS.includes(o.slug));
+}
+
+/**
+ * The Marks a "gain a new Mark" may take: every one neither held nor crossed off (both are `blocked`).
+ * None left is Unholy Vessel.
+ */
+export function gainableMarks(options) {
+	return options.filter(o => !o.blocked);
+}
+
 const _CONSEQUENCE = {
 	key:     "consequence",
 	kind:    "pick",
@@ -195,6 +211,22 @@ export const POST_DEATH_CHOICES = {
 export const GM_CHOOSES_NOTE = "Your GM chooses this one.";
 
 /**
+ * `character.sectionOptions`, read once per section: for a caller building more than one view of the insert at
+ * the same moment (the sheet's render, whose questions here and whose Post-Death tab buttons
+ * (post-death-outcomes.js#buildPostDeathTabView) read the same Consequences). Neither view writes to what it
+ * is handed, so they share it. A fresh reader for each moment: it never sees a write made after its first read.
+ *
+ * @returns {(section: string) => Promise<object[]>}
+ */
+export function sectionReader(character) {
+	const reads = new Map();
+	return section => {
+		if (!reads.has(section)) reads.set(section, character.sectionOptions(section));
+		return reads.get(section);
+	};
+}
+
+/**
  * Everything a surface needs to draw the choices for whichever insert is active, with each step's
  * current answer resolved and a `done` flag so "what's left" can be counted without any caller
  * re-deriving the rules.
@@ -208,13 +240,13 @@ export const GM_CHOOSES_NOTE = "Your GM chooses this one.";
  * carried option shows ticked and locked, the way an inflicted one does, and neither answers the step
  * nor spends its allowance.
  */
-export async function buildPostDeathChoices(character, { group = "", carried = {} } = {}) {
+export async function buildPostDeathChoices(character, { group = "", carried = {}, sections = sectionReader(character) } = {}) {
 	const slug  = character?.postDeathSlug ?? null;
 	const steps = POST_DEATH_CHOICES[slug];
 	if (!slug || !steps) return null;
 
 	const built = [];
-	for (const step of steps) built.push(await _buildStep(character, step, carried?.[step.section] ?? []));
+	for (const step of steps) built.push(await _buildStep(character, step, carried?.[step.section] ?? [], sections));
 
 	return {
 		slug,
@@ -228,7 +260,7 @@ export async function buildPostDeathChoices(character, { group = "", carried = {
 	};
 }
 
-async function _buildStep(character, step, carriedSlugs = []) {
+async function _buildStep(character, step, carriedSlugs, sections) {
 	const base = {
 		key:   step.key,
 		kind:  step.kind,
@@ -267,7 +299,7 @@ async function _buildStep(character, step, carriedSlugs = []) {
 
 	// A pick. sectionOptions already honours `requires` and crossed-off Marks, so an option that
 	// can't be taken yet arrives `blocked` rather than having to be filtered here.
-	const raw     = await character.sectionOptions(step.section);
+	const raw     = await sections(step.section);
 	const never   = new Set(step.neverPick ?? []);
 	// Held before this insert was taken (see buildPostDeathChoices' `carried`). Only an option still
 	// marked counts: one un-ticked since is no longer carried, and can be picked here like any other.

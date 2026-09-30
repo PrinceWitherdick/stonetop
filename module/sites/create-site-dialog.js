@@ -8,7 +8,7 @@ import {
 	SITE_LAYOUT_TIPS, SITE_REVIEW_CHECKS,
 } from "../data/site-tables.js";
 import { shapeSiteSystem, setSiteName } from "./site-store.js";
-import { MAX_ROW_SPAN, SITE_LINE_LISTS, SITE_PAIR_LISTS, expandTableRows, pairKeys, tableRowRanges } from "./site-schema.js";
+import { MAX_ROW_SPAN, SITE_LINE_LISTS, SITE_PAIR_LISTS, clampRowSpan, expandTableRows, numberTableRows, pairKeys, tableRowRanges } from "./site-schema.js";
 
 // ── CreateSiteDialog ─────────────────────────────────────────────────────────
 // A walkthrough for "Creating sites" (Book I, Sites, pp. 355-370). The book's procedure
@@ -286,7 +286,7 @@ export class CreateSiteDialog extends StepperDialog {
 			// face in _seed. See tableRowRanges.
 			randomTables: (sys.randomTables ?? []).map(t => ({
 				caption: String(t?.caption ?? ""),
-				rows: tableRowRanges(t?.rows).map(({ text, span }) => ({ text, span })),
+				rows: tableRowRanges(t?.rows, { maxSpan: MAX_ROW_SPAN }).map(({ text, span }) => ({ text, span })),
 			})),
 		};
 	}
@@ -348,14 +348,9 @@ export class CreateSiteDialog extends StepperDialog {
 			ctx.maxRowSpan = MAX_ROW_SPAN;
 			ctx.tableRows = sel.randomTables.map((t, index) => {
 				// The faces each row covers, as the card will number them ("1-3", "4").
-				let face = 0;
-				const rows = t.rows.map((row, rowIndex) => {
-					const span = expandTableRows([row]).length;
-					const from = face + 1;
-					face += span;
-					return { rowIndex, text: row.text, span, roll: span > 1 ? `${from}-${face}` : `${from}` };
-				});
-				return { index, caption: t.caption, die: face ? `1d${face}` : "", rows };
+				const rows = numberTableRows(t.rows.map((row, rowIndex) => ({ rowIndex, text: row.text, span: clampRowSpan(row.span) })));
+				const faces = rows.at(-1)?.to ?? 0;
+				return { index, caption: t.caption, die: faces ? `1d${faces}` : "", rows };
 			});
 		}
 		if (step.isFinal) {
@@ -749,7 +744,7 @@ export class CreateSiteDialog extends StepperDialog {
 		root.querySelectorAll(".stonetop-cs-trow-span").forEach(el => {
 			const t = this._sel.randomTables[Number(el.dataset.table)];
 			const i = Number(el.dataset.index);
-			if (t && i in t.rows) t.rows[i].span = expandTableRows([{ span: el.value }]).length;
+			if (t && i in t.rows) t.rows[i].span = clampRowSpan(el.value);
 		});
 	}
 

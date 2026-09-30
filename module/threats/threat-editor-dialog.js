@@ -28,8 +28,10 @@ export class ThreatEditorDialog extends StonetopDialog {
 		// Keep the form in sync if the page changes elsewhere (tab toggle, another GM).
 		// Except for this window's own rich-text save: the editor already shows what it saved, and
 		// re-rendering under it tears its view down while ProseMirror is still handling the click.
-		this._onUpdate = (doc, _change, options) => {
-			if (options?.threatEditorRichSave === this.appId) return;
+		// The option travels to every client and appId is only unique on this one, so the save is
+		// ours only when this user made it too; another GM's editor re-renders as usual.
+		this._onUpdate = (doc, _change, options, userId) => {
+			if (options?.threatEditorRichSave === this.appId && userId === game.user?.id) return;
 			if (doc?.id === this.page?.id && this.rendered) this.render(false);
 		};
 	}

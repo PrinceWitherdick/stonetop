@@ -29,9 +29,8 @@
 // A CARD SOMEONE ELSE WROTE cannot be written by a player: a Judge helping the Fox is pressing a button on
 // the Fox's message. Then the GM's client records it (BOOST_QUERY), after checking the asker plays the helper,
 // the way a Readiness spend on the GM's damage card goes (fight/defend-spend.js#handleSpendQuery). With a GM
-// online the card's own author sends theirs there too (boostRoute), so every +1 on a card is written by one
-// client, in that card's turn: two clients each writing `rolls` and the list from their own copy would
-// keep only the second +1.
+// online the card's own author sends theirs there too, as every rewrite of a card's dice goes
+// (utils/roll-card-writer.js): one client writes them all, in that card's turn.
 //
 // NOT MANY HANDS ON A STRUGGLE AS ONE ROLL. The struggle bars it for anyone in it (struggle-rules.js MOVE),
 // and a Judge outside it is the GM's +1 on the row (`bump`), which a +1 on the card would count twice.
@@ -41,8 +40,8 @@
 import { SYSTEM_ID } from "../../system-id.js";
 import { format, localize } from "../../utils/i18n.js";
 import { escHtml } from "../../utils/strings.js";
-import { canUserWriteCard } from "../../utils/chat.js";
 import { inCardTurn } from "../../utils/card-queue.js";
+import { rollCardRoute, writeCardRoll } from "../../utils/roll-card-writer.js";
 import { isPrimaryGM } from "../../utils/primary-gm.js";
 import { askGMClient, queryAsker, resolveSync } from "../../utils/foundry-compat.js";
 import { holdForEach, shareHold } from "../../utils/share-hold.js";
@@ -172,16 +171,6 @@ export function boostOffers({ message, roller, helpers = [], user, ownersOf = ow
 	return offers;
 }
 
-/**
- * How a press on this card is recorded: through the GM's client (`relay`) for any player while a GM is
- * there, even on a card they wrote, so one client writes every press on it in turn; `local` for a GM, or
- * for a player who may write the card with no GM online; null (no button) otherwise. PURE.
- */
-export function boostRoute(message, user, activeGM = globalThis.game?.users?.activeGM ?? null) {
-	if (activeGM && !user?.isGM) return "relay";
-	return canUserWriteCard(message, user, { whenUnknown: !!user?.isGM }) ? "local" : null;
-}
-
 /** The line the card prints for one +1 taken: "+1 Diligence (Aeron)". PURE. */
 export function boostNote(boost) {
 	return format(`${KEY}.note.${boost?.source}`, { name: boost?.name ?? "" });
@@ -212,14 +201,9 @@ export function takeBoost(message, offer, { shiftRoll, cardFlavor, afterShift = 
 			if (def.spend) await def.spend(helper, scope);
 			else await helper.typedActor.moveResources.setUses(def.move, held - def.cost, { stonetopMove: def.move });
 		}
-		const roll = message.rolls.at(0);
-		await shiftRoll(roll, 1);
-		await message.update({
-			rolls: message.rolls,
-			flavor: cardFlavor(message.flavor, roll.total, roll.formula),
+		await writeCardRoll(message, roll => shiftRoll(roll, 1), { cardFlavor, afterShift }, {
 			flags: { [scope]: { [BOOSTS_FLAG]: [...used, { source, by: helper.uuid, name: helper.name }] } },
 		});
-		await afterShift?.(message, roll.total);
 		return true;
 	});
 }
@@ -289,7 +273,7 @@ export function wireRollBoosts(message, html, deps, { user = globalThis.game?.us
 	drawBoostNotes(card, boostsOn(message, scope));
 
 	const row = card.querySelector(".stonetop-card-buttons");
-	const route = row ? boostRoute(message, user) : null;
+	const route = row ? rollCardRoute(message, user) : null;
 	if (!route) return;
 	const offers = boostOffers({ message, roller: speakerActor(message), helpers: worldCharacters(), user, scope });
 	for (const offer of offers) {

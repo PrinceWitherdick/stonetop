@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "magical, <em>immobile</em>, Value 2",
+    "note": "<em>magical</em>, <em>immobile</em>, Value 2",
     "isTreasure": true
   },
   "flags": {
@@ -14,7 +14,7 @@
       "slug": "a-circle-of-bronze-sigils-two-paces-wide-inlaid-into-a-stone-floor-blessed-by-helior-a-ward-against-spirits-of-darkness",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "magical, <em>immobile</em>, Value 2"
+      "note": "<em>magical</em>, <em>immobile</em>, Value 2"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",

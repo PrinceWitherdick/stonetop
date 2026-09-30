@@ -13,7 +13,7 @@ import {
 } from "../../model/CharacterSnapshot.js";
 import { composeInstinct, stripHtmlToText } from "../../utils/strings.js";
 import { clampInt } from "../../utils/custom-move-data.js";
-import { zeroHpResolution, FAVOR_TRACK } from "./deaths-door.js";
+import { zeroHpResolution, FAVOR_MAX, FAVOR_TRACK } from "./deaths-door.js";
 
 /**
  * The one lore section crossing-off applies to.
@@ -81,6 +81,13 @@ export class CharacterPostDeath {
 	}
 	get instinct()         { return this._instinct; }
 	get lore()             { return this._lore; }
+
+	/**
+	 * Whether a lore option (its `section:option` key) is marked on the insert they WEAR: a removed
+	 * insert keeps its lore (removal is an undo), and a Consequence of an insert they no longer carry
+	 * is nobody's Consequence.
+	 */
+	wornMarked(key) { return !!this.activeSlug && Number(this._lore.counts[key]) > 0; }
 
 	// ── The 0-HP moves' bookkeeping (Undying / Tethered / Dark Succor) ─────────
 	// Consequences, Marks and Favor are all lore options on the insert, so marking one is a
@@ -333,6 +340,12 @@ export class CharacterPostDeath {
 		return this._lore.countUpdateData(sectionSlug, optionSlug, 1);
 	}
 
+	/** unmarkSectionOption as a fragment; null when the option is missing or not marked. */
+	unmarkSectionOptionUpdateData(sectionSlug, optionSlug) {
+		if (!optionSlug || this._lore.getCount(sectionSlug, optionSlug) <= 0) return null;
+		return this._lore.countUpdateData(sectionSlug, optionSlug, 0);
+	}
+
 	/** crossOffMark as a fragment; null when the slug is missing or already crossed off. */
 	crossOffMarkUpdateData(slug) {
 		if (!slug || this.crossedOffMarks.includes(slug)) return null;
@@ -348,7 +361,7 @@ export class CharacterPostDeath {
 	/** setFavor as a fragment, clamped the same way. */
 	favorUpdateData(value) {
 		const { entry, option } = this._rollTrack();
-		return this._lore.countUpdateData(entry, option, clampInt(value, 0, 3));
+		return this._lore.countUpdateData(entry, option, clampInt(value, 0, FAVOR_MAX));
 	}
 
 	/**
@@ -368,7 +381,7 @@ export class CharacterPostDeath {
 
 	async setFavor(value) {
 		const { entry, option } = this._rollTrack();
-		await this._lore.setCount(entry, option, clampInt(value, 0, 3));
+		await this._lore.setCount(entry, option, clampInt(value, 0, FAVOR_MAX));
 	}
 
 	/**

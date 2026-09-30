@@ -1,7 +1,7 @@
 import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { gearNoteChips, wrapGearNoteTerms, buildUsesResource, circleLabelsFromLines } from "../../../utils/gear-note.js";
 import {
-	buildInventoryItemData, composeInventoryNote, inventoryItemFormValues, inventoryItemUpdateData,
+	composeInventoryNote, inventoryItemCreateData, inventoryItemFormValues, inventoryItemUpdateData,
 } from "../../../utils/inventory-item-data.js";
 import { createWorldItem } from "../../../utils/world-item.js";
 import { clampInt } from "../../../utils/custom-move-data.js";
@@ -422,7 +422,7 @@ export function characterInventoryItemSaver(character) {
 export function worldInventoryItemSaver({ treasure = false } = {}) {
 	return {
 		create: (input) => createWorldItem(
-			buildInventoryItemData(input),
+			inventoryItemCreateData(input),
 			treasure ? "stonetop.inventory.treasureCreated" : "stonetop.inventory.worldCreated",
 			treasure ? { ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE } } : {},
 		),

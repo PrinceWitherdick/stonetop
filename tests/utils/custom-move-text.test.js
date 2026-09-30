@@ -34,9 +34,25 @@ describe("formatCustomMoveDescription", () => {
 		expect(formatCustomMoveDescription("2 * 3\nand *this\none*")).toBe("<p>2 * 3<br>and *this<br>one*</p>");
 	});
 
+	it("nests italic inside bold and bold inside italic", () => {
+		expect(formatCustomMoveDescription("**When you *really* try**, roll +STR"))
+			.toBe("<p><strong>When you <em>really</em> try</strong>, roll +STR</p>");
+		expect(formatCustomMoveDescription("*When you **really** try*"))
+			.toBe("<p><em>When you <strong>really</strong> try</em></p>");
+	});
+
+	it("leaves asterisks used as arithmetic alone", () => {
+		expect(formatCustomMoveDescription("Deal d6 * 2 damage, or d4 * 3")).toBe("<p>Deal d6 * 2 damage, or d4 * 3</p>");
+		expect(formatCustomMoveDescription("d6*2 or d4*3")).toBe("<p>d6*2 or d4*3</p>");
+		expect(formatCustomMoveDescription("**Deal d6 * 2**")).toBe("<p><strong>Deal d6 * 2</strong></p>");
+	});
+
 	it("round-trips emphasised text through the edit form", () => {
 		const typed = "When you ***act***, roll +INT: **on a 7+**, *choose 1*.\n\nThen rest.";
 		expect(customMoveDescriptionToPlainText(formatCustomMoveDescription(typed))).toBe(typed);
+		for (const nested of ["**When you *really* try**", "*When you **really** try*", "Deal d6 * 2, or d4 * 3"]) {
+			expect(customMoveDescriptionToPlainText(formatCustomMoveDescription(nested))).toBe(nested);
+		}
 	});
 
 	it("neutralizes script/handler injection attempts", () => {

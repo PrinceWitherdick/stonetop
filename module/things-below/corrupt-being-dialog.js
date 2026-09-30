@@ -5,10 +5,7 @@ import { formatCustomMoveDescription } from "../utils/custom-move-text.js";
 import { buildMonsterActorData } from "../data/monster-builder.js";
 import { THEMES, ASPECTS, EMANATION_ORIGINS, rollOnTable, rollDistinct, themeLabels, aspectTexts, themeCheckboxes, aspectCheckboxes } from "../data/things-below-tables.js";
 import { GIFTS, MARKS, EMANATION_BASE, applyCorruption } from "../data/corruption-tables.js";
-import { SYSTEM_ID } from "../system-id.js";
-
-// Where the book's own monsters live, so a GM can corrupt one without importing it first.
-const BESTIARY_PACK = `${SYSTEM_ID}.stonetop-bestiary`;
+import { BESTIARY_PACK } from "../system-id.js";
 
 // ── CorruptBeingDialog ───────────────────────────────────────────────────────
 // The lighter "corruption layer" wizard for two Book II flows:

@@ -94,6 +94,14 @@ describe("StonetopCharacter's heals, for a Thrall with Torment's Blessing", () =
 		expect(actor.system.attributes.hp.value).toBe(1);
 	});
 
+	// Back on their feet from out of the action is a return, not a heal (the user's ruling, 2026-09-30).
+	it("restoreHp leaves an unhalved return whole", async () => {
+		const { char, actor } = buildLiveCharacter({ slug: "the-heavy", name: "The Heavy", flags: TORMENTED });
+		actor.system.attributes.hp.value = 0;
+		await char.restoreHp(8, "Dark Succor", { clearsDeathsDoor: true, unhalved: true });
+		expect(actor.system.attributes.hp.value).toBe(8);
+	});
+
 	it("restoreHp gives anyone else the whole amount", async () => {
 		const { char, actor } = buildLiveCharacter({ slug: "the-heavy", name: "The Heavy" });
 		actor.system.attributes.hp.value = 2;

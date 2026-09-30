@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "indestructible, 2 <em>piercing</em>, Value 1",
+    "note": "<em>indestructible</em>, 2 <em>piercing</em>, Value 1",
     "isTreasure": true
   },
   "flags": {
@@ -14,7 +14,7 @@
       "slug": "a-single-makerglass-arrowhead",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "indestructible, 2 <em>piercing</em>, Value 1"
+      "note": "<em>indestructible</em>, 2 <em>piercing</em>, Value 1"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",

@@ -17373,7 +17373,6 @@ button.stonetop-mark-sign-btn.is-active:hover {
 }
 
 .stonetop-pdi-crossoff-btn {
-	flex: 0 0 auto;
 	font-size: var(--st-fs-sm);
 	min-height: 0;
 	padding: 0 8px;
@@ -17432,7 +17431,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 /* An edit-mode pick the rules can't account for (UNSTABLE without BREAKDOWN, two Terrible
    Purposes): the gold caution the stat boxes wear, flagged and never blocked. On the black paper
    the ink stop is too dark to find, so the border stop (the bright gold) carries it there. */
-.stonetop-lore-option.is-cautioned {
+:is(.stonetop-lore-option, .stonetop-pdi-favor-row).is-cautioned {
 	box-shadow: inset 3px 0 0 var(--st-gold-border);
 	padding-left: 6px;
 }

@@ -80,9 +80,11 @@ import { hbsTruthy } from "./module/utils/hbs-truthy.js";
 import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable, seasonsRollPicks, syncCountedNotePill } from "./module/utils/roll-engine.js";
 import { countedResult, rolledRecord, cardCountedTier, totalTier } from "./module/utils/counted-tier.js";
 import { burnBrightlyAffordable, burnsBrightlyDriven } from "./module/actors/character/burn-brightly.js";
-import { wireImpetuousYouth, HURT_DAMAGE, IMPETUOUS_YOUTH } from "./module/actors/character/impetuous-youth.js";
+import { wireImpetuousYouth, giveItAll, GIVE_IT_ALL_ACTION, HURT_DAMAGE, IMPETUOUS_YOUTH } from "./module/actors/character/impetuous-youth.js";
 import { isUndeathCard, isZeroHpMoveCard } from "./module/actors/character/deaths-door.js";
 import { registerRollRewrite } from "./module/utils/roll-rewrite.js";
+import { ROLL_CARD_QUERY, handleRollCardQuery, pressRollCard, registerRollCardAction, writeCardRoll } from "./module/utils/roll-card-writer.js";
+import { inCardTurn } from "./module/utils/card-queue.js";
 import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
 import { moveChatCard, canRewriteCard } from "./module/utils/chat.js";
 import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOffersPicks } from "./module/utils/pick-tally.js";
@@ -120,7 +122,7 @@ import { StonetopFlags } from "./module/actors/character/StonetopFlags.js";
 import { payableStockSources, mustAskStockSource, stockReceipt } from "./module/actors/character/stock-cost.js";
 import { askStockSource } from "./module/actors/character/ask-stock-source.js";
 import { readProvisionsYield, rollProvisions, rollStock, withTrappingGear, TRAPPING_GEAR_SLUG } from "./module/actors/character/provisions.js";
-import { askWithButtons } from "./module/utils/ask-with-buttons.js";
+import { askWithButtons, confirmOutcome } from "./module/utils/ask-with-buttons.js";
 import { belongsToMessage, wirePickedOptionButton } from "./module/utils/picked-option-button.js";
 import { readOptionDamage } from "./module/utils/damage.js";
 import { SYSTEM_ID } from "./module/system-id.js";
@@ -129,7 +131,7 @@ import { bootStep, recordBootPhase, reportBootHealth, bootReport } from "./modul
 import { registerCampHooks } from "./module/camp/camp-store.js";
 import { registerVitalsMirrorHooks } from "./module/actors/character/vitals-mirror.js";
 import { registerPostDeathMoveHooks } from "./module/actors/character/post-death-moves.js";
-import { wirePostDeathMoveCards } from "./module/actors/character/post-death-actions.js";
+import { loseHp, wirePostDeathMoveCards } from "./module/actors/character/post-death-actions.js";
 import { registerRosterFateHooks } from "./module/fight/roster-fate.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
@@ -207,6 +209,9 @@ Hooks.once("init", () => {
 	// all on a private roll's card the owner who took it over was never sent (actors/character/deaths-door-relay.js).
 	if (CONFIG.queries) CONFIG.queries[DEATHS_DOOR_CLAIM_QUERY] = (data, context) => handleDeathsDoorClaimQuery(data, context);
 	if (CONFIG.queries) CONFIG.queries[DEATHS_DOOR_BOOST_QUERY] = (data, context) => handleDeathsDoorBoostQuery(data, context);
+	// And every other player's rewrite of a roll card's dice (Burn Brightly, giving it your all, a Know Things
+	// upgrade), written by the GM's client like the +1s above, so one client writes each card (utils/roll-card-writer.js).
+	if (CONFIG.queries) CONFIG.queries[ROLL_CARD_QUERY] = (data, context) => handleRollCardQuery(data, context);
 
 	// Every window and modal in the system is drag-resizable; the ad-hoc
 	// Dialog popups we spawn from sheets default to resizable too. The companion
@@ -1288,13 +1293,11 @@ function _chatWireBurnBrightly(message, html) {
 	btn.addEventListener("click", async () => {
 		btn.disabled = true;
 		try {
-			// The one spend (deaths-door-relay.js#burnBrightlyOnDoorCard): the XP inside the write queue, then the
-			// +1 through the same dice-term math and card redraw the ± roll-shift buttons use, so the two never drift.
-			const burned = await burnBrightlyOnDoorCard(message, actor, ROLL_BOOST_DEPS);
-			if (!burned) {
-				ui.notifications.warn(game.i18n.localize(`${BURN_BRIGHTLY_KEY}.notEnoughXp`));
-				btn.disabled = false;
-			}
+			// On the card's writer, the GM's client while one is connected (_burnBrightlyOnCard below).
+			const done = await pressRollCard(message, BURN_BRIGHTLY_ACTION);
+			if (done?.burned || done?.spent) return;
+			ui.notifications.warn(done ? game.i18n.localize(`${BURN_BRIGHTLY_KEY}.notEnoughXp`) : _writerSilent());
+			btn.disabled = false;
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
 			btn.disabled = false;
@@ -1451,6 +1454,42 @@ const IMPETUOUS_YOUTH_DEPS = {
 // settles the tier, and rewrites its card through them (utils/roll-rewrite.js, dialogs/DeathsDoorDialog.js).
 registerRollRewrite(IMPETUOUS_YOUTH_DEPS);
 
+// -- A CARD'S DICE, REWRITTEN ON ONE CLIENT ---------------------
+// The presses that rewrite a roll card and had no relay of their own, run on the card's writer: here for a GM
+// (or a player on their own card with no GM connected), on the primary GM's client for every other player's
+// press (utils/roll-card-writer.js). Each checks the asker plays the character speaking the card.
+const BURN_BRIGHTLY_ACTION = "burnBrightly";
+const KNOW_THINGS_UPGRADE_ACTION = "knowThingsUpgrade";
+// What a press says when the GM's client did not answer: nothing was spent, and the button comes back.
+const _writerSilent = () => game.i18n.localize("stonetop.rollCard.writerSilent");
+
+/** The character speaking the card, when `user` plays them. */
+function _cardCharacterFor(message, user) {
+	const actor = speakerActor(message);
+	return actor?.type === "character" && actor.testUserPermission?.(user, "OWNER") ? actor : null;
+}
+
+registerRollCardAction(BURN_BRIGHTLY_ACTION, ({ message, user }) => _burnBrightlyOnCard(message, user));
+registerRollCardAction(GIVE_IT_ALL_ACTION, async ({ message, user, data }) => {
+	const actor = _cardCharacterFor(message, user);
+	return !!actor && giveItAll(message, actor, data?.cost, IMPETUOUS_YOUTH_DEPS);
+});
+registerRollCardAction(KNOW_THINGS_UPGRADE_ACTION, ({ message, user, data }) => _upgradeKnowThings(message, user, data?.source));
+
+/**
+ * Burn Brightly from the roll card's button: the one spend (deaths-door-relay.js#burnBrightlyOnDoorCard), the XP
+ * inside the write queue, then the +1 through the same dice-term math and card redraw the ± roll-shift buttons
+ * use. Not on a 0-HP move's card (see _chatWireBurnBrightly). `{burned}`, or `{spent}` when the card was burned
+ * already.
+ */
+async function _burnBrightlyOnCard(message, user) {
+	const actor = _cardCharacterFor(message, user);
+	if (!actor || isZeroHpMoveCard(message)) return { burned: false };
+	if (message.getFlag(SYSTEM_ID, "burnBrightly")) return { burned: false, spent: true };
+	const burned = await burnBrightlyOnDoorCard(message, actor, ROLL_BOOST_DEPS);
+	return burned ? { burned: true } : { burned: false, spent: !!message.getFlag(SYSTEM_ID, "burnBrightly") };
+}
+
 
 function _chatWireKnowThings(message, html) {
 	const card = html.querySelector(".stonetop-roll-card");
@@ -1561,33 +1600,52 @@ async function _spendKnowThingsUpgrade(message, actor, cardButtons, btn, source)
 			ui.notifications.warn(source.empty);
 			return;
 		}
-		await source.spend(now);
+		// On the card's writer, the GM's client while one is connected (_upgradeKnowThings below).
+		const done = await pressRollCard(message, KNOW_THINGS_UPGRADE_ACTION, { source: source.key });
+		if (!done?.upgraded) {
+			ui.notifications.warn(!done ? _writerSilent() : done.empty ? source.empty : "This roll is already a 10+.");
+			// Only a press nobody answered can be tried again: a refusal is the card or the track saying no.
+			btn.disabled = !!done;
+			return;
+		}
 		// The other source's button, if any: the card is a 10+ now, with nothing left to buy.
 		for (const other of cardButtons.querySelectorAll(".stonetop-logbook-btn")) other.disabled = true;
+		actor.sheet?.render(false);
+	} catch (err) {
+		console.error(`Stonetop | Error consulting ${source.noun}:`, err);
+		btn.disabled = false;
+	}
+}
+
+/**
+ * A Know Things upgrade on the card's writer: in the card's turn, one use of `sourceKey` spent and the roll padded
+ * to exactly 10, for the character speaking the card when `user` plays them. `{upgraded}`; `{empty}` when the
+ * track has no use left; neither when the card is already settled at 10+.
+ */
+async function _upgradeKnowThings(message, user, sourceKey) {
+	const actor = _cardCharacterFor(message, user);
+	const source = actor ? _knowThingsUpgradeSources(actor).find(s => s.key === sourceKey) : null;
+	if (!source) return { upgraded: false };
+	return inCardTurn(message, async () => {
+		const roll = message.rolls?.at(0);
+		if (message.getFlag(SYSTEM_ID, "knowThingsUpgrade") || !roll || roll.total >= STRONG_HIT_TOTAL) return { upgraded: false };
+		const now = source.read();
+		if (!now || now.left <= 0) return { upgraded: false, empty: true };
+		await source.spend(now);
 		// Pad to exactly 10. _shiftRoll only steps by one, and stopping at 10 keeps the card
-		// off the 12+ "critical" label a bigger pad would earn.
-		const rolls = message.rolls;
-		const shifted = rolls.at(0);
-		while (shifted.total < STRONG_HIT_TOTAL) await _shiftRoll(shifted, 1);
-		await message.update({
-			rolls,
-			flavor: _shiftRollCardFlavor(message.flavor, shifted.total, shifted.formula),
-			flags:  { [SYSTEM_ID]: { knowThingsUpgrade: source.key } },
-		});
+		// off the 12+ "critical" label a bigger pad would earn. Its afterShift (_resyncRewrittenTotal):
+		// if this roll was identifying an arcanum or an artifact, the 10+ the use just bought has to
+		// actually hand the thing over, since the outcome was committed when the dice landed.
+		await writeCardRoll(message, async shifted => { while (shifted.total < STRONG_HIT_TOTAL) await _shiftRoll(shifted, 1); },
+			ROLL_BOOST_DEPS, { flags: { [SYSTEM_ID]: { knowThingsUpgrade: source.key } } });
 		await ChatMessage.create({
 			content: moveChatCard(source.title,
 				`<p><strong>${escHtml(actor.name)}</strong> consults ${source.noun} and expends a use`
 				+ ` (${now.left - 1} of ${now.max} left), treating that roll as a 10+.</p>`),
 			speaker: ChatMessage.getSpeaker({ actor }),
 		});
-		// If this roll was identifying an arcanum or an artifact, the 10+ the use just bought
-		// has to actually hand the thing over — the outcome was committed when the dice landed.
-		await _resyncRewrittenTotal(message, actor, shifted.total);
-		actor.sheet?.render(false);
-	} catch (err) {
-		console.error(`Stonetop | Error consulting ${source.noun}:`, err);
-		btn.disabled = false;
-	}
+		return { upgraded: true };
+	});
 }
 
 /** Whether a rolled card's (shifted) total is a 6-; a card with no roll has not missed. */
@@ -2215,20 +2273,21 @@ function _chatWireOptionDamage(message, html) {
 		// An option that names a flat number has nothing to throw, and the icon and the verb both
 		// say so rather than offering to "roll" a 3.
 		icon:    dealt => (dealt.isRoll ? "fas fa-dice-d6" : "fas fa-burst"),
-		// HP lost is not damage and says so (Bodysnatcher's "lose 2d4 HP"): it rolls onto the same card,
-		// aimed at the one who picked it and armor no object (utils/damage.js#readOptionDamage).
+		// HP lost is not damage and says so (Bodysnatcher's "lose 2d4 HP"): it comes off the one who picked
+		// it through the plain HP writer, with nothing a blow meets in between (post-death-actions.js#loseHp),
+		// once a confirmation naming them has been answered (_onRollOptionDamage).
 		label:   dealt => (dealt.hpLoss ? ` Lose ${dealt.formula} HP` : `${dealt.isRoll ? " Roll" : " Deal"} ${dealt.formula} damage`),
-		readout: paid => _optionDamageDealtEl(paid.totals),
+		readout: paid => _optionDamageDealtEl(paid.totals, paid.hpLoss),
 		onPress: (btn, index, dealt) => _onRollOptionDamage(message, btn, index, { move, dealt }),
 	});
 }
 
-/** The static readout a rolled option wears from then on: what the blow came to, per target. */
-function _optionDamageDealtEl(totals) {
+/** The static readout a rolled option wears from then on: what the blow came to, per target, or the HP lost. */
+function _optionDamageDealtEl(totals, hpLoss = false) {
 	const el = document.createElement("span");
 	el.className = "stonetop-option-damage-dealt";
 	const nums = (Array.isArray(totals) ? totals : [totals]).filter(n => Number.isFinite(Number(n)));
-	el.textContent = `${nums.join(", ") || "0"} damage`;
+	el.textContent = `${nums.join(", ") || "0"} ${hpLoss ? "HP lost" : "damage"}`;
 	return el;
 }
 
@@ -2242,15 +2301,41 @@ async function _onRollOptionDamage(message, btn, index, { move, dealt }) {
 			return;
 		}
 
-		const results = await rollOptionDamage(actor, { move: move || "Damage", damage: dealt });
-		const totals = (results ?? []).map(r => r.raw);
-		btn.replaceWith(_optionDamageDealtEl(totals));
+		let totals;
+		if (dealt.hpLoss) {
+			// The HP comes off here and now, so only someone who may write the character presses it.
+			if (!actor.isOwner) {
+				ui.notifications.warn(game.i18n.format("stonetop.optionHpLoss.notOwner", { name: actor.name }));
+				btn.disabled = false;
+				return;
+			}
+			// The deliberate second click a damage card's Apply button gives a blow (utils/damage.js
+			// #readOptionDamage's two-click rule), asked up front since nothing here waits on a card.
+			const who = { name: escHtml(actor.name), formula: escHtml(dealt.formula) };
+			const ok = await confirmOutcome({
+				title:   game.i18n.format("stonetop.optionHpLoss.title", who),
+				content: game.i18n.format("stonetop.optionHpLoss.body", who),
+				yes:     { label: game.i18n.localize("stonetop.optionHpLoss.yes"), icon: "fa-heart-crack" },
+				no:      { label: game.i18n.localize("stonetop.optionHpLoss.no") },
+			});
+			if (!ok) {
+				btn.disabled = false;
+				return;
+			}
+			const { lost } = await loseHp(actor, dealt.formula, { moveName: move });
+			totals = [lost];
+		} else {
+			const results = await rollOptionDamage(actor, { move: move || "Damage", damage: dealt });
+			totals = (results ?? []).map(r => r.raw);
+		}
+		btn.replaceWith(_optionDamageDealtEl(totals, dealt.hpLoss));
 
 		// Stamped last: the card that carries the blow is the thing that had to land, and a stamp
 		// written before it would lock out the retry if the post failed. A player who does not own
 		// the message still rolled it; the stamp simply does not stick for them, and the button
 		// comes back on the next render rather than the roll being lost.
-		const done = { ...(message.getFlag(SYSTEM_ID, "optionDamageRolled") ?? {}), [index]: { totals, formula: dealt.formula } };
+		const paid = { totals, formula: dealt.formula, ...(dealt.hpLoss ? { hpLoss: true } : {}) };
+		const done = { ...(message.getFlag(SYSTEM_ID, "optionDamageRolled") ?? {}), [index]: paid };
 		try {
 			await message.setFlag(SYSTEM_ID, "optionDamageRolled", done);
 		} catch (err) {
@@ -2281,7 +2366,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 	_chatWireRollShifting(message, html);
 	_chatWireBurnBrightly(message, html);
 	// Beside Burn Brightly: a Would-Be Hero's Impetuous Youth, giving it their all on their own move card.
-	wireImpetuousYouth(message, html, IMPETUOUS_YOUTH_DEPS);
+	wireImpetuousYouth(message, html);
 	// Potential for Greatness's reminder card: its "mark this box" buttons, for the character's owners.
 	wirePotentialForGreatnessReminder(message, html, { actor: speakerActor(message) });
 	// Beside Burn Brightly, in the same row: a Judge's +1 on this roll, and the +1s already added.
@@ -2441,21 +2526,16 @@ async function _onRollShift(event, message) {
 	button.disabled = true;
 
 	try {
-		const roll = message.rolls?.at(0);
-		if (!roll) return;
+		if (!message.rolls?.at(0)) return;
 
 		const shift = button.dataset.action === "shiftUp" ? 1 : -1;
-		await _shiftRoll(roll, shift);
-
-		await message.update({
-			rolls:  message.rolls,
-			flavor: _shiftRollCardFlavor(message.flavor, roll.total, roll.formula),
-		});
-		// A shifted Know Things card that was identifying an arcanum has to carry the new tier's
-		// disclosure with it, or a Shift Up says "You read the card, front and back" over a card
-		// still face down. No-op for every other roll: the flag is only on that one. And what the
-		// tier did to the roller follows it: a We Happy Few lifted off its 6- steadies the nerves.
-		await _resyncRewrittenTotal(message, speakerActor(message), roll.total);
+		// In the card's turn and through the one write every rewrite of a card's dice takes
+		// (utils/roll-card-writer.js), so a Shift and a player's +1 relayed here land one after the other.
+		// Its afterShift is the resync every rewrite owes: a shifted Know Things card that was identifying
+		// an arcanum has to carry the new tier's disclosure with it, or a Shift Up says "You read the card,
+		// front and back" over a card still face down; and what the tier did to the roller follows it: a
+		// We Happy Few lifted off its 6- steadies the nerves.
+		await inCardTurn(message, () => writeCardRoll(message, roll => _shiftRoll(roll, shift), ROLL_BOOST_DEPS));
 	} catch (err) {
 		console.error("Stonetop | Error shifting roll result:", err);
 	} finally {

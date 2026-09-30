@@ -13,6 +13,7 @@ import { isCarriedArcanumItem } from "../../data/arcana-facets.js";
 import { CONDENSED_MOVE_SLUG, condensedArcanumMove, findArcanumMove, markArcanumMoveNames } from "../../data/arcana-moves.js";
 import { boxIndexBefore, centerArcanumTracks, injectGlyphCheckboxes } from "../../utils/glyphs.js";
 import { stonetopChatCard } from "../../utils/chat.js";
+import { frontTaskTrack } from "./seeker-collection.js";
 
 // Some arcana "items" are a place, structure, or phenomenon rather than carried gear
 // (a sealed cave, a giant's dormitory, an arch you could walk through). Book I p.437 gives
@@ -49,33 +50,20 @@ function _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount) {
 	for (let i = 0; i < circleCount; i++) {
 		if (!arcanaBoxes[`${item.slug}:unlock:${i}`]) return false;
 	}
-	const tasks = frontUnlockTasks(item, circleCount);
-	if (tasks) {
-		let marked = 0;
-		for (let i = 0; i < tasks.count; i++) if (arcanaBoxes[`${item.slug}:front:${i}`]) marked++;
-		return marked >= tasks.needed;
-	}
+	// A card whose track is the □ tasks in its front text (the Mindgem, the Twisted Spear) has no
+	// option or ○ for the checks above, so without this it read as unlocked once identified.
+	const tasks = frontTaskTrack(item.front);
+	if (tasks) return tasks.markers.filter(m => arcanaBoxes[`${item.slug}:front:${m.index}`]).length >= tasks.needed;
 	return true;
 }
 
-// How many of a front-task card's □ tasks its unlock lead asks for, where that is fewer than all
-// of them: the Twisted Spear unlocks "when you have marked 3 tasks" of its five.
-const FRONT_TASKS_NEEDED = { "twisted-spear": 3 };
-
 /**
- * A card whose unlock track is the □ tasks printed in its FRONT text (the Mindgem, the Twisted
- * Spear): it has no option requirements and no unlock ○ for _isUnlocked to read, so without
- * this it read as unlocked the moment it was identified, which showed its owner the back and
- * hid the GM's reveal toggle. `{count, needed}` (the front □ as _processSideDescription indexes
- * them, `slug:front:i`), or null when the card has another track or no □ at all. The same
- * fallback the Seeker's onboarding marks (CharacterOnboardingDialog._seekerMajorMysteryTrack).
+ * Whether the character has realised a card's back: identified, and its unlock track complete.
+ * What decides which side's curio is carried, and whether the back's condensed move can be rolled.
  */
-export function frontUnlockTasks(item, circleCount = unlockCircleCount(item.front?.unlock?.description)) {
-	if (circleCount) return null;
-	if ((item.front?.unlock?.requirements ?? []).some(r => r?.type === "option")) return null;
-	const count = (String(item.front?.description ?? "").match(/□/g) || []).length;
-	if (!count) return null;
-	return { count, needed: Math.min(FRONT_TASKS_NEEDED[item.slug] ?? count, count) };
+function _backRealised(item, identifiedSlugs, unlockCounts, arcanaBoxes) {
+	return identifiedSlugs.has(item.slug)
+		&& _isUnlocked(item, unlockCounts, arcanaBoxes, unlockCircleCount(item.front?.unlock?.description));
 }
 
 /**
@@ -452,13 +440,16 @@ export class CharacterArcana {
 	async getArcanumMove(slug, moveSlug) {
 		const item = await this.getArcanum(slug);
 		if (!item) return null;
-		// The card's condensed move is open to whoever holds its back: it has no learned box, and
-		// it goes by the side's title when there is one, since its "name" is a whole trigger.
+		// The card's condensed move has no learned box: it is the back's, so it is learned once the
+		// back is realised, as the back's curio is carried. Seeing the back (the peek switch, a GM
+		// reveal, a 7-9's owed back) lets the owner read it, not roll it. It goes by the side's
+		// title when there is one, since its "name" is a whole trigger.
 		if (moveSlug === CONDENSED_MOVE_SLUG) {
 			const move = condensedArcanumMove(item.back?.move);
 			if (!move) return null;
 			const cardTitle = item.back?.title ?? item.front?.title ?? "";
-			return { ...move, name: String(item.back?.title ?? "").trim() || move.name, cardTitle, learned: true };
+			const learned = _backRealised(item, this.identifiedSlugs, this.unlockCounts, this._flags.getFlag("boxes") ?? {});
+			return { ...move, name: String(item.back?.title ?? "").trim() || move.name, cardTitle, learned };
 		}
 		const move = findArcanumMove(item.back?.description ?? "", moveSlug);
 		if (!move) return null;
@@ -671,8 +662,7 @@ export class CharacterArcana {
 		}
 		const boxes = Array.from({ length: unlockCircleCount(item.front?.unlock?.description) }, (_, index) => ({ context: "unlock", index }));
 		// A front-task card is mastered by its tasks, every one of them.
-		const tasks = frontUnlockTasks(item);
-		if (tasks) for (let index = 0; index < tasks.count; index++) boxes.push({ context: "front", index });
+		for (const { context, index } of frontTaskTrack(item.front)?.markers ?? []) boxes.push({ context, index });
 		return { unlock, boxes };
 	}
 
@@ -829,8 +819,9 @@ export class CharacterArcana {
 	/**
 	 * Tick the first unmarked ○ of a card's unlock track: Improvise's 10+, "mark one step towards
 	 * unlocking the arcanum's mysteries". Answers `{index, count, title}`, with `index` null when
-	 * there was nothing to tick (a card whose steps are not ○, like the Mindgem's □ tasks, or one
-	 * whose circles are all marked), or null when the card is gone.
+	 * there was nothing to tick (a card whose steps are not ○, like the Mindgem's □ tasks, which
+	 * arcana-seeker-moves.js#markImproviseStep then asks about, or one whose circles are all
+	 * marked), or null when the card is gone.
 	 *
 	 * Counts GLYPHS, not runs: the marker pass gives every ○ of "○○○○" its own index.
 	 */
@@ -895,10 +886,9 @@ export class CharacterArcana {
 			// flip: a card realises its back-side item once unlocked, otherwise it's the front
 			// item. Gate on identified too, so an unidentified face-down mystery always shows its
 			// front curio — a homebrew card whose unlock is vacuously satisfied (no options, no
-			// circles) can't leak its back item before it's even identified. circleCount counts
+			// circles) can't leak its back item before it's even identified. unlockCircleCount counts
 			// each ○, as buildSnapshot's marker pass indexes them, so the two counts can't drift.
-			const circleCount = unlockCircleCount(item.front.unlock?.description);
-			const unlocked = identified.has(item.slug) && _isUnlocked(item, unlockCounts, arcanaBoxes, circleCount);
+			const unlocked = _backRealised(item, identified, unlockCounts, arcanaBoxes);
 			const sideItem = (unlocked && item.back.item) ? item.back.item : item.front.item;
 			// Skip unnamed sides, and skip a card's weightless side when the card is one of the
 			// shipped places the book leaves untagged (CONCEPT_ARCANA_SLUGS). A weightless

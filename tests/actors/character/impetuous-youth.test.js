@@ -32,6 +32,7 @@ function card({ total = 8, flavor = MOVE_CARD, record = rolledRecord("str", { mo
 		canUserModify: () => true,
 		update: vi.fn(async data => {
 			if (data.flavor !== undefined) message.flavor = data.flavor;
+			if (data.rolls) message.rolls = data.rolls;
 			Object.assign(store, data.flags?.[SCOPE] ?? {});
 		}),
 		store,
@@ -159,7 +160,7 @@ describe("the card's button", () => {
 		const message = { ...card(), speaker: { actor: "wren" } };
 		speaking(hero());
 		const html = rendered(message);
-		wireImpetuousYouth(message, html, deps());
+		wireImpetuousYouth(message, html);
 		const button = html.querySelector(".stonetop-give-it-all-btn");
 		expect(button?.textContent).toBe("Give it your all");
 		expect(button.disabled).toBe(false);
@@ -169,7 +170,7 @@ describe("the card's button", () => {
 		const message = { ...card({ flags: { [GAVE_IT_ALL_FLAG]: { cost: "hurt", from: 8, to: 10 } } }), speaker: { actor: "wren" } };
 		speaking(hero());
 		const html = rendered(message);
-		wireImpetuousYouth(message, html, deps());
+		wireImpetuousYouth(message, html);
 		const button = html.querySelector(".stonetop-give-it-all-btn");
 		expect(button.disabled).toBe(true);
 		expect(button.textContent).toBe("Gave it their all: got hurt");
@@ -179,7 +180,7 @@ describe("the card's button", () => {
 		const message = { ...card(), speaker: { actor: "wren" } };
 		speaking(hero({ background: "destined" }));
 		const html = rendered(message);
-		wireImpetuousYouth(message, html, deps());
+		wireImpetuousYouth(message, html);
 		expect(html.querySelector(".stonetop-give-it-all-btn")).toBeNull();
 	});
 });

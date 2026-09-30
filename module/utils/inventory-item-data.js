@@ -217,11 +217,29 @@ export function inventoryItemFormValues(itemData) {
 }
 
 /**
- * `flags.stonetop.<this>`: the GM has edited this item's write-up by hand, so the book's text
- * must not be poured back in (SeedItems backfillTreasureWriteups). Carried through a drop by
- * addDroppedInventoryItem, since the back-fill also walks the copies on sheets.
+ * `flags.stonetop.<this>`: the GM wrote or edited this item's write-up by hand, so the book's
+ * text must not be poured back in (SeedItems backfillTreasureWriteups). Stamped when the
+ * treasure dialog creates an item and when its edit changes the write-up; carried through a
+ * drop by addDroppedInventoryItem, since the back-fill also walks the copies on sheets.
  */
 export const WRITEUP_EDITED_FLAG = "writeupEdited";
+
+/** A write-up's words, markup and spacing aside, so an editor's re-serialization is not an edit. */
+const writeupText = html => decodeEntities(String(html ?? "").replace(/<[^>]*>/g, "")).replace(/\s+/g, " ").trim();
+
+/**
+ * The create payload for an item authored in the treasure dialog: buildInventoryItemData, plus
+ * WRITEUP_EDITED_FLAG when the form carries a write-up. A treasure the GM makes is theirs from
+ * the start, a write-up left blank included; one that shares a catalog entry's name must not
+ * have the book's text filled in on the next load.
+ *
+ * @param {object} input  as for buildInventoryItemData
+ */
+export function inventoryItemCreateData(input) {
+	const data = buildInventoryItemData(input);
+	if (input?.artifact) data.flags = { [ITEM_FLAG_SCOPE]: { [WRITEUP_EDITED_FLAG]: true } };
+	return data;
+}
 
 // The gear keys a treasure mirrors into flags (see treasureItemData). readInventoryItemData
 // reads the flag FIRST, so an edit that rewrote only `system` would be shadowed by the stale
@@ -248,7 +266,10 @@ export function inventoryItemUpdateData(itemData, input) {
 		weight:     sys.weight ?? 1,
 		note:       sys.note ?? "",
 		resource:   sys.resource ?? null,
-		armor:      sys.armor ?? null,
+		// Both keys, the unused one null: an update merges into the stored object, so {base: 2}
+		// written over {modifier: 1} kept the 1 and the item stacked to 3. calculateArmor and the
+		// readout read a null key as absent.
+		armor:      sys.armor ? { base: sys.armor.base ?? null, modifier: sys.armor.modifier ?? null } : null,
 		shield:     !!sys.shield,
 		resourceFirst: !!sys.resourceFirst,
 	};
@@ -261,9 +282,12 @@ export function inventoryItemUpdateData(itemData, input) {
 		system.artifactLead  = sys.artifactLead ?? "";
 	}
 	const update = { name: built.name, system };
-	// The write-up is now the GM's, even if they cleared it: backfillTreasureWriteups refills a
-	// BLANK write-up by name on every load, and must not put back one taken out on purpose.
-	if (input.artifact) update[`flags.${ITEM_FLAG_SCOPE}.${WRITEUP_EDITED_FLAG}`] = true;
+	// A write-up the GM changed is now theirs, even if they cleared it: backfillTreasureWriteups
+	// refills a BLANK write-up by name, and must not put back one taken out on purpose. Only when
+	// it changed: an edit to the Value alone leaves a blank write-up open to the book's text.
+	if (input.artifact && writeupText(input.artifact.lore) !== writeupText(readInventoryItemData(itemData).artifact.lore)) {
+		update[`flags.${ITEM_FLAG_SCOPE}.${WRITEUP_EDITED_FLAG}`] = true;
+	}
 	// Blank means "not this form's call". To CLEAR the art, the caller passes Foundry's default
 	// icon: the img field is not nullable, and that path is what isDefaultImg reads as "none".
 	if (input.img) update.img = input.img;

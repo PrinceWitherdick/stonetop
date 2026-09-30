@@ -149,6 +149,12 @@ describe("the schema round-trip", () => {
 			.toEqual([{ prompt: "Who built it?", answer: "" }]);
 	});
 
+	it("keeps every face of a table run longer than one row may cover", () => {
+		const rows = [...Array(30).fill("Nothing"), "A wolf"];
+		const sel = seedFromPage({ name: "Tomb", system: { randomTables: [{ caption: "Encounters", rows }] } });
+		expect(on({ ...blankSel(), ...sel })._seed().randomTables[0].rows).toEqual(rows);
+	});
+
 	it("carries a list added to the schema alone, with nothing else edited", () => {
 		SITE_PAIR_LISTS.hooks = { keys: ["trigger", "effect"] };
 		try {

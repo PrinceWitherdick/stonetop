@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "<em>close</em>, <em>thrown</em>, magical, beautiful, 1 <em>piercing</em>",
+    "note": "<em>close</em>, <em>thrown</em>, <em>magical</em>, <em>beautiful</em>, 1 <em>piercing</em>",
     "isTreasure": true,
     "artifactLore": "<p>The haft needs replacing, but the spearhead itself is pristine, beautiful, sharp as hot flame. When you strike a perversion of nature with the spear, deal +1d4 damage. When you strike a perversion of nature and roll max damage (including any bonus dice), deal another +1d4 damage as the spearhead flares and melts into worthless slag.</p>"
   },
@@ -17,7 +17,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "<em>close</em>, <em>thrown</em>, magical, beautiful, 1 <em>piercing</em>"
+      "note": "<em>close</em>, <em>thrown</em>, <em>magical</em>, <em>beautiful</em>, 1 <em>piercing</em>"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",

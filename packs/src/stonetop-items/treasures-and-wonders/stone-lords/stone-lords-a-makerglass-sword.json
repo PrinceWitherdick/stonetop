@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "<em>close</em>, <em>messy</em>, indestructible, beautiful, <em>+1 damage</em>, 2 <em>piercing</em>, Value 3",
+    "note": "<em>close</em>, <em>messy</em>, <em>indestructible</em>, <em>beautiful</em>, <em>+1 damage</em>, 2 <em>piercing</em>, Value 3",
     "isTreasure": true
   },
   "flags": {
@@ -16,7 +16,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "<em>close</em>, <em>messy</em>, indestructible, beautiful, <em>+1 damage</em>, 2 <em>piercing</em>, Value 3"
+      "note": "<em>close</em>, <em>messy</em>, <em>indestructible</em>, <em>beautiful</em>, <em>+1 damage</em>, 2 <em>piercing</em>, Value 3"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",

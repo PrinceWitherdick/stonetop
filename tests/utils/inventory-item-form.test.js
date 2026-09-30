@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
 	buildInventoryItemData, composeInventoryNote, splitInventoryNote,
-	inventoryItemFormValues, inventoryItemUpdateData, readInventoryItemData,
+	inventoryItemCreateData, inventoryItemFormValues, inventoryItemUpdateData, readInventoryItemData,
 } from "../../module/utils/inventory-item-data.js";
 import { wrapGearNoteTerms, buildUsesResource } from "../../module/utils/gear-note.js";
 import { treasureItemData } from "../../module/utils/treasure-drops.js";
@@ -84,6 +84,17 @@ describe("inventoryItemFormValues", () => {
 	});
 });
 
+describe("inventoryItemCreateData", () => {
+	it("marks a treasure's write-up as the GM's from the start, blank or not", () => {
+		expect(inventoryItemCreateData({ name: "An old bronze dagger", isTreasure: true, artifact: { lore: "" } }).flags)
+			.toEqual({ stonetop: { writeupEdited: true } });
+	});
+
+	it("adds no flags to plain gear", () => {
+		expect(inventoryItemCreateData({ name: "Rope" })).not.toHaveProperty("flags");
+	});
+});
+
 describe("inventoryItemUpdateData", () => {
 	it("clears what the new input leaves out, since an update merges", () => {
 		const item = buildInventoryItemData({
@@ -115,9 +126,30 @@ describe("inventoryItemUpdateData", () => {
 	});
 
 	it("marks a write-up the form edited, so the load-time back-fill leaves it be", () => {
-		const item = buildInventoryItemData({ name: "Ring", isTreasure: true });
+		const item = buildInventoryItemData({ name: "Ring", isTreasure: true, artifact: { lore: "<p>It hums.</p>" } });
 		expect(inventoryItemUpdateData(item, { name: "Ring", isTreasure: true, artifact: { lore: "" } })["flags.stonetop.writeupEdited"]).toBe(true);
+		expect(inventoryItemUpdateData(item, { name: "Ring", isTreasure: true, artifact: { lore: "<p>It sings.</p>" } })["flags.stonetop.writeupEdited"]).toBe(true);
 		expect(inventoryItemUpdateData(item, { name: "Ring" })).not.toHaveProperty(["flags.stonetop.writeupEdited"]);
+	});
+
+	it("leaves the flag off when the write-up did not change, so a blank one can still be filled", () => {
+		const blank = buildInventoryItemData({ name: "Ring", isTreasure: true });
+		expect(inventoryItemUpdateData(blank, { name: "Ring", isTreasure: true, note: "Value 3", artifact: { lore: "" } }))
+			.not.toHaveProperty(["flags.stonetop.writeupEdited"]);
+		// The editor re-serializing the same words is not an edit either.
+		const written = buildInventoryItemData({ name: "Ring", isTreasure: true, artifact: { lore: "<p>It hums.</p>" } });
+		expect(inventoryItemUpdateData(written, { name: "Ring", isTreasure: true, artifact: { lore: "<p>It  hums.</p>\n" } }))
+			.not.toHaveProperty(["flags.stonetop.writeupEdited"]);
+	});
+
+	it("replaces the armor whole, since an update merges into the stored object", () => {
+		const bonus = buildInventoryItemData({ name: "Mail", armor: { modifier: 1 } });
+		expect(inventoryItemUpdateData(bonus, { name: "Mail", armor: { base: 2 } }).system.armor).toEqual({ base: 2, modifier: null });
+		const worn = buildInventoryItemData({ name: "Mail", armor: { base: 2 } });
+		expect(inventoryItemUpdateData(worn, { name: "Mail", armor: { modifier: 1 } }).system.armor).toEqual({ base: null, modifier: 1 });
+		// And the flag mirror a treasure reads first gets the same whole object.
+		const mirrored = { ...worn, flags: { stonetop: { armor: { base: 2 } } } };
+		expect(inventoryItemUpdateData(mirrored, { name: "Mail", armor: { modifier: 1 } })["flags.stonetop.armor"]).toEqual({ base: null, modifier: 1 });
 	});
 
 	it("edits an official catalog item through its flags, leaving its catalog keys alone", () => {

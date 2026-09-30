@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "beautiful, Value 4",
+    "note": "<em>beautiful</em>, Value 4",
     "isTreasure": true,
     "artifactLore": "<p>if placed in a fire or otherwise heated, it hums beautiful, haunting notes</p>"
   },
@@ -17,7 +17,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "beautiful, Value 4"
+      "note": "<em>beautiful</em>, Value 4"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",

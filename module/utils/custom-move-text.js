@@ -14,10 +14,19 @@
 import { escHtml } from "./strings.js";
 
 // Longest run first, so ***x*** is bold italic rather than *(**x**)*. A run never spans a line.
+//
+// A run opens only on an asterisk with no letter or asterisk before it and a non-space after,
+// and closes only on one with a non-space before and no letter or asterisk after, as Markdown
+// reads `_`. So the asterisks in "d6 * 2, or d4 * 3" stay multiplication, not an italic span.
+// Bold may hold a single asterisk, so "**When you *really* try**" nests: the bold wraps the
+// still-asterisked italic, and the italic pass then finds it inside.
+const _OPEN = String.raw`(?<![\p{L}\p{N}_*])`;
+const _CLOSE = String.raw`(?![\p{L}\p{N}_*])`;
+const _run = (marks, body) => new RegExp(`${_OPEN}${marks}(?=[^\\s*])(${body}?)(?<=\\S)${marks}${_CLOSE}`, "gu");
 const _EMPHASIS = [
-	[/\*\*\*([^*\n]+?)\*\*\*/g, "<strong><em>$1</em></strong>"],
-	[/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>"],
-	[/\*([^*\n]+?)\*/g, "<em>$1</em>"],
+	[_run(String.raw`\*\*\*`, String.raw`[^*\n]+`), "<strong><em>$1</em></strong>"],
+	[_run(String.raw`\*\*`, String.raw`(?:[^*\n]|\*(?!\*))+`), "<strong>$1</strong>"],
+	[_run(String.raw`\*`, String.raw`[^*\n]+`), "<em>$1</em>"],
 ];
 
 function _emphasis(escaped) {

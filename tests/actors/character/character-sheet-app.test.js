@@ -1875,7 +1875,8 @@ describe("StonetopCharacterSheet Death's Door card past the Door", () => {
 		for (const [slug, move] of [["revenant", "Undying"], ["thrall", "Dark Succor"], ["ghost", "Tethered"]]) {
 			const sheet = makeCardSheet(slug, { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
 			await sheet._onDeathsDoorClear();
-			expect(sheet._stonetopCharacter.restoreHp, slug).toHaveBeenCalledWith(8, move, { clearsDeathsDoor: true });
+			// Unhalved: a return is not a heal, so Torment's Blessing leaves it alone (the user's ruling, 2026-09-30).
+			expect(sheet._stonetopCharacter.restoreHp, slug).toHaveBeenCalledWith(8, move, { clearsDeathsDoor: true, unhalved: true });
 			expect(sheet._stonetopCharacter.setDeathsDoorState, slug).not.toHaveBeenCalled();
 		}
 	});
@@ -1886,6 +1887,15 @@ describe("StonetopCharacterSheet Death's Door card past the Door", () => {
 		expect(revenant.hint.text).toContain("8 HP");
 		const ghost = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION }));
 		expect(ghost.action.label).toBe("Reform at your tether");
+	});
+
+	// The return is not a heal (the user's ruling, 2026-09-30): Torment's Blessing leaves it at a full half.
+	it("promises a Thrall with Torment's Blessing the full half, unhalved", () => {
+		const sheet = makeCardSheet("thrall", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+		sheet.actor.flags = { "stonetop-pwd": {
+			postDeathInsert: { slug: "thrall" }, postDeathLore: { counts: { "marks:torments-blessing": 1 } },
+		} };
+		expect(card(sheet).hint.text).toContain("8 HP");
 	});
 
 	it("still only clears the state for the living, and for a `dead` being undone", async () => {
@@ -2050,12 +2060,11 @@ describe("StonetopCharacterSheet Post-Death tab controls", () => {
 
 	it("puts the Final Consequence's box back when the question is declined", async () => {
 		const { sheet, char } = makePdiSheet();
-		char.markSectionOptionUpdateData = vi.fn(() => ({ x: 1 }));
-		char.deathsDoorStateUpdateData = vi.fn(() => ({ y: 1 }));
-		char.restoreHp = vi.fn(async () => false);
+		char.finalConsequenceUpdateData = vi.fn(() => ({ x: 1 }));
+		char.applyUpdate = vi.fn(async () => {});
 		stubConfirm(false);
 		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "consequences", optionSlug: "final-consequence", idx: "0" } });
-		expect(char.restoreHp).not.toHaveBeenCalled();
+		expect(char.applyUpdate).not.toHaveBeenCalled();
 		expect(char.markSectionOption).not.toHaveBeenCalled();
 		// The re-render is what redraws the box unticked.
 		expect(sheet.render).toHaveBeenCalledWith(false);

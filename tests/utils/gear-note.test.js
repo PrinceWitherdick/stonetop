@@ -46,6 +46,13 @@ describe("gearNoteChips", () => {
 		expect(piercing.tooltip).toBe(GEAR_TERMS.piercing);
 	});
 
+	it("gives every chip a tooltip, so each one it inserts is also wrapped as a term", () => {
+		for (const chip of gearNoteChips()) {
+			expect(chip.tooltip, chip.insert).not.toBe("");
+			expect(wrapGearNoteTerms(chip.insert), chip.insert).toContain("<em>");
+		}
+	});
+
 	it("groups range, weapon-tag, bonus and quality chips", () => {
 		const groups = new Set(gearNoteChips().map(c => c.group));
 		expect(groups).toEqual(new Set(["range", "tag", "bonus", "quality"]));

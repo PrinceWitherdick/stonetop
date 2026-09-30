@@ -236,6 +236,13 @@ describe("a roll card's HP button", () => {
 		};
 	}
 
+	// A GM Shift between 7-9 and 10+ draws the other tier's row; the blow already dealt is still the one owed.
+	it("latches a damage button once per card, whichever tier it sits on", () => {
+		const buttons = tierDamageButtons(shipped("thrall", "torments-blessing").system.moveResults, { move: TORMENTS_BLESSING });
+		expect(buttons.success).toContain('data-key="move-damage"');
+		expect(buttons.partial).toContain('data-key="move-damage"');
+	});
+
 	it("loses the HP once and latches on the card", async () => {
 		const { actor } = character();
 		const message = card();
