@@ -35,6 +35,9 @@ export function buildCustomMoveData(input) {
 		: null;
 
 	const intIn = (v) => clampInt(v, 0, 99);
+	// A printed prerequisite, kept as the book words it ({ note } is what requirementLabel reads).
+	// null, not {}, when there is none: a whole-object update has to be able to clear it.
+	const requires = String(input?.requires ?? "").replace(/\s+/g, " ").trim();
 	return {
 		name: String(input?.name ?? "").trim() || "New Move",
 		system: {
@@ -43,6 +46,7 @@ export function buildCustomMoveData(input) {
 			rollType,
 			moveResults,
 			resource,
+			requirement: requires ? { note: requires } : null,
 			noXpOnMiss: !!input?.noXpOnMiss,
 			hpBonus:   intIn(input?.hpBonus),
 			armorBonus: intIn(input?.armorBonus),

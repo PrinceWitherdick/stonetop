@@ -131,6 +131,7 @@ export class CustomMoveDialog extends StonetopDialog {
 			atLast:  activeIndex === SECTIONS.length - 1,
 			name: this._item?.name ?? "",
 			description: customMoveDescriptionToPlainText(sys.description),
+			requires: sys.requirement?.note ?? "",
 			rollOptions,
 			hasRoll: rollType !== "",
 			results: {
@@ -224,6 +225,7 @@ export class CustomMoveDialog extends StonetopDialog {
 		const input = {
 			name,
 			description: val("[name=description]"),
+			requires: val("[name=requires]"),
 			rollType: val("[name=rollType]"),
 			results: {
 				success: val("[name=success]"),

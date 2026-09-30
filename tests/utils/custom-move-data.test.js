@@ -83,3 +83,15 @@ describe("clampInt", () => {
 		expect(clampInt(99, 0, 10)).toBe(10);
 	});
 });
+
+describe("buildCustomMoveData requirement", () => {
+	it("keeps a printed prerequisite as the note requirementLabel reads", () => {
+		expect(buildCustomMoveData({ name: "Commune with Aratis", requires: "  Prophet   background " }).system.requirement)
+			.toEqual({ note: "Prophet background" });
+	});
+
+	it("is null (so an edit can clear it) when there is none", () => {
+		expect(buildCustomMoveData({ name: "x", requires: "   " }).system.requirement).toBe(null);
+		expect(buildCustomMoveData({ name: "x" }).system.requirement).toBe(null);
+	});
+});

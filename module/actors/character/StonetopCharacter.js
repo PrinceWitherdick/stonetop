@@ -1741,6 +1741,9 @@ export class StonetopCharacter {
 					.withRollType(normalizeRollType(i.system?.rollType))
 					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 					.withSourceLabel(origin && origin !== ownPlaybook ? origin : null)
+					// What the move printed as its prerequisite, for reading: an Other Move is
+					// already learned, so nothing is checked against it here.
+					.withRequiresLabel(requirementLabel(i.system?.requirement, { replaces: i.system?.replaces || null }))
 					.withCustom(_isCustomMove(i))
 					.withLearned(moveLearnedIn(i, this._actor.items))
 					.withResourceKey(resourceKey)

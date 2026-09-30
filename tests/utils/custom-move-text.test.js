@@ -24,6 +24,21 @@ describe("formatCustomMoveDescription", () => {
 		expect(formatCustomMoveDescription("a < b & c > d")).toBe("<p>a &lt; b &amp; c &gt; d</p>");
 	});
 
+	it("prints the book's bold-italic trigger from asterisks, and nothing else as markup", () => {
+		expect(formatCustomMoveDescription("When you ***commune***, roll +WIS: **on a 10+**, *she* speaks"))
+			.toBe("<p>When you <strong><em>commune</em></strong>, roll +WIS: <strong>on a 10+</strong>, <em>she</em> speaks</p>");
+		// Emphasis wraps ESCAPED text: a tag inside asterisks is still just text.
+		expect(formatCustomMoveDescription("***<img src=x onerror=alert(1)>***"))
+			.toBe("<p><strong><em>&lt;img src=x onerror=alert(1)&gt;</em></strong></p>");
+		// A lone asterisk, or one pair split by a line, is left as typed.
+		expect(formatCustomMoveDescription("2 * 3\nand *this\none*")).toBe("<p>2 * 3<br>and *this<br>one*</p>");
+	});
+
+	it("round-trips emphasised text through the edit form", () => {
+		const typed = "When you ***act***, roll +INT: **on a 7+**, *choose 1*.\n\nThen rest.";
+		expect(customMoveDescriptionToPlainText(formatCustomMoveDescription(typed))).toBe(typed);
+	});
+
 	it("neutralizes script/handler injection attempts", () => {
 		const out = formatCustomMoveDescription("<img src=x/onerror=alert(1)>");
 		expect(out).not.toContain("<img");
@@ -62,8 +77,11 @@ describe("customMoveDescriptionToPlainText", () => {
 		}
 	});
 
-	it("strips stray tags and unescapes entities", () => {
-		expect(customMoveDescriptionToPlainText("<p>hi <strong>there</strong></p>")).toBe("hi there");
+	it("types bold and italic back as asterisks, and strips any other tag", () => {
+		expect(customMoveDescriptionToPlainText("<p>hi <strong>there</strong></p>")).toBe("hi **there**");
+		expect(customMoveDescriptionToPlainText("<p>When you <strong><em>act</em></strong>, <em>roll</em></p>")).toBe("When you ***act***, *roll*");
+		expect(customMoveDescriptionToPlainText("<p>When you <em><strong>act</strong></em></p>")).toBe("When you ***act***");
+		expect(customMoveDescriptionToPlainText("<p>hi <span class=\"x\">there</span></p>")).toBe("hi there");
 		expect(customMoveDescriptionToPlainText("")).toBe("");
 		expect(customMoveDescriptionToPlainText(null)).toBe("");
 	});
