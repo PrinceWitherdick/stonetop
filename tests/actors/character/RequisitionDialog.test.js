@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { RequisitionDialog } from "../../../module/actors/character/dialogs/RequisitionDialog.js";
 import { STEADING_DEFAULTS } from "../../../module/actors/steading/StonetopSteading.js";
 
-function makeDialog(assets) {
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+
+function makeDialog(assets, items = []) {
 	const steadingActor = {
 		name: "Stonetop",
 		system: {},
@@ -12,11 +17,13 @@ function makeDialog(assets) {
 	};
 	return new RequisitionDialog(
 		{ addCustomInventoryItem: vi.fn() },
-		{ id: "hero1", name: "Wren", getFlag: vi.fn(), update: vi.fn() },
+		{ id: "hero1", name: "Wren", type: "character", items, getFlag: vi.fn(), update: vi.fn() },
 		steadingActor,
 		vi.fn()
 	);
 }
+
+const logistics = (learned = true) => ({ type: "move", name: "Logistics", flags: learned ? {} : { "stonetop_pwd": { learned: false } } });
 
 function makeRoot(elements) {
 	return {
@@ -56,5 +63,20 @@ describe("RequisitionDialog", () => {
 		});
 
 		expect(dialog._getChosenAsset(root)).toEqual({ index: 0, name: STEADING_DEFAULTS.assets[0].name });
+	});
+
+	// The Marshal's Logistics: "when you Requisition, you have advantage".
+	it("asks the Logistics line for a character who has it learned, and only them", () => {
+		expect(makeDialog([], [logistics()]).getData().logistics).toBe("Logistics (Wren): they are the one Requisitioning, advantage");
+		expect(makeDialog([], [logistics(false)]).getData().logistics).toBe("");
+		expect(makeDialog([], []).getData().logistics).toBe("");
+	});
+
+	it("renders the Logistics line pre-ticked, and reads it back as the roll's answer", () => {
+		const hbs = fs.readFileSync(path.resolve(HERE, "../../../templates/dialogs/requisition-picker.hbs"), "utf8");
+		expect(hbs).toMatch(/name="logistics" checked>/);
+		const dialog = makeDialog([]);
+		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: true } }))).toEqual({ herdShare: false, logistics: true });
+		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: false } }))).toEqual({ herdShare: false, logistics: false });
 	});
 });

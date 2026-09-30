@@ -101,6 +101,19 @@ export class CharacterPostDeath {
 		return true;
 	}
 
+	/**
+	 * Take a crossing-off back: the GM's control for a Mark crossed off by mistake. The book never
+	 * un-crosses one ("you can never gain it"), so this is a correction, not a rule. The last one
+	 * going unsets the flag rather than leaving an empty list behind, as pruneToInsert does.
+	 */
+	async restoreCrossedOffMark(slug) {
+		if (!slug || !this.crossedOffMarks.includes(slug)) return false;
+		const rest = this.crossedOffMarks.filter(s => s !== slug);
+		if (rest.length) await this._insertFlags.setFlag("crossedOff", rest);
+		else await this._insertFlags.unsetFlag("crossedOff");
+		return true;
+	}
+
 	/** Which of those slugs one section is entitled to read — see MARKS_SECTION. */
 	_crossedOffIn(sectionSlug) {
 		return sectionSlug === MARKS_SECTION ? this.crossedOffMarks : [];
@@ -109,6 +122,13 @@ export class CharacterPostDeath {
 	/** "Your master gives you a task; until you complete it, your Favor stays at 0." */
 	get masterTask()          { return this._insertFlags.getFlag("task") ?? ""; }
 	async setMasterTask(text) { await this._insertFlags.setFlag("task", String(text ?? "").trim()); }
+
+	/** The task done: unset, not written blank, so no empty record outlives it. False when none stood. */
+	async clearMasterTask() {
+		if (this._insertFlags.getFlag("task") == null) return false;
+		await this._insertFlags.unsetFlag("task");
+		return true;
+	}
 
 	/**
 	 * The Ghost's tether: "Choose something to which you are bound: your mortal remains, the
@@ -301,6 +321,36 @@ export class CharacterPostDeath {
 		return true;
 	}
 
+	// ── The same writes as `actor.update()` fragments ─────────────────────────
+	// For a 0-HP move that has to land its costs, its hit points and the end of dying in ONE write
+	// (UndeathDialog#_onApply): as a run of separate writes a reload between them left a Revenant
+	// marked and maimed but still dying, or back up with the costs unpaid. Each answers null where its
+	// writing twin above would refuse, so the caller can tell what the write will actually change.
+
+	/** markSectionOption as a fragment; null when the option is missing or already marked. */
+	markSectionOptionUpdateData(sectionSlug, optionSlug) {
+		if (!optionSlug || this._lore.getCount(sectionSlug, optionSlug) > 0) return null;
+		return this._lore.countUpdateData(sectionSlug, optionSlug, 1);
+	}
+
+	/** crossOffMark as a fragment; null when the slug is missing or already crossed off. */
+	crossOffMarkUpdateData(slug) {
+		if (!slug || this.crossedOffMarks.includes(slug)) return null;
+		return this._insertFlags.updateData("crossedOff", [...this.crossedOffMarks, slug]);
+	}
+
+	/** setMasterTask as a fragment. */
+	masterTaskUpdateData(text) { return this._insertFlags.updateData("task", String(text ?? "").trim()); }
+
+	/** setTether as a fragment. */
+	tetherUpdateData(text) { return this._insertFlags.updateData("tether", String(text ?? "").trim()); }
+
+	/** setFavor as a fragment, clamped the same way. */
+	favorUpdateData(value) {
+		const { entry, option } = this._rollTrack();
+		return this._lore.countUpdateData(entry, option, clampInt(value, 0, 3));
+	}
+
 	/**
 	 * Where this insert's roll track lives in its lore, if it has one — the Thrall's Favor is
 	 * the only such track today, and its coordinates are the resolution table's to state (see
@@ -339,7 +389,9 @@ export class CharacterPostDeath {
 		if (slug) {
 			const data = await this._insertRepo.findBySlug(slug);
 			if (data) {
-				const moves   = await this._moveRepo.getPostDeathMoves(slug);
+				// The insert's own moves: a Consequence's or Mark's (Poltergeist) is the character's only
+				// while marked, and is on the sheet as an owned move when it is (post-death-moves.js).
+				const moves   = (await this._moveRepo.getPostDeathMoves(slug)).filter(m => !m.loreOption);
 				const crossed = this.crossedOffMarks;
 				// An insert whose 0-HP move disperses them binds them to a tether: it's what
 				// they reform beside. The resolution table says which insert that is (the

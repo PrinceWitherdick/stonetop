@@ -10,6 +10,7 @@
 // resolve here exactly as they do on the sheet.
 import { buildTrackVM, enrichTrackVM } from "../timeline/timeline-view.js";
 import { sortEntries } from "../timeline/timeline-core.js";
+import { adoptInlineViewRoot } from "./inline-page-view.js";
 
 export function createStonetopTimelinePageSheetClass(Base) {
 	return class StonetopTimelinePageSheet extends Base {
@@ -50,7 +51,7 @@ export function createStonetopTimelinePageSheetClass(Base) {
 			// The embedded view is rendered by the journal, which never sets `_element`; point it at
 			// our root so anything querying this sheet works in both modes. Same line, same reason,
 			// as the location page sheet.
-			this._element = html;
+			adoptInlineViewRoot(this, html);
 		}
 	};
 }

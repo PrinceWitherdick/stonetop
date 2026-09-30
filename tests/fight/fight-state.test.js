@@ -108,6 +108,20 @@ describe("reading a fight", () => {
 		const fine = fakeActor({ id: "b", type: "monster", system: { attributes: { hp: { value: 6, max: 6 } } } });
 		expect(combatantBodies(fakeCombatant({ id: "c2", token: fakeToken({ id: "t2", actor: fine }), scene, defeated: true })).out).toBe(true);
 	});
+
+	// Unstoppable: "When you are reduced to 0 HP in battle, you can keep fighting", until they roll
+	// Death's Door. Only a Heavy who has the move learned and has not rolled yet.
+	it("still counts a Heavy fighting on at 0 HP with Unstoppable", () => {
+		const scene = fakeScene();
+		const heavy = (flags, learned = true) => ({
+			...fakeActor({ id: "h", type: "character", flags: { [SYSTEM_ID]: flags }, system: { attributes: { hp: { value: 0, max: 20 } } } }),
+			items: [{ type: "move", name: "Unstoppable", flags: learned ? {} : { [SYSTEM_ID]: { learned: false } } }],
+		});
+		const bodies = actor => combatantBodies(fakeCombatant({ id: "c", token: fakeToken({ id: "t", actor }), scene }));
+		expect(bodies(heavy({ deathsDoor: "dying" }))).toMatchObject({ bodies: 1, out: false });
+		expect(bodies(heavy({ deathsDoor: "dying" }, false)).out).toBe(true);
+		expect(bodies(heavy({ deathsDoor: "out-of-action" })).out).toBe(true);
+	});
 });
 
 describe("what each viewer counts", () => {

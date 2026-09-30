@@ -5,6 +5,13 @@ const HOSTILE = -1;
 const NEUTRAL = 0;
 const FRIENDLY = 1;
 
+describe("bodiesFor someone at 0 HP", () => {
+	it("is out, unless they keep fighting (Unstoppable)", () => {
+		expect(bodiesFor({ type: "character", hp: { value: 0, max: 20 } }).out).toBe(true);
+		expect(bodiesFor({ type: "character", hp: { value: 0, max: 20 }, keepsFighting: true })).toMatchObject({ bodies: 1, out: false });
+	});
+});
+
 describe("bodiesFor a group follower", () => {
 	it("counts the members its character's roster has still standing, and routs it at none", () => {
 		expect(bodiesFor({ type: "npc", roster: { standing: 4, size: 6 } })).toEqual({ bodies: 4, out: false, group: true, standing: 4, size: 6, routed: false });

@@ -6,6 +6,9 @@ import { markValueTooltips } from "../utils/value-tooltips.js";
 import { markDebilityTooltips } from "../utils/debility-tooltips.js";
 import { applyTreasureDrops } from "../utils/treasure-drops.js";
 import { isInCompendium, blockCompendiumEdit } from "../utils/compendium-edit-guard.js";
+import { adoptInlineViewRoot, holdRenderWhileTyping, keepTypingAcrossRedraw } from "./inline-page-view.js";
+import { patchChangesSection, queuePageWrite } from "./page-writes.js";
+import { sameProse } from "../utils/same-prose.js";
 
 // Edit affordances on the location page; clicking any of these in a compendium gets
 // the immutable-journal dialog instead of mutating the read-only document.
@@ -43,6 +46,13 @@ export function createStonetopLocationPageSheetClass(Base) {
 		}
 
 		get _editMode() { return this.isEditable || this._editingSections.size > 0; }
+
+		// Each field saves on blur, and the save redraws the popout. Held while typing, so
+		// clicking from one answer into the next doesn't wipe the second.
+		render(force = false, options = {}) {
+			if (holdRenderWhileTyping(this, force)) return this;
+			return super.render(force, options);
+		}
 
 		// Compendium journals are immutable reference content — never editable in place,
 		// regardless of the pack's lock state. Edit attempts are redirected to a dialog
@@ -155,11 +165,40 @@ export function createStonetopLocationPageSheetClass(Base) {
 
 		// Replace one section with `{...section, ...patch}`, persisting the whole
 		// sections array (ArrayField updates are whole-array).
-		async _patchSection(index, patch) {
-			const sections = foundry.utils.deepClone(this.document.system.sections ?? []);
-			if (!sections[index]) return;
-			Object.assign(sections[index], patch);
-			await this.document.update({ "system.sections": sections });
+		//
+		// Queued per page, and the array cloned when the write's turn comes: closing the
+		// popout saves every always-on editor at once, and a write built before an earlier
+		// one landed put that one's field back (see queuePageWrite). A patch that changes
+		// nothing is not written, so opening and closing an untouched book page leaves it
+		// pristine for the managed journal updates.
+		_patchSection(index, patch) {
+			return queuePageWrite(this.document, async () => {
+				const sections = foundry.utils.deepClone(this.document.system.sections ?? []);
+				if (!sections[index] || !patchChangesSection(sections[index], patch)) return;
+				Object.assign(sections[index], patch);
+				await this.document.update({ "system.sections": sections });
+			});
+		}
+
+		// ONE Dangers entry's body, laid onto the entries as they are stored when the write's
+		// turn comes. An always-on editor saves when the view it sits in is taken away, and
+		// after an Add or a Remove that view is the one from BEFORE it: reading every entry
+		// back off it put the old list back and undid the Add. The editor knows which entry it
+		// was drawn for (`drawn`, its `data-drawn-value`), so the body goes to that entry
+		// wherever it sits now, nowhere if it has gone, and not at all if it is only
+		// ProseMirror's own rewording of what is stored. Without `drawn`, its own row.
+		_patchGroupBody(index, row, body, drawn) {
+			return queuePageWrite(this.document, async () => {
+				const sections = foundry.utils.deepClone(this.document.system.sections ?? []);
+				const groups = sections[index]?.groups;
+				if (!Array.isArray(groups)) return;
+				const at = drawn === undefined || sameProse(groups[row]?.body, drawn)
+					? row
+					: groups.findIndex(g => sameProse(g?.body, drawn));
+				if (!groups[at] || sameProse(body, groups[at].body)) return;
+				groups[at] = { ...groups[at], body };
+				await this.document.update({ "system.sections": sections });
+			});
 		}
 
 		// Rebuild a repeatable-row section's entries from its live edit inputs: walk the
@@ -182,8 +221,11 @@ export function createStonetopLocationPageSheetClass(Base) {
 
 		// Rebuild a `groups` (Dangers) section's entries from its current edit inputs:
 		// each row's title field + the live HTML of its always-active ProseMirror body.
+		// By the row's class, not `[data-group-index]`: the body editor inside each row
+		// carries that attribute too (the change handler reads it), so every entry was read
+		// twice, the second time blank, and each save wrote a blank entry after every one.
 		_readGroups(root, index) {
-			return this._readRows(root, index, "[data-group-index]", {
+			return this._readRows(root, index, ".stonetop-entry-group-row", {
 				heading: ".stonetop-entry-group-heading",
 				body:    ".stonetop-entry-group-body",
 			});
@@ -192,9 +234,11 @@ export function createStonetopLocationPageSheetClass(Base) {
 		activateListeners(html) {
 			super.activateListeners(html);
 			// The embedded view sheet is rendered by the journal, which never sets
-			// `_element`; point it at our root so queries work in both modes.
-			this._element = html;
+			// `_element`; point it at our root so queries work in both modes. Popped out, the
+			// window keeps its frame, or Close strands the title bar on screen.
+			adoptInlineViewRoot(this, html);
 			const root = html[0];
+			keepTypingAcrossRedraw(this, root);
 			// Make the requirement/option check-lists tickable in view mode. The custom
 			// page sheet fires `renderStonetopLocationPageSheet`, not the journal render
 			// hooks that drive this elsewhere, so run the pass here. Before the owner
@@ -289,12 +333,18 @@ export function createStonetopLocationPageSheetClass(Base) {
 
 				const editor = t.closest(".stonetop-entry-rich-editor");
 				if (editor) {
+					// Holding nothing but what it was drawn with, however ProseMirror words it, an
+					// editor has no edit to save; saving it anyway after a redraw would put back
+					// text somebody has since changed. `data-drawn-value`, because the editor
+					// drops its own `value` attribute as soon as it has read it.
+					const drawn = editor.dataset.drawnValue;
+					if (drawn !== undefined && sameProse(editor.value, drawn)) return;
 					const index = Number(editor.dataset.sectionIndex);
-					// A grouped (Dangers) body editor carries data-group-index; persist the
-					// whole entry list so the matching title field rides along. A plain prose
-					// editor has no group index, so it patches the section body directly.
+					// A grouped (Dangers) body editor carries data-group-index and saves its own
+					// entry's body (see _patchGroupBody). A plain prose editor has no group index,
+					// so it patches the section body directly.
 					if (editor.dataset.groupIndex !== undefined) {
-						return this._patchSection(index, { groups: this._readGroups(root, index) });
+						return this._patchGroupBody(index, Number(editor.dataset.groupIndex), editor.value, drawn);
 					}
 					return this._patchSection(index, { body: editor.value });
 				}

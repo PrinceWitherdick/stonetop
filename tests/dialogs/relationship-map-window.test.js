@@ -60,6 +60,7 @@ const { listVisibleMapPages, mapBoardRole, readGraph } = await import("../../mod
 const { forgetAllHistory } = await import("../../module/relmap/relmap-history.js");
 const { dropNodePatch, edgePatch } = await import("../../module/relmap/relmap-store.js");
 const { RELMAP_SEAT_MIN } = await import("../../module/relmap/relmap-store.js");
+const { RELMAP_REACH_MAX, RELMAP_REACH_MIN } = await import("../../module/utils/relmap-geometry.js");
 const { RELMAP_BOARD_ASPECT, RELMAP_HEAD_PX, curveWithGap, edgeLabelAnchor } =
 	await import("../../module/utils/relmap-geometry.js");
 const { SEAT_STEP } = await import("../../module/utils/relmap-drag.js");
@@ -190,6 +191,9 @@ function windowFor(graph = TWO_PEOPLE, {
 	// constructor stands up beside that one. Its own map for the reason the class gives: the two
 	// flush into different halves of the graph.
 	app._pendingSeat = new Map();
+	// Who this reader has selected to move together, which the constructor stands up empty. See
+	// `_selected` on the class.
+	app._selected = [];
 	app.id = "stonetop-relmap-map1";
 	app._pageId = pageId;
 	app._pagesSaid = null;
@@ -493,14 +497,25 @@ describe("nudging a portrait from the keyboard", () => {
 		expect(app._isBusy()).toBe(false);
 	});
 
-	// A drag is bounded by the pointer; a held arrow key is bounded by nothing. Shown unclamped, the
-	// portrait would walk off the board and snap back the moment the write landed.
-	it("stops at the edge of the board rather than walking off it", () => {
+	// ⚠ THE SHEET IS NOT A WALL (user, 2026-09-27: "I run out of space for no reason"). It used to
+	// be one, and an invisible one: a portrait walked off it stopped at an edge nothing on screen
+	// showed. It may stand off the sheet now, as it may be dragged off it.
+	it("walks off the sheet as freely as it is dragged off it", () => {
 		const { app, portrait } = boardWithPortrait();
 		app._nudgeNode("elena", { x: 140, y: -20 });
-		expect(portrait.style.left).toBe("100%");
-		expect(portrait.style.top).toBe("0%");
-		expect(app._pendingNudge.get("elena")).toEqual({ x: 100, y: 0 });
+		expect(portrait.style.left).toBe("140%");
+		expect(portrait.style.top).toBe("-20%");
+		expect(app._pendingNudge.get("elena")).toEqual({ x: 140, y: -20 });
+	});
+
+	// A drag is bounded by the pointer; a held arrow key is bounded by nothing. Shown unclamped at
+	// the far rail, the portrait would walk past it and snap back the moment the write landed.
+	it("stops at the far rail rather than walking past it", () => {
+		const { app, portrait } = boardWithPortrait();
+		app._nudgeNode("elena", { x: RELMAP_REACH_MAX + 40, y: RELMAP_REACH_MIN - 20 });
+		expect(portrait.style.left).toBe(`${RELMAP_REACH_MAX}%`);
+		expect(portrait.style.top).toBe(`${RELMAP_REACH_MIN}%`);
+		expect(app._pendingNudge.get("elena")).toEqual({ x: RELMAP_REACH_MAX, y: RELMAP_REACH_MIN });
 	});
 
 	it("has nothing to write when no key was pressed", () => {
@@ -649,7 +664,7 @@ describe("the lines while a portrait is being dragged", () => {
 		const { app, line } = boardWithLine();
 		app._previewMove("elena", { x: 20, y: 70 });
 		const dragged = line.attrs.d;
-		app._endPreview("elena", { x: 20, y: 30 });
+		app._endPreview({ elena: { x: 20, y: 30 } });
 		expect(line.attrs.d).not.toBe(dragged);
 		expect(startOf(line.attrs.d)[1]).toBeLessThan(40);
 		expect(app._preview).toBeNull();
@@ -661,7 +676,7 @@ describe("the lines while a portrait is being dragged", () => {
 		const { app, line } = boardWithLine();
 		app._previewMove("elena", { x: 20, y: 70 });
 		const dragged = line.attrs.d;
-		app._endPreview("elena", null);
+		app._endPreview(null);
 		expect(line.attrs.d).toBe(dragged);
 		expect(app._preview).toBeNull();
 	});
@@ -1270,8 +1285,17 @@ describe("what a portrait says when it is rested on", () => {
 	// A bare name is not a sentence, and run straight into the instruction it reads as one broken
 	// one. The two tooltips that already end in a full stop must not collect a second.
 	it("puts a full stop between the two, and only where there is not one already", () => {
-		expect(tooltips().nobody).toBe("The Miller. Right-click to see the delete button.");
+		expect(tooltips().nobody).toBe(
+			"The Miller. Right-click to see the delete button. Shift-click to select several people and move them together.",
+		);
 		expect(tooltips().elena).not.toContain("..");
+	});
+
+	// SELECTING SEVERAL IS THE SAME KIND OF GESTURE, a modifier on a click with nothing on the board
+	// to suggest it, so it is named in the same breath -- and only to a reader who can move anybody.
+	it("names the Shift-click beside it, and only to a reader who can edit", () => {
+		expect(tooltips().elena).toContain("Shift-click");
+		expect(tooltips({ isOwner: false }).elena).not.toContain("Shift-click");
 	});
 
 	// AND NOT ON A BOARD THIS READER MAY ONLY LOOK AT, where the press does nothing: the trash can
@@ -2401,6 +2425,77 @@ describe("putting several people on the board at once", () => {
 		const { app, entry } = windowFor();
 		await app._addNodesFor(readGraph(app.boardDoc), []);
 		expect(entry.updates).toEqual([]);
+	});
+});
+
+describe("making a new person from the board", () => {
+	stubNotifications();
+	beforeEach(() => { globalThis.game.i18n = TABLE; });
+	const asGM = () => { globalThis.game.user = { id: "gm1", isGM: true }; };
+
+	const NEWCOMER = { uuid: "Actor.newt", name: "Newt", img: "newt.webp" };
+
+	it("seats the person the worksheet made, without opening their sheet", async () => {
+		asGM();
+		const { app, entry } = windowFor();
+		const create = vi.fn(async () => NEWCOMER);
+		await app._createPerson(create);
+		expect(create).toHaveBeenCalledWith({ openSheet: false });
+		expect(entry.updates).toHaveLength(1);
+		const values = Object.entries(entry.updates[0]);
+		expect(values.some(([key, value]) => key.endsWith(".uuid") && value === "Actor.newt")).toBe(true);
+	});
+
+	it("writes nothing when the worksheet is backed out of", async () => {
+		asGM();
+		const { app, entry } = windowFor();
+		await app._createPerson(async () => null);
+		expect(entry.updates).toEqual([]);
+	});
+
+	// Players make the people on their map too: the gate is Foundry's ACTOR_CREATE, which this
+	// system grants them, and not isGM.
+	describe("the gate is ACTOR_CREATE, not isGM", () => {
+		let was;
+		beforeEach(() => { was = globalThis.Actor; });
+		afterEach(() => { globalThis.Actor = was; });
+		const asPlayer = () => { globalThis.game.user = { id: "u1", isGM: false }; };
+
+		it("lets a player who may create actors make and seat one", async () => {
+			asPlayer();
+			globalThis.Actor = { canUserCreate: () => true };
+			const { app, entry } = windowFor();
+			await app._createPerson(async () => NEWCOMER);
+			expect(entry.updates).toHaveLength(1);
+			app._createPerson = vi.fn();
+			await app._onToolClick({ currentTarget: { dataset: { relmapAction: "create" } } });
+			expect(app._createPerson).toHaveBeenCalled();
+		});
+
+		// A world whose GM revoked the grant: the button is not rendered, and the tool refuses anyway.
+		it("does nothing for somebody who may not create actors, from the method or the button", async () => {
+			asPlayer();
+			globalThis.Actor = { canUserCreate: () => false };
+			const { app, entry } = windowFor();
+			const create = vi.fn(async () => NEWCOMER);
+			await app._createPerson(create);
+			app._createPerson = vi.fn();
+			await app._onToolClick({ currentTarget: { dataset: { relmapAction: "create" } } });
+			expect(create).not.toHaveBeenCalled();
+			expect(app._createPerson).not.toHaveBeenCalled();
+			expect(entry.updates).toEqual([]);
+		});
+	});
+
+	// The actor exists whatever the board did while the worksheet was up, so the notice must not
+	// say "nothing was changed": it names who was made and how to put them on.
+	it("says the person was made but not seated when the board changed under the worksheet", async () => {
+		asGM();
+		const entry = TWO_BOARDS();
+		const { app } = windowFor(null, { entry, pageId: "p1" });
+		await app._createPerson(async () => { app._pageId = "p2"; return NEWCOMER; });
+		expect(entry.pages.contents.every(page => page.updates.length === 0)).toBe(true);
+		expect(globalThis.ui.notifications.info).toHaveBeenCalledWith(expect.stringContaining("Newt"));
 	});
 });
 
@@ -4893,5 +4988,176 @@ describe("how heavily this reader wants the board drawn", () => {
 		await app._stepWeight(null);
 		expect(board.innerHTML).toBe("");
 		expect(stored[RELMAP_WEIGHT_SETTING]).toBeUndefined();
+	});
+});
+
+// ── SEVERAL PEOPLE AT ONCE (user, 2026-09-27: "select multiple people at once to move them") ───────
+//
+// The window's half of it: the list, the marks, the one write and the one preview. The gestures that
+// get here are tests/utils/relmap-selection.test.js's.
+describe("several people at once", () => {
+	beforeEach(() => {
+		forgetAllHistory();
+		globalThis.game.i18n = TABLE;
+	});
+	afterEach(() => forgetAllHistory());
+
+	const THREE = {
+		version: 1,
+		nodes: {
+			...TWO_PEOPLE.nodes,
+			marta: { uuid: null, name: "Marta", img: "", x: 50, y: 80, note: "" },
+		},
+		edges: TWO_PEOPLE.edges,
+	};
+
+	/** A root whose `querySelectorAll` answers with portraits, as the trash can's suite builds one. */
+	const boardOf = (app, ids = ["elena", "stefan", "marta"]) => {
+		const nodes = ids.map(id => el({ dataset: { relmapNode: id }, style: {} }));
+		app._root.all["[data-relmap-node]"] = nodes;
+		for (const [at, id] of ids.entries()) app._root.children[`[data-relmap-node="${id}"]`] = nodes[at];
+		return Object.fromEntries(nodes.map((node, at) => [ids[at], node]));
+	};
+	const marked = node => node.classList.contains("is-selected");
+
+	it("marks the people chosen and nobody else", () => {
+		const { app } = windowFor(THREE);
+		const nodes = boardOf(app);
+		app._select(["elena", "marta"]);
+		expect(marked(nodes.elena)).toBe(true);
+		expect(marked(nodes.marta)).toBe(true);
+		expect(marked(nodes.stefan)).toBe(false);
+		expect(app._selected).toEqual(["elena", "marta"]);
+	});
+
+	it("takes the marks off again when nobody is chosen", () => {
+		const { app } = windowFor(THREE);
+		const nodes = boardOf(app);
+		app._select(["elena"]);
+		app._select([]);
+		expect(marked(nodes.elena)).toBe(false);
+	});
+
+	// ⚠ A GHOST IN THE LIST WOULD BE CARRIED ALONG WITH EVERY GROUP DRAG. The repaint that follows
+	// somebody else taking a person off is where this is put right.
+	it("drops somebody no longer on the board from the list", () => {
+		const { app } = windowFor(THREE);
+		boardOf(app, ["elena", "stefan"]);
+		app._select(["elena", "marta"]);
+		expect(app._selected).toEqual(["elena"]);
+	});
+
+	it("says how many are chosen once it is final, and nothing on the frames of a box", () => {
+		const { app, live } = windowFor(THREE);
+		boardOf(app);
+		app._select(["elena", "marta"], { final: false });
+		expect(live.textContent ?? "").toBe("");
+		app._select(["elena", "marta"]);
+		expect(live.textContent).toBe(TABLE.format("stonetop.relmap.selection.count", { count: 2 }));
+		app._select([]);
+		expect(live.textContent).toBe(TABLE.localize("stonetop.relmap.selection.none"));
+	});
+
+	it("finds who is standing inside a box, off the paint", () => {
+		const { app } = windowFor(THREE);
+		app._drawn = { graph: { nodes: THREE.nodes } };
+		expect(app._nodesIn({ left: 0, right: 60, top: 0, bottom: 90 }).sort()).toEqual(["elena", "marta"]);
+		expect(app._nodesIn({ left: 60, right: 100, top: 0, bottom: 50 })).toEqual(["stefan"]);
+	});
+
+	// A face walked by the arrow keys is where the keys put it, which is where the reader sees it.
+	it("finds a face the arrow keys have moved where they moved it", () => {
+		const { app } = windowFor(THREE);
+		app._drawn = { graph: { nodes: THREE.nodes } };
+		app._pendingNudge.set("stefan", { x: 10, y: 10 });
+		expect(app._nodesIn({ left: 0, right: 15, top: 0, bottom: 15 })).toEqual(["stefan"]);
+	});
+
+	// ONE WRITE IS ONE STEP OF THE UNDO. Taken back a person at a time, a group moved together would
+	// sit in pieces half way.
+	it("moves a whole group in one write", async () => {
+		const { app, entry } = windowFor(THREE);
+		boardOf(app);
+		expect(await app._moveNodes({ elena: { x: 25, y: 35 }, stefan: { x: 75, y: 35 } })).toBe(true);
+		expect(entry.updates).toHaveLength(1);
+		const wrote = JSON.stringify(entry.updates[0]);
+		expect(wrote).toContain("25");
+		expect(wrote).toContain("75");
+	});
+
+	// On a living board, so the undo actually puts them back rather than merely being recorded.
+	it("takes a whole group back in one step, under a name that counts them", async () => {
+		const { entry, pages: [page] } = ONE_LIVING_BOARD();
+		const { app } = windowFor(null, { entry, pageId: "p1" });
+		await app._moveNodes({ elena: { x: 25, y: 35 }, stefan: { x: 75, y: 45 } });
+		expect(app._history.depth).toBe(1);
+		expect(app._history.peekUndo().label).toBe(TABLE.format("stonetop.relmap.history.movedMany", { count: 2 }));
+		await app._stepHistory("back");
+		expect(readGraph(page).nodes.elena).toMatchObject({ x: 20, y: 30 });
+		expect(readGraph(page).nodes.stefan).toMatchObject({ x: 70, y: 30 });
+	});
+
+	// ⚠ PAINTED BEFORE THE WRITE, or every face flashes back to where it was picked up for a round trip.
+	it("paints everybody where they landed before the write goes out", () => {
+		const { app } = windowFor(THREE);
+		const nodes = boardOf(app);
+		app._moveNodes({ elena: { x: 25, y: 35 }, stefan: { x: 140, y: -20 } });
+		expect(nodes.elena.style.left).toBe("25%");
+		expect(nodes.stefan.style.left).toBe("140%");
+		expect(nodes.stefan.style.top).toBe("-20%");
+	});
+
+	// Somebody taken off by another reader while the group was in the air is left off the write, and
+	// the rest still land.
+	it("leaves out somebody no longer on the board, and moves the rest", async () => {
+		const { app, entry } = windowFor(THREE);
+		boardOf(app);
+		expect(await app._moveNodes({ elena: { x: 25, y: 35 }, ghost: { x: 5, y: 5 } })).toBe(true);
+		const wrote = JSON.stringify(entry.updates[0]);
+		expect(wrote).toContain("elena");
+		expect(wrote).not.toContain("ghost");
+	});
+
+	it("writes nothing when nobody in the group is left", async () => {
+		const { app, entry } = windowFor(THREE);
+		expect(await app._moveNodes({ ghost: { x: 5, y: 5 } })).toBe(false);
+		expect(entry.updates).toEqual([]);
+	});
+
+	it("writes a group walked by the arrow keys in one write, and one step", async () => {
+		const { entry } = ONE_LIVING_BOARD();
+		const { app } = windowFor(null, { entry, pageId: "p1" });
+		boardOf(app, ["elena", "stefan"]);
+		app._commitNudge = vi.fn();
+		app._nudgeNodes({ elena: { x: 21, y: 30 }, stefan: { x: 71, y: 30 } });
+		expect(app._commitNudge).toHaveBeenCalledTimes(1);
+		await app._writeNudge();
+		expect(app._history.depth).toBe(1);
+	});
+
+	// THE SELECTION BELONGS TO THE BOARD. The same person can stand on two boards of one map, under
+	// different ids, and a selection carried across would pick up somebody the reader never chose.
+	it("is let go when the reader leaves the board", () => {
+		const { app } = windowFor(THREE);
+		boardOf(app);
+		app._select(["elena"]);
+		app._leaveBoard();
+		expect(app._selected).toEqual([]);
+	});
+
+	// ⚠ A LINE BETWEEN TWO PEOPLE CARRIED TOGETHER is drawn once with BOTH ends moved. Drawn per
+	// person it would swing from one end and then the other, every frame.
+	it("draws a line between two people carried together with both ends where they are going", () => {
+		const { app, board } = windowFor(THREE);
+		const line = { dataset: { relmapLine: "link1" }, attrs: {}, style: { setProperty() {} } };
+		line.setAttribute = (name, value) => { line.attrs[name] = value; };
+		board.all = { "[data-relmap-line]": [line] };
+		app._previewMoves({ elena: { x: 20, y: 70 }, stefan: { x: 70, y: 70 } });
+		const d = line.attrs.d;
+		const [, fromTop] = d.slice(2, d.indexOf(" Q")).split(",").map(Number);
+		const [, toTop] = d.trim().split(" ").at(-1).split(",").map(Number);
+		// Both were at y=30 and both have gone to y=70: the whole line is down there now.
+		expect(fromTop).toBeGreaterThan(60);
+		expect(toTop).toBeGreaterThan(60);
 	});
 });

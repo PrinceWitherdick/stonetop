@@ -22,24 +22,24 @@ import { deepFreeze } from "../../../utils/localized-once.js";
 
 export const ONBOARDING_MOVE_GROUPS = deepFreeze({
 	"The Blessed": [
-		{ key: "spirits", label: "Spirits", moves: ["Big Magic", "Borrow Power", "Call the Spirits", "Danu's Grasp", "Rites of the Land", "Shared Souls", "Spirit Tongue", "Voice of the Earth Mother"] },
+		{ key: "spirits", label: "Spirits", moves: ["Big Magic", "Borrow Power", "Call the Spirits", "Danu's Grasp", "Heed My Words", "Rites of the Land", "Shared Souls", "Spirit Tongue", "Voice of the Earth Mother"] },
 		{ key: "nature", label: "Nature", moves: ["Barkskin", "Into the Lion's Den", "Lightning Rod", "Nature's Wrath", "Trackless Step", "Wild Soul"] },
 		{ key: "wards", label: "Wards", moves: ["Amulets & Talismans", "Healer's Arts", "Potent Workings", "Suck the Poison Out", "Veil", "Wards & Bindings"] },
 	],
 	"The Fox": [
 		{ key: "stealth", label: "Stealth", moves: ["Burgle", "Catlike", "Eye on the Door", "Free Running", "Light Fingers", "Slippery", "Danger Sense", "Perceptive"] },
 		{ key: "combat", label: "Combat", moves: ["All in the Wrist", "Ambush", "Battle Dancer", "Cheap Shot", "Parry & Riposte", "Second Intent", "Skill at Arms"] },
-		{ key: "charm", label: "Charm", moves: ["Irresistible", "Pants on Fire", "Rapier Wit", "Silver Tongued", "Under Your Skin"] },
+		{ key: "charm", label: "Charm", moves: ["Irresistible", "Laugh at Danger", "Pants on Fire", "Rapier Wit", "Silver Tongued", "Under Your Skin"] },
 	],
 	"The Heavy": [
-		{ key: "offense", label: "Offense", moves: ["Battle Joy", "Berserker", "Bringer of Ruin", "Dangerous", "Mighty Thews", "Musclebound", "Nemesis", "Payback", "Relentless", "Terror on the Field", "Intimidating", "Formidable"] },
+		{ key: "offense", label: "Offense", moves: ["Battle Joy", "Berserker", "Bringer of Ruin", "Dangerous", "Mighty Thews", "Musclebound", "Nemesis", "Payback", "Relentless", "Terror on the Field", "Intimidating", "Bark an Order", "Formidable"] },
 		{ key: "defense", label: "Defense", moves: ["Armored", "Guardian", "Steadfast Guardian", "Uncanny Reflexes"] },
 		{ key: "grit", label: "Grit", moves: ["Hard to Kill", "Unstoppable", "Unfettered", "Frosty", "Stone Cold", "Seasoned Warrior", "Carved Out of Wood", "Cut from Granite"] },
 	],
 	"The Judge": [
-		{ key: "justice", label: "Justice", moves: ["Censure", "Condemn", "Proclamation", "Castigate", "Armistice", "Binding Arbitration", "Bear Witness", "Truth or Consequences", "For the Greater Good"] },
-		{ key: "defense", label: "Defense", moves: ["Armored", "A Mighty Rampart", "Aegis of Faith", "Bulwark", "Mirrorshield", "The Tower Eternal", "A Bundle of Sticks Unbroken"] },
-		{ key: "lore", label: "Lore", moves: ["Knowledge is Power", "Well-Read", "Chronicler of Stonetop", "Vision Unclouded", "Hound of Aratis"] },
+		{ key: "justice", label: "Justice", moves: ["Censure", "Condemn", "Proclamation", "Castigate", "Armistice", "Binding Arbitration", "Bear Witness", "Truth or Consequences", "For the Greater Good", "The Hammer and the Book", "Like a Dog with a Bone"] },
+		{ key: "defense", label: "Defense", moves: ["Armored", "A Mighty Rampart", "Aegis of Faith", "Bulwark", "Mirrorshield", "The Tower Eternal", "Many Hands Make Light Work", "A Bundle of Sticks Unbroken", "Break Bread"] },
+		{ key: "lore", label: "Lore", moves: ["Knowledge is Power", "Well-Read", "Chronicler of Stonetop", "Vision Unclouded", "Hound of Aratis", "Commune with Aratis"] },
 	],
 	"The Lightbearer": [
 		{ key: "faith", label: "Faith", moves: ["Invoke the Sun God", "Empowered Invocations", "Burn Twice as Bright", "Glorious Servant", "Piety", "Wielder of the White Flame"] },
@@ -63,7 +63,7 @@ export const ONBOARDING_MOVE_GROUPS = deepFreeze({
 	],
 	"The Would-Be Hero": [
 		{ key: "combat", label: "Combat", moves: ["Big Damn Hero", "Better Part of Valor", "Something to Remember Me By", "Undaunted", "Underestimated", "Anger is a Gift"] },
-		{ key: "heart", label: "Heart", moves: ["In Over Your Head", "Inquiring Minds", "Speak Truth to Power", "Tough Love", "Up With People", "Voice of Experience"] },
+		{ key: "heart", label: "Heart", moves: ["In Over Your Head", "Inquiring Minds", "Speak Truth to Power", "Tough Love", "Up With People", "Voice of Experience", "Omens of Fate"] },
 		{ key: "grit", label: "Grit", moves: ["A Force to Be Reckoned With", "But I Get Up Again", "I Get Knocked Down", "Iron Will", "Never Gonna Keep Me Down", "Resourceful"] },
 	],
 });

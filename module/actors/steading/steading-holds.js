@@ -9,7 +9,8 @@
 //   • Instant effects, even when the paperwork waits. A Population boom is +1 Population the
 //     moment it is picked; ticking the box later does not make it pending.
 //   • Held POOLS. Boon, Blessing, Sanction and the rest are effects that already landed: you
-//     hold them, and nothing fires on its own. They have tracks on their own moves.
+//     hold them, and nothing fires on its own. They have tracks on their own moves (Boon on
+//     Rites of the Land, Blessing on Piety, Sanction on the Prophet's Commune with Aratis).
 //   • Permanent passives. Greater Harvest gives +1d4 Surplus every autumn forever, so an icon
 //     for it never disappears, stops carrying information, and becomes a worse second copy of
 //     the Improvements tab.

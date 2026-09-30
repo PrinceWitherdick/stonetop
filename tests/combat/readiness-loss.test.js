@@ -4,6 +4,7 @@ import {
 } from "../../module/combat/readiness-loss.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
 import { collection } from "../fakes/fight.js";
+import { stubAsk } from "../fakes/confirm.js";
 
 // Losing Defend's Readiness (p.216): asked on an attack, since a defensive Clash keeps it; lost when the
 // fight ends, the character leaves it, or goes down.
@@ -88,19 +89,21 @@ describe("settleReadinessOnAttack", () => {
 describe("askGoingOnOffense", () => {
 	it("loses on the rushing-in button, keeps on the other or a closed window", async () => {
 		const bram = hero("bram", 2);
-		const document = globalThis.document;
+		const { document } = globalThis;
+		const { applications } = globalThis.foundry;
 		globalThis.document = { createElement: () => ({}) };
-		onTestFinished(() => { globalThis.document = document; });
-		let spec;
-		const DialogV2 = { wait: vi.fn(async s => { spec = s; return s.buttons[0].callback(); }) };
-		expect(await askGoingOnOffense(bram, "Let Fly", { DialogV2 })).toBe(true);
-		// The buttons name the outcome, the one that costs something on the left.
+		onTestFinished(() => { globalThis.document = document; globalThis.foundry.applications = applications; });
+		const asked = stubAsk("lose");
+		expect(await askGoingOnOffense(bram, "Let Fly")).toBe(true);
+		// The buttons name the outcome, the one that costs something on the left; Enter keeps it.
+		const spec = asked.mock.calls[0][0];
 		expect(spec.buttons.map(b => b.action)).toEqual(["lose", "keep"]);
+		expect(spec.buttons.find(b => b.default)?.action).toBe("keep");
 		expect(spec.window.title).toBe("Bram holds 2 Readiness");
-		DialogV2.wait = vi.fn(async s => s.buttons[1].callback());
-		expect(await askGoingOnOffense(bram, "Let Fly", { DialogV2 })).toBe(false);
-		DialogV2.wait = vi.fn(async () => null);
-		expect(await askGoingOnOffense(bram, "Let Fly", { DialogV2 })).toBe(false);
+		stubAsk("keep");
+		expect(await askGoingOnOffense(bram, "Let Fly")).toBe(false);
+		stubAsk(null);
+		expect(await askGoingOnOffense(bram, "Let Fly")).toBe(false);
 	});
 });
 
@@ -131,6 +134,17 @@ describe("droppedHoldingReadiness", () => {
 		expect(droppedHoldingReadiness(hero("bram", 0, { hp: 0 }), { system: { attributes: { hp: { value: 0 } } } })).toBe(false);
 		// Another change on a character already down is not the drop.
 		expect(droppedHoldingReadiness(hero("bram", 2, { hp: 0 }), { name: "Bram" })).toBe(false);
+	});
+
+	// Unstoppable: "When you are reduced to 0 HP in battle, you can keep fighting." Still fighting is
+	// still defending, until they roll Death's Door.
+	it("not a Heavy who fights on at 0 HP with Unstoppable", () => {
+		const bram = hero("bram", 2, { hp: 0 });
+		bram.flags[SYSTEM_ID].deathsDoor = "dying";
+		bram.items = [{ type: "move", name: "Unstoppable", flags: {} }];
+		expect(droppedHoldingReadiness(bram, { system: { attributes: { hp: { value: 0 } } } })).toBe(false);
+		bram.items[0].flags = { [SYSTEM_ID]: { learned: false } };
+		expect(droppedHoldingReadiness(bram, { system: { attributes: { hp: { value: 0 } } } })).toBe(true);
 	});
 });
 
@@ -176,6 +190,24 @@ describe("installReadinessLoss", () => {
 		await hooks.fire("updateActor", bram, { system: { attributes: { hp: { value: 0 } } } });
 		expect(held(bram)).toBe(0);
 		expect(posted[0].content).toContain("Bram is down and loses their Readiness.");
+	});
+
+	// Payback keeps a follower's grudges on the character it follows (hero-moves.js#recordHarmedBy), and
+	// that character need not be in the fight: the fight ending still clears them.
+	it("the fight ending clears Payback's grudges on a follower's character who was not in it", async () => {
+		const withGrudges = (actor, list) => {
+			actor.flags[SYSTEM_ID].harmedBy = list;
+			actor.getFlag = (scope, key) => actor.flags[scope]?.[key];
+			return actor;
+		};
+		const bram = withGrudges(hero("bram"), ["foe-1"]);
+		const dog = withGrudges(hero("dog", 0, { type: "npc" }), []);
+		const cardFor = vi.fn(actor => (actor === dog ? { character: bram } : null));
+		const hooks = fakeHooks();
+		installReadinessLoss({ hooks, cardFor });
+		await hooks.fire("deleteCombat", fight("f1", [combatant("d", dog)]));
+		expect(bram.flags[SYSTEM_ID].harmedBy).toEqual([]);
+		expect(cardFor).toHaveBeenCalledWith(dog);
 	});
 
 	it("only the primary GM writes", async () => {

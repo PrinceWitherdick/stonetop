@@ -11,11 +11,11 @@
     "moveResults": {
       "success": {
         "label": "10+",
-        "value": "You briefly glimpse your subject from a great height — choose 2."
+        "value": "You briefly glimpse your subject from a great height: choose 2."
       },
       "partial": {
         "label": "7-9",
-        "value": "You briefly glimpse your subject from a great height — choose 1."
+        "value": "You briefly glimpse your subject from a great height: choose 1."
       },
       "failure": {
         "label": "6-",

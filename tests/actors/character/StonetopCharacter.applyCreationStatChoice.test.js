@@ -38,8 +38,9 @@ describe("StonetopCharacter.applyCreationStatChoice", () => {
 	it("caps the bump at the move's stat cap", async () => {
 		const { actor, character } = makeCharacter({ str: 2 });
 		await character.applyCreationStatChoice("pm-imp", "str");
-		// Already at cap 2 — no stat write (next === current), but the pick is still recorded.
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", "improvedStatChoices", { imp1: "str" });
+		// Already at cap 2: no stat write, and no pick recorded either, since removing the move
+		// later would step a recorded stat back down a point it never gave.
+		expect(actor.setFlag).not.toHaveBeenCalled();
 		expect(actor.update).not.toHaveBeenCalled();
 	});
 

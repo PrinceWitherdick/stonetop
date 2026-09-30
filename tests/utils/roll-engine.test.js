@@ -418,10 +418,12 @@ describe("rollStat", () => {
 	it("keeps that list on the card for a reader who hid descriptions", () => {
 		const css = fs.readFileSync(path.resolve("styles/stonetop.css"), "utf8");
 		// The framed box comes back when there is a live list in it...
-		expect(css).toContain(".stonetop-roll-card-description:has(.stonetop-picklist:not([hidden]))");
+		// (or a list someone else answers in, pc-asks/pc-ask-flow.js)...
+		// (or a free question, move-pick-bonuses.js#freeQuestionLines, which is a choice too)...
+		expect(css).toContain(".stonetop-roll-card-description:has(:is(.stonetop-picklist, .stonetop-pc-answers):not([hidden]), .stonetop-free-question)");
 		// ...and nothing else in it comes back with it.
 		expect(css).toContain(
-			".stonetop-roll-card-description > *:not(.stonetop-picklist):not(:has(.stonetop-picklist:not([hidden])))"
+			".stonetop-roll-card-description > *:not(.stonetop-picklist, .stonetop-pc-answers, .stonetop-free-question):not(:has(:is(.stonetop-picklist, .stonetop-pc-answers):not([hidden])))"
 		);
 	});
 
@@ -475,7 +477,9 @@ describe("rollStat", () => {
 });
 
 describe("rollSeasonsCard", () => {
-	it("posts the full result legend on seasonal roll cards", async () => {
+	// Laid out as a move card is: the ladder under the title with the landed rung marked, then the
+	// result, and no boxed "Results" legend under it.
+	it("puts the tier ladder where a move card's description goes, landed rung marked", async () => {
 		rollTotal = 7;
 
 		await rollSeasonsCard({
@@ -485,10 +489,43 @@ describe("rollSeasonsCard", () => {
 		});
 
 		const flavor = rollMessages[0].flavor;
-		expect(flavor).toContain("stonetop-roll-card-results");
-		expect(flavor).toContain("<strong>Results</strong>");
-		expect(flavor).toContain("Pick <strong>one seasonal gain</strong>");
-		expect(flavor).toContain("<strong>Threats abound</strong>");
+		expect(flavor).toContain(`<ul class="stonetop-move-tiers" data-rolled-tier="partial">`);
+		expect(flavor).toContain("stonetop-roll-card-desc-toggle");
+		expect(flavor.indexOf("stonetop-roll-card-description")).toBeLessThan(flavor.indexOf("stonetop-roll-result "));
+		expect(flavor).not.toContain("<strong>Results</strong>");
+		// Every rung is on the ladder, as plain text; the result block keeps its bold.
+		expect(flavor).toContain("Pick one seasonal gain.");
+		expect(flavor).toContain("Threats abound");
+		expect(flavor).toContain("Pick <strong>one seasonal gain</strong>, but a threat");
+	});
+
+	it("heads an alias-spoken card with the alias, so the ladder keeps its toggle", async () => {
+		rollTotal = 11;
+		await rollSeasonsCard({ formula: "2d6", alias: "Requisition", resultTable: SPRING_SEASONS_RESULT });
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain(`<h2 class="cell__title">Requisition</h2>`);
+		expect(flavor).toContain(`data-rolled-tier="success"`);
+	});
+
+	// A stat roll names what put it at advantage; so does this card, which the walkthrough's
+	// Requisition posts (a held Rites of the Land advantage).
+	it("names the roll's conditions in the stat card's pills, escaped", async () => {
+		rollTotal = 9;
+		await rollSeasonsCard({
+			formula: "3d6kh2", alias: "Requisition", resultTable: SPRING_SEASONS_RESULT,
+			conditionNotes: ["Rites of the Land: advantage", "", "<b>bold</b>"],
+		});
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("stonetop-roll-conditions");
+		expect(flavor).toContain(`<li class="stonetop-condition-note">Rites of the Land: advantage</li>`);
+		expect(flavor).toContain("&lt;b&gt;bold&lt;/b&gt;");
+		expect(flavor.match(/stonetop-condition-note/g)).toHaveLength(2);
+	});
+
+	it("draws no conditions row when there is nothing to name", async () => {
+		rollTotal = 9;
+		await rollSeasonsCard({ formula: "2d6", alias: "Requisition", resultTable: SPRING_SEASONS_RESULT });
+		expect(rollMessages[0].flavor).not.toContain("stonetop-roll-conditions");
 	});
 });
 
@@ -524,6 +561,53 @@ describe("a 6- that counts as a 7-9", () => {
 		expect(rolled.tier).toBe("partial");
 		expect(rollMessages[0].flavor).toContain("Convince them.");
 		expect(rollMessages[0].flavor).toContain("counted as a 7-9");
+	});
+});
+
+// Let's Make a Deal: "When you Persuade by offering them something that you know they want or need,
+// treat a 7-9 as a 10+." The same shape one tier up.
+describe("a 7-9 that counts as a 10+", () => {
+	const seeker = () => ({ type: "stonetop", name: "Maelis", system: {} });
+
+	it("reads a weak hit as a strong hit, and says why", async () => {
+		rollTotal = 8;
+		await rollStat("cha", seeker(), { statValue: 0, moveName: "Persuade (vs. NPCs)", partialCountsAsSuccess: "Let's Make a Deal" });
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("result success");
+		expect(flavor).toContain("Rolled a 7-9, counted as a 10+ (Let&#x27;s Make a Deal)");
+	});
+
+	it("leaves a miss and a strong hit alone, and says nothing", async () => {
+		rollTotal = 5;
+		await rollStat("cha", seeker(), { statValue: 0, moveName: "Persuade (vs. NPCs)", partialCountsAsSuccess: "Let's Make a Deal" });
+		expect(rollMessages[0].flavor).toContain("result failure");
+		expect(rollMessages[0].flavor).not.toContain("counted as a 10+");
+	});
+});
+
+// A Force to Be Reckoned With: "on a 12+ you turn the tables on them". Its note rides the 10+ row of a
+// roll that totals 12 or more, and a 10 or 11 (the same tier) says nothing more.
+describe("a line that prints on a 12+ only", () => {
+	const hero = () => ({ type: "stonetop", name: "Wren", system: {} });
+	const NOTE = '<p class="stonetop-roll-offer-note">Turn the tables</p>';
+
+	it("prints on a 12, after the 10+ row's own actions", async () => {
+		rollTotal = 12;
+		await rollStat("dex", hero(), { statValue: 0, moveName: "Defy Danger", noXpOnMiss: true,
+			tierActions: { success: "<button>Own</button>" }, criticalActions: NOTE });
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("Turn the tables");
+		expect(flavor.indexOf("Own")).toBeLessThan(flavor.indexOf("Turn the tables"));
+	});
+
+	it("prints nothing on a 10 or an 11", async () => {
+		for (const total of [10, 11]) {
+			rollMessages = [];
+			rollTotal = total;
+			await rollStat("dex", hero(), { statValue: 0, moveName: "Defy Danger", noXpOnMiss: true, criticalActions: NOTE });
+			expect(rollMessages[0].flavor).toContain("result success");
+			expect(rollMessages[0].flavor).not.toContain("Turn the tables");
+		}
 	});
 });
 

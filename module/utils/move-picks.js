@@ -76,8 +76,8 @@ const UNBOUNDED = new RegExp(
  *
  * A LIST ADDED TO ANOTHER MOVE. "When you Seek Insight, add the following to the list of
  * questions you can ask:" (Situational Awareness, Predator). Those questions are not picked
- * here at all; they are appended, permanently, to a list that lives on a different move and is
- * chosen from there.
+ * here at all; they are appended, for a roller who learned the move, to a list that lives on a
+ * different move and is chosen from there (actors/character/move-pick-bonuses.js).
  *
  * Any of the four and a tick would claim a decision nobody made, or refuse one they may make
  * again, so these print as prose with the system's spiral bullets instead of as a checklist (see

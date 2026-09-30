@@ -27,9 +27,14 @@
               "subtitle": "Bird-wise, innocent, magical, well-informed",
               "hp": 6,
               "armor": "0",
-              "damage": "d4 (hand)",
+              "damage": "bronze knife d4 (hand)",
               "instinct": "to get distracted",
               "cost": "knowledge, secret lore",
+              "moves": [
+                "Speak with birds",
+                "Ask a difficult question",
+                "Wander off"
+              ],
               "choiceRows": [
                 {
                   "type": "pronoun",
@@ -69,9 +74,14 @@
               "subtitle": "Fae-wise, devious, magical, self-sufficient, stealthy",
               "hp": 8,
               "armor": "2 (0 vs. iron)",
-              "damage": "d6 (hand)",
+              "damage": "bronze hatchet d6 (hand)",
               "instinct": "to act impulsively",
               "cost": "wonder, joy",
+              "moves": [
+                "Weave a minor glamor",
+                "Appear or disappear unexpectedly",
+                "Speak an uncomfortable truth"
+              ],
               "choiceRows": [
                 {
                   "type": "pronoun",
@@ -111,9 +121,14 @@
               "subtitle": "Herb-wise, gossipy, tireless, healer, magical",
               "hp": 6,
               "armor": "0",
-              "damage": "d6 (hand)",
+              "damage": "iron knife d6 (hand)",
               "instinct": "to take offense",
               "cost": "consideration, affection",
+              "moves": [
+                "Tend to the sick, injured, women in labor",
+                "Weave a talisman of fertility or good luck",
+                "Point out a flaw in a person or plan"
+              ],
               "choiceRows": [
                 {
                   "type": "pronoun",
@@ -154,9 +169,14 @@
               "subtitle": "Fates-wise, beautiful, passionate, magical",
               "hp": 6,
               "armor": "1 (shield)",
-              "damage": "d6 (close, thrown)",
+              "damage": "iron spear d6 (close, thrown)",
               "instinct": "to lack discretion",
               "cost": "tenderness, respect",
+              "moves": [
+                "Perform a divination",
+                "Speak a (dire) prophecy",
+                "Make a big deal about something"
+              ],
               "choiceRows": [
                 {
                   "type": "pronoun",
@@ -195,12 +215,18 @@
             {
               "slug": "seren",
               "label": "Seren the Eldest, wise and hard as winter",
-              "subtitle": "Exceptional, story-wise, insightful, frail, magical",
+              "subtitle": "Story-wise, insightful, frail, magical",
+              "exceptional": true,
               "hp": 3,
               "armor": "0",
-              "damage": "d4 (close)",
+              "damage": "walking stick d4 (close)",
               "instinct": "to hew to tradition",
               "cost": "deference, good sense shown",
+              "moves": [
+                "Consult the spirits, or abjure them",
+                "Spin a tale to make a point",
+                "Use shame and guilt as leverage"
+              ],
               "choiceRows": [
                 {
                   "type": "pronoun",
@@ -244,7 +270,7 @@
         "moves": [
           "Trackless Step"
         ],
-        "description": "<p>Maybe not by wolves, but you grew up in the wild. Beasts of land and air were your siblings. The sighing wind taught you language. The trees and rocks were your home. Were you one of the Forest Folk? Abandoned or orphaned? Lured into the Wood?</p><p>Regardless, you get the <strong>Trackless Step</strong> move. Also, when you <em><strong>Forage</strong></em>, you have advantage.</p><p>For some reason, you've made yourself known to Stonetop and perhaps you even call it home. But the ways of the humans are still strange to you. Once per session, when <em><strong>your wild ways offend or alienate you from someone</strong></em>, mark XP.</p>"
+        "description": "<p>Maybe not by wolves, but you grew up in the wild. Beasts of land and air were your siblings. The sighing wind taught you language. The trees and rocks were your home. Were you one of the Forest Folk? Abandoned or orphaned? Lured into the Wood?</p><p>Regardless, you get the <strong>Trackless Step</strong> move (go mark it now). Also, when you <em><strong>Forage</strong></em>, you have advantage.</p><p>For some reason, you've made yourself known to Stonetop and perhaps you even call it home. But the ways of humans are still strange to you. Once per session, when <em><strong>your wild ways offend or alienate you from someone</strong></em>, mark XP.</p>"
       },
       {
         "slug": "vessel",
@@ -343,6 +369,8 @@
       },
       {
         "region": "The Wild",
+        "note": "Mix and match 1-3 of these.",
+        "combine": 3,
         "names": [
           "Autumn",
           "Badger",
@@ -565,6 +593,7 @@
           "slug": "goat-herd",
           "label": "Goat herd",
           "description": "milk, cheese, pelts, meat, blood, horn, wool, etc. Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison).",
+          "rulesNote": "Each season, 1 in 4 chance of having a bezoar (swallow it to cure poison).",
           "grantsItems": [
             {
               "name": "Milk",
@@ -600,6 +629,7 @@
           "slug": "herb-garden",
           "label": "Herb garden",
           "description": "shears, mortars &amp; pestles, herbs, seeds, remedies, mild poisons, ◇ spades, etc. Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature).",
+          "rulesNote": "Each spring, d4 uses of bendis root (<em>reach, area</em>, burns ~1 hr, fumes repel perversions of nature).",
           "grantsItems": [
             {
               "name": "Shears",
@@ -736,7 +766,7 @@
       {
         "slug": "a-life-of-crime",
         "label": "A Life of Crime",
-        "description": "<p>You're new to Stonetop, having left behind a... <em>colorful</em> past. How did you get into that life? Why and how did you get out? Who and what do you leave behind?</p><p>Regardless, these people have taken you in. Time to lead an honest life, right?</p><p>You start with either <strong>Burgle</strong> or <strong>Light Fingers</strong> (your choice) as an extra move, and either a burglar's kit or a hidden stash (your choice) as an additional special possession.</p>",
+        "description": "<p>You're new to Stonetop, having left behind a... <em>colorful</em> past. How did you get into that life? Why and how did you get out? Who and what did you leave behind?</p><p>Regardless, these people have taken you in. Time to lead an honest life, right?</p><p>You start with either <strong>Burgle</strong> or <strong>Light Fingers</strong> (your choice) as an extra move, and either a burglar's kit or a hidden stash (your choice) as an additional special possession.</p>",
         "setup": {
           "choices": [
             {
@@ -775,7 +805,7 @@
       {
         "slug": "the-prodigal-returned",
         "label": "The Prodigal Returned",
-        "description": "<p>You left long ago, travelling far and living by your wits. Why did you leave? What deeds do you boast of, and which do you regret?</p><p>You always longed to return to Stonetop, and return you have. You're a bit of a celebrity now, and you've got friends (or close enough) strewn about the known world.</p><p>When you <strong><em>declare that you know someone outside of Stonetop</em></strong>, someone who can help, name them and roll +CHA: <strong>on a 10+</strong>, yeah, they can help (tell us why they're willing); <strong>on a 7-9</strong>, they can help but pick 1 from the list below; <strong>on a 6-</strong>, the GM chooses 1 and then some.</p>"
+        "description": "<p>You left long ago, travelling far and living by your wits. Why did you leave? What deeds do you boast of, and which do you regret?</p><p>You always longed to return to Stonetop, and return you have. You're a bit of a celebrity now, and you've got friends (or close enough) strewn about the known world.</p><p>When you <strong><em>declare that you know someone outside of Stonetop</em></strong>, someone who can help, name them and roll +CHA: <strong>on a 10+</strong>, yeah, they can help (tell us why they're willing); <strong>on a 7-9</strong>, they can help but pick 1 from the list below; <strong>on a 6-</strong>, the GM chooses 1 and then some.</p><ul><li>They still hold a grudge</li><li>They're going to need something from you first</li><li>They swore off this sort of thing long ago</li><li>You can't exactly, y'know, trust them</li></ul>"
       }
     ],
     "instincts": [
@@ -815,7 +845,7 @@
         "lithe",
         "heavyset",
         "gangly",
-        "like a whippin stick"
+        "like a whippin' stick"
       ],
       [
         "a light step",
@@ -920,9 +950,16 @@
               "weight": 1
             },
             {
-              "name": "Lantern (close, area)",
+              "name": "Lantern",
+              "sourceKey": "Lantern (close, area)",
               "column": "regular",
-              "weight": 1
+              "weight": 1,
+              "resource": {
+                "max": 5,
+                "title": null,
+                "labels": []
+              },
+              "resourceSuffix": "hours, close, area"
             },
             {
               "name": "Grappling hook",
@@ -1099,6 +1136,7 @@
           "slug": "tannery",
           "label": "Tannery",
           "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc.",
+          "rulesNote": "Or access to it.",
           "grantsItems": [
             {
               "name": "Lime",
@@ -1130,6 +1168,7 @@
           "slug": "trade-contacts",
           "label": "Trade contacts",
           "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc.",
+          "rulesNote": "Small amounts of each.",
           "grantsItems": [
             {
               "name": "Salt",
@@ -1175,6 +1214,7 @@
         "continuation": true,
         "title": "There Was That Time You…",
         "description": "<p><em>(choose 1 per tale)</em></p>",
+        "tales": 2,
         "options": [
           {
             "slug": "lost-great-wood",
@@ -1242,6 +1282,7 @@
         "slug": "tall-tales-ending",
         "title": "And You Ended Up…",
         "description": "<p><em>(choose 1 or 2 per tale)</em></p>",
+        "tales": 2,
         "options": [
           {
             "slug": "running",
@@ -1367,7 +1408,10 @@
       {
         "slug": "sheriff",
         "label": "Sheriff",
-        "description": "<p>You keep order in Stonetop and protect it from outside threats. It might not be anything official, but everyone knows you've got a cool head and the weight to back up your words.</p><p>When you <strong><em>bark an order or warning</em></strong>, roll +CHA: <strong>on a 7+</strong>, they must choose 1: <ul><li>Do what you say</li><li>Dig in/take cover/flee</li> or <li>Attack you</li></ul> <strong><em>On a 10+</em></strong>, you can sense which one they're about to do and act first if you like; gain advantage if you do.</p>"
+        "description": "<p>You keep order in Stonetop and protect it from outside threats. It might not be anything official, but everyone knows you've got a cool head and the weight to back up your words.</p><p>When you <strong><em>bark an order or warning</em></strong>, roll +CHA: <strong>on a 7+</strong>, they must choose 1: <ul><li>Do what you say</li><li>Dig in/take cover/flee</li><li>Attack you</li></ul> <strong><em>On a 10+</em></strong>, you can sense which one they're about to do and act first if you like; gain advantage if you do.</p>",
+        "moves": [
+          "Bark an Order"
+        ]
       },
       {
         "slug": "blood-soaked-past",
@@ -1385,7 +1429,7 @@
               "identify": true,
               "boxes": [
                 {
-                  "context": "front",
+                  "context": "unlock",
                   "index": 0
                 }
               ]
@@ -1605,6 +1649,7 @@
           "slug": "husbandry-tools",
           "label": "Husbandry tools",
           "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+          "rulesNote": "Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
           "grantsItems": [
             {
               "name": "Brushes",
@@ -1638,6 +1683,7 @@
           "slug": "smithy",
           "label": "Smithy",
           "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+          "rulesNote": "Or access to it.",
           "grantsItems": [
             {
               "name": "Iron goods",
@@ -1895,12 +1941,12 @@
       {
         "slug": "legacy",
         "label": "Legacy",
-        "description": "<p>You are the latest in a long line of Judges—born here, apprenticed to the prior Judge, and charged with the passing of the mantle. The Chronicle is a rich repository of lore, but there's no index, so good luck finding anything.</p><p>When you <strong><em>Know Things about the people or history of Stonetop</em></strong>, you have advantage.</p><p>When you <strong><em>spend days, weeks, or months poring over the Chronicle</em></strong>, ask the GM and the GM will tell you what you learn in that time.</p>"
+        "description": "<p>You are the latest in a long line of Judges—born here, apprenticed to the prior Judge, and charged with the passing of the mantle. The Chronicle is a rich repository of lore, but there's no index, so good luck finding anything.</p><p>When you <strong><em>Know Things about the people or history of Stonetop</em></strong>, you have advantage.</p><p>When you <strong><em>spend days, weeks, or months poring over the Chronicle</em></strong>, ask the GM a question, and the GM will tell you what you learn in that time.</p>"
       },
       {
         "slug": "missionary",
         "label": "Missionary",
-        "description": "<p>You are part of a larger order of Judges, sent here to protect the flickering flame of civilization. The Chronicle is relatively new; your position in town is far from certain.</p><p>When you <strong><em>call upon the Judge of another steading for aid or information</em></strong>, they are oathbound to give it. You are likewise oathbound to support them.</p><p>You have an aviary in addition to your usual choice of special possessions. When you <strong><em>send a message via trained bird</em></strong>, the GM will tell you if and when you receive a response, and what it says.</p>",
+        "description": "<p>You are part of a larger order of Judges, sent here to protect the flickering flame of civilization. The Chronicle is relatively new; your position in town is far from certain. Add these Judges to the Neighbors section of the steading playbook (pick 2 more):</p><ul><li><strong>Devin</strong> (from Marshedge)</li><li><strong>Haeris</strong> (from Gordin's Delve)</li><li><strong>Isalde</strong> (from the Manmarch)</li><li><strong>Rahat</strong> (from Lygos)</li><li><strong>Tejisha</strong> (from Barrier Pass)</li><li><strong>Unz</strong> (from the Hillfolk)</li></ul><p>When you <strong><em>call upon the Judge of another steading for aid or information</em></strong>, they are oathbound to give it. You are likewise oathbound to support them.</p><p>You have an aviary in addition to your usual choice of special possessions (go mark it now). When you <strong><em>send a message via trained bird</em></strong>, as is the way of the Judges of your order, the GM will tell you if and when you receive a response, and what it says.</p>",
         "extraPossessions": [
           "aviary"
         ],
@@ -1949,7 +1995,10 @@
       {
         "slug": "prophet",
         "label": "Prophet",
-        "description": "<p>The line of Judges was broken long ago, the Chronicle lost or fallen into ruin. Aratis has called you personally to her service through dreams, omens, and visions. Some in town resent the authority you've assumed.</p><p>When you <strong><em>spend a few days communing with Aratis about a threat facing Stonetop or civilization as a whole</em></strong>, roll +WIS: <strong>on a 7+</strong>, Aratis reveals the course of action she would have you take; <strong>on a 10+</strong>, you also hold 2 Sanction. While <strong><em>acting on her orders</em></strong>, spend 1 Sanction to add +1 to a roll you just made.</p>"
+        "description": "<p>The line of Judges was broken long ago, the Chronicle lost or fallen into ruin. Aratis has called you personally to her service through dreams, omens, and visions. Some in town resent the authority you've assumed.</p><p>When you <strong><em>spend a few days communing with Aratis about a threat facing Stonetop or civilization as a whole</em></strong>, roll +WIS: <strong>on a 7+</strong>, Aratis reveals the course of action she would have you take; <strong>on a 10+</strong>, you also hold 2 Sanction. While <strong><em>acting on her orders</em></strong>, spend 1 Sanction to add +1 to a roll you just made.</p>",
+        "moves": [
+          "Commune with Aratis"
+        ]
       }
     ],
     "instincts": [
@@ -2015,7 +2064,7 @@
         "region": "Barrier Pass",
         "names": [
           "Arinasai",
-          "Bortachikan",
+          "Bortachikhan",
           "Khadagan",
           "Khojin",
           "Odval",
@@ -2238,6 +2287,7 @@
           "slug": "smithy",
           "label": "Smithy",
           "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+          "rulesNote": "Or access to it.",
           "grantsItems": [
             {
               "name": "Iron goods",
@@ -2273,7 +2323,7 @@
       {
         "slug": "chronicle-plus",
         "title": "The Chronicle",
-        "description": "<p>The Judge of Aratis is charged with maintaining the Chronicle, a history of the community, its people, their knowledge, and their traditions. It is more than a mere book; it is a physical place. On the plus side, it… <em>(choose 3)</em></p>",
+        "description": "<p>The Judge of Aratis is charged with maintaining the Chronicle, a history of the community, its people, their knowledge, and their traditions. The nature of the lore contained in the Chronicle depends on your Background, but it is more than a mere book; it is a physical place. Decide on its physical structure.</p><p>On the plus side, it… <em>(choose 3)</em></p>",
         "options": [
           {
             "slug": "sturdy-vault",
@@ -2315,7 +2365,7 @@
       {
         "slug": "chronicle-minus",
         "title": "But Alas, It…",
-        "description": "<p><em>(choose 2)</em></p>",
+        "description": "<p><em>(choose 2)</em></p><p>Mark the location of the Chronicle on the Stonetop playbook map.</p>",
         "options": [
           {
             "slug": "outskirts",
@@ -2431,7 +2481,11 @@
               "key": "auspicious-birth",
               "label": "Background circle",
               "max": 1,
-              "value": 0
+              "value": 0,
+              "clearsOn": [
+                "make-camp",
+                "convalesce"
+              ]
             }
           ]
         }
@@ -2439,13 +2493,13 @@
       {
         "slug": "itinerant-mystic",
         "label": "Itinerant Mystic",
-        "description": "<p>They think of you as a self-important kook who comes through now and again, speaking in riddles and playing tricks with the light. Sure, they know there's something holy about you, but it's not like you're a priest or anything. Priests talk sense.</p><p>When you <strong><em>go off a-wandering</em></strong>, hold 1 Enigma if you're gone for days, 2 if you're gone for weeks, or 3 if you're gone for months. At the very start of play, hold 3 Enigma. Spend Enigma 1-for-1 to: return from your wandering exactly when and where you are needed, fully Outfitted; Know Things as if you rolled a 10+; or have What You Need to produce an oddly specific yet mundane item of Value 1 or less.</p>",
+        "description": "<p>They think of you as a self-important kook who comes through now and again, speaking in riddles and playing tricks with the light. Sure, they know there's something holy about you, but it's not like you're a priest or anything. Priests talk sense.</p><p>When you <strong><em>go off a-wandering</em></strong>, hold 1 Enigma if you're gone for days, 2 if you're gone for weeks, or 3 if you're gone for months. At the very start of play, hold 3 Enigma. Spend Enigma 1-for-1 to: return from your wandering exactly when and where you are needed, fully Outfitted; Know Things as if you rolled a 10+, drawing on what you learned while away; or have What You Need to produce an oddly specific yet mundane item of Value 1 or less.</p>",
         "setup": {
           "resources": [
             {
               "key": "enigma",
               "label": "Enigma",
-              "max": 3,
+              "max": 9,
               "value": 3
             }
           ]
@@ -2454,7 +2508,7 @@
       {
         "slug": "soul-on-fire",
         "label": "Soul on Fire",
-        "description": "<p>You once led a worldly life, full of fear and doubt, base pleasures and petty grudges. But something happened. Injury, illness, a brush with death. Or just a moment of such profound misery and self-loathing that you thought you could go no further.</p><p>There, in the dark, Helior's light shined upon you, igniting in your soul, lifting you and filling you with a profound sense of purpose.</p><p>When you <strong><em>Persuade a group by preaching charity, mercy, and hope and roll a 7+</em></strong>, aside from the usual effect, choose 1:</p><ul><li>Your name and your message spread</li><li>Someone approaches you, now or later, eager to know more.</li></ul>"
+        "description": "<p>You once led a worldly life, full of fear and doubt, base pleasures and petty grudges. But something happened. Injury, illness, a brush with death. Or just a moment of such profound misery and self-loathing that you thought you could fall no further.</p><p>There, in the dark, Helior's light shined upon you, igniting in your soul, lifting you and filling you with a profound sense of purpose.</p><p>When you <strong><em>Persuade a group by preaching charity, mercy, and hope and roll a 7+</em></strong>, aside from the usual effect, choose 1:</p><ul><li>Your name and your message spread</li><li>Someone approaches you, now or later, eager to know more.</li></ul>"
       }
     ],
     "instincts": [
@@ -2717,9 +2771,16 @@
               "column": "small"
             },
             {
-              "name": "Lanterns (close, area)",
+              "name": "Lanterns",
+              "sourceKey": "Lanterns (close, area)",
               "column": "regular",
-              "weight": 1
+              "weight": 1,
+              "resource": {
+                "max": 5,
+                "title": null,
+                "labels": []
+              },
+              "resourceSuffix": "hours, close, area"
             }
           ]
         },
@@ -3351,6 +3412,7 @@
               },
               {
                 "slug": "long-spear",
+                "weaponSlug": "long-spear-fine-steel",
                 "label": "◇◇ <strong>Long spear</strong>, fine steel (<em>reach</em>, 2 piercing)"
               },
               {
@@ -3526,12 +3588,14 @@
         {
           "slug": "shield",
           "label": "<strong>Shield</strong> (+1 armor, +1 Readiness on 7+ to Defend)",
-          "weight": 2
+          "weight": 2,
+          "armorBonus": 1
         },
         {
           "slug": "thick-hides",
           "label": "<strong>Thick hides</strong> (1 armor, <em>warm</em>)",
-          "weight": 2
+          "weight": 2,
+          "armor": 1
         },
         {
           "slug": "cloak",
@@ -3911,6 +3975,7 @@
           "slug": "husbandry-tools",
           "label": "Husbandry tools",
           "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+          "rulesNote": "Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
           "grantsItems": [
             {
               "name": "Brushes",
@@ -3954,6 +4019,7 @@
           "slug": "trapping-gear",
           "label": "Trapping gear",
           "description": "snares, pelts, musk, bait, etc. When you <em>Forage</em>, get +1 use of provisions.",
+          "rulesNote": "When you <em>Forage</em>, get +1 use of provisions.",
           "grantsItems": [
             {
               "name": "Snares",
@@ -4072,6 +4138,7 @@
           "pickCount": 4,
           "mandatoryTrait": "tiny",
           "traits": [
+            "Improved damage die (d6)",
             "+4 HP",
             "+1 armor (agility)",
             "attack-bird",
@@ -4084,7 +4151,19 @@
             "thieving",
             "tiny",
             "tireless"
-          ]
+          ],
+          "effects": {
+            "Improved damage die (d6)": {
+              "damageDie": "d6"
+            },
+            "+4 HP": {
+              "hp": 4
+            },
+            "+1 armor (agility)": {
+              "armor": 1,
+              "armorSource": "agility"
+            }
+          }
         },
         {
           "slug": "critter",
@@ -4114,7 +4193,16 @@
             "stinky",
             "tiny",
             "thieving"
-          ]
+          ],
+          "effects": {
+            "+4 HP": {
+              "hp": 4
+            },
+            "+1 armor (agility)": {
+              "armor": 1,
+              "armorSource": "agility"
+            }
+          }
         },
         {
           "slug": "brute",
@@ -4127,17 +4215,50 @@
           "mandatoryTrait": "tough",
           "traits": [
             "+1 armor (hide, scales, etc.)",
-            "Damage +2, forceful",
-            "Damage messy, 1 piercing",
+            "Damage is +2 damage, forceful",
+            "Damage is messy, 1 piercing",
             "large (+4 HP, +1 damage, +close)",
             "easy-going",
-            "cautious",
+            "fearless",
             "gluttonous",
             "keen-nosed",
+            "powerful",
             "protective",
             "quick",
             "terrifying",
             "tough"
+          ],
+          "effects": {
+            "+1 armor (hide, scales, etc.)": {
+              "armor": 1,
+              "armorSource": "hide, scales, etc."
+            },
+            "Damage is +2 damage, forceful": {
+              "damage": 2,
+              "tags": [
+                "forceful"
+              ]
+            },
+            "Damage is messy, 1 piercing": {
+              "tags": [
+                "messy"
+              ],
+              "piercing": 1
+            },
+            "large (+4 HP, +1 damage, +close)": {
+              "hp": 4,
+              "damage": 1,
+              "tags": [
+                "close"
+              ]
+            }
+          },
+          "aliases": {
+            "Damage +2, forceful": "Damage is +2 damage, forceful",
+            "Damage messy, 1 piercing": "Damage is messy, 1 piercing"
+          },
+          "legacyTraits": [
+            "cautious"
           ]
         },
         {
@@ -4152,7 +4273,7 @@
           "traits": [
             "+4 HP",
             "+1 armor (hide)",
-            "Damage messy, 1 piercing",
+            "Damage is messy, 1 piercing",
             "agile",
             "climber",
             "clever",
@@ -4167,7 +4288,25 @@
             "powerful",
             "stealthy",
             "terrifying"
-          ]
+          ],
+          "effects": {
+            "+4 HP": {
+              "hp": 4
+            },
+            "+1 armor (hide)": {
+              "armor": 1,
+              "armorSource": "hide"
+            },
+            "Damage is messy, 1 piercing": {
+              "tags": [
+                "messy"
+              ],
+              "piercing": 1
+            }
+          },
+          "aliases": {
+            "Damage messy, 1 piercing": "Damage is messy, 1 piercing"
+          }
         },
         {
           "slug": "steed",
@@ -4181,7 +4320,7 @@
           "traits": [
             "+4 HP",
             "+1 armor (hide)",
-            "Damage +2, forceful",
+            "Damage is +2 damage, forceful",
             "aggressive",
             "agile",
             "beautiful",
@@ -4192,7 +4331,25 @@
             "large",
             "powerful",
             "swift"
-          ]
+          ],
+          "effects": {
+            "+4 HP": {
+              "hp": 4
+            },
+            "+1 armor (hide)": {
+              "armor": 1,
+              "armorSource": "hide"
+            },
+            "Damage is +2 damage, forceful": {
+              "damage": 2,
+              "tags": [
+                "forceful"
+              ]
+            }
+          },
+          "aliases": {
+            "Damage +2, forceful": "Damage is +2 damage, forceful"
+          }
         }
       ],
       "instincts": [
@@ -4251,7 +4408,7 @@
       {
         "slug": "antiquarian",
         "label": "Antiquarian",
-        "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>Your travels and studies mean that you start with the <strong>Polyglot</strong> move and are Well Versed in the Makers and their arts. You've also acquired 1 major arcanum.</p>",
+        "description": "<p>The past has buried many secrets, and you are determined to dig them up. Years of study across the land have led you here, and you are convinced that this town holds the key to your greatest discoveries. What is it you hope to find? What is it that keeps you here?</p><p>In any case, your travels and studies mean that you start with the <strong>Polyglot</strong> move and that you are Well Versed in the Makers and their arts (go mark them now). You've also acquired 1 major arcanum.</p>",
         "moves": [
           "Polyglot"
         ],
@@ -4459,7 +4616,56 @@
             "max": 3,
             "title": "Stock",
             "labels": []
-          }
+          },
+          "usesBonus": {
+            "evenLevelBonus": 1,
+            "sinceGranted": true,
+            "earliestGrant": 2,
+            "moveBonus": [
+              {
+                "moveName": "Big Magic",
+                "perInstance": 2
+              }
+            ]
+          },
+          "choiceGroups": [
+            {
+              "heading": "What remarkable trait does it possess?",
+              "note": "one per Big Magic",
+              "subgroups": [
+                {
+                  "multiSelect": true,
+                  "maxSelect": 0,
+                  "maxSelectBonus": {
+                    "moveBonus": [
+                      {
+                        "moveName": "Big Magic",
+                        "perInstance": 1
+                      }
+                    ]
+                  },
+                  "options": [
+                    {
+                      "slug": "trait-indestructible",
+                      "label": "It cannot be cut, torn, or burned by any natural means."
+                    },
+                    {
+                      "slug": "trait-unnoticed",
+                      "label": "Unless someone is specifically searching for your pouch, they will ignore its presence."
+                    },
+                    {
+                      "slug": "trait-sealed",
+                      "label": "So long as the pouch is sealed, nothing within can be detected or found by magic, nor can anything within escape or affect the outside world."
+                    },
+                    {
+                      "slug": "trait-unclean",
+                      "label": "Unnatural and unclean creatures cannot bear to touch it."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
         },
         {
           "slug": "books-and-scrolls",
@@ -4555,6 +4761,10 @@
           "slug": "laboratory",
           "label": "Laboratory",
           "description": "chemics, reagents, vials, measures, ◇ scales, ◇ decanters, etc. Every season, produce d4-1 uses of ◇ naphtha (<em>thrown, area, dangerous, ignores armor</em>).",
+          "rulesNote": "Every season, produce d4-1 uses of ◇ naphtha (<em>thrown, area, dangerous, ignores armor</em>).",
+          "specialItems": [
+            "naphtha"
+          ],
           "grantsItems": [
             {
               "name": "Chemics",
@@ -4633,6 +4843,7 @@
           "slug": "trade-contacts",
           "label": "Trade contacts",
           "description": "small amounts of salt, glass, silk, spice, medicinal herbs, pigments, ivory, etc.",
+          "rulesNote": "Small amounts of each.",
           "grantsItems": [
             {
               "name": "Salt",
@@ -4703,7 +4914,8 @@
           {
             "slug": "when-unlocked",
             "description": "When and how did you begin to unlock its mysteries?",
-            "type": "text"
+            "type": "text",
+            "uncounted": true
           }
         ]
       },
@@ -4717,19 +4929,19 @@
         "options": [
           {
             "slug": "mastered-location",
-            "description": "Choose one whose secrets you have unlocked. If it's portable, keep it on your person or hidden away. Where is it now? How did you come to master it?",
+            "description": "Choose one whose secrets you have unlocked. If it's portable, you either keep it on your person or hidden away somewhere safe. Where is it now? How did you come to master it?",
             "type": "text",
             "arcanaRole": "mastered"
           },
           {
             "slug": "found-location",
-            "description": "Choose another that you have not yet mastered. It is either in your possession or in a secret place known only to you. Where is it? How did you find it?",
+            "description": "Choose another, which you have not yet mastered. It is either in your possession or in a secret place known only to you. Where is it? How did you find it?",
             "type": "text",
             "arcanaRole": "found"
           },
           {
             "slug": "sought-notes",
-            "description": "The third you have not yet found, but you have a lead on it. Give the card back to the GM but make note of it here. What do you know about it?",
+            "description": "The third you have not yet found, but you have a lead on it. Give the card back to the GM, but make note of it below. During play, ask the GM what you know about it.",
             "type": "text",
             "arcanaRole": "lead"
           }
@@ -4756,12 +4968,169 @@
       {
         "slug": "driven",
         "label": "Driven",
-        "description": "<p>You once led a simple life, but something happened. Something changed you, burdened you with terrible purpose. What was it? Choose 1: a loved one was killed or abducted; someone gave their life to save you; your idol sacrificed themselves to save many; you stumbled upon a dark mystery; or you must make amends for a terrible mistake.</p><p>You always have the option to Burn Brightly; you can spend 2 XP after you roll to add +1, even if you don't have enough XP to level.</p>"
+        "description": "<p>You once led a simple life, but something happened. Something changed you, burdened you with terrible purpose. What was it? Choose 1.</p><p>You always have the option to Burn Brightly; you can spend 2 XP after you roll to add +1, even if you don't have enough XP to level.</p>",
+        "choices": {
+          "label": "What was it?",
+          "count": [
+            1
+          ],
+          "options": [
+            {
+              "slug": "driven-loved-one-taken",
+              "label": "A loved one was killed or abducted"
+            },
+            {
+              "slug": "driven-life-given-for-you",
+              "label": "Someone gave their life to save you"
+            },
+            {
+              "slug": "driven-idol-sacrificed",
+              "label": "Your idol sacrificed themselves to save many"
+            },
+            {
+              "slug": "driven-dark-mystery",
+              "label": "You stumbled upon a dark mystery"
+            },
+            {
+              "slug": "driven-make-amends",
+              "label": "You must make amends for a terrible mistake"
+            }
+          ]
+        }
       },
       {
         "slug": "destined",
         "label": "Destined",
-        "description": "<p>Fate has laid her hand upon you. Choose 3-4 of the following to describe your destiny: anointed, marked at birth, your coming foretold, destroy, discover, free, protect, restore, unify, blood, civilization, darkness, earth &amp; stone, fire, ice, light, life, storms, war, water, the Fae, the gods, the Makers, the Stone, or the Things Below.</p><p>At the <em>start of a session</em>, roll +Omens: <strong>on a 7+</strong>, lose all Omens and the GM will share a vision or portent that points toward your fate; also, <strong>on a 10+</strong>, ask the GM a follow-up question and get a clear, helpful answer; <strong>on a 6-</strong>, don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision.</p><p><em>Until your destiny is fulfilled</em>, treat a 6- on Death's Door as a 7-9, and a 7-9 as a 10+.</p>"
+        "description": "<p>Fate has laid her hand upon you. Choose 3-4 of the items below to describe your destiny.</p><p>At the <em>start of a session</em>, roll +Omens: <strong>on a 7+</strong>, lose all Omens and the GM will describe a vision or portent that points toward your fate and/or clarifies your current situation; also, <strong>on a 10+</strong>, ask the GM a follow-up question and get a clear, helpful answer; <strong>on a 6-</strong>, don't mark XP, hold +1 Omen, and tell us of your recent nightmares or a troubling vision, and how your fears play into them.</p><p><em>Until your destiny is fulfilled</em>, treat a 6- on Death's Door as a 7-9, and a 7-9 as a 10+.</p>",
+        "moves": [
+          "Omens of Fate"
+        ],
+        "choices": {
+          "label": "Your destiny",
+          "count": [
+            3,
+            4
+          ],
+          "inline": true,
+          "options": [
+            {
+              "slug": "destiny-anointed",
+              "label": "anointed"
+            },
+            {
+              "slug": "destiny-marked-at-birth",
+              "label": "marked at birth"
+            },
+            {
+              "slug": "destiny-coming-foretold",
+              "label": "your coming foretold"
+            },
+            {
+              "slug": "destiny-destroy",
+              "label": "destroy"
+            },
+            {
+              "slug": "destiny-discover",
+              "label": "discover"
+            },
+            {
+              "slug": "destiny-free",
+              "label": "free"
+            },
+            {
+              "slug": "destiny-protect",
+              "label": "protect"
+            },
+            {
+              "slug": "destiny-restore",
+              "label": "restore"
+            },
+            {
+              "slug": "destiny-unify",
+              "label": "unify"
+            },
+            {
+              "slug": "destiny-blood",
+              "label": "blood"
+            },
+            {
+              "slug": "destiny-civilization",
+              "label": "civilization"
+            },
+            {
+              "slug": "destiny-darkness",
+              "label": "darkness"
+            },
+            {
+              "slug": "destiny-earth-and-stone",
+              "label": "earth & stone"
+            },
+            {
+              "slug": "destiny-fire",
+              "label": "fire"
+            },
+            {
+              "slug": "destiny-ice",
+              "label": "ice"
+            },
+            {
+              "slug": "destiny-light",
+              "label": "light"
+            },
+            {
+              "slug": "destiny-life",
+              "label": "life"
+            },
+            {
+              "slug": "destiny-storms",
+              "label": "storms"
+            },
+            {
+              "slug": "destiny-war",
+              "label": "war"
+            },
+            {
+              "slug": "destiny-water",
+              "label": "water"
+            },
+            {
+              "slug": "destiny-the-fae",
+              "label": "the Fae"
+            },
+            {
+              "slug": "destiny-the-gods",
+              "label": "the gods"
+            },
+            {
+              "slug": "destiny-the-makers",
+              "label": "the Makers"
+            },
+            {
+              "slug": "destiny-the-stone",
+              "label": "the Stone"
+            },
+            {
+              "slug": "destiny-the-things-below",
+              "label": "the Things Below"
+            }
+          ]
+        },
+        "setup": {
+          "resources": [
+            {
+              "key": "omens",
+              "label": "Omens",
+              "max": 3,
+              "value": 0
+            },
+            {
+              "key": "destiny-fulfilled",
+              "label": "Destiny fulfilled",
+              "max": 1,
+              "value": 0
+            }
+          ]
+        }
       }
     ],
     "instincts": [
@@ -4887,6 +5256,11 @@
       "preselected": [],
       "options": [
         {
+          "slug": "heap-of-expectations",
+          "label": "A heap of expectations",
+          "description": "of little use"
+        },
+        {
           "slug": "a-good-dog",
           "label": "A good dog",
           "description": "follower (<em>keen-nosed, clever</em>); HP 6; Damage d6 (<em>hand, grabby</em>); Instinct to play; Cost: affection.",
@@ -4905,14 +5279,10 @@
           }
         },
         {
-          "slug": "heap-of-expectations",
-          "label": "Heap of expectations",
-          "description": "of little use"
-        },
-        {
           "slug": "husbandry-tools",
           "label": "Husbandry tools",
           "description": "brushes, muzzles, collars, feed, ◇ whips, ◇ bridles, etc. Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
+          "rulesNote": "Gain advantage to Persuade domestic beasts (livestock, dogs, etc.).",
           "grantsItems": [
             {
               "name": "Brushes",
@@ -4985,6 +5355,7 @@
           "slug": "smithy",
           "label": "Smithy",
           "description": "(or access to it): iron goods, ingots, thick gloves, ◇ tongs, ◇ bellows, an anvil, etc.",
+          "rulesNote": "Or access to it.",
           "grantsItems": [
             {
               "name": "Iron goods",
@@ -5052,6 +5423,7 @@
           "slug": "tannery",
           "label": "Tannery",
           "description": "(or access to it): lime, acid, salts, thick gloves, ◇ a boiled leather cuirass (1 armor), etc.",
+          "rulesNote": "Or access to it.",
           "grantsItems": [
             {
               "name": "Lime",

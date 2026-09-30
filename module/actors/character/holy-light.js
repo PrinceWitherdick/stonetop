@@ -23,21 +23,40 @@ export const HOLY_LIGHT_FLAG       = "holyLight";
 export const CONSECRATED_FLAME     = "Consecrated Flame";
 export const INVOKE_THE_SUN_GOD    = "Invoke the Sun God";
 export const EMPOWERED_INVOCATIONS = "Empowered Invocations";
-const WIELDER_OF_THE_WHITE_FLAME   = "Wielder of the White Flame";
+export const WIELDER_OF_THE_WHITE_FLAME = "Wielder of the White Flame";
 
-// The moves that MAKE a holy light, and so the ones that earn the candle. The moves that
-// merely READ one (A Candle Against the Dark, Purifying Flames, Hungry Flames, Luminous
-// Shield) need no entry: each is either 6th level or requires a starting move, so nobody
-// owns one without owning a maker too.
+// The moves that make or READ a holy light, and so the ones that earn the candle. The readers
+// (A Candle Against the Dark, Purifying Flames, Luminous Shield, Hungry Flames) are here too:
+// inside the Lightbearer's own list each needs a maker first, but a Would-be Hero can take A
+// Candle Against the Dark or Purifying Flames through Versatile alone, and a reader with no
+// candle to light could never switch its own move on.
 //
 // Known and accepted: a non-Lightbearer wielding a holy light from somewhere else (an
 // arcanum, say) gets no candle. Widening that is one line here.
-const HOLY_LIGHT_MOVES = [CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, WIELDER_OF_THE_WHITE_FLAME];
+const HOLY_LIGHT_MOVES = [
+	CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, WIELDER_OF_THE_WHITE_FLAME,
+	"A Candle Against the Dark", "Purifying Flames", "Luminous Shield", "Hungry Flames",
+];
 
 // `owned` is the character sheet's one-pass Set — see ownsAnyMoveNamed. Omitted, this answers
 // for itself exactly as it always did.
 export function canWieldHolyLight(actor, owned = null) {
 	return ownsAnyMoveNamed(actor, HOLY_LIGHT_MOVES, owned);
+}
+
+export const LUMINOUS_SHIELD = "Luminous Shield";
+
+/**
+ * What a roll of one of the two moves that turn on the light does to it, or null for no change:
+ *   Luminous Shield's 6-: "your light snuffs out and the attack is unimpeded" (false).
+ *   Wielder of the White Flame's 7+: "it ignites with a white flame that casts a holy light" (true).
+ * `tier` is roll-engine's classifyResult key. The 10+'s "Invoke the Sun God right now" is its own button
+ * (invoke-consequences.js#wielderRollOptions).
+ */
+export function holyLightAfterRoll(moveName, tier) {
+	if (moveName === LUMINOUS_SHIELD && tier === "failure") return false;
+	if (moveName === WIELDER_OF_THE_WHITE_FLAME && (tier === "success" || tier === "partial")) return true;
+	return null;
 }
 
 /**

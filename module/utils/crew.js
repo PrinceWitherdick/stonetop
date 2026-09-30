@@ -10,6 +10,20 @@ export function crewExists(crew) {
 	return !!(crew && (crew.name || crew.tags?.length || crew.instinct || crew.cost || crew.individuals?.length));
 }
 
+/**
+ * The tag a character's background gives their crew, or null. The Marshal's alone: the Crew insert
+ * says "a tag granted by your background" to the Marshal, so a crew borrowed through a learned Crew
+ * (StonetopCharacter#crewSource) gets none, whatever its keeper's background is called.
+ *
+ * @param {object|null} playbookDoc     the character's OWN playbook
+ * @param {object|null} crewDef         the Crew insert the crew is drawn from
+ * @param {string}      backgroundSlug  the active background
+ */
+export function crewBackgroundTag(playbookDoc, crewDef, backgroundSlug) {
+	if (!playbookDoc?.crew) return null;
+	return (crewDef ?? playbookDoc.crew)?.backgroundTags?.[backgroundSlug ?? ""] ?? null;
+}
+
 // Hard cap on crew headcount, so a fat-fingered roster size can't build a
 // thousand-member anonymous list (and a thousand-die group HP pool).
 export const CREW_SIZE_MAX = 99;
@@ -82,9 +96,35 @@ export function groupFollowerStanding(flags, { ftype, slug = "" } = {}) {
 		if (!follower?.isGroup) return null;
 		const size = customGroupSize(follower);
 		const memberHp = Array.isArray(follower.memberHp) ? follower.memberHp : [];
-		return { standing: countStanding(memberHp, size), size };
+		// A member marked fallen is down whatever their HP slot says (customMemberFallen).
+		let fallen = 0;
+		for (let i = 0; i < size; i += 1) if (customMemberFallen(follower, i) && memberStanding(memberHp[i])) fallen += 1;
+		return { standing: countStanding(memberHp, size) - fallen, size };
 	}
 	return null;
+}
+
+/**
+ * Whether a custom GROUP's member at `index` is marked dead: the fate dialog's "Dead" for a group at its
+ * two-member floor, which cannot strike them off the roster (customGroupSize), so they keep their slot
+ * at 0 HP with this mark, `customFollowers.<id>.memberDead`, an array parallel to `memberHp` (true for
+ * the fallen, null for the rest), written whole as memberHp is. Cleared when the row's HP box is set
+ * above 0 by hand (follower-fate.js#followerReviveUpdate); a fallen member is never standing, and a heal
+ * does not reach them (Bath of Healing Light, invocation-apply.js).
+ */
+export function customMemberFallen(follower, index) {
+	return Array.isArray(follower?.memberDead) && !!follower.memberDead[Number(index)];
+}
+
+/**
+ * The roster slots of a custom GROUP's members who are still with it: every member but the ones marked
+ * fallen (customMemberFallen). A member at 0 HP is down, not gone, and is still here: they eat at the
+ * fire and can be sent to Have What They Need. The indices are the roster's own, so a label made from
+ * one (customGroupMemberLabel) names the same row. Empty for a follower that is not a group.
+ */
+export function customGroupPresent(follower) {
+	if (!follower?.isGroup) return [];
+	return Array.from({ length: customGroupSize(follower) }, (_, i) => i).filter(i => !customMemberFallen(follower, i));
 }
 
 /** A named crew member's own tags: their extra tag and their traits, as the card's own Order button counts them. */
@@ -104,28 +144,32 @@ function ownTags(individual) {
  *
  * Named by the same labellers the roster rows use, so "Crew member 4" here is the row that says so. The
  * character sheet's `_followerMemberNames` walks the same roster for Have What They Need, where a downed
- * member still counts.
+ * member still counts and a fallen one does not (customGroupPresent). `down` lists the members at 0 HP too, in the same order, for a heal that can raise
+ * them (Bath of Healing Light, invocation-apply.js).
  *
  * @param {object} flags  the character's system flags
  * @param {{ftype: string, slug?: string}} which  the card
- * @returns {Array<{key: string, name: string, tags: string[]}>}  empty for anyone but a group
+ * @param {{down?: boolean}} [options]
+ * @returns {Array<{key: string, name: string, tags: string[], dead?: boolean}>}  empty for anyone but a
+ *   group; `dead` on a custom group's member marked fallen (customMemberFallen), listed only with `down`
  */
-export function groupFollowerMembers(flags, { ftype, slug = "" } = {}) {
+export function groupFollowerMembers(flags, { ftype, slug = "" } = {}, { down = false } = {}) {
 	const members = [];
+	const listed = raw => down || memberStanding(raw);
 	if (ftype === "crew") {
 		const crew = flags?.crew;
 		if (!crew) return members;
 		const named = Array.isArray(crew.individuals) ? crew.individuals : [];
 		const individualsHp = crew.individualsHp ?? {};
 		named.forEach((individual, i) => {
-			if (!memberStanding(individualsHp[i])) return;
+			if (!listed(individualsHp[i])) return;
 			const name = String(individual?.name ?? "").trim() || crewIndividualLabel(i);
 			members.push({ key: `named:${i}`, name, tags: ownTags(individual) });
 		});
 		const memberHp = Array.isArray(crew.memberHp) ? crew.memberHp : [];
 		const anonymous = crewAnonymousCount(crew);
 		for (let i = 0; i < anonymous; i += 1) {
-			if (memberStanding(memberHp[i])) members.push({ key: `anon:${i}`, name: crewAnonMemberLabel(named.length, i), tags: [] });
+			if (listed(memberHp[i])) members.push({ key: `anon:${i}`, name: crewAnonMemberLabel(named.length, i), tags: [] });
 		}
 		return members;
 	}
@@ -135,7 +179,10 @@ export function groupFollowerMembers(flags, { ftype, slug = "" } = {}) {
 		const memberHp = Array.isArray(follower.memberHp) ? follower.memberHp : [];
 		const size = customGroupSize(follower);
 		for (let i = 0; i < size; i += 1) {
-			if (memberStanding(memberHp[i])) members.push({ key: `member:${i}`, name: customGroupMemberLabel(i), tags: [] });
+			// A member marked fallen is listed only with the down, and says so (`dead`).
+			const fallen = customMemberFallen(follower, i);
+			if (fallen ? !down : !listed(memberHp[i])) continue;
+			members.push({ key: `member:${i}`, name: customGroupMemberLabel(i), tags: [], ...(fallen ? { dead: true } : {}) });
 		}
 	}
 	return members;

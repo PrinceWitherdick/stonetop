@@ -15,6 +15,17 @@
 
 import { SYSTEM_ID } from "../../system-id.js";
 import { readableFlags } from "./StonetopFlags.js";
+import { initiateActive } from "./initiates.js";
+import { ownsLearnedBookMoveNamed } from "./owns-move.js";
+
+/**
+ * Whether a card is one of the character's followers at all. Every card is, except an initiate of
+ * Danu while the Initiate background is not the one taken: their card and their NPC are kept for a
+ * return to it (initiates.js), but meanwhile they follow nobody.
+ */
+function cardStands(flags, ftype, slug) {
+	return ftype !== "initiate" || initiateActive(flags, slug);
+}
 
 /**
  * Where a character keeps its followers, and what kind of card each root holds. These are the roots
@@ -48,6 +59,57 @@ const BY_FTYPE = Object.freeze(Object.fromEntries(
 export function followerDetailBase(ftype, slug = "") {
 	const base = BY_FTYPE[ftype]?.detailBase;
 	return base ? base.replaceAll("{slug}", slug ?? "") : null;
+}
+
+/** The Marshal's move whose "They are exceptional" pick makes the crew exceptional. */
+export const HEROES_TO_THE_LAST = "Heroes to the Last";
+
+/**
+ * Whether the crew is exceptional: Heroes to the Last is LEARNED (the book's move, the Marshal's own
+ * copy or one taken through another playbook) and its "They are exceptional" pick is marked.
+ *
+ * THE ONE SOURCE, the user's ruling. That pick is also what raises the card's "Roll +N" (its
+ * `crewRoll`, summed in StonetopCharacter#_ownedMoveBonuses from the same learned copies and the same
+ * marks), so the number the card shows and the +2 an order actually rolls are one answer. The crew's
+ * old hand toggle (`crew.details.exceptional`) is not read: a stored `true` from before is ignored.
+ */
+export function crewIsExceptional(character) {
+	return exceptionalPickMarked(character, HEROES_TO_THE_LAST);
+}
+
+/** The Ranger's move whose "They are exceptional" pick makes the animal companion exceptional. */
+export const BEAST_OF_LEGEND = "Beast of Legend";
+
+/**
+ * Whether the animal companion is exceptional: the crew's shape (crewIsExceptional), for the Ranger.
+ * Beast of Legend is LEARNED (a book copy) and its "They are exceptional" pick is marked. The card's
+ * old hand toggle (`animalCompanion.details.exceptional`) is not read: a stored `true` is ignored.
+ */
+export function companionIsExceptional(character) {
+	return exceptionalPickMarked(character, BEAST_OF_LEGEND);
+}
+
+/** The follower types whose "exceptional" is a move's pick, and that move. */
+export const EXCEPTIONAL_FROM_MOVE = Object.freeze({ "crew": HEROES_TO_THE_LAST, "animal-companion": BEAST_OF_LEGEND });
+
+// `moveName` is LEARNED (a book copy) and its "They are exceptional" pick is marked.
+function exceptionalPickMarked(character, moveName) {
+	if (!ownsLearnedBookMoveNamed(character, moveName)) return false;
+	const marked = readableFlags(character)?.moves?.moveMarks?.[moveName]?.exceptional;
+	return Array.isArray(marked) ? marked.length > 0 : Number(marked) > 0;
+}
+
+/**
+ * Whether a follower is exceptional, for any of the five types: the crew's comes from Heroes to the
+ * Last (crewIsExceptional), the animal companion's from Beast of Legend (companionIsExceptional),
+ * every other type's is the toggle stored on its own card.
+ */
+export function followerExceptional(character, ftype, slug = "") {
+	if (EXCEPTIONAL_FROM_MOVE[ftype]) return exceptionalPickMarked(character, EXCEPTIONAL_FROM_MOVE[ftype]);
+	const base = followerDetailBase(ftype, slug);
+	if (!base) return false;
+	const details = base.split(".").reduce((node, key) => node?.[key], readableFlags(character));
+	return !!details?.exceptional;
 }
 const LINK_KEYS = new Set(["actorUuid", "sourceUuid"]);
 
@@ -94,6 +156,7 @@ function followerLinks(character) {
 	};
 	const flags = readableFlags(character);
 	for (const [name, root] of Object.entries(FOLLOWER_ROOTS)) walk(flags[name], 0, root, "");
+	for (const [uuid, card] of links) if (!cardStands(flags, card.ftype, card.slug)) links.delete(uuid);
 	return links;
 }
 
@@ -121,8 +184,10 @@ export function followerMasterIndex({ characters = [], actors = [] } = {}) {
 	const masters = new Map();
 	for (const actor of actors) {
 		if (actor?.type !== "npc" || !actor.id) continue;
-		const origin = actor.flags?.[SYSTEM_ID]?.followerOrigin?.characterUuid;
-		const master = byUuid.get(origin) ?? claimed.get(actor.uuid) ?? null;
+		const origin = actor.flags?.[SYSTEM_ID]?.followerOrigin;
+		let stamped = byUuid.get(origin?.characterUuid) ?? null;
+		if (stamped && !cardStands(readableFlags(stamped), origin.ftype, origin.slug ?? "")) stamped = null;
+		const master = stamped ?? claimed.get(actor.uuid) ?? null;
 		if (master && master.id !== actor.id) masters.set(actor.id, master);
 	}
 	return masters;
@@ -163,7 +228,13 @@ export function followerCardFor(actor, { characters = null, resolve = globalThis
 			try { character = resolve(origin.characterUuid, { strict: false }); } catch { character = null; }
 		}
 		character ??= searchable().find(c => c?.uuid === origin.characterUuid) ?? null;
-		if (character?.type === "character") return { character, ftype: origin.ftype, slug: origin.slug ?? "" };
+		if (character?.type === "character") {
+			// Named outright, so the answer is this card or nobody: a dormant initiate's NPC is not
+			// somebody else's follower just because it is not this character's.
+			return cardStands(readableFlags(character), origin.ftype, origin.slug ?? "")
+				? { character, ftype: origin.ftype, slug: origin.slug ?? "" }
+				: null;
+		}
 	}
 	const uuids = linkUuidsFor(actor);
 	for (const character of searchable()) {
@@ -174,4 +245,13 @@ export function followerCardFor(actor, { characters = null, resolve = globalThis
 		}
 	}
 	return null;
+}
+
+/**
+ * The character an actor fights for: a character is their own, and a follower's NPC answers the
+ * character whose card it is (followerCardFor). Null for anyone else, a monster included.
+ */
+export function characterBehind(actor, cardFor = followerCardFor) {
+	if (actor?.type === "character") return actor;
+	return actor?.type === "npc" ? cardFor(actor)?.character ?? null : null;
 }

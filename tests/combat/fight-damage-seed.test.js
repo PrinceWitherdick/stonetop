@@ -188,11 +188,15 @@ describe("an attack's own damage windows", () => {
 		// pile-on is a +N against ONE target and this blow has none (rollDamageAt's no-target branch,
 		// which asks this window so a ticked line is paid for and can tag the blow).
 		const unaimed = calls.filter(call => call.includes("sheetSeed({ actor })"));
-		const aimed = calls.filter(call => !strikeBack.includes(call) && !unaimed.includes(call));
-		expect(calls).toHaveLength(5);
+		// An Invocation's own damage (Go Back to the Shadow, rollInvocationDamage) is the Invocation's
+		// number, not a blow anyone is piling on to.
+		const invocation = calls.filter(call => call.includes('rollMode: "normal", seed: null, offers'));
+		const aimed = calls.filter(call => !strikeBack.includes(call) && !unaimed.includes(call) && !invocation.includes(call));
+		expect(calls).toHaveLength(6);
 		expect(src).toContain("seeded = seeded && !striker;");
 		expect(strikeBack).toHaveLength(1);
 		expect(unaimed).toHaveLength(1);
+		expect(invocation).toHaveLength(1);
 		expect(aimed).toHaveLength(3);
 		for (const call of aimed) expect(call).toContain("seedForTargets(actor, targets)");
 	});

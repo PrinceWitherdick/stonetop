@@ -12,12 +12,14 @@
 // good, which is exactly why the copies were made in the first place.
 
 /**
- * Has this reader asked for less motion?
+ * Has this reader asked for less motion, in their OS or in this system's own "Reduce motion" setting
+ * (the `stonetop-reduce-motion` root class, settings.js#applyReduceMotion)? Either one is asking.
  *
  * ⚠ NO `matchMedia` MEANS NO, not "don't know". A test and a headless run both land there, and
  * animation is what those callers are usually checking -- so the honest default is the one that
  * leaves the motion in and lets the test say what it wants by standing `matchMedia` up itself.
  */
 export function prefersReducedMotion() {
-	return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+	return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true
+		|| globalThis.document?.documentElement?.classList?.contains("stonetop-reduce-motion") === true;
 }

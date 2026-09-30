@@ -1,3 +1,5 @@
+import { DIE_ORDER } from "../../utils/damage-die.js";
+
 // Repeat-scaling selection budget for a move's `markOptions`.
 //
 // Moves like Veteran Crew, Heroes to the Last, Beast of Legend and Well Versed say
@@ -26,4 +28,22 @@ export function moveMarkBudget(markBudget, ownedCount = 0) {
 	if (!markBudget || markBudget.base == null) return null;
 	if (ownedCount < 1) return 0;
 	return Math.max(0, markBudget.base + (markBudget.perExtra ?? 0) * (ownedCount - 1));
+}
+
+// Whether a mark option would buy NOTHING because what it raises is already at the option's own
+// cap, and if so the reason, worded for a tooltip; null while it still has room. Read off the
+// option's DATA, so any capped option is covered, not one move: today that is a crew damage step
+// ("Increase their damage die one size (max d10)", Heroes to the Last; Veteran Crew's d6 to d8),
+// weighed against the crew's current die (base stepped by every marked step, as
+// StonetopCharacter#_buildCrewStats makes it).
+//
+// `state` is what the option is weighed against: `{ crewDamageDie }`. An option this knows no
+// cap for, or a state that lacks the number, is never at cap.
+export function markOptionCapNote(option, { crewDamageDie = null } = {}) {
+	if (option?.crewDamageStep && option.crewDamageCap && crewDamageDie) {
+		const at  = DIE_ORDER.indexOf(crewDamageDie);
+		const cap = DIE_ORDER.indexOf(option.crewDamageCap);
+		if (at >= 0 && cap >= 0 && at >= cap) return `Their damage die is already ${option.crewDamageCap}`;
+	}
+	return null;
 }

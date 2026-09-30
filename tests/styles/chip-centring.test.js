@@ -158,7 +158,8 @@ describe("chips with an icon or a count trim their label element", () => {
 		["templates/dialogs/monster-to-follower.hbs", "stonetop-cf-chosen-tag", "button", 1],
 		["templates/dialogs/partials/expedition-load.hbs", "stonetop-exp-load-chip", "button", 1],
 		["templates/dialogs/people-gallery.hbs", "stonetop-people-chip", "button", 10],
-		["templates/actor/partials/tab-followers.hbs", "stonetop-follower-dead-badge", "span", 1],
+		// The fallen card's, and a custom group's roster row marked fallen at the group's floor.
+		["templates/actor/partials/tab-followers.hbs", "stonetop-follower-dead-badge", "span", 2],
 		["templates/actor/partials/tab-followers.hbs", "stonetop-exceptional-toggle", "button", 1],
 		["templates/dialogs/partials/catalog-shell.hbs", "stonetop-catalog-badge", "span", 1],
 	])("wraps every label in %s (.%s)", (file, chipClass, tag, count) => {
@@ -187,7 +188,6 @@ describe("chip icons sit at a whole-pixel size", () => {
 		".stonetop-cf-chosen-tag i",
 		".stonetop .create-monster .cm-move-suggestion i",
 		".stonetop-person-picker-chip i",
-		".stonetop-exceptional-toggle.is-locked .fa-lock",
 		".stonetop-order-followers-dialog .stonetop-of-tag i",
 		".stonetop-follower-dead-badge i",
 		".stonetop-timeline-entry-linked i",

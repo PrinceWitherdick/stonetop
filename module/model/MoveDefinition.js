@@ -6,6 +6,10 @@ export class MoveDefinition {
 		this.id          = data._id;
 		this.name        = data.name;
 		this.playbook    = data.system?.playbook        ?? null;
+		// A post-death Consequence or Mark's own move names the lore option it belongs to
+		// ("consequences:poltergeist"), and is owned only while that option is marked. Null on every
+		// move an insert grants outright, and on every move that is not a post-death one.
+		this.loreOption  = data.system?.loreOption      || null;
 		this.rollType    = normalizeRollType(data.system?.rollType);
 		this.description = data.system?.description     ?? null;
 		// The move's own 10+/7-9/6- outcome text, as { success|partial|failure: {label, value} }.
@@ -13,6 +17,9 @@ export class MoveDefinition {
 		this.moveResults = data.system?.moveResults     ?? null;
 		this.isStarting  = data.system?.isStartingMove  ?? false;
 		this.requirement = data.system?.requirement     ?? null;
+		// The move this one replaces ("Requires level 6+; replaces Bulwark"), or null. Book I
+		// p.529: a replacing move requires the one it replaces, and taking it loses the original.
+		this.replaces    = data.system?.replaces        || null;
 		this.repeatMax   = data.system?.repeatMax       ?? null;
 		// Per-stat ceiling for stat-increase moves (+2 / +3); null otherwise. A non-null
 		// cap marks the move as needing a stat-choice picker at level-up.

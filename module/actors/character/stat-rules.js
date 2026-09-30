@@ -33,8 +33,9 @@
 //
 // Every recorded pick is worth exactly +1, which is what lets rule 2 take the picks back off
 // by counting them. The Improved / Superior Stat pickers only ever offer a stat below the
-// move's cap, and a Potential for Greatness slot adds its +1 without checking one (so a slot
-// marked on a stat already at +2 reads +3, and rule 3 cautions it).
+// move's cap, and so does a Potential for Greatness slot's, but the slot's write adds its +1
+// without checking one (so a slot marked on a stat raised to +2 since reads +3, and rule 3
+// cautions it).
 
 import {STAT_KEYS} from "../../utils/roll-types.js";
 import {joinNames, sign} from "../../utils/strings.js";
@@ -56,8 +57,9 @@ export const DEFAULT_STAT_ARRAY = [2, 1, 1, 0, 0, -1];
 // on. Potential for Greatness is the only move with stat slots, and its cap is printed in the
 // option's own text ("Increase the stat you rolled by 1, to a max of +2") rather than carried
 // in its data, so it is written down here. A marking move missing from this table is held to
-// the range alone.
-const MARK_STAT_CAPS = { "Potential for Greatness": 2 };
+// the range alone. The move card's stat slot picker reads it too, to offer only the stats below
+// it (StonetopCharacter's _buildMarkOptions).
+export const MARK_STAT_CAPS = { "Potential for Greatness": 2 };
 
 /**
  * The scores a playbook hands out, read off its printed note ("Assign these scores to your

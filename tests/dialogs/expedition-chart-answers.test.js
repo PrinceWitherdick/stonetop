@@ -2,6 +2,11 @@ import Handlebars from "handlebars";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readRepo as read, readCss, declarations } from "../fakes/css.js";
 
+// The question spiral, by its file or by the token that carries it. Background uses read
+// `--stonetop-question-spiral-icon` so the dark palette can swap in the bone twin; either spelling
+// is the same picture on paper.
+const QUESTION_SPIRAL = /question-spiral\.svg|--stonetop-question-spiral-icon/;
+
 // Chart a Course: what this trip presented, and what was said about it.
 //
 // The step used to print the book's twelve requirements and challenges with a tick beside each,
@@ -157,7 +162,7 @@ describe("adding, answering and removing", () => {
 		await d._mutateChart(list => [...list,
 			{ id: "x", group: "challenges", key: "lost", text: "", answer: "" }]);
 		expect(chartPicked(saved().chart)).toEqual([
-			{ id: "x", group: "challenges", key: "lost", text: "", answer: "", fromRoute: false },
+			{ id: "x", group: "challenges", key: "lost", text: "", answer: "", fromRoute: false, done: false },
 		]);
 	});
 
@@ -268,7 +273,7 @@ describe("how a charted line is drawn", () => {
 		const vars = declarations(CSS, ".stonetop-exp-chartgroup");
 		expect(vars).toContain("--stonetop-wonder-gutter:");
 		expect(vars).toContain("--stonetop-wonder-answer-step:");
-		expect(declarations(CSS, ".stonetop-gm-wonder-head::before")).toContain("question-spiral.svg");
+		expect(declarations(CSS, ".stonetop-gm-wonder-head::before")).toMatch(QUESTION_SPIRAL);
 	});
 
 	it("shares the spans' geometry with the settled question, differing only in ink", () => {

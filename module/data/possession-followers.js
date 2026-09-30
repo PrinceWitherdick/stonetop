@@ -7,9 +7,11 @@
 //
 // Keyed by the possession's slug (matching specialPossessions.options[].slug on the
 // playbook). `sourceUuid` (`possession:<slug>`) dedupes re-adds, exactly like the
-// arcana summons. Where the handout offers a tag choice, we bake a sensible default
-// and note the alternative — the resulting card is fully editable, so the player
-// adjusts to their pick.
+// arcana summons. Where the playbook offers a tag choice (the dog is a retriever OR a
+// herder), `choiceTags` names the choice slugs that are tags, and the one the player
+// picked on the possession leads the card's tags. Where the playbook prints a headcount
+// range ("Hounds, 2-3 followers"), `sizeChoices` lists it: the sheet asks which when the
+// group is added, and `size` is the answer taken when none is given.
 
 export const POSSESSION_FOLLOWER_CATALOG = {
 	// The Would-be Hero — "A good dog" (single follower).
@@ -17,12 +19,12 @@ export const POSSESSION_FOLLOWER_CATALOG = {
 		name:       "Good dog",
 		typeLabel:  "a good dog",
 		portraitIcon: "fas fa-dog",
-		tags:       ["herder", "keen-nosed", "clever"],
+		tags:       ["keen-nosed", "clever"],
+		choiceTags: ["retriever", "herder"],
 		hp:         6,
 		damage:     "d6 (hand, grabby)",
 		instinct:   "to play",
 		cost:       "affection",
-		notes:      "Choose when you gain it: a retriever, or a herder (keen-nosed, clever).",
 		sourceUuid: "possession:a-good-dog",
 	},
 	// The Ranger — "Hounds" (2–3 followers → a group).
@@ -37,6 +39,7 @@ export const POSSESSION_FOLLOWER_CATALOG = {
 		cost:       "training",
 		isGroup:    true,
 		size:       2,
+		sizeChoices: [2, 3],
 		sourceUuid: "possession:hounds",
 	},
 	// The Blessed — "Mastiffs" (2–3 followers → a group).
@@ -51,13 +54,35 @@ export const POSSESSION_FOLLOWER_CATALOG = {
 		cost:       "affection",
 		isGroup:    true,
 		size:       2,
+		sizeChoices: [2, 3],
 		sourceUuid: "possession:mastiffs",
 	},
 };
 
-/** The follower-catalog entry for a possession slug, or null if it grants no follower. */
-export function possessionFollower(slug) {
-	return POSSESSION_FOLLOWER_CATALOG[slug] ?? null;
+/**
+ * The follower inputs for a possession slug, or null if it grants no follower.
+ * `picked` is the possession's sub-choice slugs (possessions.subChoices[slug]); the
+ * ones among the entry's `choiceTags` lead its tags, so the Would-be Hero's dog is the
+ * retriever or the herder they chose. Nothing picked yet leaves the choice off rather
+ * than guessing it.
+ *
+ * `size` is the headcount the player chose for a group with `sizeChoices` (the Ranger's
+ * Hounds, 2 or 3); one the entry doesn't list, or none, leaves the entry's own `size`.
+ */
+export function possessionFollower(slug, picked = [], { size = null } = {}) {
+	const entry = POSSESSION_FOLLOWER_CATALOG[slug];
+	if (!entry) return null;
+	const sized = entry.sizeChoices?.includes(Number(size)) ? { ...entry, size: Number(size) } : entry;
+	if (!entry.choiceTags) return sized;
+	const { choiceTags, ...rest } = sized;
+	const chosen = choiceTags.filter(t => (picked ?? []).includes(t));
+	return { ...rest, tags: [...chosen, ...entry.tags] };
+}
+
+/** The headcounts to ask between for a possession-follower's group, or [] when there's nothing to ask. */
+export function possessionFollowerSizeChoices(slug) {
+	const choices = POSSESSION_FOLLOWER_CATALOG[slug]?.sizeChoices ?? [];
+	return choices.length > 1 ? [...choices] : [];
 }
 
 /**
