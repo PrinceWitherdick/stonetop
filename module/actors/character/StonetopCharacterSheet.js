@@ -14,12 +14,12 @@ import {moveChoiceKey} from "./dialogs/well-versed-topics.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
 import {DeathsDoorDialog} from "./dialogs/DeathsDoorDialog.js";
 import {UndeathDialog} from "./dialogs/UndeathDialog.js";
-import {buildPostDeathChoices, choiceWriteIns} from "./post-death-choices.js";
+import {buildPostDeathChoices, choiceWriteIns, sectionReader} from "./post-death-choices.js";
 import {moveActionsFor, runPostDeathAction} from "./post-death-actions.js";
 import {
 	buildPostDeathTabView, completeMasterTask, gainThrallMark, runPostDeathOutcome, setFavorFromPip, tickInsertLore,
 } from "./post-death-outcomes.js";
-import {DEATHS_DOOR_STATE, HARD_TO_KILL, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, ZERO_HP_MOVES, halfMaxHp, pastDeathClasses, pastDeathKind, zeroHpMove} from "./deaths-door.js";
+import {DEATHS_DOOR_STATE, HARD_TO_KILL, PAST_DEATH_KINDS, POST_DEATH_INSERT_SLUGS, UNDEATH_MOVE_NAMES, halfMaxHp, pastDeathClasses, pastDeathKind, zeroHpMove} from "./deaths-door.js";
 import {WoundDialog} from "./dialogs/WoundDialog.js";
 import {WOUND_STATUS_GLYPH, WOUND_STATUS_LABEL} from "./wound-display.js";
 import {PlaybookPickerDialog} from "./dialogs/PlaybookPickerDialog.js";
@@ -442,8 +442,7 @@ const MOVE_ROLL_EFFECTS = {
 const MOVE_ROLL_INSTEAD = {
 	[HARD_TO_KILL]:       async sheet => { await sheet._rollHardToKill(); return true; },
 	[INVOKE_THE_SUN_GOD]: (sheet, { shiftKey, pickContext }) => !pickContext && sheet._invokeWhichInvocation({ shiftKey }),
-	...Object.fromEntries(POST_DEATH_INSERT_SLUGS.map(slug => ZERO_HP_MOVES[slug].name)
-		.map(name => [name, sheet => sheet._rollUndeathMove(name)])),
+	...Object.fromEntries(UNDEATH_MOVE_NAMES.map(name => [name, sheet => sheet._rollUndeathMove(name)])),
 };
 
 // The Death's Door card's words for someone who left play without passing the Last Door
@@ -1594,8 +1593,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// every checkbox, every flag write, every follower-sweep re-render, whether or not the one
 			// template that reads it was on screen. `showPostDeath` is the same condition character.hbs
 			// puts on both the tab button and the panel, so nothing can consume this when it is false.
-			const pdChoices = context.stonetop.showPostDeath
-				? await buildPostDeathChoices(this._stonetopCharacter)
+			// One read of each of the insert's sections for this render, shared with the tab's buttons below.
+			const pdSections = context.stonetop.showPostDeath ? sectionReader(this._stonetopCharacter) : null;
+			const pdChoices = pdSections
+				? await buildPostDeathChoices(this._stonetopCharacter, { sections: pdSections })
 				: null;
 			context.stonetop.postDeathChoices = pdChoices ? {
 				writeIns: choiceWriteIns(pdChoices).map(row => ({
@@ -1636,6 +1637,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					outOfPlay: pdState === DEATHS_DOOR_STATE.DEAD,
 					hp:        context.stonetop.vitals?.hp?.value,
 					maxHp:     context.stonetop.vitals?.hp?.max,
+					sections:  pdSections,
 				})
 				: null;
 			// Mirror computed vitals back onto system attributes for the sheet's inputs.
@@ -1860,8 +1862,12 @@ export function createStonetopCharacterSheetClass(Base) {
 					item.revealedToPlayers = revealed;
 					// The GM's reveal toggle only matters in secretive mode (setting off) for a
 					// still-LOCKED back: an unlocked back is already seen by its owner, and with
-					// the setting on every player can peek anyway.
-					item.canReveal         = viewerIsGM && !playersSeeBothArcana && !item.unlocked;
+					// the setting on every player can peek anyway. The exception is a 7-9's owed
+					// back: revealArcanum is the only thing that clears backOwed, so the toggle
+					// stays offered even with the peek switch on. Otherwise the debt would be
+					// stranded, to resurface the day the switch went off as a claim about a back
+					// the player read sessions ago.
+					item.canReveal         = viewerIsGM && !item.unlocked && (!playersSeeBothArcana || item.backOwed);
 					// The show-both toggle is only meaningful when the viewer may see the back.
 					item.canToggleBoth     = permittedBack;
 					// The flip button shows whenever the back is permitted and the card isn't
@@ -1872,24 +1878,13 @@ export function createStonetopCharacterSheetClass(Base) {
 					// player's own route to a face-down card is the Know Things roll.
 					item.canGiveCard       = viewerIsGM;
 					// The 7-9 debt ("show them the back when they have some time to study it or
-					// learn more"). Each side sees the half of it they can act on:
-					//
-					//  · the OWNER, while the back is still withheld from them. Scoped to the owner
-					//    and not merely to "may not see the back", because a non-owning viewer (an
-					//    Observer-permission player on somebody else's sheet) fails permittedBack
-					//    too — and the strip addresses its reader in the second person over a
-					//    "Study it" button that _onArcanumStudyBack drops on the spot (!isEditable).
-					//  · the GM, while the back is still theirs to hand over — which is a question
-					//    about the OWNER's access, not the viewer's, so it can't reuse permittedBack.
-					//    An unlocked or already-revealed back is the owner's for keeps and owes them
-					//    nothing. Pointedly NOT narrowed to canReveal, though: that carries a
-					//    `!playersSeeBothArcana` term, and revealArcanum is the only thing that ever
-					//    clears backOwed — so with the world's peek switch on the debt was stranded
-					//    with nobody able to settle it, to resurface the day the switch went off as a
-					//    claim about a back the player read sessions ago. Granting it is a real write
-					//    even while everyone can already peek: it is what closes the record.
+					// learn more"), shown to the OWNER while the back is still withheld from them.
+					// Scoped to the owner and not merely to "may not see the back", because a
+					// non-owning viewer (an Observer-permission player on somebody else's sheet)
+					// fails permittedBack too — and the strip addresses its reader in the second
+					// person over a "Study it" button that _onArcanumStudyBack drops on the spot
+					// (!isEditable). The GM settles it with the footer's reveal toggle (canReveal).
 					item.showBackOwed      = item.backOwed && !permittedBack && viewerOwnsActor;
-					item.gmBackOwed        = item.backOwed && viewerIsGM && !revealed && !item.unlocked;
 
 					// The plain "Add as follower" button manifests only the directly-summoned
 					// followers. `viaCallUp` followers (the Ring of Daagon's Servants) are rolled
@@ -2071,9 +2066,13 @@ export function createStonetopCharacterSheetClass(Base) {
 			// with half their max HP (the user's ruling, 2026-09-27), so the "clear" control is really
 			// a return and says so. A dispersed Ghost's is the book's own reform at their tether. The
 			// snapshot's max is the computed one (move bonuses, a Thrall's Marks); the persisted
-			// attribute is the level-1 number and would understate it.
+			// attribute is the level-1 number and would understate it. Torment's Blessing does not halve
+			// it (a return, not a heal: _onDeathsDoorClear), and it never lowers HP already above it.
 			const resolution = this._stonetopCharacter?.zeroHpResolution ?? null;
-			const backHp = isOutOfAction && resolution ? halfMaxHp(snapshot.vitals.hp.max) : null;
+			const hpNow = Number(snapshot.vitals.hp.value) || 0;
+			const backHp = isOutOfAction && resolution
+				? Math.max(hpNow, halfMaxHp(snapshot.vitals.hp.max))
+				: null;
 			const reform = backHp !== null && resolution.disperses ? backHp : null;
 			// How a character past the Door left play, when it was not through the Last Door.
 			const lost = isDead ? (this._stonetopCharacter?.lostToTheGm ?? null) : null;
@@ -8033,15 +8032,16 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!this.isEditable) return;
 			// Someone past the Door doesn't just wake up: they are back on their feet with half their
 			// max HP, rounded up (the user's ruling, 2026-09-27; a dispersed Ghost's is the book's own
-			// "you reform near your tether with half your max HP"). Clearing the state IS the return,
-			// so it brings the hit points with it, in the one write. Only from out of the action: a
-			// `dead` cleared here is a mistake being undone, not a return.
+			// "you reform near your tether with half your max HP"). The return is not a heal, so Torment's
+			// Blessing does not halve it (the user's ruling, 2026-09-30). Clearing the state IS the return,
+			// so it brings the hit points with it, in the one write. Only from out of the action: a `dead`
+			// cleared here is a mistake being undone, not a return.
 			const char = this._stonetopCharacter;
 			const resolution = char.zeroHpResolution;
 			const backHp = resolution && char.deathsDoorState === DEATHS_DOOR_STATE.OUT_OF_ACTION
 				? halfMaxHp(await char.computedMaxHp())
 				: null;
-			if (backHp !== null) await char.restoreHp(backHp, resolution.move, { clearsDeathsDoor: true });
+			if (backHp !== null) await char.restoreHp(backHp, resolution.move, { clearsDeathsDoor: true, unhalved: true });
 			else await char.setDeathsDoorState(null);
 			this.render(false);
 		}
@@ -8070,9 +8070,9 @@ export function createStonetopCharacterSheetClass(Base) {
 
 		/**
 		 * An edit-mode tick on the insert's lists (post-death-outcomes.js#tickInsertLore): THE FINAL
-		 * CONSEQUENCE asks and sets `dead` with it, and a Consequence or Mark goes through the seams that
-		 * grant the moves some of them bring. Always re-rendered after, which is also what puts a box
-		 * back when its confirmation was declined.
+		 * CONSEQUENCE asks and sets `dead` with it, and a Consequence or Mark is one option taken or given
+		 * back. Always re-rendered after, which is also what puts a box back when its confirmation was
+		 * declined.
 		 */
 		_onInsertLoreTick(cb) {
 			const { loreSlug, optionSlug, idx } = cb.dataset;
@@ -8094,8 +8094,8 @@ export function createStonetopCharacterSheetClass(Base) {
 			const character = this._stonetopCharacter;
 			// Crossing off is the GM's ("ask the GM to choose a Mark that you don't have"); gaining one
 			// is the owner's too (Favor's "Gain a new Mark of your choice").
-			const gmOnly = { "cross-off": true, "uncross": true };
-			if (gmOnly[action] && !game.user?.isGM) return null;
+			const gmOnly = action === "cross-off" || action === "uncross";
+			if (gmOnly && !game.user?.isGM) return null;
 			btn.disabled = true;
 			switch (action) {
 				case "favor-pip":
@@ -9214,19 +9214,12 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		/**
-		 * Settle a 7-9's outstanding back. The GM's copy of the button reveals the back outright;
-		 * the owner's copy posts the request to chat, since the reveal is the GM's to make and
-		 * this system has no player-to-GM socket.
+		 * Ask for a 7-9's outstanding back. The owner's button posts the request to chat, since
+		 * the reveal is the GM's to make (the card footer's reveal toggle) and this system has no
+		 * player-to-GM socket.
 		 */
 		async _onArcanumStudyBack(slug) {
 			if (!this.isEditable || !slug) return;
-			// The GM path neither reads the arcanum nor posts a card, so it must not pay for the
-			// document fetch below — every GM click would load a document only to discard it.
-			if (game.user.isGM) {
-				await this._stonetopCharacter.revealArcanum(slug, { stonetopMove: "Study it" });
-				this.render(false);
-				return;
-			}
 			const item = await this._stonetopCharacter.getArcanum(slug);
 			const name = item?.front?.title ?? slug;
 			await this._postMoveCard(game.i18n.localize("stonetop.arcana.backOwedTitle"),

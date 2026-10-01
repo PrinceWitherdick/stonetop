@@ -237,6 +237,7 @@
 							{{/if}}
 						</div>
 						{{#if description}}<div class="stonetop-item-description">{{{moveBody description moveResults}}}</div>{{/if}}
+						{{#if requiresLabel}}<p class="stonetop-move-note">Requires: {{requiresLabel}}</p>{{/if}}
 					</li>
 				{{/each}}
 				</ol>

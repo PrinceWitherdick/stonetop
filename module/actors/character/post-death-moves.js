@@ -25,6 +25,9 @@ import { escHtml } from "../../utils/strings.js";
 import { buildCustomFollower, nextFollowerOrder } from "../../data/follower-build.js";
 import { readableFlags } from "./StonetopFlags.js";
 
+/** Whether an Item is a post-death move: an insert's own, or a Consequence's or Mark's. PURE. */
+export const isPostDeathMove = item => item?.type === "move" && item.system?.moveType === "post-death";
+
 /**
  * What to create and delete so a character owns the move of every marked Consequence or Mark of their
  * insert and no other. PURE.

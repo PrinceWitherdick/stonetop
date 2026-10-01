@@ -72,6 +72,17 @@ export const HOLD_DEFS = [
 		tooltip: () => "This summer's growth is unclaimed: the yearlings become grown, the foals become yearlings, and a new crop of foals arrives. Take it when the Seasons Change.",
 	},
 	{
+		key: "harvest",
+		icon: "harvest",
+		tone: "boon",
+		label: "The Harvest",
+		// A control, like winter's debt, and for the same reason: the book times it AFTER the
+		// Seasons Change window. "When the harvest is complete, roll 1d4", which is the end of
+		// autumn ("No, that roll comes at the end of the season", p. 523), not its first day.
+		action: "roll-harvest",
+		tooltip: () => "The autumn harvest is not in yet. When it is complete, click to roll the Surplus it brings.",
+	},
+	{
 		key: "innGathering",
 		icon: "inn-gathering",
 		tone: "due",
@@ -126,6 +137,18 @@ export const HOLD_DEFS = [
 		// the table had to carry it until winter ended.
 		tooltip: v => `Winter still wants ${v.amount} more Surplus before it ends, or the steading suffers the consequences again. It has ${v.surplus}.`,
 	},
+	{
+		key: "disasterOwed",
+		icon: "disaster-owed",
+		tone: "due",
+		label: "Disaster Unpaid",
+		// Meets with Disaster at Fortunes −1 is a pick the GM makes in a window (a debility, or a
+		// Population), and the write that caused it (a failed harvest, a winter shortfall) has
+		// already landed by the time that window opens. Closing it unpicked used to drop the
+		// cost with no trace; this row is the trace, and clicking it reopens the pick.
+		action: "meet-disaster-owed",
+		tooltip: v => `The steading Met with Disaster${String(v.cause ?? "").trim() ? ` (${String(v.cause).trim()})` : ""} at Fortunes −1, and what it costs has not been picked. Click to pick a debility or a Population loss.`,
+	},
 ];
 
 /**
@@ -142,6 +165,7 @@ export const HOLD_DEFS = [
  * @param {boolean} [s.militiaTraining]                  militia raised, summer drills unpaid
  * @param {{needed: number, surplus: number}|null} [s.herdFeed]  herd unfed this winter
  * @param {{amount: number, surplus: number}|null} [s.winterDebt] winter's second consumption, owed
+ * @param {{cause: string}|null} [s.disasterOwed]        a Meet with Disaster pick still owed at −1
  * @returns {Array<{key,icon,tone,label,tooltip,action}>}
  */
 export function steadingHolds(s = {}) {

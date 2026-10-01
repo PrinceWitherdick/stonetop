@@ -72,13 +72,28 @@ export function autumnHarvest({ has = () => false, builtOnTheFields = false } = 
 	return { formula: formula + term(flat), parts };
 }
 
+/** Winter's dice by Size, and the line naming why they are not the book's 1d4. A Township
+ *  rolls a town's dice whatever the Size radio says. */
+const WINTER_DICE = {
+	township: { dice: "2d6", part: { label: "Township", amount: "2d6 in place of 1d4" } },
+	town:     { dice: "2d6", part: { label: "A town", amount: "2d6 in place of 1d4" } },
+	city:     { dice: "2d6", part: { label: "A city (the book leaves its Surplus to the table)", amount: "2d6, as a town" } },
+	hamlet:   { dice: "1d2", part: { label: "A hamlet", amount: "1d2 in place of 1d4" } },
+	village:  { dice: "1d4", part: null },
+};
+
 /**
  * Winter's consumption roll, and everything that changes it.
  *
  *   Base (Book I, Seasons Change, winter) — "rolls 1d4+Population (min 0); the steading consumes
  *     that much Surplus".
+ *   Size (Book I p. 509, p. 518) — "If Stonetop has shrunk to a hamlet, it consumes only
+ *     1d2 + Population. If it has grown to a town, it consumes 2d6 + Population." The move box
+ *     prints the village's dice. A city is "out of scope" for Surplus in the book, so it rolls the
+ *     town's rather than nothing, and the part line says the table may rule otherwise.
  *   Township          — "when winter grips the land, roll 2d6+Population to consume Surplus
- *     instead of 1d4+Population".
+ *     instead of 1d4+Population". It also makes the steading a town, so the two agree; it is
+ *     checked as well so a steading whose Size radio was never moved still rolls a town's dice.
  *   Additional Housing — "when you consume Surplus in winter, consider Population to be 1 lower
  *     than it is".
  *   Stone Wall        — "when winter grips the land, the steading consumes 1 less Surplus than
@@ -87,6 +102,7 @@ export function autumnHarvest({ has = () => false, builtOnTheFields = false } = 
  * @param {object} state
  * @param {number} state.population
  * @param {(slug: string) => boolean} state.has
+ * @param {string} [state.size="village"]  the steading's Size (hamlet, village, town, city)
  * @param {boolean} [state.second=false]  Is this winter's SECOND bite — the 7-9's "consume
  *   1d4+Population more Surplus before winter ends"?
  *
@@ -97,10 +113,10 @@ export function autumnHarvest({ has = () => false, builtOnTheFields = false } = 
  *   is written down here and surfaced in the window rather than left implicit.
  * @returns {{formula: string, parts: Array<{label: string, amount: string}>}}
  */
-export function winterConsumption({ population = 0, has = () => false, second = false } = {}) {
-	const dice = has("township") ? "2d6" : "1d4";
+export function winterConsumption({ population = 0, has = () => false, size = "village", second = false } = {}) {
+	const { dice, part } = has("township") ? WINTER_DICE.township : WINTER_DICE[size] ?? WINTER_DICE.village;
 	const parts = [{ label: second ? "Winter is not done" : "Winter", amount: dice }];
-	if (has("township")) parts.push({ label: "Township", amount: "2d6 in place of 1d4" });
+	if (part) parts.push(part);
 
 	let pop = Math.trunc(Number(population) || 0);
 	if (has("additionalHousing")) {
@@ -113,6 +129,24 @@ export function winterConsumption({ population = 0, has = () => false, second = 
 		parts.push({ label: "Stone Wall", amount: "−1 Surplus consumed" });
 	}
 	return { formula: dice + term(flat), parts };
+}
+
+/**
+ * A Surplus roll as the window's prompt left it: advantage and disadvantage roll the season's
+ * formula twice and keep the higher or lower (a 1d4 has no third die to add), and the modifier
+ * lands on top. Foundry's dice pool, so one chat card shows both rolls.
+ *
+ * @param {string} formula  the season's own roll ("1d4 - 1", autumnHarvest's formula)
+ * @param {object} [o]
+ * @param {string} [o.rollMode]  "adv" | "dis" | anything else for normal
+ * @param {number} [o.modifier]
+ * @returns {string}
+ */
+export function surplusRollFormula(formula, { rollMode = "normal", modifier = 0 } = {}) {
+	const base = rollMode === "adv" ? `{${formula}, ${formula}}kh`
+		: rollMode === "dis" ? `{${formula}, ${formula}}kl`
+		: formula;
+	return base + term(modifier);
 }
 
 /**

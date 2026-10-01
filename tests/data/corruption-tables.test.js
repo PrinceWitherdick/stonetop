@@ -121,6 +121,12 @@ describe("applyCorruption", () => {
 		expect(r.qualities.filter(q => /unnatural resilience/i.test(q))).toHaveLength(1);
 	});
 
+	it("says 0 vs. bronze once when the resilience gift lands on the emanation base", () => {
+		const r = applyCorruption(EMANATION_BASE, { gifts: [11], addEmanation: true });
+		expect(r.qualities.filter(q => /0 vs\. bronze/i.test(q))).toEqual(["Armor 0 vs. bronze"]);
+		expect(r.armorValue).toBe(4);
+	});
+
 	it("works from the emanation base template", () => {
 		const r = applyCorruption(EMANATION_BASE, { gifts: [12], addEmanation: true });
 		expect(r.tags).toContain("emanation");

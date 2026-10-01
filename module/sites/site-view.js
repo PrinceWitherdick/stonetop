@@ -6,7 +6,7 @@
 //
 // A site has no doom track, so the doom wiring simply finds nothing to bind.
 import { hasText, stringList, cardEnricher } from "../journal/card-vm.js";
-import { keyedRows, pairKeys } from "./site-schema.js";
+import { keyedRows, pairKeys, tableRowRanges } from "./site-schema.js";
 
 /** Card/pin accent for sites: weathered stone, distinct from the threat hues and hazard moss. */
 export const SITE_ACCENT = "#5a5f6b";
@@ -123,9 +123,10 @@ export async function buildSiteCardVM(page, { forOwner } = {}) {
 		}),
 	)).filter(Boolean);
 
-	// Each table's rows carry their roll span so the card can show "1-2" beside a row and
-	// the roll button can land on it. Rows are dealt out evenly across the table's die,
-	// which is what "assign numbers 1-6 or 1-12 to the options" means (Book I p. 369).
+	// Each table's rows carry their roll span so the card can show "1-3" beside a row and
+	// the roll button can land on it. One stored row is one face of the die, which is what
+	// "assign numbers 1-6 or 1-12 to the options" means (Book I p. 369); a row the book prints
+	// as a range is stored as that many identical rows and shown once (tableRowRanges).
 	const randomTables = (Array.isArray(sys.randomTables) ? sys.randomTables : [])
 		.map((t, index) => {
 			const rows = stringList(t?.rows);
@@ -133,7 +134,7 @@ export async function buildSiteCardVM(page, { forOwner } = {}) {
 				index,
 				caption: String(t?.caption ?? "").trim(),
 				die: rows.length ? `1d${rows.length}` : "",
-				rows: rows.map((text, i) => ({ roll: i + 1, text })),
+				rows: tableRowRanges(rows),
 				hasRows: rows.length > 0,
 			};
 		})
@@ -224,7 +225,9 @@ export function wireSiteTableRoll(root, resolvePage) {
 		// Mark the rolled row on this table only; a fresh roll clears the previous mark.
 		const host = btn.closest(".site-table");
 		host?.querySelectorAll("li.is-rolled").forEach(li => li.classList.remove("is-rolled"));
-		host?.querySelector(`li[data-roll="${result.roll}"]`)?.classList.add("is-rolled");
+		[...(host?.querySelectorAll("li[data-from]") ?? [])]
+			.find(li => Number(li.dataset.from) <= result.roll && result.roll <= Number(li.dataset.to))
+			?.classList.add("is-rolled");
 		globalThis.ui?.notifications?.info?.(`${result.die}: ${result.roll} ${result.text}`);
 	});
 }

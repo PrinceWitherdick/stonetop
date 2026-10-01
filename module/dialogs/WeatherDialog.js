@@ -113,6 +113,8 @@ export class WeatherDialog extends StonetopDialog {
 			})),
 			label:   season.label,
 			clock,
+			// Tor's blessing ("roll twice and take your pick"), read off the steading's own hold.
+			torsBlessing: this._torsBlessing(),
 			// `picked` rather than the row itself: the footer only needs to know whether there
 			// is one, and the row that IS picked says so on its own line.
 			picked:  !!this._picked,
@@ -127,6 +129,12 @@ export class WeatherDialog extends StonetopDialog {
 				isPicked: this._picked?.index === i,
 			})),
 		};
+	}
+
+	// Is Tor's blessing holding this season? A world with no game (or no steading) has none.
+	_torsBlessing() {
+		if (!globalThis.game) return false;
+		return !!getStonetopSteadingActor()?.typedActor?.torsBlessingActive?.();
 	}
 
 	// The Pause / Resume control for the weather on the players' map, or null when this window

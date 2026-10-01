@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "magical, loud",
+    "note": "<em>magical</em>, loud",
     "isTreasure": true,
     "artifactLore": "<p>When you strike this tuning fork against a hard surface, it emits a loud tone for about a minute. Nearby (reach, area) magical effects and creatures become visible: shaking, vibrating, distorted. The noise draws the attention of any spirits or magically attuned beings for miles around.</p>"
   },
@@ -15,7 +15,7 @@
       "slug": "silvery-tuning-fork",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "magical, loud"
+      "note": "<em>magical</em>, loud"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",

@@ -51,6 +51,16 @@ describe("addDroppedInventoryItem — how an artifact arrives", () => {
 		expect(created.system.note).toMatch(/magical/);
 	});
 
+	it("keeps the GM's hand-edited write-up theirs on the sheet copy", async () => {
+		const actor = new FakeActorBuilder().build();
+		const char = new TestCharacterBuilder(actor).build();
+		const payload = treasureItemData(BRASS_SPHERE);
+		payload.flags.stonetop.writeupEdited = true;
+		await char.addDroppedInventoryItem(payload);
+		const [, [created]] = actor.createEmbeddedDocuments.mock.calls[0];
+		expect(created.flags?.stonetop?.writeupEdited).toBe(true);
+	});
+
 	it("lands unidentified when the world asks for it", async () => {
 		const actor = new FakeActorBuilder().build();
 		const char = new TestCharacterBuilder(actor).build();

@@ -31,6 +31,7 @@ import { format } from "../../utils/i18n.js";
 import { isPrimaryGM } from "../../utils/primary-gm.js";
 import { inTurn } from "../../utils/turn-queue.js";
 import { inCardTurn } from "../../utils/card-queue.js";
+import { writeCardRoll } from "../../utils/roll-card-writer.js";
 import { adjustXp } from "../../utils/xp.js";
 import { characterFullName } from "../../utils/playbook-actors.js";
 import { rollRewrite } from "../../utils/roll-rewrite.js";
@@ -179,48 +180,47 @@ export async function handleDeathsDoorClaimQuery(data, context = {}, deps = {}) 
 }
 
 /**
- * Burn Brightly's spend on a roll card: THE one, for the roll card's own button (stonetop.js#_chatWireBurnBrightly)
- * and for the Door's window, which settles the tier itself. The 2 XP go through the XP queue with the `require` the
- * button was drawn on (burn-brightly.js), so a spend that is no longer affordable is refused there; then the card
- * takes its +1 through the same rewrite a GM's Shift makes. At the Door, run by the window on a card its client
- * has, and by the GM's client on one it does not (the header, 2). `onSpent` hears the moment the XP is gone, so a
- * rewrite that fails after it never takes the 2 XP twice.
+ * Burn Brightly's spend on a roll card: THE one, for the roll card's own button (stonetop.js#_chatWireBurnBrightly,
+ * on the card's writer: utils/roll-card-writer.js) and for the Door's window, which settles the tier itself. The
+ * 2 XP go through the XP queue with the `require` the button was drawn on (burn-brightly.js), so a spend that is no
+ * longer affordable is refused there; then the card takes its +1 through the same rewrite a GM's Shift makes. At
+ * the Door, run by the window when its client is the card's writer, and by the GM's client otherwise (the header,
+ * 2). `onSpent` hears the moment the XP is gone, so a rewrite that fails after it never takes the 2 XP twice.
  *
- * @returns {Promise<{from: number, to: number}|null>}  the card's totals, or null when the XP was not there
+ * All of it in the card's turn, so the card is read as unburned by at most one spend: two owners pressing at once
+ * pay once.
+ *
+ * @returns {Promise<{from: number, to: number}|null>}  the card's totals, or null when the XP was not there or the
+ *   card was burned already
  */
-export async function burnBrightlyOnDoorCard(message, actor, { shiftRoll, cardFlavor, afterShift = null } = {}, { onSpent = null } = {}) {
-	// Read before the update, so the re-stamped alias is the one the card was created with rather than whatever
-	// the actor has become mid-click.
-	const fullName = characterFullName(actor);
-	// Affordability is checked INSIDE the write queue rather than at the click. Checking it at click time was right
-	// for one spend and wrong for two: a second Burn Brightly queued behind the first tested a total the first had
-	// not yet reduced, so a character with 9 XP could buy two +1s and end on 5, below the threshold that made
-	// either of them legal.
-	const { applied, after: newXp, max: maxXp } = await adjustXp(actor, -BURN_BRIGHTLY_COST, {
-		move: "Burn Brightly",
-		require: (xp, level) => burnBrightlyAffordable(actor, xp, level),
-	});
-	if (!applied) return null;
-	onSpent?.();
-	await ChatMessage.create({
-		content: format("stonetop.specialMoves.burnBrightly.spent", { cost: BURN_BRIGHTLY_COST, xp: newXp, max: maxXp }),
-		speaker: ChatMessage.getSpeaker({ actor }),
-	});
-	const from = message.rolls?.at?.(0)?.total ?? null;
-	await inCardTurn(message, async () => {
-		const rolls = message.rolls;
-		const roll  = rolls.at(0);
-		await shiftRoll(roll, 1);
+export function burnBrightlyOnDoorCard(message, actor, { shiftRoll, cardFlavor, afterShift = null } = {}, { onSpent = null } = {}) {
+	return inCardTurn(message, async () => {
+		if (message.getFlag?.(SYSTEM_ID, "burnBrightly")) return null;
+		// Read before the update, so the re-stamped alias is the one the card was created with rather than whatever
+		// the actor has become mid-click.
+		const fullName = characterFullName(actor);
+		// Affordability is checked INSIDE the write queue rather than at the click. Checking it at click time was
+		// right for one spend and wrong for two: a second Burn Brightly queued behind the first tested a total the
+		// first had not yet reduced, so a character with 9 XP could buy two +1s and end on 5, below the threshold
+		// that made either of them legal.
+		const { applied, after: newXp, max: maxXp } = await adjustXp(actor, -BURN_BRIGHTLY_COST, {
+			move: "Burn Brightly",
+			require: (xp, level) => burnBrightlyAffordable(actor, xp, level),
+		});
+		if (!applied) return null;
+		onSpent?.();
+		await ChatMessage.create({
+			content: format("stonetop.specialMoves.burnBrightly.spent", { cost: BURN_BRIGHTLY_COST, xp: newXp, max: maxXp }),
+			speaker: ChatMessage.getSpeaker({ actor }),
+		});
+		const from = message.rolls?.at?.(0)?.total ?? null;
 		const speakerUpdate = fullName !== actor.name ? { alias: fullName } : {};
-		await message.update({
-			rolls,
-			flavor:  cardFlavor(message.flavor, roll.total, roll.formula),
+		const lifted = await writeCardRoll(message, roll => shiftRoll(roll, 1), { cardFlavor, afterShift }, {
 			speaker: { ...message.speaker, ...speakerUpdate },
 			flags:   { [SYSTEM_ID]: { burnBrightly: true } },
 		});
-		await afterShift?.(message, roll.total);
+		return { from, to: lifted.total };
 	});
-	return { from, to: message.rolls?.at?.(0)?.total ?? null };
 }
 
 /**
@@ -254,7 +254,8 @@ export async function handleDeathsDoorBoostQuery(data, context = {}, deps = {}) 
 		if (data.boost === "burn") {
 			if (message.getFlag?.(SYSTEM_ID, "burnBrightly")) return { applied: false, spent: true };
 			const burned = await burnBrightlyOnDoorCard(message, actor, rewrite, { onSpent: () => { spent = true; } });
-			if (!burned) return { applied: false, reason: "xp" };
+			// Burned by another press while this one waited its turn, or the XP no longer there.
+			if (!burned) return message.getFlag?.(SYSTEM_ID, "burnBrightly") ? { applied: false, spent: true } : { applied: false, reason: "xp" };
 		} else if (data.boost === "giveAll") {
 			if (message.getFlag?.(SYSTEM_ID, GAVE_IT_ALL_FLAG)) return { applied: false, spent: true };
 			if (!actorTookBackground(actor, IMPETUOUS_YOUTH)) return { applied: false };

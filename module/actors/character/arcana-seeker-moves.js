@@ -26,7 +26,7 @@
 import { SYSTEM_ID } from "../../system-id.js";
 import { isMajorArcanumItem } from "../../arcana-icons.js";
 import { consequenceBoxRange } from "./CharacterArcana.js";
-import { frontTaskMarkers } from "./seeker-collection.js";
+import { frontTaskTrack } from "./seeker-collection.js";
 import { ownedLearnedMove, ownsLearnedMoveNamed } from "./owns-move.js";
 import { learnedTrack } from "./MoveResources.js";
 import { debilityPayments, payDebility } from "./invoke-consequences.js";
@@ -121,13 +121,14 @@ function openImprovised(actor, arcanumSlug, moveSlug) {
 /**
  * The □ tasks on a card's front still unmarked (the Mindgem's and the Twisted Spear's unlock
  * steps), as `{ index, label }` with `index` the "front" box index setArcanumBoxChecked takes.
+ * None on a card whose front □ are not its unlock track (seeker-collection.js#frontTaskTrack).
  *
- * @param {{description?: string}} front  the card's front
+ * @param {{description?: string, unlock?: object}} front  the card's front
  * @param {Record<string, boolean>} boxes  the character's box marks ("slug:context:index")
  * @param {string} slug
  */
 export function unmarkedFrontTasks(front, boxes = {}, slug) {
-	return frontTaskMarkers(front?.description)
+	return (frontTaskTrack(front)?.markers ?? [])
 		.filter(m => !boxes[`${slug}:front:${m.index}`])
 		.map(m => ({ index: m.index, label: m.label }));
 }

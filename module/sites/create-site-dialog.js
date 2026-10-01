@@ -8,7 +8,7 @@ import {
 	SITE_LAYOUT_TIPS, SITE_REVIEW_CHECKS,
 } from "../data/site-tables.js";
 import { shapeSiteSystem, setSiteName } from "./site-store.js";
-import { SITE_LINE_LISTS, SITE_PAIR_LISTS, pairKeys } from "./site-schema.js";
+import { MAX_ROW_SPAN, SITE_LINE_LISTS, SITE_PAIR_LISTS, clampRowSpan, expandTableRows, numberTableRows, pairKeys, tableRowRanges } from "./site-schema.js";
 
 // ── CreateSiteDialog ─────────────────────────────────────────────────────────
 // A walkthrough for "Creating sites" (Book I, Sites, pp. 355-370). The book's procedure
@@ -282,9 +282,11 @@ export class CreateSiteDialog extends StepperDialog {
 			terrain: splitCombined(sys.terrain),
 			...Object.fromEntries(SITE_LINE_LISTS.map(list => [list, [...(sys[list] ?? [])].map(String)])),
 			...Object.fromEntries(Object.entries(SITE_PAIR_LISTS).map(([list, { keys }]) => [list, pairs(sys[list], keys)])),
+			// Held as ranged rows while editing ({text, span}); expanded back to one row per
+			// face in _seed. See tableRowRanges.
 			randomTables: (sys.randomTables ?? []).map(t => ({
 				caption: String(t?.caption ?? ""),
-				rows: [...(t?.rows ?? [])].map(String),
+				rows: tableRowRanges(t?.rows, { maxSpan: MAX_ROW_SPAN }).map(({ text, span }) => ({ text, span })),
 			})),
 		};
 	}
@@ -343,12 +345,13 @@ export class CreateSiteDialog extends StepperDialog {
 		}
 		if (step.key === "plans") {
 			ctx.planRows = this._lineRows("plans");
-			ctx.tableRows = sel.randomTables.map((t, index) => ({
-				index,
-				caption: t.caption,
-				die: t.rows.length ? `1d${t.rows.length}` : "",
-				rows: t.rows.map((text, rowIndex) => ({ rowIndex, roll: rowIndex + 1, text })),
-			}));
+			ctx.maxRowSpan = MAX_ROW_SPAN;
+			ctx.tableRows = sel.randomTables.map((t, index) => {
+				// The faces each row covers, as the card will number them ("1-3", "4").
+				const rows = numberTableRows(t.rows.map((row, rowIndex) => ({ rowIndex, text: row.text, span: clampRowSpan(row.span) })));
+				const faces = rows.at(-1)?.to ?? 0;
+				return { index, caption: t.caption, die: faces ? `1d${faces}` : "", rows };
+			});
 		}
 		if (step.isFinal) {
 			ctx.preview = this._previewCard();
@@ -617,7 +620,7 @@ export class CreateSiteDialog extends StepperDialog {
 		// ── Random tables ────────────────────────────────────────────────────
 		html.find(".stonetop-cs-table-add").on("click", () => {
 			this._captureLiveFields();
-			this._sel.randomTables.push({ caption: "", rows: [""] });
+			this._sel.randomTables.push({ caption: "", rows: [{ text: "", span: 1 }] });
 			this.render(false);
 		});
 		html.find(".stonetop-cs-table-remove").on("click", ev => {
@@ -627,7 +630,7 @@ export class CreateSiteDialog extends StepperDialog {
 		});
 		html.find(".stonetop-cs-trow-add").on("click", ev => {
 			this._captureLiveFields();
-			this._sel.randomTables[Number(ev.currentTarget.dataset.table)]?.rows.push("");
+			this._sel.randomTables[Number(ev.currentTarget.dataset.table)]?.rows.push({ text: "", span: 1 });
 			this.render(false);
 		});
 		html.find(".stonetop-cs-trow-remove").on("click", ev => {
@@ -735,7 +738,13 @@ export class CreateSiteDialog extends StepperDialog {
 		root.querySelectorAll(".stonetop-cs-trow").forEach(el => {
 			const t = this._sel.randomTables[Number(el.dataset.table)];
 			const i = Number(el.dataset.index);
-			if (t && i in t.rows) t.rows[i] = el.value;
+			if (t && i in t.rows) t.rows[i].text = el.value;
+		});
+		// How many faces each row covers (a book row printed "1-3" covers three).
+		root.querySelectorAll(".stonetop-cs-trow-span").forEach(el => {
+			const t = this._sel.randomTables[Number(el.dataset.table)];
+			const i = Number(el.dataset.index);
+			if (t && i in t.rows) t.rows[i].span = clampRowSpan(el.value);
 		});
 	}
 
@@ -755,6 +764,8 @@ export class CreateSiteDialog extends StepperDialog {
 			picks:       pickLines(manner, sel.picks),
 			regionLabel: region(sel.regionId)?.label ?? "",
 			terrain:     joinCombined(sel.terrain),
+			// Back to one stored row per face of the die.
+			randomTables: sel.randomTables.map(t => ({ caption: t.caption, rows: expandTableRows(t.rows) })),
 		};
 	}
 

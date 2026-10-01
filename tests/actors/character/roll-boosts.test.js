@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-	boostOffers, boostRoute, takeBoost, handleBoostQuery, boostNote, actsForHelper, isBoostableRoll,
+	boostOffers, takeBoost, handleBoostQuery, boostNote, actsForHelper, isBoostableRoll,
 	blessingHeld, holdBlessing, shareBlessing, handleBlessingQuery,
 	BOOSTS_FLAG, BLESSING_FLAG, BLESSING_QUERY, CHRONICLER, COMMUNE_WITH_ARATIS, MANY_HANDS, PIETY,
 } from "../../../module/actors/character/roll-boosts.js";
 import { ZERO_HP_MOVES } from "../../../module/actors/character/deaths-door.js";
+import { rollCardRoute } from "../../../module/utils/roll-card-writer.js";
 import { buildLiveCharacter, sourceMovesFor } from "../../fakes/LiveCharacter.js";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 
@@ -59,6 +60,7 @@ function card({ author = "u-fox", flavor = MOVE_CARD, boosts = [], rolls = [{ to
 		canUserModify: user => !!user?.isGM || user?.id === author,
 		update: vi.fn(async data => {
 			if (data.flavor !== undefined) message.flavor = data.flavor;
+			if (data.rolls) message.rolls = data.rolls;
 			for (const [scope, values] of Object.entries(data.flags ?? {})) Object.assign(flags[scope] ??= {}, values);
 		}),
 	};
@@ -198,11 +200,11 @@ describe("whose client writes it", () => {
 	// Every player's press goes to the GM's client while a GM is online, their own card's too: two clients
 	// writing the same card's `rolls` and list from their own copies would keep only the second +1.
 	it("asks the GM for every player's press while a GM is online, and writes its own card with none", () => {
-		expect(boostRoute(card({ author: "u-judge" }), player("judge"), GM)).toBe("relay");
-		expect(boostRoute(card({ author: "u-fox" }), player("judge"), GM)).toBe("relay");
-		expect(boostRoute(card({ author: "u-judge" }), player("judge"), null)).toBe("local");
-		expect(boostRoute(card({ author: "u-fox" }), player("judge"), null)).toBeNull();
-		expect(boostRoute(card({ author: "u-fox" }), GM, GM)).toBe("local");
+		expect(rollCardRoute(card({ author: "u-judge" }), player("judge"), GM)).toBe("relay");
+		expect(rollCardRoute(card({ author: "u-fox" }), player("judge"), GM)).toBe("relay");
+		expect(rollCardRoute(card({ author: "u-judge" }), player("judge"), null)).toBe("local");
+		expect(rollCardRoute(card({ author: "u-fox" }), player("judge"), null)).toBeNull();
+		expect(rollCardRoute(card({ author: "u-fox" }), GM, GM)).toBe("local");
 	});
 
 	describe("the GM's side of a relayed press", () => {

@@ -34,6 +34,8 @@ export class OtherItemSnapshot {
 		// ISN'T this character's own. Null for anything homegrown, so the badge only ever
 		// appears where it says something.
 		this.sourceLabel = b._sourceLabel ?? null;
+		// The prerequisite the move printed ("Prophet background"), shown as its Requires line.
+		this.requiresLabel = b._requiresLabel ?? null;
 		this.resourceKey = b._resourceKey ?? b._name;
 		this.resource    = b._resource ?? null;
 	}
@@ -51,6 +53,7 @@ export class OtherItemSnapshotBuilder {
 	withCustom(v)      { this._custom      = v; return this; }
 	withLearned(v)     { this._learned     = v; return this; }
 	withSourceLabel(v) { this._sourceLabel = v; return this; }
+	withRequiresLabel(v) { this._requiresLabel = v; return this; }
 	withResourceKey(v) { this._resourceKey = v; return this; }
 	withResource(v)    { this._resource    = v; return this; }
 	build()            { return new OtherItemSnapshot(this); }

@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "<em>immobile</em>, beautiful, Value 2",
+    "note": "<em>immobile</em>, <em>beautiful</em>, Value 2",
     "isTreasure": true
   },
   "flags": {
@@ -14,7 +14,7 @@
       "slug": "a-few-bolts-of-linen-dyed-the-color-of-rain",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "<em>immobile</em>, beautiful, Value 2"
+      "note": "<em>immobile</em>, <em>beautiful</em>, Value 2"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",

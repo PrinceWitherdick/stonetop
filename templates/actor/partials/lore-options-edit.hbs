@@ -1,5 +1,5 @@
 {{#each options}}
-		{{! `caution`, `pdiCrossOff` and `pdiUncross` are set only on a post-death insert's options, in
+		{{! `caution` and `pdiMarkControl` are set only on a post-death insert's options, in
 		    edit mode (post-death-outcomes.js): a pick the rules can't account for, flagged and never
 		    blocked, and the GM's hand on a Thrall's Marks. A playbook's lore never carries them. }}
 		<div class="stonetop-lore-option{{#if (eq type 'text')}} stonetop-lore-option--text{{/if}}{{#if crossedOff}} is-crossed-off{{/if}}{{#if caution}} is-cautioned{{/if}}">
@@ -30,13 +30,9 @@
 			</span>
 			<span class="stonetop-lore-option-desc">{{#if hasBlank}}{{{fillBefore}}}<input type="text" class="stonetop-lore-option-text stonetop-lore-fill" data-lore-slug="{{../slug}}" data-option-slug="{{slug}}" value="{{fillValue}}" placeholder="…">{{{fillAfter}}}{{else}}{{{description}}}{{/if}}</span>
 			{{#if caution}}<i class="fas fa-triangle-exclamation stonetop-lore-option-caution" role="img" aria-label="{{caution}}" data-tooltip="{{caution}}" data-tooltip-direction="UP"></i>{{/if}}
-			{{#if pdiCrossOff}}
-			<button type="button" class="stonetop-pdi-crossoff-btn" data-pdi-action="cross-off" data-slug="{{slug}}"
-			        aria-label="{{pdiCrossOff.label}}" data-tooltip="{{pdiCrossOff.label}}">{{localize "stonetop.postDeath.outcomes.crossOff"}}</button>
-			{{/if}}
-			{{#if pdiUncross}}
-			<button type="button" class="stonetop-pdi-crossoff-btn" data-pdi-action="uncross" data-slug="{{slug}}"
-			        aria-label="{{pdiUncross.label}}" data-tooltip="{{pdiUncross.label}}">{{localize "stonetop.postDeath.outcomes.uncross"}}</button>
+			{{#if pdiMarkControl}}
+			<button type="button" class="stonetop-pdi-crossoff-btn" data-pdi-action="{{pdiMarkControl.action}}" data-slug="{{slug}}"
+			        aria-label="{{pdiMarkControl.label}}" data-tooltip="{{pdiMarkControl.label}}">{{pdiMarkControl.text}}</button>
 			{{/if}}
 			{{/if}}
 		</div>

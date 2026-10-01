@@ -133,15 +133,24 @@ export function improvementQuestions(moveName, statKey, { has = () => false, tac
  * @param {boolean} [o.diminished]  the steading has Diminished marked
  * @param {boolean} [o.winter]      Trade & Barter's "In winter, you have disadvantage"
  * @param {string}  [o.held]        what bought a held advantage on this roll (Rites of the Land)
- * @returns {{adv: string[], dis: string[], statBonus: number, notes: string[], strength: boolean, missAsPartial: string}}
+ * @param {boolean} [o.torsBlessing] Tor's blessing holds this season: "+1 to Pull Together"
+ * @returns {{adv: string[], dis: string[], statBonus: number, bonus: number, notes: string[], strength: boolean, missAsPartial: string}}
+ *   `bonus` is a plus to the ROLL, where `statBonus` treats the stat itself as higher.
  */
 export function rollAdjustments({
 	moveName, statKey, has = () => false, answers = {}, tactics = [], diminished = false, winter = false, held = "",
+	torsBlessing = false,
 }) {
 	const adv = [];
 	const dis = [];
 	const notes = [];
 	let statBonus = 0;
+	let bonus = 0;
+	// The seasonal gain: "Fine weather abounds. Take +1 to Pull Together this season."
+	if (moveName === STEADING_MOVE.PULL_TOGETHER && torsBlessing) {
+		bonus += 1;
+		notes.push("Tor's blessing: +1");
+	}
 	if (TOWNSHIP_MOVES.has(moveName) && has("township")) adv.push("Township");
 	if (LOGISTICS_MOVES.has(moveName) && answers.logistics) adv.push(LOGISTICS);
 	if (PATHFINDER_MOVES.has(moveName) && answers.pathfinder) adv.push(PATHFINDER);
@@ -164,7 +173,7 @@ export function rollAdjustments({
 	const missAsPartial = moveName === STEADING_MOVE.REQUISITION && has("herdOfHorses") && answers.herdShare
 		? "Half the herd or less: a 6- counts as a 7-9"
 		: "";
-	return { adv, dis, statBonus, notes, strength, missAsPartial };
+	return { adv, dis, statBonus, bonus, notes, strength, missAsPartial };
 }
 
 /**

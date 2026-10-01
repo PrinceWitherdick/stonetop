@@ -78,7 +78,7 @@ export class CreateThingDialog extends StepperDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-create-thing",
 			template:  "systems/stonetop-pwd/templates/dialogs/create-thing.hbs",
-			width:     580,
+			width:     748,
 			height:    "auto",
 			resizable: true,
 			classes:   ["stonetop", "stonetop-spring-dialog", "stonetop-create-thing-dialog"],

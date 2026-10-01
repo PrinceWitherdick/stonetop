@@ -1,11 +1,11 @@
 import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
-import { stonetopChatCard } from "../../../utils/chat.js";
 import { escHtml } from "../../../utils/strings.js";
 import { TIER_LABELS } from "../../../utils/move-results.js";
 import { classifyResult, rollStat } from "../../../utils/roll-engine.js";
 import { format, localize } from "../../../utils/i18n.js";
 import { DEATHS_DOOR_STATE, FINAL_CONSEQUENCE, resolutionTier, resolvedHp } from "../deaths-door.js";
-import { NEVER_CHOSEN_OPTIONS } from "../post-death-choices.js";
+import { gainableMarks, markableConsequences } from "../post-death-choices.js";
+import { loseToUnholyVessel, postOutcomeCard } from "../post-death-outcomes.js";
 import { DeathsDoorDialog } from "./DeathsDoorDialog.js";
 
 /**
@@ -29,7 +29,6 @@ import { DeathsDoorDialog } from "./DeathsDoorDialog.js";
 // the insert; naming the sections here keeps the slugs out of the effect handlers.
 const _CONSEQUENCES = FINAL_CONSEQUENCE.section;
 const _MARKS        = "marks";
-const _FINAL_CONSEQUENCE = FINAL_CONSEQUENCE.option;
 const _I18N = "stonetop.undeath";
 
 export class UndeathDialog extends StonetopDialog {
@@ -150,7 +149,7 @@ export class UndeathDialog extends StonetopDialog {
 				label:   localize(`${_I18N}.unholyVessel.label`),
 				warning: localize(`${_I18N}.unholyVessel.warning`),
 			} : null,
-			applyLabel:  unholyVessel ? localize(`${_I18N}.unholyVessel.apply`) : "",
+			applyLabel:  unholyVessel ? localize(`${_I18N}.unholyVessel.apply`) : "Apply",
 
 			hp,
 			// The note rides on the resolution spec, not on a table keyed by the move's display
@@ -189,11 +188,8 @@ export class UndeathDialog extends StonetopDialog {
 	 * one way the book inflicts it, and unreachable as a choice.
 	 */
 	_optionsFor(kind) {
-		if (kind === "consequence") {
-			return this._sections[_CONSEQUENCES]
-				.filter(o => !o.blocked && !NEVER_CHOSEN_OPTIONS.includes(o.slug));
-		}
-		if (kind === "mark-gain")     return this._sections[_MARKS].filter(o => !o.blocked);
+		if (kind === "consequence")   return markableConsequences(this._sections[_CONSEQUENCES]);
+		if (kind === "mark-gain")     return gainableMarks(this._sections[_MARKS]);
 		// Crossing off is the mirror image: only a Mark you DON'T have can be crossed off.
 		if (kind === "mark-crossoff") return this._sections[_MARKS].filter(o => !o.marked && !o.crossedOff);
 		return [];
@@ -491,8 +487,7 @@ export class UndeathDialog extends StonetopDialog {
 			// as a player character ("your tenuous connection to humanity is lost and you
 			// become a monster under the GM's control"), so they leave play rather than sitting
 			// in a state that offers to bring them back.
-			add(this._character.markSectionOptionUpdateData(_CONSEQUENCES, _FINAL_CONSEQUENCE));
-			add(this._character.deathsDoorStateUpdateData(DEATHS_DOOR_STATE.DEAD));
+			add(this._character.finalConsequenceUpdateData());
 			lines.after.push("Your tether is destroyed: marked <strong>the Final Consequence</strong>. You pass into the GM's hands.");
 		} else {
 			// Otherwise they are no longer dying: all three moves avert the death. They're out
@@ -513,12 +508,11 @@ export class UndeathDialog extends StonetopDialog {
 	/**
 	 * Unholy Vessel: the Thrall is lost. Nothing else of the move is paid, since there is no one left
 	 * to pay it; the state goes to `dead` (out of play, and the Special Moves card says how) in one
-	 * write, and the table is told to make a new character.
+	 * write, and the table is told to make a new character. The tab's "Gain a new Mark" lands the same
+	 * write (post-death-outcomes.js#loseToUnholyVessel); here it is attributed to the move.
 	 */
 	async _applyUnholyVessel() {
-		await this._write(null, this._character.deathsDoorStateUpdateData(DEATHS_DOOR_STATE.DEAD));
-		const name = escHtml(this._character?._actor?.name ?? "");
-		return [format(`${_I18N}.unholyVessel.summary`, { name })];
+		return loseToUnholyVessel(this._character, this._moveName);
 	}
 
 	/**
@@ -611,14 +605,7 @@ export class UndeathDialog extends StonetopDialog {
 	}
 
 	async _post(lines) {
-		if (!lines.length) return;
-		const actor = this._character?._actor ?? null;
-		await ChatMessage.create({
-			speaker: actor ? ChatMessage.getSpeaker({ actor }) : ChatMessage.getSpeaker(),
-			content: stonetopChatCard(this._moveName, `<div class="card-content">
-				<ul class="stonetop-undeath-summary">${lines.map(l => `<li>${l}</li>`).join("")}</ul>
-			</div>`, "stonetop-dying-card"),
-		});
+		await postOutcomeCard(this._character, this._moveName, lines);
 	}
 
 	async _onFinish() {

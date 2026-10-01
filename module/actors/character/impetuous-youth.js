@@ -21,6 +21,7 @@ import { SYSTEM_ID } from "../../system-id.js";
 import { escHtml } from "../../utils/strings.js";
 import { canRewriteCard, moveChatCard } from "../../utils/chat.js";
 import { inCardTurn } from "../../utils/card-queue.js";
+import { pressRollCard, writeCardRoll } from "../../utils/roll-card-writer.js";
 import { askWithButtons } from "../../utils/ask-with-buttons.js";
 import { contentElement } from "../../dialogs/content-picker.js";
 import { speakerActor } from "../../utils/speaker-actor.js";
@@ -39,6 +40,16 @@ export const IMPETUOUS_YOUTH = { playbook: WBH_PLAYBOOK_NAME, slug: "impetuous-y
 
 /** The card's latch: `{ cost, from, to }`, the cost picked and the totals before and after. */
 export const GAVE_IT_ALL_FLAG = "gaveItAll";
+
+/**
+ * The card button's press, run on the card's writer (utils/roll-card-writer.js#pressRollCard) as giveItAll for
+ * the character speaking the card, `{ cost }` its data. stonetop.js registers it with the rewrite's hands.
+ */
+export const GIVE_IT_ALL_ACTION = "giveItAll";
+
+// "You get hurt" rolls its 2d4 on the writer's client before the press answers, dice animation and all: longer
+// than the 10 seconds a relayed press otherwise waits, which would report a lift that went through as one that did not.
+const GIVE_IT_ALL_TIMEOUT_MS = 30000;
 
 /**
  * "Pick 1": each cost's key, its button in the question, what the spent card button says, and the book's
@@ -135,18 +146,13 @@ function liftInCardTurn(message, actor, costKey, { shiftRoll, cardFlavor, afterS
 	return inCardTurn(message, async () => {
 		if (!allowed()) return false;
 		const record = message.getFlag?.(SYSTEM_ID, ROLLED_FLAG) ?? null;
-		const rolls = message.rolls;
-		const roll = rolls.at(0);
-		const from = roll.total;
+		const from = message.rolls.at(0).total;
 		const target = giveItAllTarget(from, record);
 		const fromTier = countedTier(from, record);
-		while (roll.total < target) await shiftRoll(roll, 1);
-		await message.update({
-			rolls,
-			flavor: cardFlavor(message.flavor, roll.total, roll.formula),
-			flags: { [SYSTEM_ID]: { [GAVE_IT_ALL_FLAG]: { cost: cost.key, from, to: roll.total } } },
-		});
-		await afterShift?.(message, roll.total);
+		const lift = async roll => { while (roll.total < target) await shiftRoll(roll, 1); };
+		const roll = await writeCardRoll(message, lift, { cardFlavor, afterShift }, lifted => ({
+			flags: { [SYSTEM_ID]: { [GAVE_IT_ALL_FLAG]: { cost: cost.key, from, to: lifted.total } } },
+		}));
 		await globalThis.ChatMessage?.create?.({
 			content: moveChatCard(IMPETUOUS_YOUTH.label,
 				`<p>${format(`${KEY}.note`, { name: escHtml(actor.name), from: TIER_NAMES[fromTier], to: TIER_NAMES[countedTier(roll.total, record)] })}</p>`
@@ -161,13 +167,13 @@ function liftInCardTurn(message, actor, costKey, { shiftRoll, cardFlavor, afterS
 
 /**
  * The button on a roll card, drawn every render: "Give it your all" while it is on offer, and once given, a
- * spent button naming the cost (for everyone who can see the card).
+ * spent button naming the cost (for everyone who can see the card). Pressed on the card's writer
+ * (GIVE_IT_ALL_ACTION), the GM's client while one is connected.
  *
  * @param {ChatMessage} message
  * @param {HTMLElement} html
- * @param {object} deps  what giveItAll needs (see there)
  */
-export function wireImpetuousYouth(message, html, deps) {
+export function wireImpetuousYouth(message, html) {
 	const row = html?.querySelector?.(".stonetop-roll-card .stonetop-card-buttons");
 	if (!row) return;
 	const given = message?.getFlag?.(SYSTEM_ID, GAVE_IT_ALL_FLAG);
@@ -193,7 +199,8 @@ export function wireImpetuousYouth(message, html, deps) {
 		button.disabled = true;
 		try {
 			const cost = await askGiveItAllCost(actor);
-			if (!cost || !(await giveItAll(message, actor, cost, deps))) button.disabled = false;
+			const given = cost && await pressRollCard(message, GIVE_IT_ALL_ACTION, { cost }, { timeout: GIVE_IT_ALL_TIMEOUT_MS });
+			if (!given) button.disabled = false;
 		} catch (err) {
 			console.error("Stonetop | giving it your all failed", err);
 			button.disabled = false;

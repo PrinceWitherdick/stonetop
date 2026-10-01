@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 2,
-    "note": "magical",
+    "note": "<em>magical</em>",
     "resource": {
       "max": 3,
       "title": "Blood",
@@ -26,7 +26,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 2,
-      "note": "magical",
+      "note": "<em>magical</em>",
       "resource": {
         "max": 3,
         "title": "Blood",

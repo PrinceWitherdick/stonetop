@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "magical, Value 2",
+    "note": "<em>magical</em>, Value 2",
     "resource": {
       "max": 3,
       "title": "hours",
@@ -26,7 +26,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "magical, Value 2",
+      "note": "<em>magical</em>, Value 2",
       "resource": {
         "max": 3,
         "title": "hours",

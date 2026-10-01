@@ -43,6 +43,7 @@ describe("steadingHolds", () => {
 		expect(tones.militiaTraining).toBe("due");
 		expect(tones.herdFeed).toBe("due");
 		expect(tones.winterDebt).toBe("due");
+		expect(tones.disasterOwed).toBe("due");
 	});
 
 	// Every row lit at once, which no real season can produce (three are season-locked and two
@@ -51,8 +52,9 @@ describe("steadingHolds", () => {
 		const all = steadingHolds({
 			fortunesAdvantage: { source: "x" }, muster: { defenses: false }, torsBlessing: true,
 			herdAdvance: true, innGathering: true, standingWatch: true, weaponsUpkeep: true,
-			militiaTraining: true,
+			militiaTraining: true, harvest: true,
 			herdFeed: { needed: 2, surplus: 4 }, winterDebt: { amount: 3, surplus: 4 },
+			disasterOwed: { cause: "a failed harvest" },
 		});
 		expect(all.map(r => r.key)).toEqual(HOLD_DEFS.map(d => d.key));
 	});
@@ -75,11 +77,26 @@ describe("steadingHolds", () => {
 		expect(row.tooltip).toContain("It has 2");
 	});
 
-	// The dues are all settled inside the Seasons Change window EXCEPT this one, which comes due
-	// after that window is shut — so it is the only due that has to lead somewhere.
-	it("gives the winter debt the only control among the dues", () => {
+	// The seasonal upkeeps are settled inside the Seasons Change window; the dues that outlive it
+	// (winter's debt, a disaster's pick shut unmade) and the inn's gathering have to lead somewhere.
+	it("gives a control to the dues that outlive the Seasons Change window", () => {
 		const withAction = HOLD_DEFS.filter(d => d.action).map(d => d.key);
-		expect(withAction).toEqual(["muster", "innGathering", "winterDebt"]);
+		expect(withAction).toEqual(["muster", "harvest", "innGathering", "winterDebt", "disasterOwed"]);
+		expect(HOLD_DEFS.filter(d => d.action && d.tone === "due").map(d => d.key)).toEqual(["innGathering", "winterDebt", "disasterOwed"]);
+	});
+
+	it("names what met with disaster, and survives a pick with no cause", () => {
+		expect(steadingHolds({ disasterOwed: { cause: "winter's shortfall" } })[0].tooltip).toContain("(winter's shortfall)");
+		expect(steadingHolds({ disasterOwed: { cause: "" } })[0].tooltip).not.toContain("()");
+	});
+
+	// Autumn's harvest is rolled "when the harvest is complete", the end of the season, so like
+	// winter's debt it outlives the window that opened the season and the glyph is the way back.
+	it("lets the harvest be rolled from the header", () => {
+		const row = steadingHolds({ harvest: true })[0];
+		expect(row.key).toBe("harvest");
+		expect(row.action).toBe("roll-harvest");
+		expect(row.tone).toBe("boon");
 	});
 
 	// The label does three jobs at once — accessible name, screen-reader text for a glyph with

@@ -71,9 +71,9 @@ export function withMinorRole(roles = {}, role, slug) {
 /**
  * The "mysteries" track on the front of a major arcanum's insert, which the Seeker has "begun to
  * unlock": a run of ○ on the unlock lead (most majors), or else the □ tasks in the front text (the
- * Mindgem, the Twisted Spear). Each marker carries the arcana box key it is stored under (context +
- * index, in document order as CharacterArcana._injectMarkers numbers them) and, for a □ task, the
- * task's text. `front` is a card's front ({ description, unlock: { description } }).
+ * Mindgem, the Twisted Spear; see frontTaskTrack). Each marker carries the arcana box key it is
+ * stored under (context + index, in document order as CharacterArcana._injectMarkers numbers them)
+ * and, for a □ task, the task's text. `front` is a card's front ({ description, unlock: { description } }).
  */
 export function seekerMajorTrack(front) {
 	const unlock = String(front?.unlock?.description ?? "");
@@ -81,8 +81,39 @@ export function seekerMajorTrack(front) {
 	if (circles) {
 		return { kind: "circle", markers: Array.from({ length: circles }, (_, index) => ({ context: "unlock", index, label: "" })) };
 	}
+	const tasks = frontTaskTrack(front);
+	return tasks ? { kind: "box", markers: tasks.markers } : { kind: null, markers: [] };
+}
+
+// An unlock lead that makes the front's □ its track speaks of them: "When you have marked 3 tasks"
+// (the Twisted Spear), "When you've completed all the requirements" (the Mindgem).
+const _TASK_LEAD  = /\b(?:tasks?|requirements?)\b/i;
+const _TASK_COUNT = /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:of\s+(?:the|its|these|those)\s+(?:\w+\s+)?)?(?:tasks?|requirements?)\b/i;
+const _WORD_COUNTS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+
+/**
+ * A card whose unlock track is the □ tasks in its FRONT text (the Mindgem, the Twisted Spear), as
+ * `{ markers, needed }`: the tasks (frontTaskMarkers) and how many of them unlock it. Null for any
+ * other card. Read off the unlock lead, which has no ○ and names the tasks or requirements: a
+ * count there ("marked 3 tasks") is how many are needed, and otherwise all of them are. A □ on a
+ * card whose lead says neither is some other box (a one-shot move, a consequence), not a lock, and
+ * a card that lists requirements under its lead unlocks by those.
+ *
+ * The one rule for "the front □ are the track": CharacterArcana's unlock and mastery, the Seeker's
+ * major track above, and Improvise's step all read it here.
+ *
+ * @param {{description?: string, unlock?: {description?: string, requirements?: object[]}}} front
+ * @returns {{markers: {context: string, index: number, label: string}[], needed: number}|null}
+ */
+export function frontTaskTrack(front) {
+	const lead = stripHtmlToText(front?.unlock?.description ?? "");
+	if (lead.includes("○") || !_TASK_LEAD.test(lead)) return null;
+	if ((front?.unlock?.requirements ?? []).length) return null;
 	const markers = frontTaskMarkers(front?.description);
-	return markers.length ? { kind: "box", markers } : { kind: null, markers: [] };
+	if (!markers.length) return null;
+	const said = _TASK_COUNT.exec(lead)?.[1]?.toLowerCase();
+	const n = _WORD_COUNTS[said] ?? Number(said);
+	return { markers, needed: n > 0 ? Math.min(n, markers.length) : markers.length };
 }
 
 /**

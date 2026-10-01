@@ -75,6 +75,15 @@ describe("backfillTreasureWriteups", () => {
 		expect(w.updateDocuments).not.toHaveBeenCalled();
 	});
 
+	it("leaves a write-up the GM cleared on purpose cleared", async () => {
+		const edited = { ...treasure("a", "An old bronze dagger"), flags: { stonetop: { writeupEdited: true } } };
+		const w = world({ items: [edited] });
+		install(w);
+
+		expect(await backfillTreasureWriteups()).toBe(0);
+		expect(w.updateDocuments).not.toHaveBeenCalled();
+	});
+
 	it("leaves ordinary gear and unknown treasures alone", async () => {
 		const w = world({ items: [
 			{ id: "gear", name: "Bedroll", type: "move", system: { moveType: "inventory" } },

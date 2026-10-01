@@ -30,10 +30,13 @@
 		</div>
 	</div>
 
-	<label class="threat-edit__field">
-		<span class="threat-edit__label">Description</span>
-		<textarea data-doc-field="system.description" rows="3" placeholder="Who or what it is, how it became a problem, its ties to NPCs or other threats.">{{system.description}}</textarea>
-	</label>
+	{{!-- A TOGGLED rich editor: it shows the description as the card prints it, the pencil opens
+	      it, and its own save commits one change. Toggled rather than always-on because this
+	      window re-renders on every page update, which would tear a live editor down mid-edit. --}}
+	<div class="threat-edit__field">
+		<span class="threat-edit__label">Description <em class="threat-edit__hint">who or what it is, how it became a problem, its ties to NPCs or other threats</em></span>
+		<prose-mirror class="threat-edit__rich" data-doc-field="system.description" toggled value="{{system.description}}">{{{descriptionEnriched}}}</prose-mirror>
+	</div>
 
 	<div class="threat-edit__field">
 		<span class="threat-edit__label">Grim portents <em class="threat-edit__hint">the doom track</em></span>

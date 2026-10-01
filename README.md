@@ -138,6 +138,8 @@ This does not apply to anyone installing for the first time.
 
 The attack effects are one world setting, **Attack Effects on the Map**, on by default. Without these modules it does nothing. Anyone whose computer asks for reduced motion still hears the sounds but sees no animation.
 
+- **[FXMaster](https://foundryvtt.com/packages/fxmaster)** puts the season's weather on the scene your players are on: rain when the Weather roll says rain, snow drifting in winter, cloud racing across a storm sky. Without it the weather is still rolled and posted to chat; it just stays there. Pause it from the Weather window, or turn it off under the **Weather on the Scene** setting.
+
 ## Development
 
 ```bash

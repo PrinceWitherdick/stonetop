@@ -6,12 +6,15 @@ import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
 import { markRolledTier, moveTiersHtml } from "./move-tiers.js";
 import { stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
-import { XP_MARK_FLAG } from "./undo-xp-mark.js";
+import { XP_MARK_FLAG, XP_MARK_FOR_FLAG, XP_UNDONE_FLAG, MISS_XP_FLAG, takeBackXpMark } from "./undo-xp-mark.js";
+import { inCardTurn } from "./card-queue.js";
+import { pressRollCard, registerRollCardAction } from "./roll-card-writer.js";
+import { speakerActor } from "./speaker-actor.js";
 import { composeDamageFormula, seedBonus, extraTerm } from "./damage.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { getBooleanSetting } from "../settings.js";
 import { privateMessageModeOptions } from "./foundry-compat.js";
-import { CRITICAL_TOTAL, ROLLED_FLAG, rolledRecord, countedNote } from "./counted-tier.js";
+import { CRITICAL_TOTAL, ROLLED_FLAG, rolledRecord, countedNote, cardCountedTier } from "./counted-tier.js";
 import { SEASONAL_GAINS } from "../dialogs/spring-burst-data.js";
 
 // What a miss is worth (Book I p.209: "a tick mark that raises your total by 1"). Named because
@@ -222,12 +225,15 @@ export function multiDieFaces(roll) {
  * clicked it. Pass `alias` instead to speak the card under a fixed name, which then
  * heads it too (the Expedition Requisition card).
  */
-export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "", missCountsAsPartial = "", conditionNotes = [], pickOptions = null, pickReference = null } = {}) {
+export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "", missCountsAsPartial = "", countsAsMiss = "", conditionNotes = [], pickOptions = null, pickReference = null } = {}) {
 	const roll = await new Roll(formula).evaluate();
 	const rolled = classifyResult(roll.total).key;
 	// As rollStat's option of the same name: a 6- that a rule counts as a 7-9, said on the card.
 	const counted = missCountsAsPartial && rolled === "failure";
-	const tier = counted ? "partial" : rolled;
+	// And the other way: a roll a rule makes "automatically a 6-" (Book II's storm curse on the
+	// next Seasons Change roll). Still rolled, so the card shows what the dice would have said.
+	const forced = countsAsMiss && rolled !== "failure";
+	const tier = forced ? "failure" : counted ? "partial" : rolled;
 	const result = resultTable[tier];
 	// And rollStat's `pickOptions` + `pickReference`: what the tier chooses from, listed to READ
 	// under the legend (spring's seasonal gains). Only ever a reference list here: nothing rolled
@@ -241,7 +247,9 @@ export async function rollSeasonsCard({ formula, title = "", alias = "", resultT
 		roll.total,
 		tier,
 		result.label,
-		counted ? `${result.line} <em>(Rolled a 6-, counted as a 7-9: ${escHtml(missCountsAsPartial)}.)</em>` : result.line,
+		forced ? `${result.line} <em>(Counted as a 6-: ${escHtml(countsAsMiss)}.)</em>`
+			: counted ? `${result.line} <em>(Rolled a 6-, counted as a 7-9: ${escHtml(missCountsAsPartial)}.)</em>`
+			: result.line,
 		roll.formula,
 		multiDieFaces(roll),
 		resultLegend + reference,
@@ -272,9 +280,17 @@ export async function rollSeasonsCard({ formula, title = "", alias = "", resultT
  * clears the hold and stamps the answer here; the button is then only a trigger, which is right,
  * since the player who clicks it may not own the steading and could not read the hold anyway.
  *
+ * `modifier` and `countsAsMiss` cross the same way, for what the GM settled in the pre-roll prompt:
+ * Preparation spent from Bolstering for the season (Book I p. 516 lets it be spent on this roll),
+ * or Book II's storm curse, which makes the next Seasons Change roll "automatically a 6-". The
+ * other seasons' rolls take both from the prompt and their card's Shift buttons; this one has
+ * neither on its card, so without them it was the one Seasons Change roll nothing could adjust.
+ *
  * @param {string} [rollMode]  "adv" | "dis" | "normal" — NOT core's public/gmroll/blind.
  * @param {string} [why]       What bought the advantage, named on the card so the table can see
  *   the sacrifice land rather than reading two extra dice and wondering.
+ * @param {number} [modifier]  a one-off plus or minus on top of Fortunes
+ * @param {string} [countsAsMiss]  why the roll is a 6- whatever the dice say, or "" for no such rule
  * @returns {Promise<ChatMessage>|undefined} the card being posted, so a caller spending the hold
  *   can wait until it is up
  */
@@ -284,6 +300,8 @@ export function postSeasonsRollPrompt({
 	fortunes = 0,
 	rollMode = "normal",
 	why = "",
+	modifier = 0,
+	countsAsMiss = "",
 	// WHICH handed-over roll this is. Everything that differs between them — the opening line,
 	// who is asked, what the roll is for, and the ladder the answer is read against — comes off
 	// its entry in SEASONS_ROLL_TABLES, so a caller names the roll and nothing else.
@@ -297,15 +315,20 @@ export function postSeasonsRollPrompt({
 	// one, because two extra dice with nothing explaining them is a table wondering whether the
 	// button is broken.
 	const named = rollMode === "adv" ? "advantage" : rollMode === "dis" ? "disadvantage" : "";
-	const conditions = named
+	const conditions = (named
 		? `<p class="stonetop-seasons-prompt-mode"><em>Rolled with <strong>${named}</strong>${why ? `: ${escHtml(why)}` : ""}.</em></p>`
-		: "";
+		: "")
+		+ (countsAsMiss
+			? `<p class="stonetop-seasons-prompt-mode"><em>Counts as a <strong>6-</strong> whatever the dice say: ${escHtml(countsAsMiss)}.</em></p>`
+			: "");
+	const mod = Math.trunc(Number(modifier)) || 0;
+	const plus = mod ? ` ${sign(mod)}` : "";
 	const body = `<div class="card-content stonetop-seasons-prompt">
-		<p class="stonetop-seasons-prompt-text">${lead} ${who}, roll <strong>+Fortunes</strong> (${sign(fortunes)}) ${tail}.</p>
+		<p class="stonetop-seasons-prompt-text">${lead} ${who}, roll <strong>+Fortunes</strong> (${sign(fortunes)})${plus} ${tail}.</p>
 		${conditions}
 		<div class="card-buttons stonetop-card-buttons">
-			<button type="button" class="stonetop-seasons-roll-btn" data-fortunes="${fortunes}" data-alias="${escHtml(alias)}" data-roll-mode="${escHtml(rollMode)}" data-table="${escHtml(table)}">
-				<i class="fas fa-dice-d6"></i> Roll +Fortunes (${sign(fortunes)})
+			<button type="button" class="stonetop-seasons-roll-btn" data-fortunes="${fortunes}" data-mod="${mod}" data-counts-as-miss="${escHtml(countsAsMiss)}" data-alias="${escHtml(alias)}" data-roll-mode="${escHtml(rollMode)}" data-table="${escHtml(table)}">
+				<i class="fas fa-dice-d6"></i> Roll +Fortunes (${sign(fortunes)})${plus}
 			</button>
 		</div>
 	</div>`;
@@ -924,11 +947,15 @@ export async function rollStat(statKey, actor, options = {}) {
 	// What was rolled, on the card, for whatever reads its tier again after a rewrite (utils/counted-tier.js):
 	// Potential for Greatness asks the stat, and a 7-9 this roll treats as a 10+ still counts as one.
 	const priorFlags = options.messageFlags ?? {};
+	// Whether this card's miss earns XP, kept on it so a rewrite of its total can mark or take back
+	// that XP as the new total says (reconcileMissXp).
+	const earnsMissXp = actor?.type === "character" && !options.noXpOnMiss;
 	const messageFlags = {
 		...priorFlags,
 		[SYSTEM_ID]: {
 			...(priorFlags[SYSTEM_ID] ?? {}),
 			[ROLLED_FLAG]: rolledRecord(statKey, { moveName, missCountsAsPartial, partialCountsAsSuccess }),
+			...(earnsMissXp ? { [MISS_XP_FLAG]: true } : {}),
 		},
 	};
 	const resultMessage = await roll.toMessage({
@@ -950,8 +977,19 @@ export async function rollStat(statKey, actor, options = {}) {
 		} catch (_err) { /* animation wait failed — proceed to the follow-up cards */ }
 	}
 
-	if (result.key === "failure" && actor?.type === "character" && !options.noXpOnMiss) {
-		await markMissXp(actor, moveName);
+	if (result.key === "failure" && earnsMissXp) {
+		const card = resultMessage?.id ? game.messages?.get?.(resultMessage.id) : null;
+		const rollMode = game.settings.get("core", "rollMode");
+		if (!card) await markMissXp(actor, moveName, { rollMode });
+		else {
+			// Marked on the card's WRITER, in the card's turn, where every rewrite of it runs: the dice
+			// animation is long enough for a Burn Brightly or a Shift to land first, and only one client
+			// lining both up decides which came first. The writer reads the card as it is by then.
+			const done = await pressRollCard(card, MISS_XP_ACTION, { rollMode });
+			// The GM's client did not answer: mark it here on the same reading rather than lose the XP.
+			// Should the GM's turn still land, the receipt's Undo is there for the second mark.
+			if (done === null) await inCardTurn(card, () => reconcileMissXp(card, card.rolls?.at?.(0)?.total ?? roll.total, { actor, rollMode }));
+		}
 	}
 
 	// The COUNTED tier: a 7-9 this roll treats as a 10+ is a 10+ to Potential for Greatness too. The reminder
@@ -1009,19 +1047,65 @@ export async function markXpReceipt(actor, { header, description = "", move, amo
  *
  * XP is deliberately not capped: xpToLevelUp is a level-up threshold, not a ceiling.
  */
-export async function markMissXp(actor, moveName) {
+export async function markMissXp(actor, moveName, { forCard = null, rollMode = game.settings.get("core", "rollMode"), author = null } = {}) {
 	const receipt = await markXpReceipt(actor, {
 		header: "Miss",
 		move: moveName,
 		description: `<p>On a <strong>miss</strong> (a total of 6 or less), you <strong>mark XP</strong>, a tick mark that raises your total by 1, unless the move says otherwise.</p>`,
 	});
-	await ChatMessage.create({
+	return ChatMessage.create({
 		content:  receipt.content,
 		speaker:  ChatMessage.getSpeaker({ actor }),
-		rollMode: game.settings.get("core", "rollMode"),
-		flags:    { [SYSTEM_ID]: receipt.flags },
+		rollMode,
+		// The roller's, when the GM's client writes it: a chat message is "the GM, or whoever authored it"
+		// to modify, and the receipt's Undo is the player's (undo-xp-mark.js#wireUndoXpMark).
+		...(author ? { author } : {}),
+		flags:    { [SYSTEM_ID]: { ...receipt.flags, ...(forCard ? { [XP_MARK_FOR_FLAG]: forCard } : {}) } },
 	});
 }
+
+/** The receipt still standing for `card`'s miss: marked for it and not undone. Null when none. */
+export function liveMissReceipt(card) {
+	if (!card?.id) return null;
+	const messages = globalThis.game?.messages?.contents ?? [];
+	return messages.findLast(m => m.getFlag?.(SYSTEM_ID, XP_MARK_FOR_FLAG) === card.id
+		&& !m.getFlag(SYSTEM_ID, XP_UNDONE_FLAG)) ?? null;
+}
+
+/**
+ * A roll card's miss XP, made to match its total after a rewrite (a Shift, Burn Brightly, a +1 on the
+ * card, giving it your all). "On a miss, mark XP" (Book I p.209) is about the result the card ends on:
+ * lifted off a 6-, the miss's XP is taken back and its receipt reads Undone; brought down into one, the
+ * XP is marked with a receipt of its own. The user's ruling, 2026-09-30.
+ *
+ * Only on a card whose miss earns XP (MISS_XP_FLAG, stamped by rollStat): a move that says no XP on a
+ * miss, a non-character's roll and a card rolled before the flag existed are left as they are. The tier
+ * is the one the card COUNTS as, so a 6- a rule treats as a 7-9 marks nothing, as at the roll.
+ *
+ * Run by the card's writer, in the card's turn: after a rewrite (stonetop.js#_resyncRewrittenTotal), and for
+ * the roll's own miss (MISS_XP_ACTION). `rollMode` is the roller's, for a receipt written on the GM's client.
+ */
+export async function reconcileMissXp(card, total, { actor = null, rollMode = undefined } = {}) {
+	if (!card?.getFlag?.(SYSTEM_ID, MISS_XP_FLAG) || actor?.type !== "character") return;
+	const miss = cardCountedTier(card, total, SYSTEM_ID) === "failure";
+	const live = liveMissReceipt(card);
+	const move = card.getFlag(SYSTEM_ID, ROLLED_FLAG)?.move ?? null;
+	const author = card.author?.id ?? null;
+	if (miss && !live) await markMissXp(actor, move, { forCard: card.id, author, ...(rollMode ? { rollMode } : {}) });
+	else if (!miss && live) await takeBackXpMark(live, actor, { move: move ? `${move} (no longer a miss)` : "No longer a miss" });
+}
+
+/** The roll card action that marks a roll's own miss XP on the card's writer (see rollStat). */
+const MISS_XP_ACTION = "missXp";
+registerRollCardAction(MISS_XP_ACTION, ({ message, user, data }) => {
+	const actor = speakerActor(message);
+	// Only for whoever plays the character speaking the card, as every other press on it.
+	if (actor?.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) return null;
+	return inCardTurn(message, async () => {
+		await reconcileMissXp(message, message.rolls?.at?.(0)?.total, { actor, rollMode: data?.rollMode });
+		return { done: true };
+	});
+});
 
 // The Advantage / Disadvantage condition pill(s) for a roll mode — shared by the stat and
 // damage cards so a class rename or label change lands in one place.

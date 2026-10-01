@@ -425,7 +425,7 @@ describe("what asks before it rolls", () => {
 		expect(flows).not.toMatch(/type: "text(area)?"/);
 		expect((flows.match(/\bfields: \[/g) ?? []).length).toBe(1);
 		expect(flows).toContain('{ name: "value", label: "Item Value", type: "number"');
-		expect(flows).toContain('{ name: "winter", label: "It is winter", type: "checkbox" }');
+		expect(flows).toContain('{ name: "winter", label: "It is winter", type: "checkbox", checkedInSeason: "winter" }');
 		// And the renderer can only build those two: no text/textarea branch survives it.
 		const render = STEADING_JS.slice(STEADING_JS.indexOf("_onHomesteadMove(moveSlug)"));
 		expect(render.slice(0, 2000)).not.toContain("<textarea");

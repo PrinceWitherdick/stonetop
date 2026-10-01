@@ -15,7 +15,7 @@ import { SeekerMajorArcanumDialog, seekerMajorChoices, seekerMajorAnswer } from 
 import { BackgroundAnswersDialog } from "../../../module/actors/character/dialogs/BackgroundAnswersDialog.js";
 import {
 	seekerMajorTrack, pickSeekerMajorMark, minorArcanaHeldElsewhere, drawableMinorSlugs,
-	seekerMajorSwitchPlan, withMinorRole, seekerCardRoles, seekerMajorOwed, frontTaskMarkers,
+	seekerMajorSwitchPlan, withMinorRole, seekerCardRoles, seekerMajorOwed, frontTaskMarkers, frontTaskTrack,
 } from "../../../module/actors/character/seeker-collection.js";
 
 const PACK = new Map(loadPlaybookPackDocs().map(doc => [doc.system.slug, doc]));
@@ -394,5 +394,21 @@ describe("pure helpers", () => {
 		expect(tasks[0].label).toBe("Recover its chassis of white granite, which weighs well over a ton");
 		expect(tasks[3].label).toBe("Puzzle out how to assemble all the pieces");
 		expect(frontTaskMarkers("<p>No tasks here.</p>")).toEqual([]);
+	});
+
+	it("frontTaskTrack reads how many tasks unlock a card off its unlock lead", () => {
+		expect(frontTaskTrack(card("mindgem").front)).toMatchObject({ needed: 4 });
+		expect(frontTaskTrack(card("twisted-spear").front)).toMatchObject({ needed: 3 });
+		expect(frontTaskTrack(card("twisted-spear").front).markers).toHaveLength(5);
+		// A lead that names no tasks makes a front □ some other box; a ○ lead is its own track.
+		const oneShot = { description: "<p>□ Once, you may call on it.</p>", unlock: { description: "When you learn its name, see reverse." } };
+		expect(frontTaskTrack(oneShot)).toBeNull();
+		expect(seekerMajorTrack(oneShot)).toEqual({ kind: null, markers: [] });
+		expect(frontTaskTrack({ ...oneShot, unlock: { description: "When you mark ○○ tasks, see reverse." } })).toBeNull();
+		// A card listing its requirements under the lead unlocks by those, whatever the lead calls them.
+		expect(frontTaskTrack({ ...oneShot, unlock: { description: "Complete the task.", requirements: [{ type: "option", slug: "x" }] } })).toBeNull();
+		expect(frontTaskTrack({ ...oneShot, unlock: { description: "Meet the requirements.", requirements: [{ type: "text", content: "Learn its name" }] } })).toBeNull();
+		const fourTasks = { description: "<ul>" + "<li>□ A task.</li>".repeat(4) + "</ul>", unlock: { description: "When you have marked 2 of the 4 tasks, see reverse." } };
+		expect(frontTaskTrack(fourTasks).needed).toBe(2);
 	});
 });

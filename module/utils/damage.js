@@ -239,13 +239,17 @@ export function damageRowActor(doc) {
  * `{ oldHp, newHp }` (null if the actor has no HP attribute). Writes
  * system.attributes.hp.value; the caller must have permission to update the actor
  * (monster targets ⇒ GM; the acting PC ⇒ its owner).
+ *
+ * `alsoUpdate`: more of the same decision, in the same write (what a Poltergeist's anger bought
+ * with the HP it cost), so a fall to 0 HP is noticed with it already on the sheet. Written even
+ * when the HP does not move.
  */
-export async function applyDamageToActor(targetActor, amount, updateOptions = {}) {
+export async function applyDamageToActor(targetActor, amount, updateOptions = {}, alsoUpdate = null) {
 	const hp = targetActor?.system?.attributes?.hp;
 	if (!hp) return null;
 	const oldHp = Number(hp.value) || 0;
 	const newHp = Math.max(0, oldHp - Math.max(0, Math.round(Number(amount) || 0)));
-	if (newHp !== oldHp) await targetActor.update({ "system.attributes.hp.value": newHp }, updateOptions);
+	if (newHp !== oldHp || alsoUpdate) await targetActor.update({ ...alsoUpdate, "system.attributes.hp.value": newHp }, updateOptions);
 	return { oldHp, newHp };
 }
 
@@ -402,7 +406,9 @@ function _damageTagList(line, at) {
 
 export function readOptionDamage(text) {
 	const line = String(text ?? "");
-	if (!line || BONUS_DAMAGE_RE.test(line)) return null;
+	if (!line) return null;
+	// A bonus refused below still leaves any HP the line costs its reader: "+2 damage, lose 2d4 HP".
+	if (BONUS_DAMAGE_RE.test(line)) return _readHpLoss(line);
 	if (!DAMAGE_VERB_RE.test(line)) return null;
 	const match = OPTION_DAMAGE_RE.exec(line);
 	if (!match) return _readHpLoss(line);
@@ -413,7 +419,7 @@ export function readOptionDamage(text) {
 	// Read off what precedes the MATCH rather than off the line, so the "+2" inside "d10+2
 	// damage" (which the pattern above has already taken as part of the die) is left alone.
 	const before = line.slice(0, match.index).trimEnd();
-	if (before.endsWith("+") || before.endsWith("-")) return null;
+	if (before.endsWith("+") || before.endsWith("-")) return _readHpLoss(line);
 
 	// Foundry's Roll wants "1d6", not "d6" or "2d4 + 1".
 	const formula = match[1].replace(/\s+/g, "").replace(/^d/i, "1d");

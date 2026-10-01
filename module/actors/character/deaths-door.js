@@ -86,6 +86,9 @@ export const POST_DEATH_INSERT_SLUGS = ["revenant", "ghost", "thrall"];
  */
 export const FAVOR_TRACK = { entry: "favor", option: "favor-track" };
 
+/** The most Favor a Thrall can hold: "can go no higher than 3". */
+export const FAVOR_MAX = 3;
+
 /**
  * The move a character triggers when reduced to 0 HP, keyed by their active post-death
  * insert slug ("null" = no insert). Trigger text is the book's, verbatim — players read it

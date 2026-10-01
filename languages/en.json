@@ -359,6 +359,8 @@
         "tooltip": "When you have enough XP to Level Up, you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).",
         "drivenTooltip": "Driven: you always have the option to Burn Brightly; you can spend 2 XP after you roll to add +1 (max +1 per roll), even if you don't have enough XP to level.",
         "notEnoughXp": "You don't have enough XP to Burn Brightly.",
+        "notYours": "Only the player of the character who made this roll can Burn Brightly on it.",
+        "zeroHp": "Burn Brightly cannot change a roll made at 0 HP from the card: its result is already settled.",
         "spent": "-{cost} XP for Burning Brightly.<br>New XP: {xp} / {max}"
       },
       "deathsDoor": {
@@ -420,9 +422,7 @@
             "next": "Choose your Terrible Purpose and your first Consequence."
           },
           "undying": {
-            "intro": "You gave up the body you clung to, and your spirit lingers on. Your Terrible Purpose stays with you; as a Ghost, you choose a first Consequence of your own.",
-            "card": "<strong>{who}</strong> gives up the body and lingers on as a <strong>{what}</strong>.",
-            "next": "Choose your first Consequence as a Ghost."
+            "intro": "You gave up the body you clung to, and your spirit lingers on. Your Terrible Purpose stays with you; as a Ghost, you choose a first Consequence of your own."
           },
           "thrall": {
             "intro": "You called one of the Things Below by name, and it answered. Here is what that costs.",
@@ -691,13 +691,16 @@
         "indulged": "Indulged their Strange Appetites: advantage on their next roll.",
         "favorTitle": "Favor",
         "favorHeld": "{held} of {max} held",
+        "favorHeldByTask": "Held at 0 until your master's task is done",
+        "favorCautionTask": "Your master's task isn't done yet, and until it is, your Favor stays at 0 (Dark Succor).",
         "favorPip": "Favor {n} of {max}",
         "favorHint": "A ticked pip is Favor held. Click a pip to set your Favor to it.",
         "gainMark": "Gain a Mark",
-        "gainMarkHint": "When Favor goes past 3 and you choose a new Mark. Then the GM crosses off one you don't have. With none left to gain, it is Unholy Vessel.",
+        "gainMarkHint": "When Favor goes past 3 and you choose a new Mark: your Favor goes to 0. Then the GM crosses off one you don't have. With none left to gain, it is Unholy Vessel.",
         "gainMarkTitle": "Gain a Mark",
         "gainMarkAsk": "<p>Which Mark does this Thrall gain?</p>",
         "markGained": "Gained the Mark <strong>{name}</strong>.",
+        "favorReset": "Favor reset to <strong>0</strong>.",
         "unholyVesselNo": "Not yet, keep them",
         "crossOff": "Cross off",
         "crossOffLabel": "Cross off {name}: this Thrall can never gain it",
@@ -715,6 +718,10 @@
         "finalBody": "<p>The Final Consequence ends <strong>{name}</strong> as a player character: their tenuous connection to humanity is lost, and they become a monster under the GM's control.</p>",
         "finalYes": "Mark it: they become a monster",
         "finalNo": "Leave it unmarked",
+        "finalUndoTitle": "Take back the Final Consequence?",
+        "finalUndoBody": "<p>Unmarking the Final Consequence brings <strong>{name}</strong> back into play as a player character, with the hit points they have now.</p>",
+        "finalUndoYes": "Unmark it: back in play",
+        "finalUndoNo": "Keep it marked",
         "finalMove": "The Final Consequence"
       }
     },
@@ -746,8 +753,6 @@
       "backOwedText": "You've read the front. The back is owed you, once you've had time to study it or learn more.",
       "backOwedStudy": "Study it",
       "backOwedTitle": "Study it",
-      "backOwedGmText": "You owe this card's back: they read the front on a 7-9.",
-      "backOwedGrant": "Show them the back",
       "unidentifiedText": "This arcanum has not yet been identified. You can tell it's something, but not what.",
       "discover": "Arcana Discovered",
       "discoverTitle": "Arcanum Discovered",
@@ -777,7 +782,8 @@
       "addItemColumn": "Column",
       "addItemColumnRegular": "Items (◇, counts toward load)",
       "addItemColumnSmall": "Small items (pocket, pouch, or boot)",
-      "addItemColumnHint": "Which inventory column this item lands in when dropped.",
+      "addItemColumnImmobile": "Immobile (can't be carried off)",
+      "addItemColumnHint": "Which inventory column this item lands in when dropped. An immobile thing lists with the small items and carries the immobile tag, as the book prints it.",
       "addItemName": "Name",
       "addItemNamePlaceholder": "e.g. Bow & iron arrows",
       "addItemNameRequired": "Give the item a name.",
@@ -792,7 +798,42 @@
       "addItemUses": "Uses (○)",
       "addItemUsesHint": "How many ○ circles to track. Tick \"Ammunition\" for a bow/crossbow's low-ammo / all-out track.",
       "addItemAmmo": "Ammunition",
+      "addItemUsesLabel": "Track label",
+      "addItemUsesLabelPlaceholder": "e.g. hours, Blood",
+      "addItemUsesLabels": "Circle labels",
+      "addItemUsesLabelsHint": "One line per circle, printed after it. Leave a line blank to skip a circle, e.g. four blank lines then \"out\" to mark only the fifth. Ignored while Ammunition is ticked.",
+      "addItemResourceFirst": "Print the track before the tags",
+      "addItemResourceFirstHint": "As the book prints the bullseye lantern: \"○○○○○ Oil, near\" rather than \"near ○○○○○ Oil\".",
+      "addItemShield": "Shield (+1 Readiness on a 7+ to Defend)",
+      "addItemValue": "Value",
+      "addItemValueTo": "To whom (optional)",
+      "addItemValueToPlaceholder": "e.g. to the right buyer",
+      "addItemValueHint": "What it's worth in trade, printed at the end of its tags (\"Value 3\"). Leave blank if it has none.",
+      "addItemImage": "Image",
+      "addItemImageChoose": "Choose image",
+      "addItemImageClear": "Clear",
       "addItemConfirm": "Add item",
+      "createTreasure": "Create Treasure",
+      "createTreasureConfirm": "Create treasure",
+      "treasureCreated": "Created treasure \"{name}\". Only the GM can see it until you drag it onto a character's Inventory tab.",
+      "treasureNamePlaceholder": "e.g. A makerglass sword",
+      "treasureTagsPlaceholder": "e.g. fragile, magical",
+      "sectionsLabel": "Item sections",
+      "bannerSubItem": "Inventory item",
+      "bannerSubTreasure": "Treasure",
+      "section": {
+        "item": "The item",
+        "tags": "Tags & Value",
+        "uses": "Uses",
+        "writeup": "Write-up",
+        "identify": "Identifying it"
+      },
+      "treasureLoreHint": "What it looks like, what it truly does, and any custom move's full text. The player reads it once they've identified it (a 10+ to Know Things).",
+      "treasureStartsHidden": "Lands unidentified",
+      "treasureStartsHiddenHint": "The player sees only its name and ◇ until they work it out. Leave clear to follow the world setting \"Artifacts Arrive Unidentified\".",
+      "editItemTitle": "Edit {name}",
+      "editTreasureTitle": "Edit treasure: {name}",
+      "saveChanges": "Save changes",
       "removeItem": "Remove",
       "resetLabel": "Reset Inventory",
       "resetTitle": "Reset Inventory",
@@ -1071,7 +1112,7 @@
       },
       "artifactsStartUnidentified": {
         "name": "Artifacts Arrive Unidentified",
-        "hint": "Book I, Discoveries pp.430-431. When on, a Book II treasure dropped onto a character sheet arrives with its tags, Value and uses withheld: the player sees only what's obvious at a glance, and has to Know Things or Seek Insight about it to learn more. Off by default, so treasure lands fully described as it always has. Either way you can hide or hand over any single artifact from the mask icon on its gear row."
+        "hint": "Book I, Discoveries pp.430-431. When on, a treasure (from Book II, or one made with Create Item) dropped onto a character sheet arrives with its tags, Value and uses withheld: the player sees only what's obvious at a glance, and has to Know Things or Seek Insight about it to learn more. Off by default, so treasure lands fully described as it always has. Either way you can hide or hand over any single artifact from the mask icon on its gear row."
       },
       "fightTab": {
         "name": "Fight tab (replaces the Combat tracker)",
@@ -1146,6 +1187,16 @@
       "savedContent": "Your current character creation selections have been saved.",
       "continueEditing": "Continue Editing",
       "closeForNow": "Close for Now"
+    },
+    "rollCard": {
+      "writerSilent": "The GM's client did not answer in time. It may still go through, so check the card before pressing again."
+    },
+    "optionHpLoss": {
+      "title": "Lose {formula} HP?",
+      "body": "<p><strong>{name}</strong> rolls {formula} and loses that much HP now. It is HP lost, not damage: armor, Defend and Undying don't reduce it.</p>",
+      "yes": "Roll it and lose the HP",
+      "no": "Not yet",
+      "notOwner": "Only {name}'s owner can lose their HP."
     },
     "rollResults": {
       "miss": "Miss",
@@ -1499,6 +1550,10 @@
           "worldCreated": "Created move \"{name}\". Drag it onto a character sheet to add it.",
           "descriptionLabel": "What happens? (the trigger and effect)",
           "descriptionPlaceholder": "When you…",
+          "descriptionHint": "Wrap the trigger in ***three asterisks*** for the book's bold italic. **Two** make bold, *one* makes italic. A blank line starts a new paragraph.",
+          "requiresLabel": "Requires (optional)",
+          "requiresPlaceholder": "e.g. Prophet background, or Read the Land",
+          "requiresHint": "The prerequisite as the book prints it. It is shown under the move and not checked.",
           "rollLabel": "Dice roll",
           "rollNone": "No roll: text only",
           "rollAsk": "Ask: choose a stat each time",

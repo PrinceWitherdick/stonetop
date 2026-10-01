@@ -83,9 +83,13 @@ export const EMANATION_BASE = {
 	damageValue: "d10 (ignores armor)",
 	rollFormula: "d10",
 	tags: ["solitary", "terrifying"],
-	qualities: "0 vs. bronze",
+	qualities: "Armor 0 vs. bronze",
 	instinct: "",
 };
+
+// The bronze clause the resilience gift and the emanation base both carry. A stat block says it
+// once: the base already IS that resilience, so taking the gift on top must not print it twice.
+const _BRONZE_ARMOR = /\b0 vs\.? bronze\b/i;
 
 
 /** Append attack tags into a damage line's trailing "(…)" parenthetical (or add one),
@@ -214,7 +218,11 @@ export function applyCorruption(base = {}, picks = {}) {
 
 	// Qualities: base quality lines (split on ; or newline) + gift/mark quality lines.
 	const allQualities = String(base.qualities ?? "").split(/[;\n]/).map(s => s.trim()).filter(Boolean);
-	for (const q of qualities) if (!allQualities.some(x => x.toLowerCase() === q.toLowerCase())) allQualities.push(q);
+	for (const q of qualities) {
+		if (allQualities.some(x => x.toLowerCase() === q.toLowerCase())) continue;
+		if (_BRONZE_ARMOR.test(q) && allQualities.some(x => _BRONZE_ARMOR.test(x))) continue;
+		allQualities.push(q);
+	}
 
 	return {
 		hp: Math.max(1, hp),

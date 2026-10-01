@@ -116,8 +116,8 @@ describe("lore-options-edit.hbs on a post-death insert", () => {
 
 	it("draws the GM's Cross off and Restore as labelled buttons naming the Mark", () => {
 		const doc = renderOptions([
-			opt({ slug: "death-mask", pdiCrossOff: { label: "Cross off DEATH MASK: this Thrall can never gain it" } }),
-			opt({ slug: "ravenous", crossedOff: true, pdiUncross: { label: "Restore RAVENOUS: it was crossed off by mistake" } }),
+			opt({ slug: "death-mask", pdiMarkControl: { action: "cross-off", text: "Cross off", label: "Cross off DEATH MASK: this Thrall can never gain it" } }),
+			opt({ slug: "ravenous", crossedOff: true, pdiMarkControl: { action: "uncross", text: "Restore", label: "Restore RAVENOUS: it was crossed off by mistake" } }),
 			opt({ slug: "red-wrath" }),
 		]);
 		const [cross, restore] = doc.querySelectorAll(".stonetop-pdi-crossoff-btn");

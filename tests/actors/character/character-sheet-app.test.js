@@ -314,7 +314,6 @@ describe("StonetopCharacterSheet event handlers", () => {
 		it("shows the owner the back they are owed", async () => {
 			const card = await cardOf(arcanaSheet({ card: { backOwed: true } }));
 			expect(card.showBackOwed).toBe(true);
-			expect(card.gmBackOwed).toBe(false);
 		});
 
 		it("drops the strip once the back has actually arrived", async () => {
@@ -327,24 +326,23 @@ describe("StonetopCharacterSheet event handlers", () => {
 			}
 		});
 
-		it("shows the GM the back they owe, and no strip once it is moot", async () => {
-			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true } }))).gmBackOwed).toBe(true);
-			// An unlocked card's back is the owner's already, so there is nothing left to reveal.
-			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true, unlocked: true } }))).gmBackOwed).toBe(false);
-			expect((await cardOf(arcanaSheet({ isGM: true, revealed: ["the-key"], card: { backOwed: true } }))).gmBackOwed).toBe(false);
-			expect((await cardOf(arcanaSheet({ isGM: true }))).gmBackOwed).toBe(false);
+		it("carries no GM-side strip: the footer's reveal toggle settles the debt", async () => {
+			const card = await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true } }));
+			expect(card.showBackOwed).toBe(false);
+			expect(card.canReveal).toBe(true);
 		});
 
 		/**
-		 * revealArcanum is the ONLY thing that clears backOwed, and the GM's strip is the only route
-		 * to it for a still-locked card. Gated on the reveal TOGGLE's rule (which carries a
-		 * "secretive mode only" term) the debt was stranded with the world's peek switch on: nobody
-		 * could settle it, and the day the switch went off the owner's sheet went back to claiming a
-		 * back they had been reading for sessions.
+		 * revealArcanum is the ONLY thing that clears backOwed, and the footer's reveal toggle is the
+		 * GM's only route to it. Gated on secretive mode alone, the debt was stranded with the
+		 * world's peek switch on: nobody could settle it, and the day the switch went off the owner's
+		 * sheet went back to claiming a back they had been reading for sessions.
 		 */
-		it("still lets the GM settle the debt while players can already peek", async () => {
-			const card = await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true } }));
-			expect(card.gmBackOwed).toBe(true);
+		it("still offers the GM the reveal toggle for an owed back while players can already peek", async () => {
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true } }))).canReveal).toBe(true);
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true }))).canReveal).toBe(false);
+			// An unlocked card's back is the owner's already, so there is nothing left to reveal.
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true, unlocked: true } }))).canReveal).toBe(false);
 		});
 
 		/**
@@ -356,7 +354,6 @@ describe("StonetopCharacterSheet event handlers", () => {
 		it("keeps the owed-back strip off a non-owning viewer's copy of the sheet", async () => {
 			const card = await cardOf(arcanaSheet({ owns: false, card: { backOwed: true } }));
 			expect(card.showBackOwed).toBe(false);
-			expect(card.gmBackOwed).toBe(false);
 		});
 
 		it("offers the no-roll hand-over to the GM only", async () => {
@@ -1878,7 +1875,8 @@ describe("StonetopCharacterSheet Death's Door card past the Door", () => {
 		for (const [slug, move] of [["revenant", "Undying"], ["thrall", "Dark Succor"], ["ghost", "Tethered"]]) {
 			const sheet = makeCardSheet(slug, { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
 			await sheet._onDeathsDoorClear();
-			expect(sheet._stonetopCharacter.restoreHp, slug).toHaveBeenCalledWith(8, move, { clearsDeathsDoor: true });
+			// Unhalved: a return is not a heal, so Torment's Blessing leaves it alone (the user's ruling, 2026-09-30).
+			expect(sheet._stonetopCharacter.restoreHp, slug).toHaveBeenCalledWith(8, move, { clearsDeathsDoor: true, unhalved: true });
 			expect(sheet._stonetopCharacter.setDeathsDoorState, slug).not.toHaveBeenCalled();
 		}
 	});
@@ -1889,6 +1887,15 @@ describe("StonetopCharacterSheet Death's Door card past the Door", () => {
 		expect(revenant.hint.text).toContain("8 HP");
 		const ghost = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION }));
 		expect(ghost.action.label).toBe("Reform at your tether");
+	});
+
+	// The return is not a heal (the user's ruling, 2026-09-30): Torment's Blessing leaves it at a full half.
+	it("promises a Thrall with Torment's Blessing the full half, unhalved", () => {
+		const sheet = makeCardSheet("thrall", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+		sheet.actor.flags = { "stonetop-pwd": {
+			postDeathInsert: { slug: "thrall" }, postDeathLore: { counts: { "marks:torments-blessing": 1 } },
+		} };
+		expect(card(sheet).hint.text).toContain("8 HP");
 	});
 
 	it("still only clears the state for the living, and for a `dead` being undone", async () => {
@@ -2053,12 +2060,11 @@ describe("StonetopCharacterSheet Post-Death tab controls", () => {
 
 	it("puts the Final Consequence's box back when the question is declined", async () => {
 		const { sheet, char } = makePdiSheet();
-		char.markSectionOptionUpdateData = vi.fn(() => ({ x: 1 }));
-		char.deathsDoorStateUpdateData = vi.fn(() => ({ y: 1 }));
-		char.restoreHp = vi.fn(async () => false);
+		char.finalConsequenceUpdateData = vi.fn(() => ({ x: 1 }));
+		char.applyUpdate = vi.fn(async () => {});
 		stubConfirm(false);
 		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "consequences", optionSlug: "final-consequence", idx: "0" } });
-		expect(char.restoreHp).not.toHaveBeenCalled();
+		expect(char.applyUpdate).not.toHaveBeenCalled();
 		expect(char.markSectionOption).not.toHaveBeenCalled();
 		// The re-render is what redraws the box unticked.
 		expect(sheet.render).toHaveBeenCalledWith(false);

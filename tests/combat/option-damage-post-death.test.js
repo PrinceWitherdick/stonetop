@@ -39,4 +39,12 @@ describe("HP lost", () => {
 		// Damage still reads as damage, not as HP lost.
 		expect(readOptionDamage("You take 1d6 damage and lose 1 HP").hpLoss).toBeUndefined();
 	});
+
+	// A bonus rides another roll and is refused; the HP the same line costs its reader is still owed.
+	it("still reads the HP lost on a line whose damage is a bonus", () => {
+		expect(readOptionDamage("Erupt in a flurry of violence (area, +2 damage, lose 2d4 HP)"))
+			.toMatchObject({ formula: "2d4", self: true, hpLoss: true });
+		expect(readOptionDamage("Deal 1d6 extra damage, but lose 1d4 HP")).toMatchObject({ formula: "1d4", hpLoss: true });
+		expect(readOptionDamage("Deal +1d4 damage")).toBeNull();
+	});
 });

@@ -5,6 +5,7 @@ import { formatCustomMoveDescription } from "../utils/custom-move-text.js";
 import { buildMonsterActorData } from "../data/monster-builder.js";
 import { THEMES, ASPECTS, EMANATION_ORIGINS, rollOnTable, rollDistinct, themeLabels, aspectTexts, themeCheckboxes, aspectCheckboxes } from "../data/things-below-tables.js";
 import { GIFTS, MARKS, EMANATION_BASE, applyCorruption } from "../data/corruption-tables.js";
+import { BESTIARY_PACK } from "../system-id.js";
 
 // ── CorruptBeingDialog ───────────────────────────────────────────────────────
 // The lighter "corruption layer" wizard for two Book II flows:
@@ -65,7 +66,11 @@ export class CorruptBeingDialog extends StepperDialog {
 		// Set when launched from a folder in the Actors sidebar, so the stat block lands
 		// where the GM asked for it rather than at the root.
 		this._folder = folder;
+		// A world actor's id, or a compendium monster's uuid ("Compendium.…"). The latter is
+		// fetched on pick into `_sourceDoc`, since _base() reads it synchronously.
 		this._sourceId = "";
+		this._sourceDoc = null;
+		this._packSources = null;
 		this._name = "";
 		this._themeIds = new Set();
 		this._aspectIds = new Set();
@@ -80,7 +85,7 @@ export class CorruptBeingDialog extends StepperDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-corrupt-being",
 			template:  "systems/stonetop-pwd/templates/dialogs/corrupt-being.hbs",
-			width:     600,
+			width:     768,
 			height:    "auto",
 			resizable: true,
 			classes:   ["stonetop", "stonetop-spring-dialog", "stonetop-create-thing-dialog"],
@@ -107,7 +112,8 @@ export class CorruptBeingDialog extends StepperDialog {
 	// Read the source monster's derived stats into the applyCorruption() base shape. For an
 	// emanation with no source, fall back to the solitary emanation template.
 	_base() {
-		const src = this._sourceId ? globalThis.game?.actors?.get?.(this._sourceId) : null;
+		const src = !this._sourceId ? null
+			: (this._sourceDoc?.uuid === this._sourceId ? this._sourceDoc : globalThis.game?.actors?.get?.(this._sourceId));
 		if (!src) return this._mode === "emanation" ? { ...EMANATION_BASE, _src: null } : null;
 		const sys = src.system ?? {};
 		const attr = sys.attributes ?? {};
@@ -128,7 +134,24 @@ export class CorruptBeingDialog extends StepperDialog {
 		};
 	}
 
-	getData() {
+	/**
+	 * The Monsters compendium's stat blocks, as `{id: uuid, name}`, read once per window. A
+	 * monster already in the world is listed there instead, so the book's glasbren is not offered
+	 * twice under one name.
+	 */
+	async _packMonsters() {
+		if (this._packSources) return this._packSources;
+		const pack = globalThis.game?.packs?.get?.(BESTIARY_PACK);
+		const index = pack ? await pack.getIndex() : [];
+		const inWorld = new Set(this._sourceMonsters().map(m => m.name));
+		this._packSources = [...index]
+			.filter(e => (!e.type || e.type === "monster") && !inWorld.has(e.name))
+			.map(e => ({ id: e.uuid ?? `Compendium.${BESTIARY_PACK}.Actor.${e._id}`, name: e.name }))
+			.sort((a, b) => a.name.localeCompare(b.name));
+		return this._packSources;
+	}
+
+	async getData() {
 		const nav  = this._stepNav();
 		const step = nav.step;
 		const ctx  = { ...nav, mode: this._mode, isEmanation: this._mode === "emanation" };
@@ -138,6 +161,8 @@ export class CorruptBeingDialog extends StepperDialog {
 				{ id: "", label: this._mode === "emanation" ? "From scratch (solitary emanation)" : "(choose a monster to corrupt)", selected: this._sourceId === "" },
 				...this._sourceMonsters().map(m => ({ id: m.id, label: m.name, selected: m.id === this._sourceId })),
 			];
+			ctx.packSources = (await this._packMonsters())
+				.map(m => ({ id: m.id, label: m.name, selected: m.id === this._sourceId }));
 			ctx.name = this._name;
 			ctx.needsSource = this._mode === "being";
 		}
@@ -201,7 +226,12 @@ export class CorruptBeingDialog extends StepperDialog {
 
 		html.find(".stonetop-tb-create").on("click", () => this._finish());
 
-		html.find(".stonetop-tb-source").on("change", ev => { this._sourceId = ev.currentTarget.value; this.render(false); });
+		html.find(".stonetop-tb-source").on("change", async ev => {
+			const id = ev.currentTarget.value;
+			this._sourceId = id;
+			this._sourceDoc = id.startsWith("Compendium.") ? await globalThis.fromUuid?.(id) ?? null : null;
+			this.render(false);
+		});
 		html.find("[data-field='name']").on("change", ev => { this._name = ev.currentTarget.value; });
 
 		html.find(".stonetop-tb-origin").on("change", ev => { this._originText = ev.currentTarget.value; });

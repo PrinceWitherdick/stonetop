@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "magical, Value 1",
+    "note": "<em>magical</em>, Value 1",
     "isTreasure": true
   },
   "flags": {
@@ -14,7 +14,7 @@
       "slug": "a-1-inch-cube-of-dark-ice",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "magical, Value 1"
+      "note": "<em>magical</em>, Value 1"
     }
   },
   "img": "systems/stonetop-pwd/assets/icons/treasures/vase.svg",
