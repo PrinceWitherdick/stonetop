@@ -29,7 +29,7 @@ export function worldMoveSaver() {
 			{ ...buildCustomMoveData(input), type: "move" },
 			"stonetop.character.moves.custom.worldCreated",
 		),
-		update: (item, input) => item.update(buildCustomMoveData(input)),
+		update: (item, input) => item.update(buildCustomMoveData(input, { requirement: item.system?.requirement })),
 	};
 }
 

@@ -2842,7 +2842,7 @@ export class StonetopCharacter {
 	async updateCustomMove(itemId, input) {
 		const item = this._actor.items.get(itemId);
 		if (!item) return;
-		await item.update(buildCustomMoveData(input));
+		await item.update(buildCustomMoveData(input, { requirement: item.system?.requirement }));
 	}
 
 	// Toggle a move between learned (active — rollable, bonuses apply) and un-learned (kept

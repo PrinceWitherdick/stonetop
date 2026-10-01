@@ -17,8 +17,15 @@ export function clampInt(value, lo, hi) {
  * moveResults follows the shape rollStat consumes:
  * `{ success|partial|failure: { label, value } }`, or null for a no-roll move. The move
  * then rolls through the same engine as any shipped move (StonetopItem.roll → rollStat).
+ *
+ * @param {object} input
+ * @param {object} [opts]
+ * @param {object|null} [opts.requirement] the move's stored requirement, when this is an EDIT:
+ *        the dialog only shows its `note`, so the rest (the moves, stats or marks a move
+ *        duplicated from a book one carries) is kept rather than wiped by a save that never
+ *        showed it.
  */
-export function buildCustomMoveData(input) {
+export function buildCustomMoveData(input, { requirement: stored = null } = {}) {
 	const { rollType, success, partial, failure } = parseTierInput(input, CUSTOM_MOVE_ROLL_TYPES);
 	const moveResults = (rollType && (success || partial || failure))
 		? buildMoveTierResults({ success, partial, failure })
@@ -38,6 +45,12 @@ export function buildCustomMoveData(input) {
 	// A printed prerequisite, kept as the book words it ({ note } is what requirementLabel reads).
 	// null, not {}, when there is none: a whole-object update has to be able to clear it.
 	const requires = String(input?.requires ?? "").replace(/\s+/g, " ").trim();
+	// Anything else the stored requirement says rides along. Its note goes to null rather than
+	// away when cleared, since an update merges into the stored object.
+	const { note: _note, ...kept } = (stored && typeof stored === "object") ? stored : {};
+	const requirement = Object.keys(kept).length
+		? { ...kept, note: requires || null }
+		: (requires ? { note: requires } : null);
 	return {
 		name: String(input?.name ?? "").trim() || "New Move",
 		system: {
@@ -46,7 +59,7 @@ export function buildCustomMoveData(input) {
 			rollType,
 			moveResults,
 			resource,
-			requirement: requires ? { note: requires } : null,
+			requirement,
 			noXpOnMiss: !!input?.noXpOnMiss,
 			hpBonus:   intIn(input?.hpBonus),
 			armorBonus: intIn(input?.armorBonus),
