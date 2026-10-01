@@ -1101,7 +1101,9 @@
   // once this season would otherwise re-open it to a window of spent buttons. `surplus` and
   // `consumption` are the season's own generation and winter's bill; the four Yields are one
   // marker each, which is what stops a re-open taking any single one of them twice.
-  const TEST_SEASON_STEPS      = ["marketYield", "townshipYield", "streamYield", "raincatchingYield", "surplus", "consumption"];
+  // `winterDebtRolled` is winter's once-a-winter debt roll, and `reminderPosted` the upkeep
+  // reminder the window posts once a season: cleared so a re-seeded season shows both again.
+  const TEST_SEASON_STEPS      = ["marketYield", "townshipYield", "streamYield", "raincatchingYield", "surplus", "consumption", "winterDebtRolled", "reminderPosted"];
 
   // What the fixture tops the steading up to, and only ever UP — a stocked steading keeps its
   // own count, on the same rule as the Notes and the settlement standings.

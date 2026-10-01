@@ -18439,6 +18439,8 @@ button.stonetop-mark-sign-btn.is-active:hover {
 .steading-header .steading-hold--militia-drill      { --st-hold-icon: url('/systems/stonetop-pwd/assets/icons/holds/militia-drill.svg'); }
 .steading-header .steading-hold--herd-feed          { --st-hold-icon: url('/systems/stonetop-pwd/assets/icons/holds/herd-feed.svg'); }
 .steading-header .steading-hold--winter-debt        { --st-hold-icon: url('/systems/stonetop-pwd/assets/icons/holds/winter-debt.svg'); }
+.steading-header .steading-hold--harvest            { --st-hold-icon: url('/systems/stonetop-pwd/assets/icons/holds/harvest.svg'); }
+.steading-header .steading-hold--disaster-owed      { --st-hold-icon: url('/systems/stonetop-pwd/assets/icons/holds/disaster-owed.svg'); }
 
 /* ── The hold tray's hover ──────────────────────────────────────────────────────
    Two lines: the row's NAME, then what it means. A glyph is a picture the reader has to learn,

@@ -200,6 +200,25 @@ export async function recordCurrentSeason(actor, season, year, { advanceOnly = f
 export const DEFAULT_SEASON = "spring";
 
 /**
+ * The year a Seasons Change pick belongs to, given the clock.
+ *
+ * The picker opens on `readCurrentYear`, which a recorded winter has already pushed to Y+1 while
+ * the stamp still reads `{winter, Y}`. That is right for the spring that comes next, and wrong for
+ * the one pick that goes back: Winter again, to finish it (the debt, the +Fortunes roll). Taken at
+ * face value it filed a phantom winter of Y+1, with none of Y's steps done and the year pushed on
+ * to Y+2. So that one pick is read as the winter the clock is in.
+ *
+ * Never ambiguous: a genuinely later winter is only reachable once spring, summer and autumn have
+ * been stamped in between, at which point the stamp is no longer a winter.
+ */
+export function pickedSeasonYear(stamp, seasonId, year) {
+	if (seasonId === "winter" && stamp?.season === "winter" && year === campaignYear(stamp.year) + 1) {
+		return campaignYear(stamp.year);
+	}
+	return year;
+}
+
+/**
  * The season after the one the clock is in, and the year it belongs to: the one the "Next Season"
  * button on the top-of-screen bar runs the Seasons Change move for (seasons/time-banner.js).
  *

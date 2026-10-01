@@ -1,5 +1,5 @@
-import { escHtml } from "../../utils/strings.js";
-import { openDebilityPicker } from "./steading-debilities.js";
+import { escHtml, sign } from "../../utils/strings.js";
+import { openDebilityPicker, openDisasterPicker, disasterFortunes, disasterOwedFlags } from "./steading-debilities.js";
 
 // ── Winter's second bite (Book I, "Seasons Change": winter) ──────────────────────
 // "7-9: the steading must consume 1d4+Population more Surplus before winter ends, or suffer
@@ -17,10 +17,12 @@ import { openDebilityPicker } from "./steading-debilities.js";
 // is the right place for it and why the glyph has to lead somewhere.
 //
 // THE DEADLINE IS THE STAMP. The debt is recorded against the "<year>:<season>" it was rolled
-// in, so it expires by ceasing to match the clock, the way Tor's blessing does. Nothing sweeps
-// it up, and nothing charges for it on the way out either: "suffer the consequences again" is
-// a ruling the GM makes at the table, and a system that quietly took a Population off a
-// steading during a session nobody was running would be inventing one.
+// in, so the header glyph goes out by the debt ceasing to match the clock, the way Tor's
+// blessing does. But the rule does not let it lapse: "before winter ends, OR suffer the
+// consequences". So the next spring's Seasons Change opens on it ("Winter's end"), found by
+// its stamp rather than by the clock, and asks the same two-way question this file's window
+// asks. It is asked in the open, in the window the GM is already walking, never charged
+// quietly behind the table's back.
 
 export const WINTER_DEBT_MOVE = "Seasons Change";
 
@@ -75,26 +77,108 @@ export function winterConsequencesHtml() {
 }
 
 /**
- * The shortfall write: Surplus to 0, Fortunes down 1, and Population down 1 if that is the
- * consequence picked. Shared by both moments for the same reason the table above is.
+ * The shortfall write: Surplus to 0, the steading Meets with Disaster, and Population down 1 if
+ * that is the consequence picked. Shared by every moment that asks, for the same reason the
+ * table above is.
  *
- * Does NOT stamp a season step. The first consumption closes `consumption` for the season and
- * the debt clears its own flag; which of those happened is the caller's business, and folding
- * it in here would make one of the two callers pass a marker it does not own.
+ * "Meets with Disaster" is Book I p. 84 and p. 518; the move box on p. 517 prints the short form
+ * "reduce Fortunes by 1", which is the same thing everywhere except at the floor. At Fortunes −1
+ * the disaster does not lower Fortunes at all, the GM picks a debility (or a Population loss)
+ * instead (p. 532). That pick is a window, so it is the caller's: this returns `disaster` and
+ * writes everything else. p. 518's "these consequences don't trigger it again" is why the
+ * consequence and the disaster can both take a Population: they are two separate costs.
  *
- * @returns {{fortunes: number, population: number|null}} what it wrote, for the notification
+ * Does NOT choose a season step. The first consumption closes `consumption` for the season and
+ * the debt clears its own flag; which of those happened is the caller's business, so the caller
+ * passes it as `alsoFlags`, and it goes out in this same write.
+ *
+ * @returns {{fortunes: number, population: number|null, disaster: boolean}} what it wrote, and
+ *   whether the Meet with Disaster pick is still owed
  */
-export async function applyWinterShortfall(steading, consequenceId, { stonetopMove = WINTER_DEBT_MOVE } = {}) {
-	const fortunes = Math.max(steading.getStatValue("fortunes") - 1, -1);
+export async function applyWinterShortfall(steading, consequenceId, { stonetopMove = WINTER_DEBT_MOVE, alsoFlags = {} } = {}) {
+	const { fortunes, disaster } = disasterFortunes(steading.getStatValue("fortunes"));
 	const population = consequenceId === "population"
 		? Math.max(steading.getStatValue("population") - 1, -1)
 		: null;
-	await steading.setSystemValues({
-		"attributes.surplus.value": 0,
-		"stats.fortunes.value": fortunes,
-		...(population === null ? {} : { "attributes.population.value": population }),
+	await steading.applyChanges({
+		system: {
+			"attributes.surplus.value": 0,
+			...(disaster ? {} : { "stats.fortunes.value": fortunes }),
+			...(population === null ? {} : { "attributes.population.value": population }),
+		},
+		// At −1 the pick is owed from this write on, so a picker shut unpicked leaves a glyph.
+		flags: { ...alsoFlags, ...(disaster ? disasterOwedFlags("winter's shortfall") : {}) },
 	}, { stonetopMove });
-	return { fortunes, population };
+	return { fortunes, population, disaster };
+}
+
+/** What a shortfall did, as the one notification every window posts for it. */
+export function shortfallNotice({ fortunes, population, disaster }) {
+	const pop = population === null ? "" : `, Population to ${sign(population)}`;
+	return disaster
+		? `Shortfall: Surplus to 0${pop}. Fortunes is already ${sign(fortunes)}, so the steading Meets with Disaster: pick what it costs.`
+		: `Shortfall: Surplus to 0, Fortunes to ${sign(fortunes)}${pop}.${population === null ? " Apply the narrative consequence." : ""}`;
+}
+
+/**
+ * The whole of a shortfall, as each window takes it: the write, the notice, and at Fortunes −1
+ * the Meet with Disaster pick. No Cancel on that pick: the rule is not optional. A GM who closes
+ * the window has only put it off: the write recorded the pick as owed, and the header glyph that
+ * leaves behind reopens it (StonetopSteading#disasterOwed).
+ */
+export async function sufferWinterShortfall(steading, consequenceId, { stonetopMove = WINTER_DEBT_MOVE, onApplied, alsoFlags } = {}) {
+	const out = await applyWinterShortfall(steading, consequenceId, { stonetopMove, alsoFlags });
+	globalThis.ui?.notifications?.info?.(shortfallNotice(out));
+	if (out.disaster) {
+		openDisasterPicker(steading, {
+			introHtml: `<p><em>Winter's shortfall Meets with Disaster, and Fortunes cannot drop below −1.</em> The GM picks 1 instead:</p>`,
+			stonetopMove,
+			onApplied,
+			settlesOwed: true,
+		});
+	}
+	return out;
+}
+
+const ALREADY_SETTLED = "Winter's debt has already been settled.";
+
+/**
+ * Pay what winter still wants: spent and cleared in ONE update, the way the Inn's gathering is,
+ * because two writes would append Seasons Change to the ledger twice for a single act.
+ *
+ * The debt is re-read by its stamp HERE, when the button is pressed, never taken from what the
+ * window was built with: the header glyph and spring's "Winter's end" can both be open on the
+ * same debt, and whichever is pressed second must find it gone rather than charge it again.
+ * Says what happened itself, so the two windows cannot word it differently.
+ * @returns {Promise<boolean>} true once the debt is settled (by this press or an earlier one)
+ */
+async function payWinterDebt(steading, stamp, { stonetopMove = WINTER_DEBT_MOVE } = {}) {
+	const held = steading.winterDebtFor(stamp);
+	if (!held) {
+		globalThis.ui?.notifications?.info?.(ALREADY_SETTLED);
+		return true;
+	}
+	const left = await steading.spendSurplus(held.amount, { stonetopMove, alsoFlags: { winterDebt: null } });
+	if (left === null) {
+		globalThis.ui?.notifications?.warn?.("The steading no longer has the Surplus to pay it.");
+		return false;
+	}
+	globalThis.ui?.notifications?.info?.(`Winter consumed ${held.amount} more Surplus. Remaining: ${left}.`);
+	return true;
+}
+
+/** Refuse it (or be unable to pay it): the shortfall and the debt cleared, in one write. Null
+ *  rather than a "-=" deletion: the tray reads the AMOUNT, so a zeroed debt is already invisible,
+ *  and a null leaves the flag readable by anything auditing the year. Re-read by its stamp first,
+ *  like paying: a debt settled in the other window is not a second shortfall.
+ *  @returns {Promise<boolean>} false when there was no debt left to refuse */
+async function refuseWinterDebt(steading, stamp, consequenceId, { stonetopMove = WINTER_DEBT_MOVE, onApplied } = {}) {
+	if (!steading.winterDebtFor(stamp)) {
+		globalThis.ui?.notifications?.info?.(ALREADY_SETTLED);
+		return false;
+	}
+	await sufferWinterShortfall(steading, consequenceId, { stonetopMove, onApplied, alsoFlags: { winterDebt: null } });
+	return true;
 }
 
 /**
@@ -128,8 +212,16 @@ export function winterDebtState({ amount = 0, surplus = 0 } = {}) {
  * possible. The affordable branch used to read "if the steading would rather keep it", which
  * describes an option nobody has.
  */
-export function winterDebtDialogHtml(state) {
-	return `<p class="stonetop-inn-trigger"><em>Winter is not done with the steading. It must consume ${state.owed} more Surplus before winter ends, or suffer the consequences again.</em></p>
+export function winterDebtDialogHtml(state, { due = false } = {}) {
+	// `due`: asked from the next spring's Seasons Change, once winter has run out. Paying then
+	// is paying with the last of winter; the book's deadline is what makes the question
+	// unavoidable there, not a reason to take the paying away.
+	const lead = due
+		? `Winter has ended, and the steading still owes it ${state.owed} Surplus. Consume it now, with the last of winter, or suffer the consequences again.`
+		: `Winter is not done with the steading. It must consume ${state.owed} more Surplus before winter ends, or suffer the consequences again.`;
+	// Meets with Disaster (p. 518): a Fortune, or at −1 a debility the GM picks.
+	const disaster = `the steading Meets with Disaster (Fortunes drops by <strong>1</strong>, or at −1 the GM marks a debility)`;
+	return `<p class="stonetop-inn-trigger"><em>${lead}</em></p>
 		<p class="stonetop-season-note">Winter still wants <strong>${state.owed} Surplus</strong>. The steading has <strong>${state.surplus}</strong>.</p>
 		${state.canPay
 			? `<div class="stonetop-season-actions">
@@ -137,9 +229,64 @@ export function winterDebtDialogHtml(state) {
 					<i class="fas fa-wheat-awn"></i> Consume ${state.owed} Surplus, and winter is done
 				</button>
 			</div>
-			<p class="stonetop-season-note"><em>Or refuse, and take the consequences instead. That costs more, not less: Surplus still drops to <strong>0</strong>, Fortunes drops by <strong>1</strong>, and one of these happens on top. Pick the one the steading suffers.</em></p>`
-			: `<p>⚠️ <strong>Not enough Surplus</strong> (${state.surplus} of ${state.owed}), so the debt cannot be paid. Surplus drops to <strong>0</strong>, Fortunes drops by <strong>1</strong>, and one of these happens on top. Pick the one the steading suffers.</p>`}
+			<p class="stonetop-season-note"><em>Or refuse, and take the consequences instead. That costs more, not less: Surplus still drops to <strong>0</strong>, ${disaster}, and one of these happens on top. Pick the one the steading suffers.</em></p>`
+			: `<p>⚠️ <strong>Not enough Surplus</strong> (${state.surplus} of ${state.owed}), so the debt cannot be paid. Surplus drops to <strong>0</strong>, ${disaster}, and one of these happens on top. Pick the one the steading suffers.</p>`}
 		<p class="stonetop-rites-note">Of these, only the first is written for you; the other three are the GM's to narrate.</p>`;
+}
+
+/**
+ * Spring's "Winter's end" step: the settle window's question, inside the Seasons Change window.
+ * Consequences are a click list like the first consumption's, which sits in the same window,
+ * rather than the glyph window's pick-then-commit footer, which this window has no room for.
+ */
+export function winterDebtStepHtml(state) {
+	return `<div class="stonetop-winter-debt-step">
+		<div data-winter-debt-open>
+			${winterDebtDialogHtml(state, { due: true })}
+			${winterConsequencesHtml()}
+		</div>
+		<p class="stonetop-season-note" data-winter-debt-settled hidden>Winter's debt is settled.</p>
+	</div>`;
+}
+
+/**
+ * Wire that step. Either way out settles it, and the step says so in place of the controls, so
+ * a second click has nothing to land on.
+ * @param {HTMLElement} root   the step's section
+ * @param {object} steading
+ * @param {object} opts
+ * @param {string} opts.stamp          the "<year>:winter" the debt was rolled under
+ * @param {Function} [opts.onSettled]  () => void, after either way out (and again after a
+ *                                     Meet with Disaster pick, which is a write of its own)
+ */
+export function wireWinterDebtStep(root, steading, { stamp, onSettled } = {}) {
+	const open    = root?.querySelector("[data-winter-debt-open]");
+	const settled = root?.querySelector("[data-winter-debt-settled]");
+	if (!open) return;
+	let busy = false;
+	const done = () => {
+		open.hidden = true;
+		if (settled) settled.hidden = false;
+		onSettled?.();
+	};
+	open.querySelector("[data-action='pay-winter-debt']")?.addEventListener("click", async () => {
+		if (busy) return;
+		busy = true;
+		try {
+			if (await payWinterDebt(steading, stamp)) done();
+			else busy = false;
+		} catch (err) { busy = false; throw err; }
+	});
+	open.querySelectorAll("[data-consequence]").forEach(el => {
+		el.addEventListener("click", async () => {
+			if (busy) return;
+			busy = true;
+			try {
+				await refuseWinterDebt(steading, stamp, el.dataset.consequence, { onApplied: onSettled });
+				done();
+			} catch (err) { busy = false; throw err; }
+		});
+	});
 }
 
 /**
@@ -179,27 +326,15 @@ export function openWinterDebtDialog(steading, { onApplied } = {}) {
 		// in the body under the sentence naming the bill rather than in the picker's list.
 		onRender: root => {
 			root.querySelector("[data-action='pay-winter-debt']")?.addEventListener("click", async () => {
-				// Spent and cleared in ONE update, the way the Inn's gathering is: two writes
-				// would append Seasons Change to the ledger twice for a single act.
-				const left = await steading.spendSurplus(state.owed, {
-					stonetopMove: WINTER_DEBT_MOVE,
-					alsoFlags: { winterDebt: null },
-				});
-				if (left === null) {
-					globalThis.ui?.notifications?.warn?.("The steading no longer has the Surplus to pay it.");
-					return;
-				}
-				globalThis.ui?.notifications?.info?.(`Winter consumed ${state.owed} more Surplus. Remaining: ${left}.`);
+				if (!await payWinterDebt(steading, held.stamp)) return;
 				onApplied?.();
 				dialog.close();
 			});
 		},
+		// `onApplied` twice over, and on purpose: once now for the shortfall's write, and once
+		// from the Meet with Disaster pick at −1, which is a second write made later.
 		onApply: async consequence => {
-			const { fortunes, population } = await applyWinterShortfall(steading, consequence.id);
-			await steading.clearWinterDebt();
-			globalThis.ui?.notifications?.info?.(population === null
-				? `Shortfall: Surplus to 0, Fortunes to ${fortunes}. Apply the narrative consequence.`
-				: `Shortfall: Surplus to 0, Fortunes to ${fortunes}, Population to ${population}.`);
+			await refuseWinterDebt(steading, held.stamp, consequence.id, { onApplied });
 			onApplied?.();
 		},
 	});

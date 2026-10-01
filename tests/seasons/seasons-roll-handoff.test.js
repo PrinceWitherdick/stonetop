@@ -75,7 +75,7 @@ describe("how the hand-off is wired", () => {
 	it("spends the held advantage when the roll is handed to the table", () => {
 		const at = SHEET.indexOf("data-action='ask-hopeful'");
 		expect(at).toBeGreaterThan(-1);
-		const body = SHEET.slice(at, at + 1200);
+		const body = SHEET.slice(at, at + 2600);
 		// Settled (and spent) as every steading roll is: tests/actors/steading/steading-roll.test.js.
 		expect(body).toContain("settleSteadingRoll(this._stonetopSteading");
 		expect(body).toContain("canSpend: !!this.actor.isOwner");

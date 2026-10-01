@@ -38,6 +38,16 @@ export const WEAPONS_SEASON_STEP = "weaponsUpkeep";
  */
 export const WATCH_SEASON_STEP = "standingWatch";
 
+/** Which winter's 7-9 debt has been rolled ("roll what winter still wants"): once a winter. */
+export const WINTER_DEBT_STEP = "winterDebtRolled";
+
+/** Which season's Surplus roll has been made: summer's 1d4-1, or autumn's harvest. */
+export const SURPLUS_SEASON_STEP = "surplus";
+
+/** Which season's upkeep reminder has been posted to chat: once a season, however often the
+ *  Seasons Change window for it is opened. */
+export const REMINDER_SEASON_STEP = "reminderPosted";
+
 /**
  * The three lenses the Improvements tab filters by — the toggle chips beside its
  * search control. Every built-in improvement below carries exactly one `category`.
@@ -1333,6 +1343,19 @@ export class StonetopSteading {
 		await this.setFlags(this.seasonStepFlags(step, year, seasonId));
 	}
 
+	/** A `{ stamp, ... }` flag, if it was stamped for this year+season; null otherwise. What
+	 *  every value the season window has to remember across a reopen is read back through. */
+	_stampedFlag(key, year, seasonId) {
+		const held = this._flags[key] ?? null;
+		return held && seasonId && held.stamp === `${year}:${seasonId}` ? held : null;
+	}
+
+	/** The flag that stamps `fields` to this year+season, WITHOUT writing it. Empty with no
+	 *  season to stamp against: a stamp that could never match would neither show nor clear. */
+	_stampedFlags(key, fields, year, seasonId) {
+		return seasonId ? { [key]: { stamp: `${year}:${seasonId}`, ...fields } } : {};
+	}
+
 	/**
 	 * Spend Surplus on a seasonal obligation, and close that obligation's season step, in ONE
 	 * write. Returns what is left, or null when the steading cannot afford it (nothing written).
@@ -1505,33 +1528,96 @@ export class StonetopSteading {
 	 * So unlike the other holds this one is stored rather than derived: `{ stamp, amount }`, where
 	 * the stamp is the "<year>:<season>" it was rolled for, exactly like Tor's blessing.
 	 *
-	 * That stamp is also its expiry, and it expires by ceasing to match the clock rather than by
-	 * being swept up. "Before winter ends" is the deadline, so when the clock leaves that winter
-	 * the debt stops being collectable and the glyph goes out. What an unpaid winter cost is the
-	 * GM's to narrate: the book says "suffer the consequences again", and a system that quietly
-	 * charged a steading for it on the way into spring would be inventing a ruling.
+	 * That stamp is also when the glyph goes out: when the clock leaves that winter. The debt
+	 * itself does not lapse with it. "Before winter ends, or suffer the consequences again", so
+	 * the next spring's Seasons Change reads it back by its stamp (`winterDebtFor`) and opens on
+	 * it, pay or suffer, in the window the GM is already walking.
 	 */
 	winterDebt() {
+		const now = seasonStampKey(readCurrentSeason(this._actor));
+		return now ? this.winterDebtFor(now) : null;
+	}
+
+	/** The debt rolled for one "<year>:<season>" stamp, whatever the clock says. Spring of year
+	 *  Y asks for "<Y-1>:winter", which still finds it if the clock was corrected by hand.
+	 *  Carries its `stamp`, so a window settling it can re-read it by that stamp when clicked. */
+	winterDebtFor(stamp) {
 		const held = this._flags.winterDebt ?? null;
 		const amount = Math.max(0, Math.trunc(Number(held?.amount) || 0));
-		if (!amount) return null;
-		const now = seasonStampKey(readCurrentSeason(this._actor));
-		if (!now || held.stamp !== now) return null;
-		return { amount, surplus: this.getStatValue("surplus") };
+		if (!amount || !stamp || held.stamp !== stamp) return null;
+		return { stamp, amount, surplus: this.getStatValue("surplus") };
+	}
+
+	/**
+	 * Is this autumn's harvest still to be rolled? "When the harvest is complete, roll 1d4": the
+	 * end of autumn, not its first day, so it is owed for as long as the clock reads that autumn
+	 * and its Surplus roll (SURPLUS_SEASON_STEP, the same marker the season window's button sets)
+	 * has not been made.
+	 */
+	harvestOwed(year, seasonId) {
+		return seasonId === "autumn" && !this.seasonStepApplied(SURPLUS_SEASON_STEP, year, seasonId);
+	}
+
+	/** The steading's Size: hamlet, village, town or city (the Size radios on the sheet). */
+	steadingSize() {
+		return this._flags.size ?? STEADING_DEFAULTS.size;
 	}
 
 	/** Record what winter still wants, for the year+season it was rolled in. Writes nothing at
 	 *  all with no season to stamp against: a debt rolled before any Seasons Change has nothing
-	 *  to expire against, and a stamp it could never match would neither show nor clear. */
+	 *  to expire against, and a stamp it could never match would neither show nor clear.
+	 *
+	 *  Closes the once-per-season WINTER_DEBT_STEP in the same write: a reopened window must not
+	 *  roll the debt a second time, nor bring back one already paid by rolling it afresh. */
 	async setWinterDebt(amount, year, seasonId) {
 		if (!seasonId) return;
-		await this.setFlags({ winterDebt: { stamp: `${year}:${seasonId}`, amount } });
+		await this.setFlags({
+			...this._stampedFlags("winterDebt", { amount }, year, seasonId),
+			...this.seasonStepFlags(WINTER_DEBT_STEP, year, seasonId),
+		});
 	}
 
-	/** Settle it. Null rather than a "-=" deletion: the tray reads the AMOUNT, so a zeroed debt
-	 *  is already invisible, and a null leaves the flag readable by anything auditing the year. */
-	async clearWinterDebt() {
-		await this.setFlags({ winterDebt: null });
+	/**
+	 * Winter's first consumption as ROLLED, before it is taken: `{ stamp, amount }`.
+	 *
+	 * Rolling and taking are two clicks with a window between them (enough Surplus: Apply; not
+	 * enough: pick a consequence), and the season step only closes on the second. Without this a
+	 * GM who closed the window in between reopened it on a fresh roll button, and could roll
+	 * winter again until they liked the number. So the roll is kept, and a reopen resumes it.
+	 * @returns {number|null} the amount rolled for that year+season (0 is a real roll), or null
+	 */
+	winterConsumptionRolled(year, seasonId) {
+		const held = this._stampedFlag("winterConsumption", year, seasonId);
+		return held ? Math.max(0, Math.trunc(Number(held.amount) || 0)) : null;
+	}
+
+	/**
+	 * The Fortunes a season OPENED with, before its roll's "reset Fortunes to +1".
+	 *
+	 * The Herd of Horses reads it: "When the Seasons Change to summer … the herd gains foals equal
+	 * to 1d4+Fortunes." That fires with the move, off the Fortunes the roll itself was made with,
+	 * and the herd's button sits after the reset in the window, where the live figure is always
+	 * the reset's +1. So the figure is noted when the window sees the roll made (or handed over),
+	 * or failing that with the reset, and never by merely opening the window: one opened early
+	 * to look would lock in a mid-play figure. Once noted it is kept.
+	 * @returns {number|null} null when nothing was noted for that year+season
+	 */
+	openingFortunes(year, seasonId) {
+		const held = this._stampedFlag("seasonOpeningFortunes", year, seasonId);
+		const value = held ? Number(held.value) : NaN;
+		return Number.isFinite(value) ? value : null;
+	}
+
+	/** The flag that notes {@link openingFortunes}, WITHOUT writing it; empty once noted. */
+	openingFortunesFlags(year, seasonId) {
+		if (this.openingFortunes(year, seasonId) !== null) return {};
+		return this._stampedFlags("seasonOpeningFortunes", { value: this.getStatValue("fortunes") }, year, seasonId);
+	}
+
+	/** Keep the consumption just rolled, for {@link winterConsumptionRolled}. */
+	async setWinterConsumptionRolled(amount, year, seasonId) {
+		if (!seasonId) return;
+		await this.setFlags(this._stampedFlags("winterConsumption", { amount }, year, seasonId));
 	}
 
 	/** Has this improvement been built? What gates every improvement-fed seasonal obligation. */
@@ -1576,6 +1662,9 @@ export class StonetopSteading {
 			torsBlessing: this.torsBlessingActive(),
 			herdAdvance: seasonId === "summer" && herd
 				&& !this.seasonStepApplied("advanceHerd", year, seasonId),
+			// All autumn, until the harvest is rolled: its roll comes when the harvest is complete,
+			// which is the season's end, so it outlives the window that opened the season.
+			harvest: this.harvestOwed(year, seasonId),
 			// Only when it would actually do something: an inn with no debility to clear, or
 			// no Surplus to spend, is not an unspent opportunity, it is just an inn.
 			innGathering: !!inn?.canGather,
@@ -1600,7 +1689,21 @@ export class StonetopSteading {
 				? { needed: herdCost, surplus: this.getStatValue("surplus") }
 				: null,
 			winterDebt: this.winterDebt(),
+			disasterOwed: this.disasterOwed(),
 		});
+	}
+
+	/**
+	 * A Meet with Disaster the steading has met but not yet paid: `{ cause }`, or null.
+	 *
+	 * At Fortunes −1 the cost is the GM's pick, made in a window that opens AFTER the write that
+	 * caused it (a failed harvest's step marker, a winter shortfall's Surplus to 0). That write
+	 * carries this flag and the pick clears it, so a window closed unpicked leaves a header glyph
+	 * behind rather than nothing at all. Not stamped to a season: the rule does not lapse.
+	 */
+	disasterOwed() {
+		const held = this._flags.disasterOwed ?? null;
+		return held ? { cause: String(held.cause ?? "") } : null;
 	}
 
 	/** Herd shaped for the improvement card: the three tiers (with labels/Values) plus total. */

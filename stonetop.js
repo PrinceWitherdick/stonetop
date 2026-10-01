@@ -2502,7 +2502,11 @@ function _chatWireSeasonsRoll(message, html) {
 		// +Fortunes roll, and spring's is only ever made from here. This used to be a flat 2d6,
 		// which quietly dropped that advantage on the one roll it was bought for.
 		const dice     = pbtaDiceFormula(btn.dataset.rollMode);
-		const formula  = `${dice} ${sign(fortunes)}`;
+		// And the one-off modifier and forced 6- the GM settled when handing it over (Bolstered
+		// Preparation, a storm's curse). Cards from before either existed carry neither.
+		const mod      = Math.trunc(Number(btn.dataset.mod)) || 0;
+		const countsAsMiss = btn.dataset.countsAsMiss || "";
+		const formula  = `${dice} ${sign(fortunes)}${mod ? ` ${sign(mod)}` : ""}`;
 		// Which ladder the total is read against. Two rolls are handed to the table this way now
 		// — spring's Seasons Change and the Inn's questions — and they share everything but their
 		// outcomes. A card from before the Inn's roll existed carries no id and gets spring's.
@@ -2512,7 +2516,10 @@ function _chatWireSeasonsRoll(message, html) {
 		// window). The Inn's questions have no list.
 		const picks    = seasonsRollPicks(btn.dataset.table);
 		try {
-			await rollSeasonsCard({ formula, title, resultTable: table, ...picks });
+			await rollSeasonsCard({
+				formula, title, resultTable: table, ...picks, countsAsMiss,
+				conditionNotes: mod ? [`Situational: ${sign(mod)}`] : [],
+			});
 		} catch (err) {
 			console.error("Stonetop | Error rolling Seasons Change from chat:", err);
 			btn.disabled = false;

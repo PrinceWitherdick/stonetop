@@ -222,12 +222,15 @@ export function multiDieFaces(roll) {
  * clicked it. Pass `alias` instead to speak the card under a fixed name, which then
  * heads it too (the Expedition Requisition card).
  */
-export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "", missCountsAsPartial = "", conditionNotes = [], pickOptions = null, pickReference = null } = {}) {
+export async function rollSeasonsCard({ formula, title = "", alias = "", resultTable, resultLegend = "", missCountsAsPartial = "", countsAsMiss = "", conditionNotes = [], pickOptions = null, pickReference = null } = {}) {
 	const roll = await new Roll(formula).evaluate();
 	const rolled = classifyResult(roll.total).key;
 	// As rollStat's option of the same name: a 6- that a rule counts as a 7-9, said on the card.
 	const counted = missCountsAsPartial && rolled === "failure";
-	const tier = counted ? "partial" : rolled;
+	// And the other way: a roll a rule makes "automatically a 6-" (Book II's storm curse on the
+	// next Seasons Change roll). Still rolled, so the card shows what the dice would have said.
+	const forced = countsAsMiss && rolled !== "failure";
+	const tier = forced ? "failure" : counted ? "partial" : rolled;
 	const result = resultTable[tier];
 	// And rollStat's `pickOptions` + `pickReference`: what the tier chooses from, listed to READ
 	// under the legend (spring's seasonal gains). Only ever a reference list here: nothing rolled
@@ -241,7 +244,9 @@ export async function rollSeasonsCard({ formula, title = "", alias = "", resultT
 		roll.total,
 		tier,
 		result.label,
-		counted ? `${result.line} <em>(Rolled a 6-, counted as a 7-9: ${escHtml(missCountsAsPartial)}.)</em>` : result.line,
+		forced ? `${result.line} <em>(Counted as a 6-: ${escHtml(countsAsMiss)}.)</em>`
+			: counted ? `${result.line} <em>(Rolled a 6-, counted as a 7-9: ${escHtml(missCountsAsPartial)}.)</em>`
+			: result.line,
 		roll.formula,
 		multiDieFaces(roll),
 		resultLegend + reference,
@@ -272,9 +277,17 @@ export async function rollSeasonsCard({ formula, title = "", alias = "", resultT
  * clears the hold and stamps the answer here; the button is then only a trigger, which is right,
  * since the player who clicks it may not own the steading and could not read the hold anyway.
  *
+ * `modifier` and `countsAsMiss` cross the same way, for what the GM settled in the pre-roll prompt:
+ * Preparation spent from Bolstering for the season (Book I p. 516 lets it be spent on this roll),
+ * or Book II's storm curse, which makes the next Seasons Change roll "automatically a 6-". The
+ * other seasons' rolls take both from the prompt and their card's Shift buttons; this one has
+ * neither on its card, so without them it was the one Seasons Change roll nothing could adjust.
+ *
  * @param {string} [rollMode]  "adv" | "dis" | "normal" — NOT core's public/gmroll/blind.
  * @param {string} [why]       What bought the advantage, named on the card so the table can see
  *   the sacrifice land rather than reading two extra dice and wondering.
+ * @param {number} [modifier]  a one-off plus or minus on top of Fortunes
+ * @param {string} [countsAsMiss]  why the roll is a 6- whatever the dice say, or "" for no such rule
  * @returns {Promise<ChatMessage>|undefined} the card being posted, so a caller spending the hold
  *   can wait until it is up
  */
@@ -284,6 +297,8 @@ export function postSeasonsRollPrompt({
 	fortunes = 0,
 	rollMode = "normal",
 	why = "",
+	modifier = 0,
+	countsAsMiss = "",
 	// WHICH handed-over roll this is. Everything that differs between them — the opening line,
 	// who is asked, what the roll is for, and the ladder the answer is read against — comes off
 	// its entry in SEASONS_ROLL_TABLES, so a caller names the roll and nothing else.
@@ -297,15 +312,20 @@ export function postSeasonsRollPrompt({
 	// one, because two extra dice with nothing explaining them is a table wondering whether the
 	// button is broken.
 	const named = rollMode === "adv" ? "advantage" : rollMode === "dis" ? "disadvantage" : "";
-	const conditions = named
+	const conditions = (named
 		? `<p class="stonetop-seasons-prompt-mode"><em>Rolled with <strong>${named}</strong>${why ? `: ${escHtml(why)}` : ""}.</em></p>`
-		: "";
+		: "")
+		+ (countsAsMiss
+			? `<p class="stonetop-seasons-prompt-mode"><em>Counts as a <strong>6-</strong> whatever the dice say: ${escHtml(countsAsMiss)}.</em></p>`
+			: "");
+	const mod = Math.trunc(Number(modifier)) || 0;
+	const plus = mod ? ` ${sign(mod)}` : "";
 	const body = `<div class="card-content stonetop-seasons-prompt">
-		<p class="stonetop-seasons-prompt-text">${lead} ${who}, roll <strong>+Fortunes</strong> (${sign(fortunes)}) ${tail}.</p>
+		<p class="stonetop-seasons-prompt-text">${lead} ${who}, roll <strong>+Fortunes</strong> (${sign(fortunes)})${plus} ${tail}.</p>
 		${conditions}
 		<div class="card-buttons stonetop-card-buttons">
-			<button type="button" class="stonetop-seasons-roll-btn" data-fortunes="${fortunes}" data-alias="${escHtml(alias)}" data-roll-mode="${escHtml(rollMode)}" data-table="${escHtml(table)}">
-				<i class="fas fa-dice-d6"></i> Roll +Fortunes (${sign(fortunes)})
+			<button type="button" class="stonetop-seasons-roll-btn" data-fortunes="${fortunes}" data-mod="${mod}" data-counts-as-miss="${escHtml(countsAsMiss)}" data-alias="${escHtml(alias)}" data-roll-mode="${escHtml(rollMode)}" data-table="${escHtml(table)}">
+				<i class="fas fa-dice-d6"></i> Roll +Fortunes (${sign(fortunes)})${plus}
 			</button>
 		</div>
 	</div>`;

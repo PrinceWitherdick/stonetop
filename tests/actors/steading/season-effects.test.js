@@ -101,6 +101,28 @@ describe("winterConsumption", () => {
 		expect(winterConsumption({ population: 1, has: having("township") }).parts.map(p => p.label))
 			.toEqual(["Winter", "Township"]);
 		expect(winterConsumption({ population: 1, has: having() }).parts).toHaveLength(1);
+		expect(winterConsumption({ population: 1, has: having(), size: "village" }).parts).toHaveLength(1);
+	});
+
+	// "If Stonetop has shrunk to a hamlet, it consumes only 1d2 + Population. If it has grown to
+	// a town, it consumes 2d6 + Population." (Book I p. 518; the Size table on p. 509)
+	it("rolls the dice for the steading's Size", () => {
+		expect(winterConsumption({ population: 1, has: having(), size: "hamlet" }).formula).toBe("1d2 + 1");
+		expect(winterConsumption({ population: 1, has: having(), size: "village" }).formula).toBe("1d4 + 1");
+		expect(winterConsumption({ population: 1, has: having(), size: "town" }).formula).toBe("2d6 + 1");
+		// The book leaves a city's Surplus to the table; it rolls a town's rather than nothing.
+		expect(winterConsumption({ population: 1, has: having(), size: "city" }).formula).toBe("2d6 + 1");
+		expect(winterConsumption({ population: 1, has: having(), size: "hamlet" }).parts.map(p => p.label))
+			.toEqual(["Winter", "A hamlet"]);
+	});
+
+	// The Township makes the steading a town; a Size radio never moved still rolls a town's dice.
+	it("lets the Township win over a Size that disagrees", () => {
+		expect(winterConsumption({ population: 0, has: having("township"), size: "village" }).formula).toBe("2d6");
+	});
+
+	it("carries the Size to winter's second bite", () => {
+		expect(winterConsumption({ population: 0, has: having(), size: "hamlet", second: true }).formula).toBe("1d2");
 	});
 });
 
@@ -210,8 +232,9 @@ describe("how the seasonal effects are wired", () => {
 	const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
 
 	it("rolls the harvest and the consumption from the builders, not from a literal", () => {
-		expect(SHEET).toContain("autumnHarvest({ has, builtOnTheFields: this._builtOnTheFields() })");
-		expect(SHEET).toContain("winterConsumption({ population, has })");
+		expect(SHEET).toContain("autumnHarvest({ has: slug => this._hasImprovement(slug), builtOnTheFields: this._builtOnTheFields() })");
+		expect(SHEET).toContain("const harvest = this._harvestRoll();");
+		expect(SHEET).toContain("winterConsumption({ population, has, size })");
 		// Both are written onto their button, so the label and the roll cannot disagree.
 		expect(SHEET).toContain(`data-action="roll-surplus" data-formula=`);
 		expect(SHEET).toContain(`data-action="roll-consumption" data-formula=`);

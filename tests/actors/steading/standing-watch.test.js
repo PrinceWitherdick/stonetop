@@ -15,10 +15,11 @@ describe("the Standing Watch seasonal upkeep", () => {
 		expect(SHEET).toContain("_hasImprovement(slug) {");
 	});
 
-	// The herd's steps are summer/winter only; this one is not. The watch block joins the
-	// "What it costs" step ONCE, in the steps every season shares, outside the four-way branch
-	// on the season, which is what makes it unconditional.
-	it("rides every season's flow, not just two of them", () => {
+	// The herd's steps are summer/winter only; this one is not. The watch block is its own step
+	// ONCE, in the steps every season shares, outside the four-way branch on the season, which is
+	// what makes it unconditional. And it comes BEFORE the season's own steps: "at the start of
+	// each season", so in winter it is fed (or not) before the consumption roll, not after.
+	it("rides every season's flow, at the start of the season", () => {
 		const branch = SHEET.indexOf("let seasonSteps;");
 		const shared = SHEET.indexOf("const steps = [", branch);
 		expect(branch).toBeGreaterThan(-1);
@@ -29,7 +30,9 @@ describe("the Standing Watch seasonal upkeep", () => {
 		expect(seasons).not.toContain("watchBlock");
 		const tail = SHEET.slice(shared, shared + 400);
 		expect(tail).toContain("...seasonSteps");
-		expect(tail).toMatch(/step\("costs",[^\n]*watchBlock/);
+		expect(tail).toMatch(/step\("start",[^\n]*watchBlock/);
+		expect(tail.indexOf("watchBlock")).toBeLessThan(tail.indexOf("...seasonSteps"));
+		expect(tail).not.toMatch(/step\("costs",[^\n]*watchBlock/);
 	});
 
 	it("offers both outcomes, and hides feeding when there is nothing to feed it with", () => {

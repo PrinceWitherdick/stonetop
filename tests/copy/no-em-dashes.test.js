@@ -81,9 +81,6 @@ const QUOTED = {
 		"g>return home in triumph</strong> — having saved your fellows, put do",
 		"eat, seized the opportunity, etc. — clear one of the steading's debil",
 		"ional items, don't Trade & Barter — Make a Plan with the GM or wait f",
-		"il: \"from injuries/sickness/doubt — disadvantage to Deploy, Muster, P",
-		"ue to shortages/hoarding/distrust — treat Prosperity as 1 lower\",",
-		"detail: \"from fear/anger/despair — Fortunes reset to +0 each season;",
 	],
 	"module/dialogs/AddSteadingMemberDialog.js": [
 		"alisade, market, and town council — though the old bandit Brennan and",
