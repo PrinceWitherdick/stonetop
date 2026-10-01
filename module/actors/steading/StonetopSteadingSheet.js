@@ -3300,59 +3300,74 @@ export function createStonetopSteadingSheetClass(Base) {
 					// closes the `consumption` step, and each is guarded against a second click, which
 					// would otherwise deduct the consumption, or take a consequence, twice.
 					const presentConsumption = consumption => {
-						// Read Surplus LIVE, not the value captured when the dialog opened: the
-						// herd "Feed the herd" step in this same dialog may have already spent some,
-						// and this.render() refreshes the sheet, not this Dialog's closure.
-						const surplusNow = this._stonetopSteading.getStatValue("surplus");
 						hide("#stonetop-winter-step1");
 						show("#stonetop-winter-step2");
-						root.querySelector("#stonetop-winter-result").textContent =
-							`Roll: ${consumption}. Surplus needed: ${consumption}, available: ${surplusNow}.`;
 						let busy = false;
 
-						if (surplusNow >= consumption) {
-							show("#stonetop-winter-ok");
-							root.querySelector("[data-action='apply-consumption']").addEventListener("click", async () => {
-								if (busy) return;
+						// Shows the way out LIVE Surplus allows and hides the other; true when there is
+						// enough. Read live, not the value captured when the dialog opened: the herd's
+						// "Feed the herd" step in this same dialog may have spent some, and
+						// this.render() refreshes the sheet, not this Dialog's closure.
+						const showWayOut = () => {
+							const surplusNow = this._stonetopSteading.getStatValue("surplus");
+							root.querySelector("#stonetop-winter-result").textContent =
+								`Roll: ${consumption}. Surplus needed: ${consumption}, available: ${surplusNow}.`;
+							const enough = surplusNow >= consumption;
+							(enough ? show : hide)("#stonetop-winter-ok");
+							(enough ? hide : show)("#stonetop-winter-shortfall");
+							return enough;
+						};
+						// Asked again at the click, because the window stays open while the steps around
+						// it move Surplus: a herd fed after the roll can leave too little for the Apply on
+						// screen (which would clamp to 0 and skip the shortfall), and a late harvest can
+						// make a shown shortfall zero out Surplus that now covers winter. A click on the
+						// way out that no longer fits swaps the window over instead of acting.
+						const stillFits = wantEnough => {
+							if (showWayOut() === wantEnough) return true;
+							ui.notifications.warn(wantEnough
+								? "Surplus has dropped since the roll and no longer covers winter. Pick what the shortfall costs."
+								: "Surplus has risen since the roll and now covers winter. Apply the consumption instead.");
+							return false;
+						};
+						showWayOut();
+
+						root.querySelector("[data-action='apply-consumption']")?.addEventListener("click", async () => {
+							if (busy || !stillFits(true)) return;
+							busy = true;
+							try {
+								const live = this._stonetopSteading.getStatValue("surplus");
+								const remaining = live - consumption;
+								await this._stonetopSteading.applyChanges({
+									system: { "attributes.surplus.value": remaining },
+									flags: this._stonetopSteading.seasonStepFlags("consumption", year, seasonId),
+								}, seasonsMove);
+								this.render(false);
+								hide("#stonetop-winter-ok");
+								show("#stonetop-winter-step3");
+								ui.notifications.info(`Consumed ${consumption} Surplus. Remaining: ${remaining}.`);
+							} catch (err) { busy = false; throw err; }
+						});
+						root.querySelectorAll("#stonetop-winter-shortfall [data-consequence]").forEach(el => {
+							el.addEventListener("click", async () => {
+								if (busy || !stillFits(false)) return;
 								busy = true;
 								try {
-									// Re-read at apply time so a herd feed between roll and apply can't be refunded.
-									const live = this._stonetopSteading.getStatValue("surplus");
-									const remaining = Math.max(0, live - consumption);
-									await this._stonetopSteading.applyChanges({
-										system: { "attributes.surplus.value": remaining },
-										flags: this._stonetopSteading.seasonStepFlags("consumption", year, seasonId),
-									}, seasonsMove);
+									// The write, the notice and (at Fortunes −1) the Meet with
+									// Disaster pick are shared with the settle window the header
+									// glyph opens and with spring's "Winter's end"
+									// (module/actors/steading/winter-debt.js), so a shortfall costs
+									// the same whichever window takes it. The step closes in its write.
+									await sufferWinterShortfall(this._stonetopSteading, el.dataset.consequence, {
+										...seasonsMove,
+										onApplied: () => this.render(false),
+										alsoFlags: this._stonetopSteading.seasonStepFlags("consumption", year, seasonId),
+									});
 									this.render(false);
-									hide("#stonetop-winter-ok");
+									hide("#stonetop-winter-step2");
 									show("#stonetop-winter-step3");
-									ui.notifications.info(`Consumed ${Math.min(consumption, live)} Surplus. Remaining: ${remaining}.`);
 								} catch (err) { busy = false; throw err; }
 							});
-						} else {
-							show("#stonetop-winter-shortfall");
-							root.querySelectorAll("#stonetop-winter-shortfall [data-consequence]").forEach(el => {
-								el.addEventListener("click", async () => {
-									if (busy) return;
-									busy = true;
-									try {
-										// The write, the notice and (at Fortunes −1) the Meet with
-										// Disaster pick are shared with the settle window the header
-										// glyph opens and with spring's "Winter's end"
-										// (module/actors/steading/winter-debt.js), so a shortfall costs
-										// the same whichever window takes it. The step closes in its write.
-										await sufferWinterShortfall(this._stonetopSteading, el.dataset.consequence, {
-											...seasonsMove,
-											onApplied: () => this.render(false),
-											alsoFlags: this._stonetopSteading.seasonStepFlags("consumption", year, seasonId),
-										});
-										this.render(false);
-										hide("#stonetop-winter-step2");
-										show("#stonetop-winter-step3");
-									} catch (err) { busy = false; throw err; }
-								});
-							});
-						}
+						});
 					};
 
 					const rolledBefore = this._stonetopSteading.winterConsumptionRolled(year, seasonId);
@@ -4030,7 +4045,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!answer) return false;
 			const steading = this._stonetopSteading;
 			const seasonsMove = { stonetopMove: "Seasons Change" };
-			const marker = steading.seasonStepFlags(SURPLUS_SEASON_STEP, year, seasonId);
+			// Built at each write, never before an await: seasonStepFlags copies the WHOLE
+			// seasonSteps map, so a copy taken before the dice flew would write back the old stamp
+			// of any step closed while they were in the air (the watch fed mid-roll would reopen).
+			const marker = () => steading.seasonStepFlags(SURPLUS_SEASON_STEP, year, seasonId);
 
 			if (answer.failed) {
 				await ChatMessage.create({
@@ -4042,7 +4060,7 @@ export function createStonetopSteadingSheetClass(Base) {
 					cause: "a failed harvest",
 					introHtml: `<p><em>The harvest failed and the steading Meets with Disaster, but Fortunes cannot drop below −1.</em> The GM picks 1 instead:</p>`,
 					onApplied: () => this.render(false),
-					alsoFlags: marker,
+					alsoFlags: marker(),
 				});
 				this.render(false);
 				ui.notifications.info(disaster
@@ -4057,7 +4075,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			const total = steading.getStatValue("surplus") + gain;
 			await steading.applyChanges({
 				system: { "attributes.surplus.value": total },
-				flags: marker,
+				flags: marker(),
 			}, seasonsMove);
 			this.render(false);
 			ui.notifications.info(`Generated ${gain} Surplus. New total: ${total}.`);

@@ -96,11 +96,11 @@ describe("surplusRollFormula", () => {
 });
 
 describe("meetWithDisaster", () => {
-	function fake(fortunes, marked = []) {
+	function fake(fortunes, marked = [], population = 0) {
 		return {
-			getStatValue: () => fortunes,
+			getStatValue: key => (key === "population" ? population : fortunes),
 			getSystemValue: path => marked.some(id => path === debilityPath(id)),
-			applyChanges: vi.fn(),
+			applyChanges: vi.fn(async () => {}),
 		};
 	}
 	const opened = [];
@@ -156,9 +156,30 @@ describe("meetWithDisaster", () => {
 	});
 
 	// Marking a debility already marked writes true over true: a disaster that costs nothing.
-	it("offers only the debilities not already marked, and always a Population", () => {
+	it("offers only the debilities not already marked", () => {
 		expect(disasterChoices(fake(-1)).map(c => c.id)).toEqual(["diminished", "lacking", "malcontent", "population"]);
 		expect(disasterChoices(fake(-1, ["diminished", "malcontent"])).map(c => c.id)).toEqual(["lacking", "population"]);
+	});
+
+	// Population stops at -1, so "folks start to leave" there writes -1 over -1: free as well.
+	it("leaves out the Population once it is at -1", () => {
+		expect(disasterChoices(fake(-1, [], -1)).map(c => c.id)).toEqual(["diminished", "lacking", "malcontent"]);
+		expect(disasterChoices(fake(-1, ["lacking"], 0)).map(c => c.id)).toEqual(["diminished", "malcontent", "population"]);
+	});
+
+	it("opens no window when nothing is left to take, and pays off an owed pick", async () => {
+		stubDialog();
+		const s = fake(-1, ["diminished", "lacking", "malcontent"], -1);
+		const onApplied = vi.fn();
+		expect(openDisasterPicker(s, { settlesOwed: true, onApplied })).toBeNull();
+		expect(opened).toHaveLength(0);
+		expect(s.applyChanges).toHaveBeenCalledWith({ flags: { disasterOwed: null } });
+		await Promise.resolve();
+		expect(onApplied).toHaveBeenCalled();
+		// The Moves tab's own pick owes nothing, so there is nothing to write.
+		const own = fake(-1, ["diminished", "lacking", "malcontent"], -1);
+		openDisasterPicker(own);
+		expect(own.applyChanges).not.toHaveBeenCalled();
 	});
 
 	it("is waiting on the header while it is owed", () => {

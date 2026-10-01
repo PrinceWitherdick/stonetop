@@ -214,11 +214,13 @@ const DISASTER_CHOICES = [
 	{ id: "population", label: "Folks start to leave", detail: "reduce Population by 1 (min −1)" },
 ];
 
-/** What the picker offers: a debility already marked is left out, since marking it again would
- *  write `true` over `true` and the disaster would cost nothing. A Population is always there. */
+/** What the picker offers: only what would cost something. A debility already marked is left
+ *  out, since marking it again would write `true` over `true`, and so is the Population at −1,
+ *  where applyDisasterChoice's floor would write −1 over −1. Either way the disaster cost nothing. */
 export function disasterChoices(steading) {
 	const marked = new Set(markedDebilities(steading).map(d => d.id));
-	return DISASTER_CHOICES.filter(c => !marked.has(c.id));
+	const floored = steading.getStatValue("population") <= -1;
+	return DISASTER_CHOICES.filter(c => (c.id === "population" ? !floored : !marked.has(c.id)));
 }
 
 /** The flag a disaster met at −1 leaves until its pick is made (StonetopSteading#disasterOwed). */
@@ -291,10 +293,23 @@ export function openDisasterPicker(steading, {
 	onApplied,
 	settlesOwed = false,
 } = {}) {
+	// All three marked and Population at −1: the book's list has nothing left to take, so there
+	// is no pick to make. Say so rather than open an empty window, and pay off an owed pick, or
+	// the header glyph would wait on a choice that cannot exist.
+	const choices = disasterChoices(steading);
+	if (!choices.length) {
+		globalThis.ui?.notifications?.info?.("The steading has nothing left for the disaster to take: every debility is marked and Population is at −1.");
+		if (settlesOwed) {
+			steading.applyChanges({ flags: { disasterOwed: null } })
+				.then(() => onApplied?.(null))
+				.catch(err => console.error("Stonetop | Could not settle the owed disaster:", err));
+		}
+		return null;
+	}
 	return openDebilityPicker({
 		title: "Meet with Disaster",
 		introHtml,
-		marked: disasterChoices(steading),
+		marked: choices,
 		applyLabel: "Pick what it costs",
 		applyLabelFor: c => (c.id === "population" ? "Reduce Population by 1" : `Mark ${c.label}`),
 		choicesLabel: "What the disaster costs",
