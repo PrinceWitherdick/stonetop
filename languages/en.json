@@ -359,6 +359,8 @@
         "tooltip": "When you have enough XP to Level Up, you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).",
         "drivenTooltip": "Driven: you always have the option to Burn Brightly; you can spend 2 XP after you roll to add +1 (max +1 per roll), even if you don't have enough XP to level.",
         "notEnoughXp": "You don't have enough XP to Burn Brightly.",
+        "notYours": "Only the player of the character who made this roll can Burn Brightly on it.",
+        "zeroHp": "Burn Brightly cannot change a roll made at 0 HP from the card: its result is already settled.",
         "spent": "-{cost} XP for Burning Brightly.<br>New XP: {xp} / {max}"
       },
       "deathsDoor": {

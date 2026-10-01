@@ -1296,7 +1296,9 @@ function _chatWireBurnBrightly(message, html) {
 			// On the card's writer, the GM's client while one is connected (_burnBrightlyOnCard below).
 			const done = await pressRollCard(message, BURN_BRIGHTLY_ACTION);
 			if (done?.burned || done?.spent) return;
-			ui.notifications.warn(done ? game.i18n.localize(`${BURN_BRIGHTLY_KEY}.notEnoughXp`) : _writerSilent());
+			// The writer says why it refused (_burnBrightlyOnCard): XP is only one of the reasons.
+			const refused = { notYours: "notYours", zeroHp: "zeroHp" }[done?.reason] ?? "notEnoughXp";
+			ui.notifications.warn(done ? game.i18n.localize(`${BURN_BRIGHTLY_KEY}.${refused}`) : _writerSilent());
 			btn.disabled = false;
 		} catch (err) {
 			console.error("Stonetop | Error burning brightly:", err);
@@ -1480,14 +1482,16 @@ registerRollCardAction(KNOW_THINGS_UPGRADE_ACTION, ({ message, user, data }) => 
  * Burn Brightly from the roll card's button: the one spend (deaths-door-relay.js#burnBrightlyOnDoorCard), the XP
  * inside the write queue, then the +1 through the same dice-term math and card redraw the ± roll-shift buttons
  * use. Not on a 0-HP move's card (see _chatWireBurnBrightly). `{burned}`, or `{spent}` when the card was burned
- * already.
+ * already. A refusal carries its `reason` ("notYours", "zeroHp", "xp"), so the button does not blame the XP for
+ * every one of them.
  */
 async function _burnBrightlyOnCard(message, user) {
 	const actor = _cardCharacterFor(message, user);
-	if (!actor || isZeroHpMoveCard(message)) return { burned: false };
+	if (!actor) return { burned: false, reason: "notYours" };
+	if (isZeroHpMoveCard(message)) return { burned: false, reason: "zeroHp" };
 	if (message.getFlag(SYSTEM_ID, "burnBrightly")) return { burned: false, spent: true };
 	const burned = await burnBrightlyOnDoorCard(message, actor, ROLL_BOOST_DEPS);
-	return burned ? { burned: true } : { burned: false, spent: !!message.getFlag(SYSTEM_ID, "burnBrightly") };
+	return burned ? { burned: true } : { burned: false, spent: !!message.getFlag(SYSTEM_ID, "burnBrightly"), reason: "xp" };
 }
 
 
