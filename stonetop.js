@@ -77,7 +77,7 @@ import { boldMissText } from "./module/utils/strings.js";
 import { moveBodyHtml } from "./module/utils/move-tiers.js";
 import { MOVE_TIERS_CLASS, ROLLED_TIER_ATTR } from "./module/utils/move-results.js";
 import { hbsTruthy } from "./module/utils/hbs-truthy.js";
-import { rollSeasonsCard, sign, markMissXp, pbtaDiceFormula, seasonsRollTable, seasonsRollPicks, syncCountedNotePill } from "./module/utils/roll-engine.js";
+import { rollSeasonsCard, sign, markMissXp, reconcileMissXp, pbtaDiceFormula, seasonsRollTable, seasonsRollPicks, syncCountedNotePill } from "./module/utils/roll-engine.js";
 import { countedResult, rolledRecord, cardCountedTier, totalTier } from "./module/utils/counted-tier.js";
 import { burnBrightlyAffordable, burnsBrightlyDriven } from "./module/actors/character/burn-brightly.js";
 import { wireImpetuousYouth, giveItAll, GIVE_IT_ALL_ACTION, HURT_DAMAGE, IMPETUOUS_YOUTH } from "./module/actors/character/impetuous-youth.js";
@@ -1439,6 +1439,12 @@ async function _resyncIdentification(message, actor, total) {
 async function _resyncRewrittenTotal(message, actor, total) {
 	await _resyncIdentification(message, actor, total);
 	await reconcileTierEffects(message, total, { actor });
+	// "On a miss, mark XP" follows the total the card now shows (roll-engine.js#reconcileMissXp).
+	try {
+		await reconcileMissXp(message, total, { actor });
+	} catch (err) {
+		console.error("Stonetop | Error matching a rewritten roll's miss XP:", err);
+	}
 	try {
 		await remindPotentialForGreatnessOnCard(message, actor, total);
 	} catch (err) {
