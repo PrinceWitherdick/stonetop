@@ -117,6 +117,18 @@ describe("inventoryItemUpdateData", () => {
 		expect(readInventoryItemData(merged).note).toBe("magical, Value 5");
 	});
 
+	// The fields are plain text, so the form's rebuilt note has lost any markup the book printed.
+	it("keeps a note's authored markup when the save left its words alone", () => {
+		const note = "<em>+1 armor, close, +1 Readiness <strong>on a 7+</strong> to Defend</em>";
+		const item = { name: "Shield", type: "move", system: { moveType: "inventory", note }, flags: { stonetop: { note } } };
+		const rebuilt = wrapGearNoteTerms(composeInventoryNote(splitInventoryNote(note)));
+		const update = inventoryItemUpdateData(item, { name: "Shield", img: "new.webp", note: rebuilt });
+		expect(update.system.note).toBe(note);
+		expect(update["flags.stonetop.note"]).toBe(note);
+		// A real change to the words is still written.
+		expect(inventoryItemUpdateData(item, { name: "Shield", note: "close" }).system.note).toBe("close");
+	});
+
 	it("leaves the artifact fields alone unless the form carries them", () => {
 		const item = buildInventoryItemData({ name: "Ring", artifact: { lore: "<p>It hums.</p>" } });
 		expect(inventoryItemUpdateData(item, { name: "Ring" }).system).not.toHaveProperty("artifactLore");

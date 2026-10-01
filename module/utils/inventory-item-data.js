@@ -1,5 +1,5 @@
 import { ITEM_FLAG_SCOPE } from "../system-id.js";
-import { decodeEntities } from "./strings.js";
+import { decodeEntities, stripHtmlToText } from "./strings.js";
 import { buildUsesResource, circleLabelsToLines } from "./gear-note.js";
 
 /**
@@ -143,7 +143,9 @@ export function composeInventoryNote({ tags = "", immobile = false, value = null
 
 /**
  * The inverse: a stored note (authored markup, <em>-wrapped and escaped) back into the
- * dialog's fields. Lossless by construction: anything it does not recognise stays in `tags`.
+ * dialog's fields. Every WORD survives (anything it does not recognise stays in `tags`), but
+ * the markup does not: the fields are plain text. So a save that leaves the words as they were
+ * keeps the stored note, markup and all (inventoryItemUpdateData), rather than this round trip.
  *
  * Only a LONE Value clause at the very end is lifted out. The book's harder cases ("Value 0 to
  * most, Value 1 to those-who-know", "or Value 3 to the right person") are prose, not one
@@ -224,8 +226,9 @@ export function inventoryItemFormValues(itemData) {
  */
 export const WRITEUP_EDITED_FLAG = "writeupEdited";
 
-/** A write-up's words, markup and spacing aside, so an editor's re-serialization is not an edit. */
-const writeupText = html => decodeEntities(String(html ?? "").replace(/<[^>]*>/g, "")).replace(/\s+/g, " ").trim();
+/** A note's words, markup and the spacing around its commas aside: the same tag line, however
+ *  it was dressed. What tells a note the form changed from one it only took apart and rebuilt. */
+const noteText = html => stripHtmlToText(html).replace(/\s*,\s*/g, ", ");
 
 /**
  * The create payload for an item authored in the treasure dialog: buildInventoryItemData, plus
@@ -261,10 +264,14 @@ const FLAG_MIRROR_KEYS = ["inventoryColumn", "weight", "note", "resource", "armo
 export function inventoryItemUpdateData(itemData, input) {
 	const built = buildInventoryItemData({ ...input, moveType: itemData?.system?.moveType ?? input.moveType });
 	const sys = built.system;
+	// The form rebuilds the note from plain-text fields, dressing only the gear terms it knows,
+	// so an untouched note would come back without the authored markup a book treasure carries
+	// ("<strong>on a 7+</strong>"). Same words, then the stored note stays as it was.
+	const storedNote = readInventoryItemData(itemData).note;
 	const system = {
 		inventoryColumn: sys.inventoryColumn,
 		weight:     sys.weight ?? 1,
-		note:       sys.note ?? "",
+		note:       noteText(sys.note) === noteText(storedNote) ? storedNote : (sys.note ?? ""),
 		resource:   sys.resource ?? null,
 		// Both keys, the unused one null: an update merges into the stored object, so {base: 2}
 		// written over {modifier: 1} kept the 1 and the item stacked to 3. calculateArmor and the
@@ -285,7 +292,7 @@ export function inventoryItemUpdateData(itemData, input) {
 	// A write-up the GM changed is now theirs, even if they cleared it: backfillTreasureWriteups
 	// refills a BLANK write-up by name, and must not put back one taken out on purpose. Only when
 	// it changed: an edit to the Value alone leaves a blank write-up open to the book's text.
-	if (input.artifact && writeupText(input.artifact.lore) !== writeupText(readInventoryItemData(itemData).artifact.lore)) {
+	if (input.artifact && stripHtmlToText(input.artifact.lore) !== stripHtmlToText(readInventoryItemData(itemData).artifact.lore)) {
 		update[`flags.${ITEM_FLAG_SCOPE}.${WRITEUP_EDITED_FLAG}`] = true;
 	}
 	// Blank means "not this form's call". To CLEAR the art, the caller passes Foundry's default
