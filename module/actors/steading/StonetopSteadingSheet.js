@@ -525,7 +525,9 @@ const HOMESTEAD_MOVE_FLOWS = {
 		// the dice read: Value is subtracted as a modifier, and winter forces disadvantage.
 		fields: [
 			{ name: "value", label: "Item Value", type: "number", placeholder: "0", min: 0 },
-			{ name: "winter", label: "It is winter", type: "checkbox" },
+			// Starts ticked while the steading's clock reads winter, as Forage's and On the Hoof's
+			// winter do; still the table's to untick.
+			{ name: "winter", label: "It is winter", type: "checkbox", checkedInSeason: "winter" },
 		],
 		results: [
 			RESULT.info("Commonly available item", "you can acquire or sell it without rolling."),
@@ -1738,7 +1740,12 @@ export function createStonetopSteadingSheetClass(Base) {
 			const questions = improvementQuestions(flow.label, flow.stat, {
 				has, tactics: this._militiaTactics(), logistics: worldLogisticsNames(), pathfinder: worldLearnedHolderNames(PATHFINDER),
 			});
-			const standing = rollAdjustments({ moveName: flow.label, statKey: flow.stat, has });
+			// Tor's blessing asked here as settleSteadingRoll asks it, so the window names the +1
+			// the card will add. With no answers yet, `notes` holds nothing that waits on one.
+			const standing = rollAdjustments({
+				moveName: flow.label, statKey: flow.stat, has,
+				torsBlessing: !!this._stonetopSteading.torsBlessingActive?.(),
+			});
 			const questionHtml = questions.map(q => (q.type === "select"
 				? `<label class="stonetop-homestead-field">
 					<span>${_esc(q.label)}</span>
@@ -1747,13 +1754,16 @@ export function createStonetopSteadingSheetClass(Base) {
 				: improvementCheckHtml(q))).join("");
 			const improvementNotes = [
 				...standing.adv.map(source => `${source}: advantage on this roll.`),
+				...standing.notes.map(note => `${note} on this roll.`),
 				...this._aurochsWarnings(flow),
 			];
 
+			const clockSeason = readCurrentSeason(this.actor)?.season ?? "";
 			const fieldHtml = (flow.fields ?? []).map(field => {
 				if (field.type === "checkbox") {
+					const checked = !!field.checkedInSeason && field.checkedInSeason === clockSeason;
 					return `<label class="stonetop-homestead-field stonetop-homestead-field--check">
-						<input type="checkbox" class="stonetop-check" name="${_esc(field.name)}" value="yes">
+						<input type="checkbox" class="stonetop-check" name="${_esc(field.name)}" value="yes"${checked ? " checked" : ""}>
 						<span>${_esc(field.label)}</span>
 					</label>`;
 				}
@@ -3271,7 +3281,9 @@ export function createStonetopSteadingSheetClass(Base) {
 				...rest,
 				moveName,
 				rollMode: adjusted.rollMode,
-				modifier: (rest.modifier ?? 0) + situational,
+				// `adjusted.bonus`: a rule's plus to the roll itself (Tor's blessing on Pull Together),
+				// named on the card by its condition pill.
+				modifier: (rest.modifier ?? 0) + situational + (adjusted.bonus ?? 0),
 				statValue: this._stonetopSteading.getStatValue(statKey),
 			};
 			if (rollOptions.statValue !== undefined) options.statValue = rollOptions.statValue;

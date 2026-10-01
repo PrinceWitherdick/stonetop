@@ -12,6 +12,16 @@
   </p>
   {{/if}}
 
+  {{!-- The seasonal gain: "any time you roll the Die of Fate for weather, roll twice and take
+        your pick." Said here because this is where the die is rolled; the pick is a click on
+        whichever of the two rows the table prefers. --}}
+  {{#if torsBlessing}}
+  <p class="stonetop-weather-clock stonetop-weather-blessing">
+    <i class="fas fa-sun"></i>
+    <strong>Tor&rsquo;s blessing</strong> holds this season: roll twice and take your pick. Roll, Re-roll, then click whichever of the two rows you&rsquo;d rather keep.
+  </p>
+  {{/if}}
+
   <div class="stonetop-weather-seasons">
     {{#each seasons}}
     {{!-- `is-off-clock` only ever rides along with `is-active`: it is the selection going red

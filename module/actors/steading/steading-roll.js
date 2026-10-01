@@ -42,6 +42,7 @@ export async function settleSteadingRoll(steading, {
 		answers, tactics, winter,
 		diminished: !!steading.getSystemValue?.("attributes.debilities.options.diminished.value", false),
 		held: held?.source ?? "",
+		torsBlessing: !!steading.torsBlessingActive?.(),
 	});
 	return {
 		...adjusted,
