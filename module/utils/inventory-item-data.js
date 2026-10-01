@@ -144,8 +144,8 @@ export function composeInventoryNote({ tags = "", immobile = false, value = null
 /**
  * The inverse: a stored note (authored markup, <em>-wrapped and escaped) back into the
  * dialog's fields. Every WORD survives (anything it does not recognise stays in `tags`), but
- * the markup does not: the fields are plain text. So a save that leaves the words as they were
- * keeps the stored note, markup and all (inventoryItemUpdateData), rather than this round trip.
+ * the markup does not: the fields are plain text. So a save that leaves the fields as they were
+ * keeps the stored note as written (inventoryItemUpdateData), rather than this round trip.
  *
  * Only a LONE Value clause at the very end is lifted out. The book's harder cases ("Value 0 to
  * most, Value 1 to those-who-know", "or Value 3 to the right person") are prose, not one
@@ -226,9 +226,17 @@ export function inventoryItemFormValues(itemData) {
  */
 export const WRITEUP_EDITED_FLAG = "writeupEdited";
 
-/** A note's words, markup and the spacing around its commas aside: the same tag line, however
- *  it was dressed. What tells a note the form changed from one it only took apart and rebuilt. */
-const noteText = html => stripHtmlToText(html).replace(/\s*,\s*/g, ", ");
+/**
+ * Whether two notes fill the authoring dialog's fields the same way (the tags, "immobile", the
+ * Value): what tells a note the form changed from one it only took apart and rebuilt. Read
+ * through splitInventoryNote rather than as text, because the rebuild also MOVES things: it
+ * leads with "immobile", where Book II prints the column of ice "magical, immobile" (p. 322).
+ * A column is read as the dialog reads it (inventoryItemFormValues): anything not regular is small.
+ */
+function sameTagLine(a, aColumn, b, bColumn) {
+	const fields = (note, column) => splitInventoryNote(note, { column: column === "regular" ? "regular" : "small" });
+	return JSON.stringify(fields(a, aColumn)) === JSON.stringify(fields(b, bColumn));
+}
 
 /**
  * The create payload for an item authored in the treasure dialog: buildInventoryItemData, plus
@@ -264,14 +272,15 @@ const FLAG_MIRROR_KEYS = ["inventoryColumn", "weight", "note", "resource", "armo
 export function inventoryItemUpdateData(itemData, input) {
 	const built = buildInventoryItemData({ ...input, moveType: itemData?.system?.moveType ?? input.moveType });
 	const sys = built.system;
-	// The form rebuilds the note from plain-text fields, dressing only the gear terms it knows,
-	// so an untouched note would come back without the authored markup a book treasure carries
-	// ("<strong>on a 7+</strong>"). Same words, then the stored note stays as it was.
-	const storedNote = readInventoryItemData(itemData).note;
+	// The form rebuilds the note from plain-text fields, dressing only the gear terms it knows and
+	// leading with "immobile", so an untouched note would come back without the authored markup a
+	// book treasure carries ("<strong>on a 7+</strong>") or in another order than the book prints.
+	// Same fields, then the stored note stays as it was.
+	const stored = readInventoryItemData(itemData);
 	const system = {
 		inventoryColumn: sys.inventoryColumn,
 		weight:     sys.weight ?? 1,
-		note:       noteText(sys.note) === noteText(storedNote) ? storedNote : (sys.note ?? ""),
+		note:       sameTagLine(sys.note ?? "", sys.inventoryColumn, stored.note, stored.column) ? stored.note : (sys.note ?? ""),
 		resource:   sys.resource ?? null,
 		// Both keys, the unused one null: an update merges into the stored object, so {base: 2}
 		// written over {modifier: 1} kept the 1 and the item stacked to 3. calculateArmor and the

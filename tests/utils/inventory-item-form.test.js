@@ -129,6 +129,19 @@ describe("inventoryItemUpdateData", () => {
 		expect(inventoryItemUpdateData(item, { name: "Shield", note: "close" }).system.note).toBe("close");
 	});
 
+	// The rebuild leads with "immobile"; Book II prints the column of ice "magical, immobile".
+	it("keeps the book's order when the save left the fields alone", () => {
+		const note = "magical, <em>immobile</em>";
+		const item = { name: "A column of ice", type: "move", system: { moveType: "inventory", note }, flags: { stonetop: { inventoryColumn: "small", note } } };
+		const values = inventoryItemFormValues(item);
+		expect(values).toMatchObject({ column: "immobile", tags: "magical" });
+		const rebuilt = wrapGearNoteTerms(composeInventoryNote({ tags: values.tags, immobile: true }));
+		expect(rebuilt).not.toBe(note);
+		expect(inventoryItemUpdateData(item, { name: "A column of ice", column: "small", note: rebuilt })["flags.stonetop.note"]).toBe(note);
+		// No longer immobile is a change, and is written.
+		expect(inventoryItemUpdateData(item, { name: "A column of ice", column: "small", note: "magical" }).system.note).toBe("magical");
+	});
+
 	it("leaves the artifact fields alone unless the form carries them", () => {
 		const item = buildInventoryItemData({ name: "Ring", artifact: { lore: "<p>It hums.</p>" } });
 		expect(inventoryItemUpdateData(item, { name: "Ring" }).system).not.toHaveProperty("artifactLore");
