@@ -4064,7 +4064,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				});
 				this.render(false);
 				ui.notifications.info(disaster
-					? "The harvest failed. Fortunes is already −1: pick what the disaster costs."
+					? "The harvest failed. Fortunes is already −1, so the steading Meets with Disaster."
 					: `The harvest failed: no Surplus, and Fortunes drops to ${sign(fortunes)}.`);
 				return true;
 			}

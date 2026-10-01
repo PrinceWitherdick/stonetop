@@ -116,7 +116,7 @@ export async function applyWinterShortfall(steading, consequenceId, { stonetopMo
 export function shortfallNotice({ fortunes, population, disaster }) {
 	const pop = population === null ? "" : `, Population to ${sign(population)}`;
 	return disaster
-		? `Shortfall: Surplus to 0${pop}. Fortunes is already ${sign(fortunes)}, so the steading Meets with Disaster: pick what it costs.`
+		? `Shortfall: Surplus to 0${pop}. Fortunes is already ${sign(fortunes)}, so the steading Meets with Disaster.`
 		: `Shortfall: Surplus to 0, Fortunes to ${sign(fortunes)}${pop}.${population === null ? " Apply the narrative consequence." : ""}`;
 }
 
