@@ -178,6 +178,11 @@ function _snapshotPosition(app) {
 	// rather than reached for, exactly as `document` is, because the board is not a
 	// DocumentSheet and has no `_tabs` for `_snapshotTabs` above to find.
 	if (typeof app?.restorePageId === "string") out.pageId = app.restorePageId;
+	// Where the reader had got to INSIDE the window: the timeline's zoom and how far it was dragged.
+	// Opaque here; the window names its own and reads it back from the render that reopens it. Read
+	// live like the geometry, since scrolling and zooming never re-render.
+	const view = app?.restoreView;
+	if (view && typeof view === "object") out.view = view;
 	return out;
 }
 
@@ -432,6 +437,9 @@ export async function restoreOpenWindows() {
 				// its first render rather than being switched to it afterwards — which the
 				// reader would see as the wrong board painting and then jumping.
 				if (saved.pageId) geom.pageId = saved.pageId;
+				// And the view inside it, by the same road, so the first paint is already where the
+				// reader left it rather than at the start and then jumping.
+				if (saved.view && typeof saved.view === "object") geom.view = saved.view;
 				if (_isAppV2(sheet)) sheet.render({ force: true, position: geom });
 				else sheet.render(true, geom);
 				if (saved.minimized) sheet.minimize?.();

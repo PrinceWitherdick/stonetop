@@ -401,6 +401,23 @@ describe("the relationship map board", () => {
 		fire("renderActorSheet", sheet);
 		vi.advanceTimersByTime(500);
 		expect(saved("Actor.plain")).not.toHaveProperty("pageId");
+		expect(saved("Actor.plain")).not.toHaveProperty("view");
+	});
+
+	// Where the reader had got to INSIDE a window (the timeline's zoom and drag) is the window's own
+	// to name, and comes back by the same road as the page.
+	it("saves a window's own view and hands it back in the render that reopens it", async () => {
+		const board = fakeSheet({ uuid: "JournalEntry.map6" });
+		delete board._editMode;
+		board.restoreView = { zoom: 1.5, left: 300, top: 40 };
+		fire(`render${RELMAP_WINDOW_CLASS}`, board);
+		vi.advanceTimersByTime(500);
+		expect(saved("JournalEntry.map6").view).toEqual({ zoom: 1.5, left: 300, top: 40 });
+
+		await restoreOpenWindows();
+		await vi.runAllTimersAsync();
+		expect(board.render).toHaveBeenCalledWith(true,
+			{ left: 100, top: 50, width: 800, height: 600, view: { zoom: 1.5, left: 300, top: 40 } });
 	});
 
 	// ⚠ AND THE SAME BOARD MOUNTED INSIDE A SHEET IS NOT A WINDOW AT ALL. The steading sheet's

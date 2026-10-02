@@ -136,6 +136,7 @@ import { loseHp, wirePostDeathMoveCards } from "./module/actors/character/post-d
 import { registerRosterFateHooks } from "./module/fight/roster-fate.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
+import { registerTimelineWindowRestore } from "./module/dialogs/TimelineWindow.js";
 import { registerStruggleHooks } from "./module/struggle/struggle-flow.js";
 import { registerPcAskHooks, wirePcAskCard } from "./module/pc-asks/pc-ask-flow.js";
 import { registerFightTab } from "./module/fight/fight-boot.js";
@@ -746,6 +747,8 @@ Hooks.on("updateActor", onUpdateCondemned);
 // their thread by the client that made the change; a new character's page minted, a renamed one's
 // page renamed. See module/timeline/timeline-watch.js.
 registerTimelineWatch();
+// And the aggregate timeline window, if it was open when this client reloaded (utils/window-restore.js).
+registerTimelineWindowRestore();
 
 // -- READY -----------------------------------------------------
 // FIRST of the ready listeners, deliberately. This one reports whether the startup it is reporting

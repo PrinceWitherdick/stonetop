@@ -28,6 +28,7 @@
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { themedDialogClasses } from "../utils/window-theme.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
+import { registerRestorableWindow } from "../utils/window-restore.js";
 import { openingSize } from "../utils/opening-size.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
 import { localize, format } from "../utils/i18n.js";
@@ -76,6 +77,10 @@ const TIMELINE_ZOOM_MAX = 4;
 /** The aggregate window's DOM id, so a second open focuses the first. */
 export const TIMELINE_WINDOW_ID = "stonetop-timeline-window";
 
+// What utils/window-restore.js files the aggregate under, so a reload brings it back where it was.
+const RESTORE_KIND = "timeline";
+const AGGREGATE_RESTORE_KEY = `${RESTORE_KIND}:all`;
+
 export class TimelineWindow extends StonetopDialog {
 	/**
 	 * ⚠ A TRACK DESCRIPTOR EXACTLY AS `trackForActor` HANDS ONE BACK, keys and all. The tab passes
@@ -106,6 +111,8 @@ export class TimelineWindow extends StonetopDialog {
 		// re-renders the window, and a menu that shut itself after each tick would be a menu you
 		// have to reopen ten times to hide ten things.
 		this._showMenuOpen = false;
+		// Where the reader was as the window went down; see `restoreView`.
+		this._viewAtMinimize = null;
 	}
 
 	static get defaultOptions() {
@@ -135,6 +142,79 @@ export class TimelineWindow extends StonetopDialog {
 
 	/** Single-track mode, as against the aggregate. */
 	get isSingleTrack() { return !!this._trackId; }
+
+	/**
+	 * What utils/window-restore.js saves this window under, and reopens it from after a reload. Only
+	 * the aggregate has one: a single thread is only ever shown as a sheet's tab (TimelinePanel, which
+	 * the restore skips as frameless), and comes back with its sheet.
+	 */
+	get restoreKey() {
+		return this.isSingleTrack ? null : AGGREGATE_RESTORE_KEY;
+	}
+
+	/**
+	 * Where the reader had got to inside the window, saved with its geometry by utils/window-restore.js
+	 * and handed back as the reopening render's `view` option (see `_render`): the wheel's zoom, and
+	 * the scroll offset counted from the timeline's own corner rather than the box's.
+	 *
+	 * ⚠ FROM THE CONTENT'S CORNER, past the drag gutter. The gutter is a share of the box, and the box
+	 * after a reload may be another size (a smaller screen clamps the window), so a raw offset would
+	 * land the reader somewhere else in the campaign.
+	 */
+	get restoreView() {
+		// ⚠ A MINIMIZED WINDOW'S COLUMN IS HIDDEN and reads 0 down and across, which less the gutter
+		// is the empty corner. So it answers with where it was when it went down (`minimize`).
+		if (this._viewAtMinimize) return this._viewAtMinimize;
+		const scroll = this._scrollColumn();
+		if (!scroll) return null;
+		const { x, y } = this._gutterOf(scroll);
+		return {
+			zoom: this._zoom,
+			left: Math.round(scroll.scrollLeft - x),
+			top:  Math.round(scroll.scrollTop - y),
+		};
+	}
+
+	/** The view is read while the column can still be measured, and kept until the window comes back. */
+	async minimize() {
+		if (!this._minimized && !this._viewAtMinimize) this._viewAtMinimize = this.restoreView;
+		return super.minimize();
+	}
+
+	async maximize() {
+		const done = await super.maximize();
+		this._viewAtMinimize = null;
+		return done;
+	}
+
+	_scrollColumn() {
+		return this.element?.[0]?.querySelector?.(".stonetop-timeline-scroll") ?? null;
+	}
+
+	/** The drag gutter as drag-scroll.js last sized it onto the column. */
+	_gutterOf(scroll) {
+		const px = (name) => Number.parseFloat(scroll.style?.getPropertyValue?.(name)) || 0;
+		return { x: px(GUTTER_X_VAR), y: px(GUTTER_Y_VAR) };
+	}
+
+	/**
+	 * A reload's reopening render carries the view the window was left at (`restoreView`). The zoom
+	 * goes on BEFORE the draw, so the wheel wiring paints it onto the fresh column and the offset
+	 * below is not clamped against an unzoomed picture; the offset goes on after, once the window
+	 * has its saved size and the gutter is measured.
+	 */
+	async _render(force, options = {}) {
+		const view = options?.view;
+		if (view && Number.isFinite(view.zoom)) {
+			this._zoom = clampScale(view.zoom, TIMELINE_ZOOM_MIN, TIMELINE_ZOOM_MAX);
+		}
+		await super._render(force, options);
+		const scroll = view ? this._scrollColumn() : null;
+		if (!scroll) return;
+		const { x, y } = this._gutterOf(scroll);
+		if (Number.isFinite(view.left)) scroll.scrollLeft = x + view.left;
+		if (Number.isFinite(view.top)) scroll.scrollTop = y + view.top;
+	}
 
 	// ── reading ────────────────────────────────────────────────────────────────
 
@@ -517,4 +597,22 @@ export class TimelineWindow extends StonetopDialog {
 /** Open the aggregate, or bring the open one to the front. */
 export function openTimelineWindow() {
 	return openOrFocus(TIMELINE_WINDOW_ID, () => new TimelineWindow().render(true));
+}
+
+/**
+ * The aggregate a reload brings back, from the key it was saved under (TimelineWindow#restoreKey), or
+ * null for any other key. Anyone may open the aggregate, so there is nothing else to ask.
+ *
+ * Handed back unrendered, since utils/window-restore.js draws it where it was left. Minted through
+ * openOrFocus all the same, so the window opened by hand in the moment before the restore draws it is
+ * this one rather than a second frame on the same id.
+ */
+export function reopenTimelineWindow(key) {
+	if (key !== AGGREGATE_RESTORE_KEY) return null;
+	return openOrFocus(TIMELINE_WINDOW_ID, () => new TimelineWindow());
+}
+
+/** Registered once, at module scope in stonetop.js. */
+export function registerTimelineWindowRestore() {
+	registerRestorableWindow(TimelineWindow, RESTORE_KIND, reopenTimelineWindow);
 }
