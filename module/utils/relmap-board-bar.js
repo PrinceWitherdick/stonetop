@@ -29,6 +29,8 @@
 //  • KEYS ARE CLAIMED ON THE BAR AND STOPPED, because core's KeyboardManager listens in the bubble
 //    phase and never looks at `defaultPrevented`.
 
+import { deepenInk, normalizeHex } from "../relmap/relmap-ink.js";
+
 /** The four keys that walk a row of presses, and which way along it each one goes. */
 const ROVE_ARROWS = Object.freeze({ ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 });
 
@@ -196,6 +198,18 @@ export class RelmapBoardBar {
 	 */
 	_wire() {
 		this._on(this.el, "keydown", ev => this._key(ev));
+		if (this.inkHex) {
+			// ⚠ THE ELEMENT'S OWN `change`, NOT ITS TWO INPUTS'. `HTMLColorPickerElement` stops the
+			// events its hex field and its swatch fire and dispatches one of its own from the value
+			// setter, which is the only one that has been through its own normalising.
+			this._on(this.inkHex, "change", ev => {
+				// Painting is not choosing: see `_paintPicker`. Stopped as well as ignored, because
+				// this event bubbles and the window has its own `change` handlers on the bar above.
+				ev.stopPropagation();
+				if (this._paintingInk) return;
+				this._pickCustomInk(this.inkHex.value ?? "");
+			});
+		}
 	}
 
 	/** One key pressed somewhere on the bar. Every bar answers this for itself. */
@@ -394,6 +408,63 @@ export class RelmapBoardBar {
 		if (said === this._saved) return undefined;
 		this._saved = said;
 		return this._onField(this.id, { [this._writing.key]: said });
+	}
+
+	// ── A colour of the reader's own ─────────────────────────────────────────
+	// Both bars hold a picked colour in `_inkPending` under their `held.ink`, and seed one picker.
+
+	/** Throw away a colour that has not been written yet, so nothing later saves it. */
+	_forgetInk() {
+		this._disarm("ink");
+		this._inkPending = "";
+	}
+
+	/** Write the chosen colour, if one is waiting. */
+	_flushInk() {
+		this._disarm("ink");
+		const ink = this._inkPending;
+		this._inkPending = "";
+		if (!ink || !this.id || !this._canEdit()) return undefined;
+		return this._onField(this.id, { ink });
+	}
+
+	/**
+	 * Set what the colour picker (`inkHex`) is holding. ⚠ WRITTEN BEHIND THE FLAG: assigning to its
+	 * `value` makes it dispatch `change`, which is indistinguishable from the reader having chosen,
+	 * so each bar's `change` handler ignores it while `_paintingInk` is up.
+	 */
+	_paintPicker(hex) {
+		const picker = this.inkHex;
+		if (!picker || !hex || picker.value === hex) return;
+		this._paintingInk = true;
+		try { picker.value = hex; } finally { this._paintingInk = false; }
+	}
+
+	/**
+	 * A colour the reader chose for themselves: check it can be followed, then treat it as any pick.
+	 *
+	 * ⚠ DEEPENED RATHER THAN REFUSED, and the reader is TOLD. A dialog that says no to a colour has
+	 * taken the choice away and given nothing back; what somebody picking a pale yellow wants is a
+	 * yellow line, and there is one -- a darker one. So the hue is kept and only the lightness moves,
+	 * the picker is set to what was actually used so its swatch is not lying about the board, and
+	 * `onNudged` says what happened. See `deepenInk`. Held back a breath before it is written.
+	 *
+	 * What showing the colour means is each bar's own `_markInk`, which with `_hexAsked` up keeps the
+	 * picker open on the deepened hex.
+	 */
+	_pickCustomInk(said) {
+		if (!this.id || !this._canEdit()) return;
+		const chose = normalizeHex(said);
+		// A half-typed hex in the picker's text field is not a colour yet. Ignored rather than
+		// refused out loud: the reader is still typing it.
+		if (!chose) return;
+		const { hex, nudged, ratio } = deepenInk(chose);
+		if (!hex) return;
+		if (nudged) this._onNudged(chose, hex, ratio);
+		this._hexAsked = true;
+		this._inkPending = hex;
+		this._markInk(hex);
+		this._defer("ink");
 	}
 
 	/**

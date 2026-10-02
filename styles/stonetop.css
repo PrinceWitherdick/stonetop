@@ -46529,9 +46529,10 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    own, UNDER everything else on the board: it is a region of paper, and the lines, captions and
    faces inside it are drawn over it.
 
-   THE STROKE IS BROKEN so it reads as "a region" and never as one more line between people, and the
-   fill is the ink washed nearly to nothing. The colour is the group's own ink, from the same eight
-   keys as the lines (`.stonetop-relmap-ink--*` sets `--relmap-ink`). */
+   A CLOSED SHAPE WITH THE INK WASHED NEARLY TO NOTHING INSIDE IT, which is what reads as "a region"
+   and never as one more line between people. The stroke is whole unless the group's bar chose it
+   broken (`is-dashed`, `dash` in the stored group). The colour is the group's own ink, from the same
+   eight keys as the lines (`.stonetop-relmap-ink--*` sets `--relmap-ink`). */
 .stonetop-relmap-groups {
 	position: absolute;
 	inset: 0;
@@ -46552,8 +46553,13 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	fill: none;
 	stroke: var(--relmap-ink, var(--st-relmap-ink-slate));
 	stroke-width: 2.5px;
-	stroke-dasharray: 10 6;
 	stroke-linecap: round;
+}
+
+/* THE STROKE SOMEBODY CHOSE BROKEN. Earlier than the held/rested rule below and of the same weight,
+   which is what lets that rule still draw a held outline whole. */
+.stonetop-relmap-group.is-dashed .stonetop-relmap-group-line {
+	stroke-dasharray: 10 6;
 }
 
 /* WHAT A CLICK LANDS ON, as with a line: the outline again, invisible and wide. */
@@ -46567,8 +46573,9 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
 .stonetop-relmap.is-readonly .stonetop-relmap-group-hit { cursor: default; }
 
-/* Held by the group bar, or rested on: heavier, and solid, so the mark is a SHAPE change as well as
-   a weight one. Two marks for one fact, the rule every highlight on this board is written to. */
+/* Held by the group bar, or rested on: heavier, and solid, so on a broken outline the mark is a SHAPE
+   change as well as a weight one. (A whole one has only the weight, and the name chip's ring beside
+   it, which the rule after this paints.) */
 .stonetop-relmap-group.is-picked .stonetop-relmap-group-line,
 .stonetop-relmap-group.is-lit .stonetop-relmap-group-line {
 	stroke-width: 4px;
@@ -49840,7 +49847,14 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 :root.stonetop-high-contrast .stonetop-relmap-group-fill { fill: none; }
 :root.stonetop-high-contrast .stonetop-relmap-group-line {
 	stroke-width: 3.5px;
-	stroke-dasharray: var(--relmap-dash, 10 6);
+	stroke-dasharray: var(--relmap-dash, none);
+}
+
+/* AND AN OUTLINE SOMEBODY BROKE ON PURPOSE KEEPS ITS DASHES, the line's rule above and for its
+   reason: the ink's pattern is a colour said again, this is a mark a reader made by hand. Later and
+   one class heavier, which is what makes it win. */
+:root.stonetop-high-contrast .stonetop-relmap-group.is-dashed .stonetop-relmap-group-line {
+	stroke-dasharray: 10 6;
 }
 
 /* AND A COLOUR NOBODY NAMED IS TAKEN DOWN WITH THE REST, as far as it can be.

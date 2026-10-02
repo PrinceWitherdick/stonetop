@@ -639,12 +639,38 @@
         {{/each}}
       </div>
 
+      {{!-- A COLOUR OF THE READER'S OWN, OUTSIDE THE RADIOGROUP: the `+` asks a second question rather
+            than answering the first. It shows Foundry's `<color-picker>`, the tie bar's own element
+            for the tie bar's reasons -- rendered always and hidden, because a custom element has to
+            be connected to build its two inputs. Shown by the bar for a group already wearing a hex,
+            which then lights none of the eight. --}}
+      <div class="stonetop-relmap-tiebar-group stonetop-relmap-groupbar-own">
+        <button type="button" class="stonetop-relmap-tiebar-btn stonetop-relmap-groupbar-inkmore"
+                data-relmap-gbar="inkmore" aria-expanded="false"
+                aria-label="{{inkCustomField}}" data-tooltip="{{inkCustomField}}">
+          <i class="fas fa-plus"></i>
+        </button>
+        <color-picker class="stonetop-relmap-tiebar-hex" data-relmap-gbar="inkhex"
+                      aria-label="{{inkCustomField}}" data-tooltip="{{inkCustomField}}"
+                      value="" hidden></color-picker>
+      </div>
+
       <div class="stonetop-relmap-tiebar-group" role="radiogroup" aria-label="{{groupBar.shape}}">
         {{#each groupBar.shapes}}
         <button type="button" class="stonetop-relmap-tiebar-btn" data-relmap-gbar="shape"
                 data-relmap-gbar-value="{{key}}" role="radio" aria-checked="false" tabindex="-1"
                 aria-label="{{name}}" data-tooltip="{{name}}">
           <i class="{{icon}}"></i>
+        </button>
+        {{/each}}
+      </div>
+
+      <div class="stonetop-relmap-tiebar-group" role="radiogroup" aria-label="{{groupBar.dash}}">
+        {{#each groupBar.dashes}}
+        <button type="button" class="stonetop-relmap-tiebar-btn" data-relmap-gbar="dash"
+                data-relmap-gbar-value="{{key}}" role="radio" aria-checked="false" tabindex="-1"
+                aria-label="{{name}}" data-tooltip="{{name}}">
+          <span class="stonetop-relmap-tiebar-rule stonetop-relmap-tiebar-rule--{{key}}" aria-hidden="true"></span>
         </button>
         {{/each}}
       </div>

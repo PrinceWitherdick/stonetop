@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { describeWrite, stepPatch } from "../../module/relmap/relmap-history.js";
 import {
-	RELMAP_GROUP_SHAPES, addGroupPatch, dropGroupPatch, dropNodePatch, emptyGraph, groupMemberIds,
+	RELMAP_GROUP_DASHES, RELMAP_GROUP_SHAPES, addGroupPatch, dropGroupPatch, dropNodePatch, emptyGraph, groupMemberIds,
 	groupMembersPatch, groupPatch, groupsOf, normalizeGraph, relmapPath,
 } from "../../module/relmap/relmap-store.js";
 import {
@@ -61,9 +61,25 @@ describe("reading a stored group back", () => {
 		expect(normalizeGraph({ nodes: {}, edges: {} }).groups).toEqual({});
 	});
 
-	it("keeps the name, the shape and the ink, and every field even on a bare group", () => {
+	it("keeps the name, the shape, the stroke and the ink, and every field even on a bare group", () => {
 		const got = normalizeGraph({ nodes: { a: { name: "A" } }, groups: { g: { members: { a: true } } } });
-		expect(got.groups.g).toEqual({ name: "", shape: "box", ink: "slate", members: { a: true } });
+		expect(got.groups.g).toEqual({ name: "", shape: "box", dash: "solid", ink: "slate", members: { a: true } });
+	});
+
+	// SOLID UNLESS SOMEBODY CHOSE DASHES. Every group stored before the stroke was a choice has no
+	// `dash` at all, and the table asked for those to draw whole.
+	it("reads an absent or unknown stroke as solid, and keeps a dashed one", () => {
+		const got = graph({
+			groups: {
+				old: { members: { ordga: true } },
+				dots: { dash: "dotted", members: { ordga: true } },
+				broken: { dash: "dashed", members: { ordga: true } },
+			},
+		});
+		expect(got.groups.old.dash).toBe("solid");
+		expect(got.groups.dots.dash).toBe("solid");
+		expect(got.groups.broken.dash).toBe("dashed");
+		expect(RELMAP_GROUP_DASHES).toEqual(["solid", "dashed"]);
 	});
 
 	it("reads an unknown shape as a box and an unknown ink as slate", () => {
@@ -105,6 +121,7 @@ describe("the shape of a group write", () => {
 		expect(patch).toEqual({
 			[`${PREFIX}.groups.g1.name`]: "Elders",
 			[`${PREFIX}.groups.g1.shape`]: "box",
+			[`${PREFIX}.groups.g1.dash`]: "solid",
 			[`${PREFIX}.groups.g1.ink`]: "plum",
 			[`${PREFIX}.groups.g1.members.ordga`]: true,
 			[`${PREFIX}.groups.g1.members.pell`]: true,
@@ -122,6 +139,11 @@ describe("the shape of a group write", () => {
 	it("never writes members as a whole object", () => {
 		const patch = groupPatch("g1", { name: "Hunters", members: { ordga: true } });
 		expect(Object.keys(patch)).toEqual([`${PREFIX}.groups.g1.name`]);
+	});
+
+	it("writes a stroke it knows and refuses one it does not", () => {
+		expect(groupPatch("g1", { dash: "dashed" })).toEqual({ [`${PREFIX}.groups.g1.dash`]: "dashed" });
+		expect(groupPatch("g1", { dash: "wavy" })).toEqual({ [`${PREFIX}.groups.g1.dash`]: "solid" });
 	});
 
 	it("puts people in and takes people out, one leaf each", () => {
@@ -185,7 +207,7 @@ describe("taking a group change back", () => {
 
 	it("takes a rename or a recolour back", () => {
 		const before = graph();
-		const patch = groupPatch("hunt", { name: "Trappers", ink: "rust", shape: "oval" });
+		const patch = groupPatch("hunt", { name: "Trappers", ink: "rust", shape: "oval", dash: "dashed" });
 		const change = describeWrite(before, patch);
 		const after = afterPatch(before, patch);
 		const back = afterPatch(after, stepPatch(after, change.back));

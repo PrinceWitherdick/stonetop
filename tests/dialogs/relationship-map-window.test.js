@@ -2600,6 +2600,19 @@ describe("the colours of the table's own already on a board", () => {
 		expect(app._inksInUse()).toEqual(["#7a2f8a", "#1d5f4a"]);
 	});
 
+	// A group's outline drawn in the table's purple is that purple on this map as much as a line is.
+	it("counts the colours of the groups too", () => {
+		const { app } = windowFor({
+			...MANY_INKS,
+			groups: {
+				g1: { name: "Hunters", shape: "box", dash: "solid", ink: "#1d5f4a", members: { elena: true } },
+				g2: { name: "Elders", shape: "oval", dash: "solid", ink: "#1d5f4a", members: { stefan: true } },
+				g3: { name: "Kin", shape: "box", dash: "solid", ink: "#3a4fa0", members: { elena: true } },
+			},
+		});
+		expect(app._inksInUse()).toEqual(["#1d5f4a", "#7a2f8a", "#3a4fa0"]);
+	});
+
 	it("offers nothing at all for a board drawn only in the eight", () => {
 		const { app } = windowFor();
 		expect(app._inksInUse()).toEqual([]);

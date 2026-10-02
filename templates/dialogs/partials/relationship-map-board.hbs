@@ -29,8 +29,9 @@
      aria-hidden="true" focusable="false">
   {{#each groups}}
   {{!-- `stonetop-relmap-line--<ink>` as well, for the ink's own dash pattern, which the
-        high-contrast skin draws the outline in so its colour is never the only thing saying it. --}}
-  <g class="stonetop-relmap-group stonetop-relmap-ink--{{inkKey}} stonetop-relmap-line--{{inkKey}}"
+        high-contrast skin draws the outline in so its colour is never the only thing saying it.
+        `is-dashed` is the stroke somebody CHOSE for it; whole is the absence of the modifier. --}}
+  <g class="stonetop-relmap-group stonetop-relmap-ink--{{inkKey}} stonetop-relmap-line--{{inkKey}}{{#if dashed}} is-dashed{{/if}}"
      data-relmap-group-shape="{{id}}"
      data-relmap-members="{{members}}" {{#if inkHex}}style="--relmap-ink-raw:{{inkHex}}"{{/if}}>
     <path class="stonetop-relmap-group-fill" d="{{d}}"></path>

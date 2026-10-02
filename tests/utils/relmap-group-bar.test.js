@@ -22,17 +22,26 @@ function barDom() {
 		inks[key] = boardEl({ dataset: { relmapGbar: "ink", relmapGbarValue: key }, parent: bar });
 		inks[key].focus = () => { inks[key].focused = true; };
 	}
+	const inkMore = boardEl({ dataset: { relmapGbar: "inkmore" }, parent: bar });
+	const inkHex = boardEl({ dataset: { relmapGbar: "inkhex" }, parent: bar });
+	inkHex.hidden = true;
+	inkHex.value = "";
+	inkHex.focus = vi.fn();
 	const shapes = {};
 	for (const key of ["box", "oval"]) {
 		shapes[key] = boardEl({ dataset: { relmapGbar: "shape", relmapGbarValue: key }, parent: bar });
 	}
+	const dashes = {};
+	for (const key of ["solid", "dashed"]) {
+		dashes[key] = boardEl({ dataset: { relmapGbar: "dash", relmapGbarValue: key }, parent: bar });
+	}
 	const add = boardEl({ dataset: { relmapGbar: "add", relmapSaid: "Put the {count} selected in" }, parent: bar });
 	const take = boardEl({ dataset: { relmapGbar: "take", relmapSaid: "Take the {count} selected out" }, parent: bar });
 	const drop = boardEl({ dataset: { relmapGbar: "drop" }, parent: bar });
-	return { root, view, bar, name, inks, shapes, add, take, drop };
+	return { root, view, bar, name, inks, inkMore, inkHex, shapes, dashes, add, take, drop };
 }
 
-const HUNTERS = { name: "The hunters", shape: "box", ink: "green", members: { n1: true, n2: true } };
+const HUNTERS = { name: "The hunters", shape: "box", dash: "solid", ink: "green", members: { n1: true, n2: true } };
 
 function setUp({ group = HUNTERS, selected = [], canEdit = () => true } = {}) {
 	const dom = barDom();
@@ -49,6 +58,7 @@ function setUp({ group = HUNTERS, selected = [], canEdit = () => true } = {}) {
 		onDrop: vi.fn(),
 		onPicked: vi.fn(),
 		selected: () => state.selected,
+		onNudged: vi.fn(),
 		canEdit,
 	};
 	const bar = new RelmapGroupBar(dom.root, handlers);
@@ -76,6 +86,8 @@ describe("opening the bar on a group", () => {
 		expect(dom.inks.green.attrs["aria-checked"]).toBe("true");
 		expect(dom.inks.rose.attrs["aria-checked"]).toBe("false");
 		expect(dom.shapes.box.attrs["aria-checked"]).toBe("true");
+		expect(dom.dashes.solid.attrs["aria-checked"]).toBe("true");
+		expect(dom.dashes.dashed.attrs["aria-checked"]).toBe("false");
 		expect(handlers.onPicked).toHaveBeenLastCalledWith("g1");
 		// A click on a group does not pull the focus off the board; only asking for it does.
 		expect(dom.name.focus).not.toHaveBeenCalled();
@@ -151,6 +163,15 @@ describe("the presses", () => {
 		expect(handlers.onField).toHaveBeenLastCalledWith("g1", { shape: "oval" });
 	});
 
+	it("writes the outline's stroke, and marks it at once", () => {
+		const { dom, bar, handlers } = setUp();
+		bar.open("g1");
+		press(dom.dashes.dashed);
+		expect(handlers.onField).toHaveBeenLastCalledWith("g1", { dash: "dashed" });
+		expect(dom.dashes.dashed.attrs["aria-checked"]).toBe("true");
+		expect(dom.dashes.solid.attrs["aria-checked"]).toBe("false");
+	});
+
 	it("offers to add or take out the selected only when that would do something, with the count", () => {
 		const { dom, bar } = setUp({ selected: ["n1", "n3", "n4"] });
 		bar.open("g1");
@@ -214,6 +235,109 @@ describe("the presses", () => {
 		press(dom.drop);
 		expect(handlers.onField).not.toHaveBeenCalled();
 		expect(handlers.onDrop).not.toHaveBeenCalled();
+	});
+});
+
+// A COLOUR OF THE READER'S OWN, through Foundry's picker behind the `+`: the tie bar's ninth answer,
+// with the tie bar's guard on it (a pale colour is deepened until a reader on a magnifier can follow
+// the outline, and said so) and the tie bar's hold (the picker fires `change` per keystroke).
+describe("a colour of the reader's own", () => {
+	const pick = (dom, hex) => {
+		dom.inkHex.value = hex;
+		dom.inkHex.handlers.change.forEach(fn => fn({ stopPropagation() {} }));
+	};
+
+	it("keeps the picker away until the + asks for it, then opens it on the group's colour", () => {
+		const { dom, bar, handlers } = setUp({ group: { ...HUNTERS, ink: "#7a2f8a" } });
+		bar.open("g1");
+		// A group already wearing a hex shows it in the picker, and lights none of the eight.
+		expect(dom.inkHex.hidden).toBe(false);
+		expect(dom.inkHex.value).toBe("#7a2f8a");
+		expect(dom.inkMore.classes).toContain("is-chosen");
+		expect(Object.values(dom.inks).some(one => one.attrs["aria-checked"] === "true")).toBe(false);
+		bar.close();
+
+		const plain = setUp();
+		plain.bar.open("g1");
+		expect(plain.dom.inkHex.hidden).toBe(true);
+		press(plain.dom.inkMore);
+		expect(plain.dom.inkHex.hidden).toBe(false);
+		expect(plain.dom.inkHex.focus).toHaveBeenCalled();
+		expect(plain.dom.inkMore.attrs["aria-expanded"]).toBe("true");
+		// Opening it writes nothing: the group keeps its green until a colour is chosen.
+		expect(plain.handlers.onField).not.toHaveBeenCalled();
+		expect(handlers.onField).not.toHaveBeenCalled();
+	});
+
+	it("writes a picked colour once the picking stops, as one write", () => {
+		const { dom, bar, handlers } = setUp();
+		bar.open("g1");
+		press(dom.inkMore);
+		pick(dom, "#7a2f8a");
+		pick(dom, "#1d5f4a");
+		expect(handlers.onField).not.toHaveBeenCalled();
+		expect(bar.isWriting()).toBe(true);
+		vi.advanceTimersByTime(1000);
+		expect(handlers.onField).toHaveBeenCalledTimes(1);
+		expect(handlers.onField).toHaveBeenCalledWith("g1", { ink: "#1d5f4a" });
+		expect(dom.inks.green.attrs["aria-checked"]).toBe("false");
+	});
+
+	it("deepens a colour too pale to follow, and says so", () => {
+		const { dom, bar, handlers } = setUp();
+		bar.open("g1");
+		press(dom.inkMore);
+		pick(dom, "#ffffaa");
+		bar.close();
+		const [chose, used] = handlers.onNudged.mock.calls[0];
+		expect(chose).toBe("#ffffaa");
+		expect(used).not.toBe("#ffffaa");
+		expect(handlers.onField).toHaveBeenCalledWith("g1", { ink: used });
+	});
+
+	it("drops a colour still waiting when one of the eight is pressed, and puts the picker away", () => {
+		const { dom, bar, handlers } = setUp();
+		bar.open("g1");
+		press(dom.inkMore);
+		pick(dom, "#7a2f8a");
+		press(dom.inks.rose);
+		vi.advanceTimersByTime(1000);
+		expect(handlers.onField.mock.calls).toEqual([["g1", { ink: "rose" }]]);
+		expect(dom.inkHex.hidden).toBe(true);
+	});
+
+	// Written a moment before the delete, the colour would be a second change for one press of undo.
+	it("writes no colour still waiting onto a group that is rubbed out", () => {
+		const { dom, bar, handlers } = setUp();
+		bar.open("g1");
+		press(dom.inkMore);
+		pick(dom, "#7a2f8a");
+		press(dom.drop);
+		vi.advanceTimersByTime(1000);
+		expect(handlers.onDrop).toHaveBeenCalledWith("g1");
+		expect(handlers.onField).not.toHaveBeenCalled();
+	});
+
+	it("keeps the picker up and the reader's colour on a repaint mid-pick", () => {
+		const { dom, bar, state } = setUp();
+		bar.open("g1");
+		press(dom.inkMore);
+		pick(dom, "#7a2f8a");
+		state.group = { ...HUNTERS, name: "Theirs" };
+		bar.refresh();
+		expect(dom.inkHex.hidden).toBe(false);
+		expect(dom.inkHex.value).toBe("#7a2f8a");
+		expect(dom.inks.green.attrs["aria-checked"]).toBe("false");
+	});
+
+	it("writes nothing for a reader who may only look", () => {
+		const { dom, bar, handlers } = setUp({ canEdit: () => false });
+		bar.open("g1");
+		press(dom.inkMore);
+		expect(dom.inkHex.hidden).toBe(true);
+		pick(dom, "#7a2f8a");
+		vi.advanceTimersByTime(1000);
+		expect(handlers.onField).not.toHaveBeenCalled();
 	});
 });
 

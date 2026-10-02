@@ -437,6 +437,23 @@ export function readGroupShape(value) {
 	return RELMAP_GROUP_SHAPES.includes(value) ? value : RELMAP_GROUP_SHAPE_DEFAULT;
 }
 
+/**
+ * THE TWO STROKES A GROUP'S OUTLINE CAN BE DRAWN WITH: whole, or broken into dashes. Two and not the
+ * line's three (RELMAP_DASHES): a group is a region of paper and not a tie, so "the tie nobody is
+ * sure of" has no meaning for it, and dots round a box read as a ruled-off margin. The same KEYS as
+ * the line's, so a stroke means one word wherever it is stored.
+ *
+ * SOLID BY DEFAULT, which every group drawn before this existed reads as: they were all dashed, and
+ * the table asked for whole outlines unless somebody chose otherwise.
+ */
+export const RELMAP_GROUP_DASHES = Object.freeze(["solid", RELMAP_DASH_DASHED]);
+export const RELMAP_GROUP_DASH_DEFAULT = "solid";
+
+/** One stored group stroke, read safely. Unknown and absent both read as solid. */
+export function readGroupDash(value) {
+	return RELMAP_GROUP_DASHES.includes(value) ? value : RELMAP_GROUP_DASH_DEFAULT;
+}
+
 /** A map with nobody on it yet. */
 export function emptyGraph() {
 	return { version: RELMAP_VERSION, nodes: {}, edges: {}, groups: {} };
@@ -512,7 +529,7 @@ export function normalizeGraph(raw) {
 		};
 	}
 
-	// GROUPS: a name, a shape, an ink, and WHO IS IN IT. Every field is emitted on every group, even an
+	// GROUPS: a name, a shape, a stroke, an ink, and WHO IS IN IT. Every field is emitted on every group, even an
 	// empty one, because the undo stack can only reverse a field it can read the old value of.
 	for (const [id, group] of Object.entries(raw.groups ?? {})) {
 		if (!isSafeId(id) || !group || typeof group !== "object") continue;
@@ -527,6 +544,7 @@ export function normalizeGraph(raw) {
 		graph.groups[id] = {
 			name: str(group.name, RELMAP_LABEL_MAX),
 			shape: readGroupShape(group.shape),
+			dash: readGroupDash(group.dash),
 			ink: readInk(group.ink),
 			members,
 		};
@@ -609,6 +627,7 @@ const EDGE_GATES = Object.freeze({
 const GROUP_GATES = Object.freeze({
 	name: v => str(v, RELMAP_LABEL_MAX),
 	shape: readGroupShape,
+	dash: readGroupDash,
 	ink: readInk,
 });
 
@@ -748,12 +767,13 @@ export function groupMembersPatch(id, add = [], remove = []) {
  * Null when there is nobody to put in it: a group with no one inside has no outline to draw.
  */
 export function addGroupPatch(id, {
-	name = "", shape = RELMAP_GROUP_SHAPE_DEFAULT, ink = RELMAP_INK_DEFAULT, members = [],
+	name = "", shape = RELMAP_GROUP_SHAPE_DEFAULT, dash = RELMAP_GROUP_DASH_DEFAULT,
+	ink = RELMAP_INK_DEFAULT, members = [],
 } = {}) {
 	if (!isSafeId(id)) return null;
 	const into = groupMembersPatch(id, members);
 	if (!into) return null;
-	return { ...groupPatch(id, { name, shape, ink }), ...into };
+	return { ...groupPatch(id, { name, shape, dash, ink }), ...into };
 }
 
 /** Rub out one group. The people in it stay exactly where they are. */

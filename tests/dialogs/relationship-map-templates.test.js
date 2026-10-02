@@ -1246,6 +1246,13 @@ describe("the groups on a board", () => {
 		expect(html.match(/d="M 10 10 H 90 Z"/g)).toHaveLength(3);
 	});
 
+	// Whole is the absence of the modifier, as it is on a line.
+	it("marks an outline drawn in dashes, and only that one", () => {
+		expect(renderBoard(withGroups([group]))).not.toContain("is-dashed");
+		const html = renderBoard(withGroups([{ ...group, dashed: true }]));
+		expect(html).toMatch(/<g class="stonetop-relmap-group [^"]* is-dashed"[^>]*data-relmap-group-shape="g1"/);
+	});
+
 	it("puts the names after the captions and before the people", () => {
 		const html = renderBoard(withGroups([group]));
 		const name = html.indexOf('data-relmap-group="g1"');
@@ -1275,12 +1282,21 @@ describe("the groups on a board", () => {
 	it("leaves the group bar standing, hidden, outside the board", () => {
 		const html = renderWindow({
 			canEdit: true, inks: [{ key: "rose", name: "Rose" }],
-			groupBar: { label: "Group", shapes: [{ key: "box", name: "Box", icon: "far fa-square" }], add: "Put {count} in" },
+			groupBar: {
+				label: "Group", shapes: [{ key: "box", name: "Box", icon: "far fa-square" }], add: "Put {count} in",
+				dash: "Outline line", dashes: [{ key: "solid", name: "Solid line" }, { key: "dashed", name: "Dashed line" }],
+			},
 		});
 		expect(html).toMatch(/<div class="stonetop-relmap-groupbar"[^>]*hidden>/);
 		expect(html).toContain('data-relmap-gbar="name"');
 		expect(html).toContain('data-relmap-gbar="ink" data-relmap-gbar-value="rose"');
+		// A colour of the reader's own: the `+`, and Foundry's picker standing hidden for it.
+		expect(html).toContain('data-relmap-gbar="inkmore"');
+		expect(html).toMatch(/<color-picker[^>]*data-relmap-gbar="inkhex"[^>]*hidden>/);
 		expect(html).toContain('data-relmap-gbar="shape"');
+		expect(html).toContain('role="radiogroup" aria-label="Outline line"');
+		expect(html).toMatch(/data-relmap-gbar="dash"\s+data-relmap-gbar-value="dashed"/);
+		expect(html).toContain("stonetop-relmap-tiebar-rule--dashed");
 		expect(html).toContain('data-relmap-said="Put {count} in"');
 		expect(html.indexOf("stonetop-relmap-groupbar")).toBeGreaterThan(html.indexOf("stonetop-relmap-board"));
 	});

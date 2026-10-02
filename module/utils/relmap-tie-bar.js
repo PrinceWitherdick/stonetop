@@ -68,7 +68,7 @@ import {
 	readSize,
 } from "../relmap/relmap-store.js";
 import {
-	RELMAP_INK_CUSTOM, RELMAP_INK_PRESETS, deepenInk, inkPaint, normalizeHex, resolveInkHex,
+	RELMAP_INK_CUSTOM, RELMAP_INK_PRESETS, inkPaint, normalizeHex, resolveInkHex,
 } from "../relmap/relmap-ink.js";
 import { RELMAP_CAPTION_PX, curvePoints } from "./relmap-geometry.js";
 import { RelmapBoardBar, markChosen } from "./relmap-board-bar.js";
@@ -491,18 +491,7 @@ export class RelmapTieBar extends RelmapBoardBar {
 			}
 		});
 
-		if (this.inkHex) {
-			// ⚠ THE ELEMENT'S OWN `change`, NOT ITS TWO INPUTS'. `HTMLColorPickerElement` stops the
-			// events its hex field and its swatch fire and dispatches one of its own from the value
-			// setter, which is the only one that has been through its own normalising.
-			this._on(this.inkHex, "change", ev => {
-				// Painting is not choosing: see `_paintingInk`. Stopped as well as ignored, because
-				// this event bubbles and the window has its own `change` handlers on the bar above.
-				ev.stopPropagation();
-				if (this._paintingInk) return;
-				this._pickCustomInk(this.inkHex.value ?? "");
-			});
-		}
+		// The colour picker's own `change` is the base's (`RelmapBoardBar#_wire`).
 
 		if (this.words) {
 			// EVERY keystroke arms the timer; nothing writes until it runs out. See TIE_WRITE_DELAY_MS.
@@ -1154,9 +1143,7 @@ export class RelmapTieBar extends RelmapBoardBar {
 		const picker = this.inkHex;
 		if (!picker) return;
 		picker.hidden = !open;
-		if (!open || !hex || picker.value === hex) return;
-		this._paintingInk = true;
-		try { picker.value = hex; } finally { this._paintingInk = false; }
+		if (open) this._paintPicker(hex);
 	}
 
 	// ── The panels ──────────────────────────────────────────────────────────
@@ -1407,32 +1394,6 @@ export class RelmapTieBar extends RelmapBoardBar {
 	}
 
 	/**
-	 * A colour the reader chose for themselves: check it can be followed, then treat it as any pick.
-	 *
-	 * ⚠ DEEPENED RATHER THAN REFUSED, and the reader is TOLD. A dialog that says no to a colour has
-	 * taken the choice away and given nothing back; what somebody picking a pale yellow wants is a
-	 * yellow line, and there is one -- a darker one. So the hue is kept and only the lightness moves,
-	 * the picker is set to what was actually used so its swatch is not lying about the board, and
-	 * `onNudged` says what happened. See `deepenInk`.
-	 */
-	_pickCustomInk(said) {
-		if (!this.id || !this._canEdit()) return;
-		const chose = normalizeHex(said);
-		// A half-typed hex in the picker's text field is not a colour yet. Ignored rather than
-		// refused out loud: the reader is still typing it.
-		if (!chose) return;
-		const { hex, nudged, ratio } = deepenInk(chose);
-		if (!hex) return;
-		if (nudged) {
-			this._showPicker(true, hex);
-			this._onNudged(chose, hex, ratio);
-		}
-		this._markInk(hex);
-		this._inkPending = hex;
-		this._defer("ink");
-	}
-
-	/**
 	 * The caption this bar is floating over has been dragged along its own line: come with it.
 	 *
 	 * ⚠ NOT `refresh`, WHICH IS THE OTHER WAY THE BAR LEARNS A LINE HAS MOVED. That one is for a
@@ -1635,22 +1596,7 @@ export class RelmapTieBar extends RelmapBoardBar {
 	// Holding back and letting go of TIE_DEFERRED's three ("words", "ink", "size") is the base's
 	// `_defer` and `_disarm`.
 
-	// ── The colour ──────────────────────────────────────────────────────────
-
-	/** Throw away a colour that has not been written yet, so nothing later saves it. */
-	_forgetInk() {
-		this._disarm("ink");
-		this._inkPending = "";
-	}
-
-	/** Write the chosen colour, if one is waiting. */
-	_flushInk() {
-		this._disarm("ink");
-		const ink = this._inkPending;
-		this._inkPending = "";
-		if (!ink || !this.id || !this._canEdit()) return undefined;
-		return this._onField(this.id, { ink });
-	}
+	// Throwing away and writing a held colour (`_forgetInk`, `_flushInk`) are the base's.
 
 	// ── The size ────────────────────────────────────────────────────────────
 

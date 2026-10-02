@@ -37,7 +37,7 @@ import {
 	edgeCurve, edgeLabelAnchor, freeSpot, groupShapes, groupsInside, seatAlong, spreadLabels,
 } from "../utils/relmap-geometry.js";
 import {
-	RELMAP_DASHES, RELMAP_DASH_DEFAULT, RELMAP_DIRS, RELMAP_FLAG, RELMAP_GROUP_SHAPES, RELMAP_INKS,
+	RELMAP_DASHES, RELMAP_DASH_DEFAULT, RELMAP_DIRS, RELMAP_FLAG, RELMAP_GROUP_DASHES, RELMAP_GROUP_SHAPES, RELMAP_INKS,
 	RELMAP_LABEL_MAX, RELMAP_SEAT_MIN, RELMAP_SIZES, RELMAP_SIZE_MAX, RELMAP_SIZE_MIN,
 	addEdgePatch, addGroupPatch,
 	addNodePatch, addNodesPatch, dropEdgePatch, dropGroupPatch, dropNodePatch, edgePatch, fanIndexes,
@@ -734,6 +734,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 					name: localize(`stonetop.relmap.groups.shapes.${key}`),
 					icon: key === "oval" ? "far fa-circle" : "far fa-square",
 				})),
+				// The stroke, in the line bar's own words and drawn with its own sample: one stroke
+				// is one name wherever it is chosen.
+				dash: localize("stonetop.relmap.groups.dash"),
+				dashes: RELMAP_GROUP_DASHES.map(key => ({ key, name: localize(`stonetop.relmap.dashes.${key}`) })),
 				add: localize("stonetop.relmap.groups.addSelected"),
 				take: localize("stonetop.relmap.groups.takeSelected"),
 				drop: localize("stonetop.relmap.groups.drop"),
@@ -1247,6 +1251,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 			const said = format("stonetop.relmap.groups.says", { name: named, who });
 			return {
 				id, ...inkPaint(group.ink), d: outline.d, members: members.join(" "),
+				dashed: group.dash === "dashed",
 				name: group.name, align: outline.name.align,
 				nameLeft: outline.name.left, nameTop: outline.name.top,
 				tooltip: said,
@@ -1432,6 +1437,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 			onDrop: id => this._dropGroup(id),
 			onPicked: id => this._paintPickedGroup(id),
 			selected: () => this._selected,
+			// The tie bar's notice, naming the outline rather than a line. See `deepenInk`.
+			onNudged: (chose, used) => ui.notifications?.info?.(
+				format("stonetop.relmap.groups.inkDeepened", { chose, used }),
+			),
 			canEdit: () => this.canEdit,
 		});
 
@@ -3905,11 +3914,15 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * offers the first of them first. Ties keep the order the lines were drawn in, which is stable
 	 * across clients: `Object.values` walks a graph's edges in insertion order, and every client
 	 * reads the same stored object.
+	 *
+	 * GROUPS COUNT TOO, after the lines: an outline drawn in the table's purple is that purple on
+	 * this map as much as a line is, and the next line wanting to match it should find it offered.
 	 */
 	_inksInUse() {
-		const edges = Object.values(readGraph(this.boardDoc)?.edges ?? {});
+		const graph = readGraph(this.boardDoc);
+		const inked = [...Object.values(graph?.edges ?? {}), ...Object.values(graph?.groups ?? {})];
 		const counted = new Map();
-		for (const edge of edges) {
+		for (const edge of inked) {
 			const hex = normalizeHex(edge?.ink);
 			if (hex) counted.set(hex, (counted.get(hex) ?? 0) + 1);
 		}

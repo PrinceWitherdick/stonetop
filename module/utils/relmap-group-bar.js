@@ -1,4 +1,4 @@
-// The bar a group raises: what it is called, what colour and shape its outline is, who is in it,
+// The bar a group raises: what it is called, what colour, shape and stroke its outline is, who is in it,
 // and the button that rubs it out.
 //
 // THE TIE BAR'S SMALLER SIBLING (utils/relmap-tie-bar.js), and it keeps the same house rules for the
@@ -9,7 +9,9 @@
 // asks that a line does not.
 
 import { RelmapBoardBar, markChosen } from "./relmap-board-bar.js";
-import { TIE_WRITE_DELAY_MS } from "./relmap-tie-bar.js";
+import { TIE_INK_DELAY_MS, TIE_WRITE_DELAY_MS } from "./relmap-tie-bar.js";
+import { normalizeHex, resolveInkHex } from "../relmap/relmap-ink.js";
+import { RELMAP_INK_DEFAULT } from "../relmap/relmap-store.js";
 
 /** The gap between the group's name and the bar over it, how close the bar may come to the
  * viewport's edge, and how far below the name it drops when there is no room for it above (a name
@@ -17,11 +19,17 @@ import { TIE_WRITE_DELAY_MS } from "./relmap-tie-bar.js";
 const GROUP_BAR_SPACING = Object.freeze({ gap: 12, edge: 6, drop: 22 });
 
 /** The presses that are one of several, walked with the arrow keys. */
-const GROUP_RADIOS = ["ink", "shape"];
+const GROUP_RADIOS = ["ink", "shape", "dash"];
 
-/** The one answer this bar holds back before writing: the name, for the tie bar's caption's reason. */
+/**
+ * The answers this bar holds back before writing: the name, for the tie bar's caption's reason, and
+ * a colour of the reader's own, for the tie bar's colour's reason -- Foundry's picker fires `change`
+ * per keystroke in its hex field and per stop of a drag round the system dialog, and each one would
+ * be a broadcast. The eight discs are NOT held: one press is one answer, written at once.
+ */
 const GROUP_HELD = Object.freeze({
 	name: { ms: TIE_WRITE_DELAY_MS, flush: bar => bar.flush() },
+	ink: { ms: TIE_INK_DELAY_MS, flush: bar => bar._flushInk() },
 });
 
 /** Mark which one of a row of radio presses is set, and give only that one the tab stop. */
@@ -35,17 +43,19 @@ export class RelmapGroupBar extends RelmapBoardBar {
 	 * @param {Function} handlers.groupAt  `id => {group, members, at}|null`: the group as it stands
 	 *        now, who is in it, and where its name sits on the board in percentages. Null when it is
 	 *        gone, which closes the bar.
-	 * @param {Function} handlers.onField  `(id, fields) => Promise`: write the name, ink or shape.
+	 * @param {Function} handlers.onField  `(id, fields) => Promise`: write the name, ink, shape or stroke.
 	 * @param {Function} handlers.onMembers `(id, "add"|"take") => void`: put the selected people in,
 	 *        or take them out.
 	 * @param {Function} handlers.onDrop   `id => void`: rub the group out. Its people stay.
 	 * @param {Function} handlers.onPicked `id => void`: mark which outline this bar belongs to, or
 	 *        none for "".
 	 * @param {Function} handlers.selected `() => string[]`: who is selected on the board.
+	 * @param {Function} handlers.onNudged `(chose, used) => void`: a colour of the reader's own was
+	 *        too pale to follow on this board and was deepened to `used`. The tie bar's handler.
 	 * @param {Function} handlers.canEdit  `() => boolean`.
 	 */
 	constructor(root, {
-		surface, groupAt, onField, onMembers, onDrop, onPicked, selected, canEdit = () => true,
+		surface, groupAt, onField, onMembers, onDrop, onPicked, selected, onNudged, canEdit = () => true,
 	} = {}) {
 		super(root, {
 			bar: ".stonetop-relmap-groupbar",
@@ -58,8 +68,18 @@ export class RelmapGroupBar extends RelmapBoardBar {
 		this._onMembers = onMembers ?? (() => {});
 		this._onDrop = onDrop ?? (() => {});
 		this._selected = selected ?? (() => []);
+		this._onNudged = onNudged ?? (() => {});
 
 		this.name = this._field;
+		/** The press that offers a colour of the reader's own, and Foundry's picker it shows. */
+		this.inkMore = this.el?.querySelector?.("[data-relmap-gbar='inkmore']") ?? null;
+		this.inkHex = this.el?.querySelector?.("[data-relmap-gbar='inkhex']") ?? null;
+		/** A colour chosen in the picker and not yet written: what the bar shows meanwhile. */
+		this._inkPending = "";
+		/** Whether the reader asked for the picker with the `+`, so a repaint does not put it away. */
+		this._hexAsked = false;
+		/** Set while the bar writes the picker's value itself, whose setter fires `change`. */
+		this._paintingInk = false;
 		this.add = this.el?.querySelector?.("[data-relmap-gbar='add']") ?? null;
 		this.take = this.el?.querySelector?.("[data-relmap-gbar='take']") ?? null;
 		this._wire();
@@ -69,7 +89,7 @@ export class RelmapGroupBar extends RelmapBoardBar {
 		if (!this.el) return;
 		for (const button of this.el.querySelectorAll("[data-relmap-gbar]")) {
 			const what = button.dataset.relmapGbar;
-			if (what === "name") continue;
+			if (what === "name" || what === "inkhex") continue;
 			this._on(button, "click", ev => {
 				ev.preventDefault();
 				ev.stopPropagation();
@@ -81,6 +101,7 @@ export class RelmapGroupBar extends RelmapBoardBar {
 			this._on(this.name, "blur", () => this.flush());
 			this._on(this.name, "change", ev => ev.stopPropagation());
 		}
+		// The colour picker's own `change` is the base's (`RelmapBoardBar#_wire`).
 		super._wire();
 	}
 
@@ -118,8 +139,9 @@ export class RelmapGroupBar extends RelmapBoardBar {
 		if (what === "drop") {
 			// Nothing half-typed is written onto a group that is about to go: it would be a second
 			// change recorded a moment before the first, and one press of undo would not undo both.
-			this._forgetWriting();
-			this.close();
+			// `discard`, not `_forgetWriting`: a colour still waiting in the picker is the same
+			// second change, and `close`'s flush would write it.
+			this.discard();
 			this._onDrop(id);
 			return;
 		}
@@ -127,7 +149,18 @@ export class RelmapGroupBar extends RelmapBoardBar {
 			this._onMembers(id, what);
 			return;
 		}
+		if (what === "inkmore") {
+			this._openHex();
+			return;
+		}
 		if (!GROUP_RADIOS.includes(what)) return;
+		if (what === "ink") {
+			// One of the eight: a colour still waiting in the picker is thrown away rather than
+			// written a breath later over the one just pressed, and the picker goes.
+			this._forgetInk();
+			this._hexAsked = false;
+			this._showPicker(false);
+		}
 		// Painted before the write, so the press shows at once rather than after the round trip.
 		markRadio(this.el.querySelectorAll(`[data-relmap-gbar='${what}']`), value);
 		this._onField(id, { [what]: value });
@@ -175,6 +208,8 @@ export class RelmapGroupBar extends RelmapBoardBar {
 			this.name.disabled = !may;
 		}
 		this._disarm("name");
+		this._forgetInk();
+		this._hexAsked = false;
 		for (const button of this.el?.querySelectorAll?.("[data-relmap-gbar]") ?? []) {
 			if (button !== this.name) button.disabled = !may;
 		}
@@ -184,8 +219,9 @@ export class RelmapGroupBar extends RelmapBoardBar {
 	/** Everything on the bar that says what this group IS, and who of the selection can move. */
 	_paint(held) {
 		const group = held.group ?? {};
-		markRadio(this.el?.querySelectorAll?.("[data-relmap-gbar='ink']") ?? [], group.ink);
+		this._markInk(this._inkPending || group.ink || RELMAP_INK_DEFAULT);
 		markRadio(this.el?.querySelectorAll?.("[data-relmap-gbar='shape']") ?? [], group.shape);
+		markRadio(this.el?.querySelectorAll?.("[data-relmap-gbar='dash']") ?? [], group.dash);
 		this._paintMembers(held.members ?? []);
 	}
 
@@ -217,6 +253,65 @@ export class RelmapGroupBar extends RelmapBoardBar {
 		if (words) words.textContent = said;
 	}
 
+	// ── A colour of the reader's own ─────────────────────────────────────────
+
+	/**
+	 * Which colour the bar shows. One of the eight lights its disc; a hex lights none of them and
+	 * stands in the picker instead, which is then the answer on the bar -- so the picker is shown
+	 * for a group already drawn in a colour of its own, as well as when the `+` asked for it.
+	 */
+	_markInk(ink) {
+		markRadio(this.el?.querySelectorAll?.("[data-relmap-gbar='ink']") ?? [], ink);
+		const hex = normalizeHex(ink);
+		this.inkMore?.classList?.toggle("is-chosen", !!hex);
+		this._showPicker(this._hexAsked || !!hex, hex);
+	}
+
+	/**
+	 * Show or put away the picker, and seed it. ⚠ THE BAR'S WIDTH CHANGES WITH IT, and `place`
+	 * measures the bar once per opening, so the measurement is thrown away here as it is for the
+	 * two membership buttons.
+	 */
+	_showPicker(open, hex = "") {
+		const picker = this.inkHex;
+		if (!picker) return;
+		if (picker.hidden === open) {
+			picker.hidden = !open;
+			this.inkMore?.setAttribute?.("aria-expanded", open ? "true" : "false");
+			this._box = null;
+		}
+		if (open) this._paintPicker(hex);
+	}
+
+	/**
+	 * The `+`: show the picker, opened on the colour the group is already wearing (rose, if it is
+	 * rose), and hand it the focus. Writes nothing by itself.
+	 */
+	_openHex() {
+		if (!this.id || !this._canEdit()) return;
+		this._hexAsked = true;
+		const ink = this._inkPending || this._groupAt(this.id)?.group?.ink || RELMAP_INK_DEFAULT;
+		this._showPicker(true, normalizeHex(ink) || resolveInkHex(ink) || "#000000");
+		this.place();
+		this.inkHex?.focus?.();
+	}
+
+	/** Letting go (the base's `close`, after its flush): the picker goes back to being asked for. */
+	_letGo() {
+		this._hexAsked = false;
+	}
+
+	discard() {
+		this._forgetInk();
+		super.discard();
+	}
+
+	flush() {
+		const writes = [this._flushInk(), this._flushWriting()].filter(Boolean);
+		if (!writes.length) return undefined;
+		return writes.length === 1 ? writes[0] : Promise.all(writes);
+	}
+
 	/** The selection changed while the bar was up: re-say the two membership buttons. */
 	selectionChanged() {
 		if (!this.isOpen) return;
@@ -243,6 +338,8 @@ export class RelmapGroupBar extends RelmapBoardBar {
 	destroy() {
 		super.destroy();
 		this.name = null;
+		this.inkMore = null;
+		this.inkHex = null;
 		this.add = null;
 		this.take = null;
 	}

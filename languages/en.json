@@ -2467,11 +2467,13 @@
         "name": "Group name",
         "placeholder": "The hunters",
         "ink": "Group colour",
+        "inkDeepened": "{chose} was too pale to follow on this map, so this group is drawn in {used}.",
         "shape": "Outline",
         "shapes": {
           "box": "Box",
           "oval": "Oval"
         },
+        "dash": "Outline line",
         "addSelected": "Put the {count} selected in this group",
         "takeSelected": "Take the {count} selected out of this group",
         "drop": "Delete this group. Everyone in it stays on the map."
