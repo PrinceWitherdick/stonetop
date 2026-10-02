@@ -30,6 +30,8 @@ describe("every timeline module loads", () => {
 		"../../module/timeline/timeline-season-entry.js",
 		"../../module/timeline/timeline-expedition.js",
 		"../../module/timeline/timeline-expedition-record.js",
+		"../../module/timeline/timeline-tags.js",
+		"../../module/timeline/timeline-tag-store.js",
 		"../../module/journal/StonetopTimelinePageSheet.js",
 		"../../module/dialogs/TimelineWindow.js",
 		"../../module/dialogs/TimelinePanel.js",

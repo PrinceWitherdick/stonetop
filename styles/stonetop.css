@@ -49026,8 +49026,12 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    dot, the chip's rim, tint and glyph. `--tl-kind` comes from the kind class below; a card without
    one (a typed row, or a kind added before it has a colour) falls back to the plain rule. The card
    is washed with a breath of it too, `--st-timeline-card-wash` (5%, none under high contrast),
-   which is enough to find the kills in a busy season without costing the account any contrast. */
-.stonetop-timeline-card--auto {
+   which is enough to find the kills in a busy season without costing the account any contrast.
+
+   A TYPED row wearing a tag (`--tagged`, timeline-tags.js) takes the same three marks: it asked to
+   read as that kind, or as the table's own tag. */
+.stonetop-timeline-card--auto,
+.stonetop-timeline-card--tagged {
 	border-left-width: 4px;
 	border-left-color: var(--tl-kind, var(--st-card-rule));
 	background:
@@ -49038,7 +49042,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 /* The spine dot sits relative to the padding box, which the wider edge pushes 3px right. */
-.stonetop-timeline-card--auto::before {
+.stonetop-timeline-card--auto::before,
+.stonetop-timeline-card--tagged::before {
 	left: -31px;
 	border-color: var(--tl-kind, var(--st-card-rule));
 	background: var(--tl-kind, var(--st-card-rule));
@@ -49077,6 +49082,19 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 .stonetop-timeline-kind--wound      { --tl-kind: var(--st-timeline-kind-wound); }
 .stonetop-timeline-kind--arcana     { --tl-kind: var(--st-timeline-kind-arcana); }
 .stonetop-timeline-kind--follower   { --tl-kind: var(--st-timeline-kind-follower); }
+
+/* A CUSTOM TAG's colour, which the table chose and so no token holds. The element carries it as
+   four custom properties, one per skin, each already walked to read on that skin's paper
+   (timeline-tags.js#customTagStyle); these pick the one for the skin in force, each outweighing
+   the one before it where both match.
+
+   ⚠ `html.`, NOT `:root.`, ON THE LIGHT HIGH-CONTRAST RULE: the first `:root.stonetop-high-contrast`
+   in this file is where tests/styles/high-contrast.test.js finds the high-contrast palette, which
+   must sit last. Same element, and (0,2,1) still beats the plain rule and loses to dark-high's. */
+.stonetop-timeline-kind--custom { --tl-kind: var(--tl-tag-light); }
+:root.stonetop-dark .stonetop-timeline-kind--custom { --tl-kind: var(--tl-tag-dark); }
+html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--tl-tag-light-high); }
+:root.stonetop-dark.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--tl-tag-dark-high); }
 
 /* Who fell, on a kills row: "Crinwin ×3, Bandit Chief". */
 .stonetop-timeline-card-kills {
@@ -49545,6 +49563,100 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	color: var(--st-text-faint);
 }
 
+/* -- The tag a typed row wears ---------------------------------------------------------------
+   Chips in the shape the card prints them (glyph in the tag's colour, word in full ink, rim in the
+   colour), so the choice LOOKS like what it will put on the card. One pressed at a time. Pressed is
+   said three ways, none of them colour alone: a heavier rim, a stronger tint, and a bold word. */
+.stonetop-timeline-entry-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.stonetop-timeline-entry-tag,
+.stonetop-timeline-entry-tag-new {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	width: auto;
+	height: auto;
+	min-height: 26px;
+	margin: 0;
+	padding: 2px 10px;
+	border: 1px solid var(--tl-kind, var(--st-card-rule));
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--tl-kind, transparent) var(--st-timeline-chip-wash, 0%), transparent);
+	font-size: var(--st-fs-xs);
+	line-height: 1.2;
+	color: var(--st-text);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.stonetop-timeline-entry-tag i {
+	color: var(--tl-kind, var(--st-text-secondary));
+}
+
+.stonetop-timeline-entry-tag:hover {
+	background: color-mix(in srgb, var(--tl-kind, var(--st-text)) 18%, transparent);
+}
+
+.stonetop-timeline-entry-tag[aria-pressed="true"] {
+	border-width: 2px;
+	padding: 1px 9px;
+	background: color-mix(in srgb, var(--tl-kind, var(--st-text)) 26%, transparent);
+	font-weight: 700;
+}
+
+/* Making a tag is not choosing one, so the door to it is the quiet dashed shape, not a chip. */
+.stonetop-timeline-entry-tag-new {
+	border-style: dashed;
+	border-color: var(--st-card-rule);
+	background: transparent;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-timeline-entry-tag-new:hover,
+.stonetop-timeline-entry-tag-new[aria-expanded="true"] {
+	border-color: var(--st-slate-hover-border);
+	background: var(--st-slate-hover-bg);
+	color: var(--st-text);
+}
+
+.stonetop-timeline-entry-tag-form {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.stonetop-timeline-entry-tag-form[hidden] { display: none; }
+
+.stonetop-timeline-entry-tag-name {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* Sized here rather than left to core, which sizes a colour input for a settings form. */
+.stonetop-timeline-entry-tag-colour {
+	flex: none;
+	width: 30px;
+	height: 28px;
+	min-width: 0;
+	margin: 0;
+	padding: 1px;
+	border: 1px solid var(--st-card-rule);
+	border-radius: var(--st-radius);
+	background: var(--st-page);
+	cursor: pointer;
+}
+
+.stonetop-timeline-entry-tag-add {
+	flex: none;
+	width: auto;
+	white-space: nowrap;
+}
+
 /* A place that IS a document, on the card. Core paints `.content-link` itself; what is set here is
    only that it sits on the line the way the plain name it replaces did. */
 .stonetop-timeline-card-place .content-link {
@@ -49613,7 +49725,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	color: var(--tl-kind);
 }
 
-/* Sized here rather than left to core, which sizes a colour input for a settings form. */
+/* Sized here rather than left to core, as the New tag field's colour input is. */
 .stonetop-timeline-colours-pick {
 	width: 34px;
 	height: 28px;

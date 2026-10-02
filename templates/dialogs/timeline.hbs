@@ -66,7 +66,7 @@
 				</summary>
 				<div class="stonetop-timeline-show-menu">
 					{{#each kinds}}
-					<label class="stonetop-timeline-show-kind stonetop-timeline-kind--{{kind}}">
+					<label class="stonetop-timeline-show-kind stonetop-timeline-kind--{{kind}}"{{#if style}} style="{{style}}"{{/if}}>
 						<input type="checkbox" class="stonetop-timeline-show-check" data-timeline-source="{{source}}"
 						       data-timeline-focus="show-{{source}}"{{#if shown}} checked{{/if}}>
 						<i class="fas {{icon}}" aria-hidden="true"></i>

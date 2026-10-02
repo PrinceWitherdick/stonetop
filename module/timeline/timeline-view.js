@@ -24,6 +24,7 @@ import {
 	TIMELINE_KILLS_SOURCE, TIMELINE_SOURCES, UNDATED_PERIOD_KEY, foeLines, groupByPeriod, killTotal,
 	periodFacts, periodKey, readEntries, sortEntries,
 } from "./timeline-core.js";
+import { customTagStyle, filterKey, indexCustomTags, isKindTag, liveTag } from "./timeline-tags.js";
 
 /**
  * What each kind of row is called and the glyph it wears, in the card's chip and in the reader's
@@ -49,24 +50,52 @@ export const KIND_META = {
 /** The chip on one card: its glyph and its name. */
 export function kindChip(source) {
 	const kind = KIND_META[source] ? source : "hand";
-	return { kind, icon: KIND_META[kind].icon, label: localize(`stonetop.timeline.kind.${kind}`) };
+	return { kind, icon: KIND_META[kind].icon, label: localize(`stonetop.timeline.kind.${kind}`), style: "" };
+}
+
+/** The glyph every custom tag wears. Its name and colour are what tell one from another. */
+export const CUSTOM_TAG_ICON = "fa-tag";
+
+/** A custom tag's chip: its name in its colour, `kind` "custom", the colour in `style`. */
+export function customTagChip(tag) {
+	return { kind: "custom", icon: CUSTOM_TAG_ICON, label: tag.name, style: customTagStyle(tag.colour) };
+}
+
+/**
+ * The chip a TYPED row wears for its tag, or null for none: a borrowed kind's own chip, or a custom
+ * tag's name in its colour (`kind` "custom", the colour in `style`). See timeline-tags.js.
+ */
+export function tagChip(entry, tagIndex) {
+	const tag = liveTag(entry, tagIndex);
+	if (!tag) return null;
+	if (isKindTag(tag)) return kindChip(tag);
+	return customTagChip(indexCustomTags(tagIndex).get(tag));
 }
 
 /**
  * Every kind the "Filter" menu offers, in TIMELINE_SOURCES order, each marked shown or hidden for
- * this reader.
+ * this reader, and then the world's custom tags by name. A custom tag's line hides the typed rows
+ * wearing it; `source` is its id, which is what the reader's hidden list stores.
  *
- * @param {string[]} hidden  The sources this reader unticked.
+ * @param {string[]} hidden  The sources (and custom tag ids) this reader unticked.
+ * @param {Array<{id, name, colour}>} [tags]  The world's custom tags.
  */
-export function kindMenu(hidden = []) {
+export function kindMenu(hidden = [], tags = []) {
 	const off = new Set(hidden);
-	return TIMELINE_SOURCES.map(source => ({
+	const kinds = TIMELINE_SOURCES.map(source => ({
 		source,
 		kind:  source,
 		icon:  KIND_META[source]?.icon ?? KIND_META.hand.icon,
 		label: localize(`stonetop.timeline.show.${source}`),
+		style: "",
 		shown: !off.has(source),
 	}));
+	const custom = [...indexCustomTags(tags).values()].map(tag => ({
+		source: tag.id,
+		...customTagChip(tag),
+		shown:  !off.has(tag.id),
+	}));
+	return [...kinds, ...custom];
 }
 
 /**
@@ -97,8 +126,10 @@ export function killSummaryText(foes) {
 }
 
 /** One entry, ready to print. `body` stays raw for the host to enrich. */
-function cardVM(entry, { canEdit = false } = {}) {
-	const chip = kindChip(entry.source);
+function cardVM(entry, { canEdit = false, tags = null } = {}) {
+	const isAuto = entry.source !== "hand";
+	// A typed row wears a chip only when it carries a tag; a milestone always wears its kind's.
+	const chip = isAuto ? kindChip(entry.source) : tagChip(entry, tags);
 	const isKills = entry.source === TIMELINE_KILLS_SOURCE;
 	const killCount = isKills ? entry.foes.length : 0;
 	return {
@@ -111,13 +142,18 @@ function cardVM(entry, { canEdit = false } = {}) {
 		// and a link to nowhere reads as a broken one.
 		placeLinked: !!entry.placeUuid,
 		body:      entry.body,
-		kind:      chip.kind,
-		kindIcon:  chip.icon,
-		kindLabel: chip.label,
+		kind:      chip?.kind ?? "hand",
+		kindIcon:  chip?.icon ?? KIND_META.hand.icon,
+		kindLabel: chip?.label ?? "",
+		// A custom tag's colour, one value per skin (timeline-tags.js#customTagStyle). "" otherwise.
+		kindStyle: chip?.style ?? "",
 		// A row the system wrote for itself rather than one somebody typed. It wears its kind's chip,
 		// so a reader can always tell the record from what they wrote. Every row is STORED, so an
 		// auto row is edited and removed exactly like a typed one.
-		isAuto:    entry.source !== "hand",
+		isAuto,
+		// A TYPED row wearing a tag: the same chip and colour, on a row somebody wrote.
+		isTagged:  !isAuto && !!chip,
+		wearsChip: !!chip,
 		killSummary: isKills ? killSummaryText(entry.foes) : "",
 		canEdit,
 	};
@@ -167,13 +203,16 @@ function markYearsAndSides(periods) {
  * fully filtered one (`isEmpty` against `allHidden`).
  *
  * @param {{trackId, name, entries, actor?}} track
- * @param {{canEdit?: boolean, hidden?: string[]}} [opts]
+ * @param {{canEdit?: boolean, hidden?: string[], tags?: Array}} [opts]  `tags` = the world's custom
+ *        tags (timeline-tag-store.js#worldCustomTags); a typed row wearing one it cannot find wears none.
  */
 export function buildTrackVM(track, opts = {}) {
 	const all = readEntries(track?.entries ?? []);
 	const off = new Set(opts.hidden ?? []);
-	const shown = all.filter(e => !off.has(e.source));
+	const tags = indexCustomTags(opts.tags);
+	const shown = all.filter(e => !off.has(filterKey(e, tags)));
 	const periods = groupByPeriod(shown);
+	const cardOpts = { ...opts, tags };
 	return {
 		trackId:   track?.trackId ?? "",
 		name:      track?.name ?? "",
@@ -182,7 +221,7 @@ export function buildTrackVM(track, opts = {}) {
 		allHidden: all.length > 0 && !shown.length,
 		count:     all.length,
 		killTotal: killTotal(all),
-		periods:   markYearsAndSides(periods.map(p => periodVM(p, p.entries, opts))),
+		periods:   markYearsAndSides(periods.map(p => periodVM(p, p.entries, cardOpts))),
 	};
 }
 
@@ -203,11 +242,12 @@ export function buildTrackVM(track, opts = {}) {
  * both, so enriching one shape enriches the other.
  *
  * @param {Array<{trackId, name, entries, actor?}>} tracks
- * @param {{canEdit?: (trackId: string) => boolean, hidden?: string[]}} [opts]
+ * @param {{canEdit?: (trackId: string) => boolean, hidden?: string[], tags?: Array}} [opts]
  */
 export function buildAggregateVM(tracks = [], opts = {}) {
 	const canEdit = opts.canEdit ?? (() => false);
 	const off = new Set(opts.hidden ?? []);
+	const tags = indexCustomTags(opts.tags);
 
 	// One pass over every track: the periods in play, keyed so a season shared by three tracks is
 	// one row, and at the same time each track's entries bucketed under that same key.
@@ -226,7 +266,7 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 		laneBuckets.set(track.trackId, buckets);
 		laneFacts.set(track.trackId, { count: all.length });
 		for (const entry of all) {
-			if (off.has(entry.source)) continue;
+			if (off.has(filterKey(entry, tags))) continue;
 			const key = periodKey(entry);
 			if (!byKey.has(key)) byKey.set(key, periodFacts(entry));
 			if (!buckets.has(key)) buckets.set(key, []);
@@ -244,7 +284,7 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 				trackId: track.trackId,
 				name:    track.name,
 				isEmpty: !entries.length,
-				entries: entries.map(e => cardVM(e, { canEdit: canEdit(track.trackId) })),
+				entries: entries.map(e => cardVM(e, { canEdit: canEdit(track.trackId), tags })),
 			};
 		}),
 	})));

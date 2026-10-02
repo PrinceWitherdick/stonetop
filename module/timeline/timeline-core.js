@@ -112,6 +112,9 @@ export function normalizeEntry(raw, index = 0) {
 		key:       String(raw?.key ?? "").trim(),
 		// The foes on a kills row, one name per kill. Empty on every other kind.
 		foes:      Array.isArray(raw?.foes) ? raw.foes.map(f => String(f ?? "").trim()).filter(Boolean) : [],
+		// The ONE tag a typed row wears: a kind's id it borrows, or a custom tag's id. Blank for none,
+		// and never read on a milestone row, whose source is its kind. See timeline-tags.js.
+		tag:       String(raw?.tag ?? "").replace(/\./g, "").trim(),
 	};
 }
 

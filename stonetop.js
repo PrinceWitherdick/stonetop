@@ -669,6 +669,7 @@ Hooks.once("init", () => {
 		"stonetop.timeline-period-head":      "systems/stonetop-pwd/templates/dialogs/partials/timeline-period-head.hbs",
 		"stonetop.timeline-hperiod":          "systems/stonetop-pwd/templates/dialogs/partials/timeline-hperiod.hbs",
 		"stonetop.timeline-lane-head":        "systems/stonetop-pwd/templates/dialogs/partials/timeline-lane-head.hbs",
+		"stonetop.timeline-entry-tag":        "systems/stonetop-pwd/templates/dialogs/partials/timeline-entry-tag.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
 		"stonetop.artifact-gm":              "systems/stonetop-pwd/templates/dialogs/artifact-gm.hbs",
 		"stonetop.header-toggle-glyph":       "systems/stonetop-pwd/templates/actor/partials/header-toggle-glyph.hbs",

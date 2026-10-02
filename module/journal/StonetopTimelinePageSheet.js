@@ -10,6 +10,7 @@
 // resolve here exactly as they do on the sheet.
 import { buildTrackVM, enrichTrackVM } from "../timeline/timeline-view.js";
 import { sortEntries } from "../timeline/timeline-core.js";
+import { worldCustomTags } from "../timeline/timeline-tag-store.js";
 import { adoptInlineViewRoot } from "./inline-page-view.js";
 
 export function createStonetopTimelinePageSheetClass(Base) {
@@ -37,7 +38,7 @@ export function createStonetopTimelinePageSheetClass(Base) {
 				trackId: this.document.system?.trackId ?? "",
 				name:    this.document.name,
 				entries: sortEntries(this.document.system?.entries ?? []),
-			});
+			}, { tags: worldCustomTags(this.document.parent) });
 
 			// Enriched in place rather than inside buildTrackVM, and by the same walker the window
 			// uses: the view model is pure so the tab and the window can build it without awaiting

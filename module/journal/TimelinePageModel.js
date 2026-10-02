@@ -75,6 +75,11 @@ export class TimelinePageModel extends foundry.abstract.TypeDataModel {
 				// whole page's validation; `normalizeEntry` drops them on the way out.
 				foes: new fields.ArrayField(new fields.StringField({ required: true, blank: true }), { initial: [] }),
 
+				// The one tag a TYPED row wears: a kind's id it borrows ("wound") or a custom tag's id
+				// (`tag-<random>`, kept on the Timeline journal). Blank for none. No `choices`, for the
+				// reason `source` has none, and because custom tags come and go. See timeline-tags.js.
+				tag: new fields.StringField({ required: true, blank: true, initial: "" }),
+
 				// Provenance. `createdAt` is also the last tie-break in the sort, so two entries
 				// added to one season in the same click cannot swap places on a repaint.
 				createdAt: new fields.NumberField({ required: true, integer: true, initial: 0 }),

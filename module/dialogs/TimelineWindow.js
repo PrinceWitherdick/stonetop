@@ -51,7 +51,9 @@ import {
 } from "../settings.js";
 import { buildAggregateVM, buildTrackVM, enrichTrackVM, kindMenu } from "../timeline/timeline-view.js";
 import { timelineNow } from "../timeline/timeline-record.js";
+import { worldCustomTags } from "../timeline/timeline-tag-store.js";
 import { openTimelineColours } from "./TimelineColoursDialog.js";
+import { TIMELINE_TAGS_FLAG } from "../timeline/timeline-tags.js";
 import { FINE_ZOOM_STEP } from "../utils/image-zoom.js";
 
 /**
@@ -275,7 +277,12 @@ export class TimelineWindow extends StonetopDialog {
 		// Fresh per render; see `_canEdit`.
 		this._editCache = new Map();
 		const tracks = this._tracks();
-		const hidden = getTimelineHiddenSources().filter(source => TIMELINE_SOURCES.includes(source));
+		// The world's custom tags: what a typed row's tag chip is named and coloured by, and the lines
+		// after the kinds in the Filter menu. A hidden tag the world has since lost is dropped from
+		// the count like an unknown kind.
+		const tags = worldCustomTags();
+		const hidden = getTimelineHiddenSources()
+			.filter(source => TIMELINE_SOURCES.includes(source) || tags.some(tag => tag.id === source));
 		const horizontal = getTimelineOrientation() === "horizontal";
 
 		// The reader's filter is applied INSIDE the builders, before periods are formed, so a season
@@ -283,8 +290,8 @@ export class TimelineWindow extends StonetopDialog {
 		// counts) are of everything, hidden or not.
 		const single = this.isSingleTrack;
 		const vm = single
-			? buildTrackVM(tracks[0], { canEdit: this._canEdit(this._trackId), hidden })
-			: buildAggregateVM(tracks, { canEdit: (id) => this._canEdit(id), hidden });
+			? buildTrackVM(tracks[0], { canEdit: this._canEdit(this._trackId), hidden, tags })
+			: buildAggregateVM(tracks, { canEdit: (id) => this._canEdit(id), hidden, tags });
 
 		// Enriched after the model is built rather than inside it, and by the shared walker rather
 		// than here: the view model is pure so the three hosts can share it, and enrichment is async
@@ -306,7 +313,7 @@ export class TimelineWindow extends StonetopDialog {
 			horizontal,
 			// Only a GM can write the world's colours, so only a GM is offered the window.
 			isGM: !!game.user?.isGM,
-			kinds: kindMenu(hidden),
+			kinds: kindMenu(hidden, tags),
 			hiddenCount: hidden.length,
 			hiddenCountLabel: format("stonetop.timeline.show.hiddenCount", { count: hidden.length }),
 			showMenuOpen: this._showMenuOpen,
@@ -605,6 +612,16 @@ export class TimelineWindow extends StonetopDialog {
 			const id = Hooks.on(hook, repaint);
 			this._syncHooks.push([hook, id]);
 		}
+
+		// The world's custom tags live on the journal itself (timeline-tag-store.js), so a tag made
+		// at another seat lands as a JOURNAL update: repaint for that, and only that, so the Filter
+		// menu offers it and any card wearing it is named and coloured.
+		// Cheapest test first, as above: almost no journal write touches this flag.
+		const tagsChanged = (journal, changes) => {
+			if (!foundry.utils.hasProperty(changes ?? {}, `flags.${SYSTEM_ID}.${TIMELINE_TAGS_FLAG}`)) return;
+			if (this.rendered && journal?.id === findTimelineJournal()?.id) this.renderThrottled();
+		};
+		this._syncHooks.push(["updateJournalEntry", Hooks.on("updateJournalEntry", tagsChanged)]);
 	}
 
 	_unwireSync() {
@@ -613,7 +630,7 @@ export class TimelineWindow extends StonetopDialog {
 	}
 
 	async close(options) {
-		// ⚠ BEFORE the super call, and unconditionally: three global journal hooks left on would
+		// ⚠ BEFORE the super call, and unconditionally: the global journal hooks left on would
 		// fire on every journal write at the table for the rest of the session, once per window
 		// anybody ever opened. (A repaint still pending from the last burst is StonetopDialog's.)
 		this._unwireSync();

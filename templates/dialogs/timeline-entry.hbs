@@ -25,6 +25,37 @@
 		       value="{{entryTitle}}" autocomplete="off"
 		       placeholder="{{localize "stonetop.timeline.dialog.entryTitlePlaceholder"}}">
 
+		{{!-- ONE TAG, on a typed row only: none, a kind the system records (it then reads as that
+		      kind, chip and colour), or one of the table's own. Toggle buttons in a group, one
+		      pressed, the shape of the timeline's own Vertical/Horizontal pair; the dialog moves the
+		      press by hand so nothing typed is lost. A tag made with New tag is drawn from the same
+		      partial by TimelineEntryDialog.js. --}}
+		{{#if showTags}}
+		<span class="stonetop-timeline-entry-label" id="stonetop-timeline-tag-label">
+			{{localize "stonetop.timeline.dialog.tag"}}
+		</span>
+		<div class="stonetop-timeline-entry-tags" role="group" aria-labelledby="stonetop-timeline-tag-label">
+			{{#each tagOptions}}{{> "stonetop.timeline-entry-tag"}}{{/each}}
+			<button type="button" class="stonetop-timeline-entry-tag-new"
+			        aria-expanded="false" aria-controls="stonetop-timeline-tag-form">
+				<i class="fas fa-plus" aria-hidden="true"></i>
+				<span>{{localize "stonetop.timeline.dialog.tagNew"}}</span>
+			</button>
+		</div>
+		<div class="stonetop-timeline-entry-tag-form" id="stonetop-timeline-tag-form" hidden>
+			<input type="text" class="stonetop-timeline-entry-tag-name" maxlength="{{tagNameMax}}"
+			       autocomplete="off" aria-label="{{localize "stonetop.timeline.dialog.tagName"}}"
+			       placeholder="{{localize "stonetop.timeline.dialog.tagNamePlaceholder"}}">
+			<input type="color" class="stonetop-timeline-entry-tag-colour" value="{{tagColour}}"
+			       aria-label="{{localize "stonetop.timeline.dialog.tagColour"}}"
+			       data-tooltip="{{localize "stonetop.timeline.dialog.tagColour"}}">
+			<button type="button" class="stonetop-timeline-entry-tag-add">
+				{{localize "stonetop.timeline.dialog.tagAdd"}}
+			</button>
+		</div>
+		<p class="stonetop-timeline-entry-hint">{{localize "stonetop.timeline.dialog.tagHint"}}</p>
+		{{/if}}
+
 		<label class="stonetop-timeline-entry-label" for="stonetop-timeline-place">
 			{{localize "stonetop.timeline.dialog.place"}}
 		</label>
