@@ -26021,7 +26021,10 @@ a.steading-player-open:hover {
 /* ── Ring of Daagon follower actions (Call Up the Deep Ones / Send Them Back) ──
    A "watery" blue variant of the follower Order button, plus the shared-Loyalty and
    broke-free notes on a Servant batch card. */
-.stonetop-daagon-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+/* The row is a child of the CARD, after the body, so the body's padding never reaches it
+   and the button sat on the card's bottom edge. Padded with the body's own gutter (12px
+   sides, 11px under) so it lines up with Order above and has the body's room below. */
+.stonetop-daagon-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding: 0 12px 11px; }
 /* Blue overrides only; the rest of the chrome is shared with .stonetop-follower-order. */
 .stonetop-daagon-btn {
 	border-color: var(--st-blue-border);
@@ -26053,6 +26056,22 @@ a.steading-player-open:hover {
 }
 
 /* ── Call Up the Deep Ones dialog ──────────────────────────────────────────── */
+/* A left-rail window on the spring chrome (.stonetop-spring-dialog frame, shared
+   .stonetop-guide-split rail): dice / traits / moves / the batch, one panel at a time,
+   above a pinned Call them up / Back / Next footer. */
+.stonetop-call-up-dialog .stonetop-cu-panel { display: flex; flex-direction: column; gap: 10px; }
+/* The panels' display:flex beats the UA [hidden] rule; this puts it back. */
+.stonetop-call-up-dialog .stonetop-cu-panel[hidden] { display: none; }
+.stonetop-call-up-dialog .stonetop-cu-nav-btns { display: flex; gap: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-rule {
+	margin: 0;
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
+}
 .stonetop-call-up-dialog .stonetop-cu-input {
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
@@ -26063,7 +26082,6 @@ a.steading-player-open:hover {
 	align-items: center;
 	gap: 8px;
 	flex-wrap: wrap;
-	margin-bottom: 10px;
 }
 .stonetop-call-up-dialog .stonetop-cu-die {
 	display: inline-flex;
@@ -26080,55 +26098,51 @@ a.steading-player-open:hover {
 	background: var(--st-blue-bg);
 	color: var(--st-blue-text);
 }
+/* Core v13 makes app buttons full width; this one sits at the end of the dice row. */
+.stonetop-call-up-dialog .stonetop-cu-reroll { flex: none; width: auto; margin-left: auto; }
 .stonetop-call-up-dialog .stonetop-cu-die-value { font-size: var(--st-fs-md); font-weight: 700; }
 .stonetop-call-up-dialog .stonetop-cu-die-label { font-size: 0.7em; color: var(--st-text-muted); }
-.stonetop-call-up-dialog .stonetop-cu-aspects { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-aspects { display: flex; flex-direction: column; gap: 6px; }
+/* One row per aspect: what it is | which die | what that die makes of it. */
 .stonetop-call-up-dialog .stonetop-cu-aspect {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	align-items: center;
+	gap: 4px 10px;
 	padding: 6px 8px;
 	border: 1px solid var(--color-border-light, #ccc);
 	border-radius: var(--st-radius-sm);
 }
-.stonetop-call-up-dialog .stonetop-cu-aspect-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stonetop-call-up-dialog .stonetop-cu-aspect-name { display: flex; flex-direction: column; min-width: 0; }
 .stonetop-call-up-dialog .stonetop-cu-aspect-label { font-family: var(--font-stonetop); font-weight: 700; }
-.stonetop-call-up-dialog .stonetop-cu-aspect-outcome {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	flex-wrap: wrap;
-	margin-top: 4px;
-	font-size: var(--st-fs-xs);
-}
-.stonetop-call-up-dialog .stonetop-cu-aspect-hint { color: var(--st-text-muted); }
-.stonetop-call-up-dialog .stonetop-cu-aspect-result { font-weight: 700; color: var(--st-blue-text); }
-.stonetop-call-up-dialog .stonetop-cu-count-control { display: inline-flex; align-items: center; gap: 4px; }
-.stonetop-call-up-dialog .stonetop-cu-count { width: 46px; }
-.stonetop-call-up-dialog .stonetop-cu-picker { margin-bottom: 10px; }
-.stonetop-call-up-dialog .stonetop-cu-picker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.stonetop-call-up-dialog .stonetop-cu-picker-label { font-family: var(--font-stonetop); font-weight: 700; }
-.stonetop-call-up-dialog .stonetop-cu-picker-count { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-aspect-hint { font-size: var(--st-fs-xs); color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-aspect-result { font-size: var(--st-fs-sm); font-weight: 700; color: var(--st-blue-text); }
+.stonetop-call-up-dialog .stonetop-cu-picker-count { flex: none; font-size: var(--st-fs-xs); color: var(--st-text-muted); }
 .stonetop-call-up-dialog .stonetop-cu-picker-count.is-met { color: var(--st-green-text); }
-.stonetop-call-up-dialog .stonetop-cu-picker-options { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 4px; }
+.stonetop-call-up-dialog .stonetop-cu-picker-options { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+/* Box | label, with a trait's effect always on the line under its label (not inline on a
+   short one and wrapped on a long one). */
 .stonetop-call-up-dialog .stonetop-cu-option {
-	display: flex;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
 	align-items: baseline;
-	gap: 6px;
-	padding: 2px 4px;
+	gap: 2px 6px;
+	padding: 4px 6px;
 	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 }
 .stonetop-call-up-dialog .stonetop-cu-option.is-checked { background: var(--st-blue-bg); color: var(--st-blue-text); }
 .stonetop-call-up-dialog .stonetop-cu-option.is-disabled { opacity: 0.45; cursor: default; }
-.stonetop-call-up-dialog .stonetop-cu-option-detail { font-size: 0.85em; color: var(--st-text-muted); }
-.stonetop-call-up-dialog .stonetop-cu-name-label { display: block; margin-bottom: 10px; }
+.stonetop-call-up-dialog .stonetop-cu-option-detail { grid-column: 2; font-size: 0.85em; color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-name-label { display: block; }
 .stonetop-call-up-dialog .stonetop-cu-preview {
 	padding: 8px 10px;
 	border: 1px solid var(--st-blue-border);
 	border-radius: var(--st-radius-sm);
 	background: var(--st-blue-bg);
 	color: var(--st-blue-text);
-	margin-bottom: 10px;
 }
-.stonetop-call-up-dialog .stonetop-cu-preview-head { display: flex; align-items: baseline; gap: 8px; }
+.stonetop-call-up-dialog .stonetop-cu-preview-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
 .stonetop-call-up-dialog .stonetop-cu-preview-name { font-family: var(--font-stonetop); font-weight: 700; font-size: var(--st-fs-md); }
 .stonetop-call-up-dialog .stonetop-cu-preview-type { font-size: var(--st-fs-xs); font-style: italic; }
 .stonetop-call-up-dialog .stonetop-cu-preview-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
@@ -26151,6 +26165,7 @@ a.steading-player-open:hover {
 .stonetop-call-up-dialog .stonetop-cu-cost-choice { display: flex; align-items: center; gap: 6px; font-size: var(--st-fs-sm); cursor: pointer; }
 .stonetop-call-up-dialog .stonetop-cu-cost-choice.is-disabled { opacity: 0.5; cursor: default; }
 .stonetop-call-up-dialog .stonetop-cu-cost-note { color: var(--st-text-muted); }
+.stonetop-call-up-dialog .stonetop-cu-missing { margin: 0; font-size: var(--st-fs-sm); color: var(--st-text-secondary); }
 
 /* Follower-fate dialog (a follower at 0 HP): vertical option buttons. */
 .stonetop-follower-fate-dialog .stonetop-ff-options {

@@ -60,22 +60,23 @@ export const SERVANT_SIZE_OPTIONS = {
 // Traits aspect: the assigned die is HOW MANY of these to choose. Each trait folds into
 // armor, tags, or the damage line (flat modifier and/or damage tags).
 export const SERVANT_TRAIT_OPTIONS = [
-	{ key: "hide",        label: "Blubbery / scaly hide", detail: "2 armor",              armor: 2 },
-	{ key: "stealthy",    label: "Stealthy & cautious",   detail: "+stealthy, +cautious", tags: ["stealthy", "cautious"] },
-	{ key: "powerful",    label: "Powerful",              detail: "+2 damage, forceful",  dmgMod: 2, dmgTags: ["forceful"] },
-	{ key: "tentacles",   label: "Tentacles, pincers",    detail: "reach, grabby",        dmgTags: ["reach", "grabby"] },
-	{ key: "claws",       label: "Big claws, fangs",      detail: "1 piercing, messy",    dmgTags: ["1 piercing", "messy"] },
-	{ key: "projectiles", label: "Projectiles",           detail: "+near",                dmgTags: ["near"] },
+	{ key: "hide",        label: "Blubbery/scaly hide",     detail: "2 armor",              armor: 2 },
+	{ key: "stealthy",    label: "Stealthy and cautious",   detail: "+stealthy, +cautious", tags: ["stealthy", "cautious"] },
+	{ key: "powerful",    label: "Powerful",                detail: "+2 damage, forceful",  dmgMod: 2, dmgTags: ["forceful"] },
+	{ key: "tentacles",   label: "Tentacles/pincers, etc.", detail: "reach, grabby",        dmgTags: ["reach", "grabby"] },
+	{ key: "claws",       label: "Big claws/fangs",         detail: "1 piercing, messy",    dmgTags: ["1 piercing", "messy"] },
+	{ key: "projectiles", label: "Projectiles",             detail: "+near",                dmgTags: ["near"] },
 ];
 
-// Moves aspect: the assigned die is HOW MANY of these to choose.
+// Moves aspect: the assigned die is HOW MANY of these to choose. The book's words
+// (Book II p.560), which become the batch's move lines as written.
 export const SERVANT_MOVE_OPTIONS = [
-	"Wriggle free",
+	"Wriggle free of danger/restraint",
 	"Heal at a prodigious rate",
-	"Smother, constrict, engulf",
+	"Smother/constrict/engulf them",
 	"Dissolve organic material",
 	"Mesmerize the weak-willed",
-	"Paralyze with venom",
+	"Paralyze them with venom",
 ];
 
 // Clamp a rolled d4 to 1-4, or 0 when unassigned (so a live preview tolerates a

@@ -8845,8 +8845,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			}
 			await this.actor.update(update, { stonetopMove: "Call Up the Deep Ones" });
 
-			const diceStr = Array.isArray(cost?.dice) && cost.dice.length
-				? ` <span class="stonetop-callup-dice">(5d4: ${cost.dice.join(", ")})</span>` : "";
+			const rolls = [
+				Array.isArray(cost?.dice) && cost.dice.length ? `5d4: ${cost.dice.join(", ")}` : "",
+				cost?.countRoll ? `${cost.countRoll.formula}: ${cost.countRoll.total}` : "",
+			].filter(Boolean);
+			const diceStr = rolls.length ? ` <span class="stonetop-callup-dice">(${escHtml(rolls.join("; "))})</span>` : "";
 			const tagLine = [...input.tags, ...(input.exceptional ? ["exceptional"] : [])].join(", ");
 			const body =
 				`<p>From heavy fog and deep water you call up <strong>${escHtml(input.name)}</strong>${diceStr}: <em>${escHtml(tagLine)}</em>.</p>`

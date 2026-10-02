@@ -18,6 +18,19 @@ describe("Servant of Daagon aspect tables", () => {
 		expect(SERVANT_TRAIT_OPTIONS).toHaveLength(6);
 		expect(SERVANT_MOVE_OPTIONS).toHaveLength(6);
 	});
+
+	// The chosen moves become the batch's move lines as written, so they are the book's
+	// words (Book II p.560), not a paraphrase.
+	it("words the moves as the book prints them", () => {
+		expect(SERVANT_MOVE_OPTIONS).toEqual([
+			"Wriggle free of danger/restraint",
+			"Heal at a prodigious rate",
+			"Smother/constrict/engulf them",
+			"Dissolve organic material",
+			"Mesmerize the weak-willed",
+			"Paralyze them with venom",
+		]);
+	});
 });
 
 describe("resolveServantBatch", () => {
@@ -31,7 +44,7 @@ describe("resolveServantBatch", () => {
 			aspectDie:    { tags: 1, number: 1, size: 1, traits: 2, moves: 2 },
 			count:        5,
 			chosenTraits: ["hide", "powerful"],
-			chosenMoves:  ["Wriggle free", "Dissolve organic material"],
+			chosenMoves:  ["Wriggle free of danger/restraint", "Dissolve organic material"],
 		});
 		// horde base HP 3, small -2 → 1
 		expect(out.hp).toBe(1);
@@ -42,7 +55,7 @@ describe("resolveServantBatch", () => {
 		expect(out.exceptional).toBe(false);
 		expect(out.isGroup).toBe(true);
 		expect(out.size).toBe(5);
-		expect(out.moves).toBe("Wriggle free\nDissolve organic material");
+		expect(out.moves).toBe("Wriggle free of danger/restraint\nDissolve organic material");
 		expect(out.sourceUuid).toBe(SERVANT_SOURCE_UUID);
 		expect(out.repeatable).toBe(true);
 	});
@@ -95,7 +108,7 @@ describe("buildServantFollower", () => {
 			aspectDie: { tags: 4, number: 4, size: 2, traits: 1, moves: 1 },
 			count:     1,
 			chosenTraits: ["hide"],
-			chosenMoves:  ["Wriggle free"],
+			chosenMoves:  ["Wriggle free of danger/restraint"],
 		});
 		const f = buildServantFollower(input);
 		expect(f.name).toBe("Servant of Daagon");

@@ -237,6 +237,13 @@ describe("the Ring of Daagon's cost cards carry 'Mark a consequence'", () => {
 		expect(posted()).not.toContain("stonetop-mark-consequence");
 	});
 
+	it("Call Up's card names the 5d4 and the headcount roll", async () => {
+		await ringSheet({ loyalty: 2 })._applyCallUp(INPUT, {
+			kind: "loyalty", dice: [3, 1, 4, 2, 2], countRoll: { formula: "1d6+1", total: 3 },
+		});
+		expect(posted()).toContain("(5d4: 3, 1, 4, 2, 2; 1d6+1: 3)");
+	});
+
 	it("Send Them Back's 6- paid with a consequence carries the button; paid in Loyalty, not", async () => {
 		await ringSheet({ loyalty: 1 })._payServantExit("servants", "Servants of Daagon", "consequence");
 		expect(posted()).toContain("stonetop-mark-consequence");
