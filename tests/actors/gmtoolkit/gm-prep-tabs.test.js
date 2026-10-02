@@ -217,7 +217,7 @@ describe("the toolkit picked them up whole", () => {
 	});
 
 	// The handlers are scoped `.steading-threats .threat-add-btn` and friends, so the panel's
-	// ancestor class and the tool classes have to agree with the mixin's `prepTools` table.
+	// ancestor class and the tool classes have to agree with the mixin's `PREP_TOOLS` table.
 	//
 	// The markup is now two kind-agnostic partials rather than three hand-copied blocks, so the
 	// class WORDS are built from the `kind=` each tab passes. That is what makes this checkable

@@ -35903,6 +35903,19 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	margin-right: 0.55rem;
 	color: var(--threat-accent);
 }
+/* When the party was last here, once the GM has marked it (sites/site-visit.js). Full ink: it is
+   the one line on the card that says the party has BEEN somewhere. */
+.stonetop .site-visited {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin: 0 0 0.5rem;
+	font-size: 0.9rem;
+	color: var(--tc-ink);
+}
+.stonetop .site-visited i {
+	color: var(--threat-accent);
+}
 .stonetop .site-why {
 	margin: 0 0 0.5rem;
 	font-size: 0.9rem;
@@ -36372,8 +36385,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    rather than one selector per kind: this rule had named threats and hazards only, so the Sites
    tab's trash stayed the same ink as the pencil beside it and read as inert -- which is the same
    silent-omission failure the add bar and the pencil each had once and each answered by keying
-   on something a new kind cannot fall off. The tools bar holds exactly the two buttons the
-   shared partial emits, and the pencil's class ends in `-edit-open`. */
+   on something a new kind cannot fall off. The tools bar holds the two buttons the shared
+   partial emits (a site's card a third, Mark visited), and the pencil's class ends in
+   `-edit-open`. */
 .stonetop .threat-card-tools button[class$="-remove"]:hover { color: #b23; border-color: #b23; }
 
 /* --- the page sheet (view + editor) --------------------------------------- */

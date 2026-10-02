@@ -27,6 +27,11 @@
 	<p class="site-foundation">{{#each foundation}}<span class="site-foundation__part">{{this}}</span>{{/each}}</p>
 	{{/if}}
 
+	{{!-- When the party was last here, once the GM has marked it (the flag on the card's tools). --}}
+	{{#if visitedLabel}}
+	<p class="site-visited"><i class="fas fa-flag" aria-hidden="true"></i> {{visitedLabel}}</p>
+	{{/if}}
+
 	{{#if hasDescription}}
 	<div class="threat-desc">{{{description}}}</div>
 	{{/if}}

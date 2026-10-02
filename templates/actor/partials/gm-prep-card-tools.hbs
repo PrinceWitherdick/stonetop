@@ -1,7 +1,7 @@
 {{!-- The edit / delete pair that rides under one GM-prep card, for all three kinds.
 
       `kind` spells both the class words the sheet's handler table matches on
-      (`.<kind>-edit-open` / `.<kind>-remove`, see gm-prep-tabs.js `prepTools`) AND what the
+      (`.<kind>-edit-open` / `.<kind>-remove`, see gm-prep-tabs.js `PREP_TOOLS`) AND what the
       tooltips call the thing. One parameter, not two: every call site passed the same word
       twice, and a pair free to disagree is a working button with the wrong tooltip. Passing
       the kind rather than copying the block per family is what keeps those class words and
@@ -21,8 +21,23 @@
       The pencil keeps its SECOND, kind-free class. `stonetop-prep-edit-btn` is no longer a gate
       word — it is the look, shared with `stonetop-prep-add-btn` one partial over — but it is
       still the thing to hang shared styling on, for the reason that block gives: a rule named
-      per kind is a rule a fourth kind falls off silently. --}}
+      per kind is a rule a fourth kind falls off silently.
+
+      Any button a kind wears BESIDE those two ("Mark visited", on a site) comes off
+      `prepActions`, which this partial reads straight off the card it is drawn under: the prep
+      tabs stamp it on every card's view-model from the `actions` column of their `PREP_TOOLS`
+      table, and the click handler dispatches off that same column. So no call site passes a
+      flag and nothing below names a kind. There was an `#if visit` block here once, switched on by
+      `visit=true` from the sites section, and every later per-kind button would have been
+      another flag here and another branch in the handler, which is the special-casing this
+      header warns about. `../uuid` inside the loop, because `#each` rebinds `this` to the
+      action and the hash parameters go with it. --}}
 <div class="threat-card-tools">
+	{{#each prepActions}}
+	<button type="button" class="{{cls}}" data-page-uuid="{{../uuid}}"
+	        aria-label="{{localize label}}"
+	        data-tooltip="{{localize tooltip}}" data-tooltip-direction="UP"><i class="fas {{icon}}" aria-hidden="true"></i></button>
+	{{/each}}
 	<button type="button" class="stonetop-prep-edit-btn {{kind}}-edit-open" data-page-uuid="{{uuid}}" data-tooltip="Edit {{kind}}" data-tooltip-direction="UP"><i class="fas fa-pen"></i></button>
 	<button type="button" class="{{kind}}-remove" data-page-uuid="{{uuid}}" data-tooltip="Delete {{kind}}" data-tooltip-direction="UP"><i class="fas fa-trash"></i></button>
 </div>

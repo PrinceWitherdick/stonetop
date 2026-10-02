@@ -64,7 +64,10 @@ const DEFAULT_PIN_TINT = "#ffffff";
  * the whole table blindly instead of testing which kinds it is about to draw.
  *
  * Everything here is DATA. What a kind's edit and add buttons do is not — those are methods on the
- * sheet holding the tab — so they stay in that sheet's own small table, keyed by these same names.
+ * sheet holding the tab — so they stay in that sheet's own small table, keyed by these same names
+ * (`PREP_TOOLS` in gm-prep-tabs.js). So do the extra buttons a kind's card wears in that tab, such
+ * as a site's "Mark visited": they are drawn and dispatched by that tab alone, and no other host
+ * of these cards offers them.
  */
 const GM_PREP_KINDS = {
 	threat: {

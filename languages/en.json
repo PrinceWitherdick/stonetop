@@ -2808,6 +2808,17 @@
         "again": "Record on the timeline again"
       }
     },
+    "sites": {
+      "visit": {
+        "button": "Mark visited",
+        "tooltip": "Mark this site visited: it goes on the timeline of everyone who went",
+        "title": "Who went to {name}?",
+        "hint": "The site's name goes on their timelines and Stonetop's, where the players can read it.",
+        "confirm": "Mark visited",
+        "confirmMany": "Mark visited by {count}",
+        "visited": "Visited in {when}"
+      }
+    },
     "fight": {
       "tab": "Fight",
       "window": "Combat",

@@ -7,6 +7,8 @@
 // A site has no doom track, so the doom wiring simply finds nothing to bind.
 import { hasText, stringList, cardEnricher } from "../journal/card-vm.js";
 import { keyedRows, pairKeys, tableRowRanges } from "./site-schema.js";
+import { SITE_VISITS_FLAG, visitedLabel } from "./site-visits-core.js";
+import { SYSTEM_ID } from "../system-id.js";
 
 /** Card/pin accent for sites: weathered stone, distinct from the threat hues and hazard moss. */
 export const SITE_ACCENT = "#5a5f6b";
@@ -145,6 +147,9 @@ export async function buildSiteCardVM(page, { forOwner } = {}) {
 		uuid: page.uuid,
 		name: page.name,
 		accent: SITE_ACCENT,
+		// When the party was last here, if the GM has marked it (sites/site-visit.js). GM-only
+		// like the rest of the card.
+		visitedLabel: visitedLabel(page.getFlag?.(SYSTEM_ID, SITE_VISITS_FLAG)),
 		foundation,
 		hasFoundation: foundation.length > 0,
 		why: String(sys.why ?? ""),
