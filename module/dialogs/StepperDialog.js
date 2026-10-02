@@ -1,6 +1,7 @@
 import { FrontOnOpen } from "../utils/front-on-open.js";
 import { holdCentre } from "../utils/hold-centre.js";
 import { getSetting } from "../settings.js";
+import { warn } from "../utils/logger.js";
 import { getWalkthroughResume, patchWalkthroughResume, saveWalkthroughPosition } from "./walkthrough-resume.js";
 
 // ── StepperDialog ────────────────────────────────────────────────────────────
@@ -10,7 +11,8 @@ import { getWalkthroughResume, patchWalkthroughResume, saveWalkthroughPosition }
 //
 // Subclasses provide the steps via `get _steps()`, spread `_stepNav()` into their
 // `getData`, call `_bindStepNav(html)` from `activateListeners`, and may override
-// `_onBeforeStepChange()` to flush focused-but-unblurred fields before navigating.
+// `_onBeforeStepChange()` to flush focused-but-unblurred fields before navigating, and
+// `_onStepEntered(key, { from, via })` to act on arriving at a step (see "Moving the cursor").
 //
 // A "result" wizard (Make a Hazard, the Things Below wizards) is awaited via `promise()`
 // and settles it with `_resolveWith(value)` on finish (or null on cancel-close). A
@@ -226,14 +228,49 @@ export class StepperDialog extends Application {
 		});
 	}
 
+	// ── Moving the cursor ─────────────────────────────────────────────────────────
+	// Next, Back and the table of contents are the three ways a READER moves, and each one tells
+	// `_onStepEntered` which it was. A reload's `_restoreStep`, and a subclass setting `_step`
+	// itself (a new trip going back to the top), are not the reader moving and tell it nothing.
+
+	/**
+	 * Hook: the reader has just moved onto a different step. Called after the redraw is asked for,
+	 * never waited on, and never for a move that went nowhere (Next on the last step, a click on
+	 * the step already showing).
+	 *
+	 * `via` is the point of it. Next is the table DOING the step it leaves -- the Expedition
+	 * walkthrough's party setting out, or coming home -- where Back and a jump are only reading, so
+	 * a subclass that makes something happen on arrival asks for "next" and ignores the other two.
+	 * It may be async; a failure is warned about here rather than left unhandled.
+	 *
+	 * @param {string|null} key  The step moved onto, by its key (null on a stepper without keys).
+	 * @param {object} move
+	 * @param {string|null} move.from  The step left.
+	 * @param {"next"|"back"|"jump"} move.via
+	 */
+	_onStepEntered(_key, _move) {}
+
+	/** Move to `index` and tell the hook how. Callers have already range-checked it. */
+	_moveTo(index, via) {
+		const from = this._steps[this._step]?.key ?? null;
+		this._step = index;
+		this.render(false);
+		try {
+			Promise.resolve(this._onStepEntered(this._steps[index]?.key ?? null, { from, via }))
+				.catch(err => warn("a walkthrough step's arrival failed", err));
+		} catch (err) {
+			warn("a walkthrough step's arrival failed", err);
+		}
+	}
+
 	_advance() {
 		this._onBeforeStepChange();
-		if (this._step < this._steps.length - 1) { this._step++; this.render(false); }
+		if (this._step < this._steps.length - 1) this._moveTo(this._step + 1, "next");
 	}
 
 	_retreat() {
 		this._onBeforeStepChange();
-		if (this._step > 0) { this._step--; this.render(false); }
+		if (this._step > 0) this._moveTo(this._step - 1, "back");
 	}
 
 	// Jump straight to a step (table-of-contents click). Flushes the current field
@@ -241,7 +278,6 @@ export class StepperDialog extends Application {
 	_goTo(index) {
 		if (!Number.isInteger(index) || index < 0 || index >= this._steps.length || index === this._step) return;
 		this._onBeforeStepChange();
-		this._step = index;
-		this.render(false);
+		this._moveTo(index, "jump");
 	}
 }

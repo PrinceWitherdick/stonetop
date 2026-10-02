@@ -2800,6 +2800,12 @@
         "expeditionTriumphant": "Returned triumphant.",
         "expeditionParty": "With {names}.",
         "site": "Visited {name}"
+      },
+      "expedition": {
+        "recorded": "On the timeline: home in {when}, for everyone who went and for Stonetop.",
+        "notYet": "Not on the timeline yet. It is written the first time you step in here with Next.",
+        "record": "Record on the timeline",
+        "again": "Record on the timeline again"
       }
     },
     "fight": {

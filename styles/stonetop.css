@@ -34170,6 +34170,29 @@ th:has(> .stonetop-roll-table-btn) {
 	font-style: italic;
 }
 
+/* Whether the trip is on the timeline yet, under the triumph block on the homecoming step. */
+.stonetop-exp-timeline {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin-top: 14px;
+}
+
+.stonetop-exp-timeline-note {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text);
+}
+
+.stonetop-exp-timeline-btn {
+	width: auto;
+	white-space: nowrap;
+}
+
 /* NO CHECKBOX ANYWHERE IN THIS WALKTHROUGH ANY MORE. Chart a Course was the only step
    that had one — a tick per requirement, twelve of them standing on the page — and the
    step now records what it presented as a list a GM adds to instead (see the charted-list

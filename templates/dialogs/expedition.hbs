@@ -400,6 +400,19 @@
     </div>
     {{/if}}
 
+    {{!-- The trip on the timeline: written by itself the first time the GM steps in here with Next,
+          for everyone who went and for Stonetop. This says whether it has been, and writes it
+          again on demand (a trip reached through the contents, or one whose party changed). --}}
+    {{#if tripTimeline}}
+    <div class="stonetop-exp-timeline">
+      <p class="stonetop-exp-timeline-note">
+        <i class="fas fa-timeline" aria-hidden="true"></i>
+        <span>{{tripTimeline.note}}</span>
+      </p>
+      <button type="button" class="stonetop-exp-timeline-btn">{{tripTimeline.button}}</button>
+    </div>
+    {{/if}}
+
     </div>
 
     {{!-- EXPLORATION MOVES — a permanent right-hand rail, on every step, wearing the

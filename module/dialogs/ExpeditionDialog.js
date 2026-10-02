@@ -79,6 +79,7 @@ import {
 import { drawnOn, offMapNote, routePath, tierDraws, tierDrawing, tierDrawingEnds } from "../utils/route-path.js";
 import { posterSceneFor } from "../book2-art/poster-map-catalog.js";
 import { format, localize } from "../utils/i18n.js";
+import { periodLabel } from "../seasons/current-season.js";
 import { loadGatedClause, overLoadGate } from "../actors/character/load-gates.js";
 import {
 	clearRouteOnScene, offMapNames, routeFlagTouched, sceneRouteCheck, sceneRouteRefusal,
@@ -869,6 +870,7 @@ export class ExpeditionDialog extends StepperDialog {
 		// the move's whole effect is on the steading — so there is no re-render here; the
 		// walkthrough it opens repaints whatever steading sheet happens to be showing.
 		html.find(".stonetop-exp-triumph-btn").on("click", () => this._returnTriumphant());
+		html.find(".stonetop-exp-timeline-btn").on("click", ev => this._guardBusy(ev, () => this._recordTrip()));
 		// Route step: pick a place off the map or the list, or change which map is showing. The
 		// same binder the popout uses, because it is the same partial (dialogs/journey-controls.js).
 		const journeyHandlers = {
@@ -1042,6 +1044,10 @@ export class ExpeditionDialog extends StepperDialog {
 			returnTriumphant: step.returnTriumphant && game.user?.isGM
 				? { hasSteading: !!getStonetopSteadingActor(), body: step.triumphBody ?? "" }
 				: null,
+			// Whether this trip is on the timeline yet, on the homecoming step. It is written by
+			// itself the first time the GM steps in here with Next; this says so, and offers to write
+			// it (again) for a trip reached by the table of contents or recorded before a change.
+			tripTimeline: step.returnTriumphant && game.user?.isGM ? this._tripTimelineContext() : null,
 			// The exploration moves rail. On EVERY step, not only the ones that reach for a
 			// GM move: it is furniture, and a column that came and went as the reader stepped
 			// would shift the prose sideways under them twice a walkthrough. The list is the
@@ -1621,9 +1627,11 @@ export class ExpeditionDialog extends StepperDialog {
 	 * Make the Return Triumphant move (Book I p.339) from the last step of the walkthrough.
 	 *
 	 * Hands straight off to the shared walkthrough the steading sheet's move card opens
-	 * (actors/steading/return-triumphant.js). Nothing of the expedition is recorded: the move's
-	 * whole effect is a debility cleared, or a point of Fortunes, on the steading — and that is
-	 * already written down where it belongs, on the sheet, in its ledger, attributed to the move.
+	 * (actors/steading/return-triumphant.js). The move's effect is a debility cleared, or a point of
+	 * Fortunes, on the steading, written down where it belongs: on the sheet, in its ledger,
+	 * attributed to the move. The one mark it leaves on the trip, that its timeline row says they
+	 * came home in triumph, the move makes itself once it has been made (a cancelled window makes
+	 * none), so it lands the same from the steading sheet as from here.
 	 */
 	_returnTriumphant() {
 		const found = this._steadingWrapper();
@@ -1631,7 +1639,62 @@ export class ExpeditionDialog extends StepperDialog {
 			ui.notifications?.warn?.("No steading sheet in this world to Return Triumphant to.");
 			return;
 		}
-		openReturnTriumphant(found.steading);
+		openReturnTriumphant(found.steading, { fromWalkthrough: true });
+	}
+
+	// ── The trip, on the timeline ──────────────────────────────────────────────────
+	//
+	// See timeline/timeline-expedition.js, and the writer beside it. Driven by NEXT only (StepperDialog's
+	// `_onStepEntered`, `via: "next"`): stepping into Running the Journey stamps when they set out,
+	// stepping into the homecoming writes the rows. Back, the table of contents and a reload's restore
+	// only move the reader, and must not make a trip happen.
+
+	_onStepEntered(key, { via }) {
+		if (via !== "next" || !game.user?.isGM) return;
+		return this._noteTripStep(key).catch(err => warn("could not note the trip on the timeline", err));
+	}
+
+	async _noteTripStep(key) {
+		const trip = this._currentExpedition();
+		if (key === "running" && !trip?.setOut) {
+			const { timelineNow } = await import("../timeline/timeline-record.js");
+			const { log, entry } = ensureCurrent(this._log(), () => this._newExpedition());
+			entry.setOut = timelineNow();
+			await this._persistLog(log);
+		}
+		if (key === "home" && !trip?.timelineRecorded) await this._recordTrip();
+	}
+
+	/**
+	 * This window's copy of the log, as the trip's timeline writer reads and writes it
+	 * (timeline/timeline-expedition-record.js `tripLogStore`). Through the draft and `_persistLog`,
+	 * so a write made while the window is up, by the move as much as by the window, lands in the
+	 * copy the window's next save sends. The redraw rides on the write, so the homecoming's "on the
+	 * timeline since" note moves whichever of them made it.
+	 */
+	tripLogStore() {
+		return {
+			read:    () => this._log(),
+			write:   async log => { await this._persistLog(log); this.render(false); },
+			newTrip: () => this._newExpedition(),
+		};
+	}
+
+	/** Write (or rewrite) this trip's row on the timeline. GM-only; see the writer. */
+	async _recordTrip() {
+		const { recordTrip } = await import("../timeline/timeline-expedition-record.js");
+		await recordTrip({ store: this.tripLogStore() });
+	}
+
+	/** The homecoming step's note: whether this trip is on the timeline yet, and when. */
+	_tripTimelineContext() {
+		const recorded = this._currentExpedition()?.timelineRecorded ?? null;
+		return {
+			note: recorded?.season
+				? format("stonetop.timeline.expedition.recorded", { when: periodLabel(recorded) })
+				: localize("stonetop.timeline.expedition.notYet"),
+			button: localize(recorded ? "stonetop.timeline.expedition.again" : "stonetop.timeline.expedition.record"),
+		};
 	}
 
 	/**
