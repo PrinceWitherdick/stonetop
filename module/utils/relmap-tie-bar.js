@@ -71,6 +71,7 @@ import {
 	RELMAP_INK_CUSTOM, RELMAP_INK_PRESETS, deepenInk, inkPaint, normalizeHex, resolveInkHex,
 } from "../relmap/relmap-ink.js";
 import { RELMAP_CAPTION_PX, curvePoints } from "./relmap-geometry.js";
+import { RelmapBoardBar, markChosen } from "./relmap-board-bar.js";
 import { clipText, dropLastChar } from "./strings.js";
 
 /**
@@ -115,20 +116,6 @@ export const TIE_INK_DELAY_MS = 250;
 export const TIE_SIZE_DELAY_MS = 300;
 
 /**
- * The three answers this bar holds back before writing: how long each waits, and what writing it is.
- *
- * ⚠ ONE TABLE BECAUSE EVERY ONE OF THEM HAS TO BE ENUMERATED FOUR MORE TIMES. A held answer needs
- * arming, disarming, counting in `isWriting` -- the affirmative guard that stops a repaint landing
- * on something under the reader's hand -- and cancelling in `destroy`. Written out per field that
- * was a timer, an arm and a disarm apiece and three hand-kept lists, and the one that got left off
- * a list is either a write that lands on a line the reader has already rubbed out or a timer still
- * holding a closed bar alive. A fourth held answer is a row here and nothing else.
- *
- * The delays differ for the reasons each constant gives, and the flushes genuinely differ: only the
- * caption's compares the field against what was last saved, and only the size's repaints the field
- * from what will actually be stored.
- */
-/**
  * The presses that are their own thing, rather than one of TIE_GROUPS answered on the spot.
  *
  * THE THREE THAT OPEN A PANEL WRITE NOTHING BY THEMSELVES, which is what makes one safe to open on a
@@ -152,6 +139,21 @@ const TIE_PRESSES = Object.freeze({
 /** The forty colours the palette offers, for asking whether one is among them. See `_isPreset`. */
 const PRESET_HEXES = new Set(RELMAP_INK_PRESETS.map(preset => preset.hex));
 
+/**
+ * The three answers this bar holds back before writing: how long each waits, and what writing it is.
+ *
+ * ⚠ ONE TABLE BECAUSE EVERY ONE OF THEM HAS TO BE ENUMERATED FOUR MORE TIMES. A held answer needs
+ * arming, disarming, counting in `isWriting` -- the affirmative guard that stops a repaint landing
+ * on something under the reader's hand -- and cancelling in `destroy`. Written out per field that
+ * was a timer, an arm and a disarm apiece and three hand-kept lists, and the one that got left off
+ * a list is either a write that lands on a line the reader has already rubbed out or a timer still
+ * holding a closed bar alive. A fourth held answer is a row here and nothing else: the arming, the
+ * counting and the cancelling are utils/relmap-board-bar.js's, and read this table.
+ *
+ * The delays differ for the reasons each constant gives, and the flushes genuinely differ: only the
+ * caption's compares the field against what was last saved, and only the size's repaints the field
+ * from what will actually be stored.
+ */
 const TIE_DEFERRED = Object.freeze({
 	words: { ms: TIE_WRITE_DELAY_MS, flush: bar => bar.flush() },
 	ink: { ms: TIE_INK_DELAY_MS, flush: bar => bar._flushInk() },
@@ -280,44 +282,10 @@ const TIE_GROUPS = ["dir", "dash", "ink", "size"];
  */
 const TIE_POPS = ["ink", "dash", "size"];
 
-/**
- * Mark exactly one of a group as chosen -- in the class, in the ARIA, and in the TAB ORDER.
- *
- * ⚠ THE TAB ORDER IS THE THIRD OF THOSE AND IS NOT DECORATION. These are `role="radio"` buttons in
- * a `role="radiogroup"`, and a radio group is ONE tab stop with the arrow keys inside it. Left as
- * ordinary buttons, this bar would put a stop at every one of them between the board and whatever
- * comes after it -- on a floating strip a reader arrives at by clicking a line, which is the worst
- * place in the window to lose somebody. So exactly one button per group is reachable by Tab (the
- * one that is set), and `_groupKey` moves the focus between the rest.
- *
- * ⚠ AND A HIDDEN BUTTON IS NOT IN THE GROUP AT ALL. The palette carries a fixed set of slots for
- * the colours already on the board and shows only as many as there are -- a `hidden` slot given the
- * tab stop is a group with no reachable button in it, which is a radiogroup a keyboard cannot enter.
- *
- * ⚠ `may` IS FOR THE ONE GROUP WHOSE ANSWER HONESTLY MIGHT NOT BE ON THE LIST. Everywhere else, a
- * value that matches no button is a template that has drifted from the store, and the first button
- * taking the mark is a defence against a group nobody can reach. The sizes are different in kind: a
- * reader may type any number in the bounds, and 22 is a perfectly good answer that no step stands
- * for -- so the first step must NOT come up looking pressed, which would say the line is set in ten
- * when it is set in twenty-two. Passed `false`, nothing shows as chosen and the tab stop goes to the
- * first button anyway, because the group still has to be reachable.
- */
-function markChosen(buttons, value, { may = true } = {}) {
-	// A group whose stored answer is not among its buttons -- which cannot happen from the store,
-	// but can from a template that has drifted -- would otherwise have NO tab stop at all and be
-	// unreachable. The first button takes it in that case.
-	const list = [...buttons].filter(button => !button.hidden);
-	const found = list.some(button => button.dataset?.relmapTieValue === value);
-	list.forEach((button, index) => {
-		const first = index === 0;
-		const mine = found ? button.dataset?.relmapTieValue === value : may && first;
-		button.classList?.toggle("is-chosen", mine);
-		button.setAttribute?.("aria-checked", mine ? "true" : "false");
-		button.setAttribute?.("tabindex", mine || (!found && first) ? "0" : "-1");
-	});
-}
+// `markChosen`, which marks which one of a group is set and gives that one the tab stop, is in
+// utils/relmap-board-bar.js now, beside the arrow-key walk it hands the rest of the group to.
 
-export class RelmapTieBar {
+export class RelmapTieBar extends RelmapBoardBar {
 	/**
 	 * @param {HTMLElement} root  the window's root element.
 	 * @param {object} handlers
@@ -361,19 +329,20 @@ export class RelmapTieBar {
 		surface, tieAt, onField, onSaying, onRub, onPicked, onNudged, inksInUse,
 		canEdit = () => true,
 	} = {}) {
-		this.root = root ?? null;
-		this._surface = surface ?? (() => null);
+		// NO `spacing`: this bar chooses its own seat (`_seat`), off the whole of its line.
+		super(root, {
+			bar: ".stonetop-relmap-tiebar",
+			press: "relmap-tie",
+			writing: { field: "words", key: "label" },
+			held: TIE_DEFERRED,
+		}, { surface, onField, onPicked, canEdit });
 		this._tieAt = tieAt ?? (() => null);
-		this._onField = onField ?? (() => {});
 		this._onSaying = onSaying ?? (() => {});
 		this._onRub = onRub ?? (() => {});
-		this._onPicked = onPicked ?? (() => {});
 		this._onNudged = onNudged ?? (() => {});
 		this._inksInUse = inksInUse ?? (() => []);
-		this._canEdit = canEdit;
 
-		this.el = root?.querySelector?.(".stonetop-relmap-tiebar") ?? null;
-		this.words = this.el?.querySelector?.("[data-relmap-tie='words']") ?? null;
+		this.words = this._field;
 		/** The answer as it stands, and the press that drops the palette: one disc and one word. */
 		this.inkOpen = this.el?.querySelector?.("[data-relmap-tie='inkopen']") ?? null;
 		this.inkMark = this.el?.querySelector?.("[data-relmap-tie-mark='ink']") ?? null;
@@ -410,22 +379,8 @@ export class RelmapTieBar {
 		this.sizeNum = this.el?.querySelector?.("[data-relmap-tie='sizenum']") ?? null;
 		/** Foundry's colour picker, inside the palette and shown only when the `+` is pressed. */
 		this.inkHex = this.el?.querySelector?.("[data-relmap-tie='inkhex']") ?? null;
-		// The viewport this bar is clamped into, found ONCE. `place()` runs on every painted frame of
-		// a pan, and a lookup per frame is a lookup per frame for an element that cannot change: this
-		// bar is thrown away and rebuilt with the root it was given.
-		this._view = root?.querySelector?.(".stonetop-relmap-view") ?? null;
 
-		/** Which line is open, or "" for none. */
-		this.id = "";
-		/**
-		 * Where on the board (in percentages) that line's middle is.
-		 *
-		 * ⚠ REMEMBERED RATHER THAN ASKED FOR IN `place()`, which is the difference between a pan
-		 * that costs one style write per frame and one that rebuilds the board's whole geometry
-		 * sixty times a second. Nothing can move it without a repaint, and a repaint calls
-		 * `refresh`, which is where it is written.
-		 */
-		this._at = null;
+		// `id` is which line is open, and `_at` (see the base) is where that line's middle is.
 		/**
 		 * The whole of that line, in the same percentages, as `[left, top, left, top, ...]`.
 		 *
@@ -439,28 +394,12 @@ export class RelmapTieBar {
 		 */
 		this._line = null;
 		/**
-		 * The bar's own box, measured once per opening rather than once per frame.
-		 *
-		 * Its width is a fixed field and a fixed row of presses, so nothing but its CONTENTS changing
-		 * can move it -- and the two places that change them (`open` and `refresh`) throw this away.
-		 */
-		this._box = null;
-		/**
 		 * Which side of its line the bar is sitting on: false above it, true underneath.
 		 *
-		 * Written by `place()` and read by `_placePop()`, which hangs whichever panel is open on the
+		 * Written by `_seat()` and read by `_placePop()`, which hangs whichever panel is open on the
 		 * side AWAY from the line, for the same reason the bar itself keeps off it.
 		 */
 		this._under = false;
-		/** What the caption said when the field was last in step with the document. */
-		this._saved = "";
-		/**
-		 * The pending write for each row of TIE_DEFERRED: 0 when nothing is waiting.
-		 *
-		 * One object rather than a field apiece so that `isWriting` and `destroy` can ask about all
-		 * of them at once, and so that neither can be left behind when a fourth is added.
-		 */
-		this._timers = { words: 0, ink: 0, size: 0 };
 		/**
 		 * A colour the reader has chosen that the document does not have yet.
 		 *
@@ -503,40 +442,15 @@ export class RelmapTieBar {
 		/** The size the bar is showing, as the store would keep it. Written by `_markSize` and read
 		 * only by the field's blur, which is the one moment there is a box to put right. */
 		this._sizeSaid = 0;
-		/** Where the focus goes when the bar is dismissed with Escape. */
-		this._returnTo = null;
-		this._bound = [];
 
 		this._wire();
 	}
 
-	/** Whether a line is open. */
-	get isOpen() { return !!this.id && !!this.el && !this.el.hidden; }
-
-	/**
-	 * Is there anything the reader has settled that the document does not have yet?
-	 *
-	 * THE CAPTION, THE COLOUR AND A TYPED SIZE: all three are held back briefly before they are
-	 * written, and a repaint arriving in any of those gaps would paint over the answer under the
-	 * reader's hand.
-	 *
-	 * ⚠ THE WINDOW'S REPAINT ASKS THIS, and it is the affirmative guard the old `_isBusy` note said
-	 * to add if a text field ever landed on this window. A repaint does not touch this bar -- it is
-	 * outside the board -- but it DOES rebuild the lines underneath, and the write that follows
-	 * would then land on a caption the reader had gone on typing into. Asked about unsaved WRITING
-	 * rather than about focus: a field somebody is merely resting in obstructs nothing.
-	 */
-	isWriting() {
-		return this.isOpen && Object.values(this._timers).some(Boolean);
-	}
+	// `isWriting` is the base's, asked of every row of TIE_DEFERRED: the caption, the colour and a
+	// typed size are all held back briefly, and a repaint in any of those gaps would paint over the
+	// answer under the reader's hand.
 
 	// ── Wiring ──────────────────────────────────────────────────────────────
-
-	_on(el, type, handler, opts) {
-		if (!el?.addEventListener) return;
-		el.addEventListener(type, handler, opts);
-		this._bound.push([el, type, handler, opts]);
-	}
 
 	_wire() {
 		if (!this.el) return;
@@ -633,12 +547,8 @@ export class RelmapTieBar {
 			this._on(this.sizeNum, "change", ev => ev.stopPropagation());
 		}
 
-		// ⚠ CLAIMED ON THE BAR ITSELF, and stopped rather than merely defaulted. Core's
-		// KeyboardManager binds keydown in the BUBBLE phase and never looks at `defaultPrevented`,
-		// so an Escape meant to dismiss this bar closes the whole window as well, and the arrow keys
-		// inside the caption field pan the scene behind it. The board's own keydown handler
-		// (utils/relmap-drag.js) has the same note for the same reason.
-		this._on(this.el, "keydown", ev => this._key(ev));
+		// And the keys, claimed on the bar itself: see the base.
+		super._wire();
 	}
 
 	_key(ev) {
@@ -737,16 +647,10 @@ export class RelmapTieBar {
 	}
 
 	/**
-	 * The arrow keys inside one group of presses.
-	 *
-	 * ⚠ FOCUS MOVES AND THE ANSWER DOES NOT, which is the one place this departs from what a plain
-	 * radio group does. Every one of these presses WRITES TO A SHARED DOCUMENT the moment it is
-	 * made, so "selection follows focus" would mean arrowing across a group wrote every answer on
-	 * the way past onto everybody's board. The reader chooses with Space or Enter, which is what
-	 * the button does for itself. (ARIA allows exactly this for a group whose selection has side
-	 * effects, and it is why these are buttons rather than inputs.) The palette is a group like the
-	 * other two now and gets this for nothing; when it was a `select` it could not be asked for it
-	 * at all, which is where TIE_INK_DELAY_MS came from.
+	 * The arrow keys inside one group of presses: the focus walks, the answer does not. The walk is
+	 * the base's (`_rove`), which says why. The palette is a group like the other two now and gets
+	 * this for nothing; when it was a `select` it could not be asked for it at all, which is where
+	 * TIE_INK_DELAY_MS came from.
 	 *
 	 * ⚠ UP AND DOWN STEP BY A ROW IN THE PALETTE, and by one everywhere else. The colours are a GRID
 	 * -- fifty-odd of them, eight across -- and a Down that moved to the next swatch would mean up to
@@ -763,32 +667,9 @@ export class RelmapTieBar {
 	 * @returns {boolean} whether the key was this group's.
 	 */
 	_groupKey(ev) {
-		const way = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[ev.key];
-		if (!way) return false;
-		const button = ev.target?.closest?.("[data-relmap-tie]");
-		const what = button?.dataset?.relmapTie;
-		if (!TIE_GROUPS.includes(what)) return false;
-		ev.preventDefault();
-		// Stopped whatever comes of it: an arrow that reached core's KeyboardManager would pan the
-		// scene behind this window, which is the note every keydown handler on this board carries.
-		ev.stopPropagation();
-		// A hidden slot is not in the group: see `markChosen`. Arrowing onto one would move the
-		// focus to something nobody can see, which reads as the arrow keys having stopped working.
-		const list = [...(this.el?.querySelectorAll?.(`[data-relmap-tie='${what}']`) ?? [])]
-			.filter(one => !one.hidden);
-		const at = list.indexOf(button);
-		if (at < 0 || !list.length) return true;
-		const upDown = ev.key === "ArrowUp" || ev.key === "ArrowDown";
-		const step = way * (upDown ? this._across(button) : 1);
-		// Wrapping, as a radio group does: a short row of presses is exactly the case where running
-		// off the end and stopping feels like the control has jammed. A row's stride wraps the same
-		// way, which lands a reader stepping down off the last row back near the top of the palette.
-		const next = list[((at + step) % list.length + list.length) % list.length];
-		// The focus has to be able to LAND, and only the set button carries a tab stop.
-		next?.setAttribute?.("tabindex", "0");
-		button?.setAttribute?.("tabindex", "-1");
-		next?.focus?.();
-		return true;
+		// A row's stride wraps the way a step of one does, which lands a reader stepping down off the
+		// last row of the palette back near its top.
+		return this._rove(ev, TIE_GROUPS, button => this._across(button));
 	}
 
 	_press(what, value) {
@@ -849,21 +730,10 @@ export class RelmapTieBar {
 		return true;
 	}
 
-	/** Let go, writing anything outstanding. */
-	close() {
-		if (!this.el) return;
-		// ⚠ NOTHING HELD, NOTHING TO PUT DOWN. Every click that lands on bare board comes through
-		// here, and there is no mark to take off a board this bar was never opened over.
-		if (!this.id) { this.el.hidden = true; return; }
-		this.flush();
+	/** Letting go (the base's `close`, after its flush): the open panel goes, and so does the line. */
+	_letGo() {
 		this._closePop();
-		this.id = "";
-		this._returnTo = null;
-		this._at = null;
 		this._line = null;
-		this._box = null;
-		this.el.hidden = true;
-		this._onPicked("");
 	}
 
 	/**
@@ -878,15 +748,8 @@ export class RelmapTieBar {
 	discard() {
 		this._forgetInk();
 		this._forgetSize();
-		this._forgetWriting();
-		this.close();
-	}
-
-	/** Let go and put the focus back where the reader came from. */
-	dismiss() {
-		const back = this._returnTo;
-		this.close();
-		back?.focus?.();
+		// And the caption, and then the letting go: the base's.
+		super.discard();
 	}
 
 	_focusWords() {
@@ -1592,48 +1455,17 @@ export class RelmapTieBar {
 	}
 
 	/**
-	 * Put the bar back over its line, wherever the board has got to.
+	 * Where over its line the bar sits, for the base's `place`, which runs on every painted frame of
+	 * a pan and may not measure anything.
 	 *
-	 * Called from the surface's `onChange`, so it runs on every painted frame of a pan and every
-	 * zoom step, and NOTHING IN IT MAY MEASURE. It runs immediately after the surface has written a
-	 * transform and the caption pass has toggled a class on the root, so every read here is a forced
-	 * style-and-layout flush over a board carrying forty portraits and a hundred and sixty paths.
-	 * So: the surface is asked for the viewport's size (it keeps that measured anyway), the viewport
-	 * element was found in the constructor, and the bar's own box is measured once per opening.
+	 * WHICH IS WHY THE LINE IS CUT UP ELSEWHERE. Seating the bar off the stroke rather than off one
+	 * point of it means walking that stroke, and the walk here is arithmetic over percentages cut
+	 * when the bar took hold of the line: `_seats` offers the places it could go and `_clearsLine`
+	 * says which of them the line stays out of, and neither touches the layout.
 	 *
-	 * WHICH IS ALSO WHY THE LINE IS CUT UP ELSEWHERE. Seating the bar off the stroke rather than off
-	 * one point of it means walking that stroke, and the walk here is arithmetic over percentages
-	 * cut when the bar took hold of the line: `_seats` offers the places it could go and
-	 * `_clearsLine` says which of them the line stays out of, and neither touches the layout.
+	 * @returns {{left: number, top: number}}
 	 */
-	place() {
-		if (!this.isOpen || !this.el) return;
-		const surface = this._surface();
-		const at = this._at;
-		if (!surface || !at) return;
-
-		const painted = surface.painted?.();
-		const offset = surface.offset;
-		if (!painted?.width || !offset) return;
-
-		const x = offset.x + (painted.width * (at.left ?? 0)) / 100;
-		const y = offset.y + (painted.height * (at.top ?? 0)) / 100;
-
-		this._box ??= this.el.getBoundingClientRect?.() ?? { width: 0, height: 0 };
-		// The measured viewport where the surface has one, and its box otherwise -- which is what a
-		// surface that has not been attached to a real element can offer.
-		//
-		// ⚠ ASKED OF THE MEASUREMENT AND NOT OF THE OBJECT. `viewSize` is a getter that always
-		// hands back a pair, so `??` never reached the fallback: a surface that has not been
-		// measured yet answers {0, 0}, and the clamp below then pins the bar to the top-left corner
-		// of the board instead of floating it over its line.
-		const measured = surface.viewSize;
-		const room = measured?.width
-			? measured
-			: this._view?.getBoundingClientRect?.() ?? { width: 0, height: 0 };
-		const w = this._box.width || 0;
-		const h = this._box.height || 0;
-
+	_seat({ x, y, w, h, room, offset, painted }) {
 		// ⚠ CLEAR OF THE LINE AND NEVER ACROSS IT -- which takes EIGHT seats and not two, because
 		// the middle of a line says nothing about where the rest of it goes. Above and underneath
 		// answer a level line and no other: a near-vertical link runs straight up through a bar
@@ -1648,8 +1480,7 @@ export class RelmapTieBar {
 		// the answer there is the seat the reader expects rather than none at all: a bar that
 		// refused to appear would be a line that cannot be edited.
 		this._under = seat.top + h / 2 > y;
-		this.el.style.left = `${Math.round(seat.left)}px`;
-		this.el.style.top = `${Math.round(seat.top)}px`;
+		return seat;
 	}
 
 	/**
@@ -1801,21 +1632,8 @@ export class RelmapTieBar {
 		this._onSaying(this.id, this.words?.value ?? "");
 	}
 
-	/**
-	 * Hold one of TIE_DEFERRED's answers back, and write it when the reader stops.
-	 *
-	 * @param {"words"|"ink"|"size"} kind Which held answer to arm. Re-arming restarts its wait.
-	 */
-	_defer(kind) {
-		this._disarm(kind);
-		const { ms, flush } = TIE_DEFERRED[kind];
-		this._timers[kind] = setTimeout(() => { this._timers[kind] = 0; flush(this); }, ms);
-	}
-
-	/** Stop one held answer's write from landing. What was held is left alone; see the `_forget`s. */
-	_disarm(kind) {
-		if (this._timers[kind]) { clearTimeout(this._timers[kind]); this._timers[kind] = 0; }
-	}
+	// Holding back and letting go of TIE_DEFERRED's three ("words", "ink", "size") is the base's
+	// `_defer` and `_disarm`.
 
 	// ── The colour ──────────────────────────────────────────────────────────
 
@@ -1875,15 +1693,11 @@ export class RelmapTieBar {
 	}
 
 	/**
-	 * Throw away a caption that has not been written yet, so nothing later saves it.
-	 *
-	 * The field goes back to what the document has rather than merely being disarmed, because
-	 * `flush` compares the two: a timer cancelled but a field left holding a newer sentence is a
-	 * write waiting for the next blur. Escape takes the same two steps for the same reason.
+	 * Throw away a caption that has not been written yet, so nothing later saves it: the base puts
+	 * the field back to what the document has.
 	 */
 	_forgetWriting() {
-		this._disarm("words");
-		if (this.words) this.words.value = this._saved;
+		super._forgetWriting();
 		// AND THE LINE IS PUT BACK WITH IT. What is being thrown away is on the BOARD now, not in a
 		// box: a field quietly restored under a caption still showing the abandoned sentence would
 		// leave the line saying something the document has never had, until the next repaint.
@@ -1908,32 +1722,16 @@ export class RelmapTieBar {
 		// they come back off it: the reader typed and then chose, so a chosen thing is what a single
 		// undo takes back. (They are separate steps on purpose -- see `_stepHistory`, which reverses
 		// one leaf.)
-		const writes = [this._flushInk(), this._flushSize(), this._flushWords()].filter(Boolean);
+		// The caption's own write is the base's `_flushWriting`, which compares the field against
+		// what was last saved.
+		const writes = [this._flushInk(), this._flushSize(), this._flushWriting()].filter(Boolean);
 		if (!writes.length) return undefined;
 		return writes.length === 1 ? writes[0] : Promise.all(writes);
 	}
 
-	/** Write what is in the field, if it says anything the document does not already have. */
-	_flushWords() {
-		this._disarm("words");
-		if (!this.id || !this.words || !this._canEdit()) return undefined;
-		const said = this.words.value ?? "";
-		if (said === this._saved) return undefined;
-		this._saved = said;
-		return this._onField(this.id, { label: said });
-	}
-
 	destroy() {
-		// EVERY HELD ANSWER, from the table rather than by hand: a timer missed here is a write
-		// landing on a bar that no longer exists.
-		for (const kind of Object.keys(TIE_DEFERRED)) this._disarm(kind);
-		for (const [el, type, handler, opts] of this._bound) {
-			el.removeEventListener?.(type, handler, opts);
-		}
-		this._bound = [];
-		this.id = "";
-		if (this.el) this.el.hidden = true;
-		this.el = null;
+		// Every held answer, the listeners and the bar itself are the base's to let go of.
+		super.destroy();
 		this.words = null;
 		this.inkOpen = null;
 		this.inkMark = null;
@@ -1948,7 +1746,5 @@ export class RelmapTieBar {
 		this.sizeMark = null;
 		this.sizePop = null;
 		this.sizeNum = null;
-		this._view = null;
-		this.root = null;
 	}
 }
