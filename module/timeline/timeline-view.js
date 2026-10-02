@@ -25,7 +25,7 @@ import {
 
 /**
  * What each kind of row is called and the glyph it wears, in the card's chip and in the reader's
- * "Show" menu. A kind is ALWAYS named in words beside its glyph: an icon alone is a guess for a
+ * "Filter" menu. A kind is ALWAYS named in words beside its glyph: an icon alone is a guess for a
  * reader on a magnifier, and the chip is the one thing that says a row was written by the system.
  *
  * ⚠ NO SEASON-NAMED KEYS OR CLASSES. The Seasons Change row is one kind among ten, marked by the
@@ -51,7 +51,7 @@ export function kindChip(source) {
 }
 
 /**
- * Every kind the "Show" menu offers, in TIMELINE_SOURCES order, each marked shown or hidden for
+ * Every kind the "Filter" menu offers, in TIMELINE_SOURCES order, each marked shown or hidden for
  * this reader.
  *
  * @param {string[]} hidden  The sources this reader unticked.

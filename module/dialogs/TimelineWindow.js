@@ -7,8 +7,8 @@
 // sync. The tab is a third shape of the same thing again -- see TimelinePanel, which is this class
 // mounted frameless, exactly as the relationship map's panel is its window.
 //
-// Either shape can be laid DOWN the page or ACROSS it, per reader (the toolbar's Down/Across
-// pair), and each reader chooses which KINDS of row they see (the toolbar's Show menu). Both are
+// Either shape can be laid DOWN the page or ACROSS it, per reader (the toolbar's Vertical/Horizontal
+// pair), and each reader chooses which KINDS of row they see (the toolbar's Filter menu). Both are
 // client settings: they change how this reader reads the record, never the record.
 //
 // WHAT THIS FILE IS CAREFUL ABOUT:
@@ -107,7 +107,8 @@ export class TimelineWindow extends StonetopDialog {
 		// reader at the size they chose. Every open starts at 1, as the map's board starts fitted.
 		this._zoom = 1;
 		this._unwireWheelZoom = null;
-		// Whether this reader left the Show menu open. Kept on the instance because every tick in it
+		this._unwireShowMenuDismiss = null;
+		// Whether this reader left the Filter menu open. Kept on the instance because every tick in it
 		// re-renders the window, and a menu that shut itself after each tick would be a menu you
 		// have to reopen ten times to hide ten things.
 		this._showMenuOpen = false;
@@ -522,6 +523,7 @@ export class TimelineWindow extends StonetopDialog {
 		root.addEventListener("toggle", ev => {
 			if (ev.target?.classList?.contains("stonetop-timeline-show")) this._showMenuOpen = !!ev.target.open;
 		}, true);
+		this._wireShowMenuDismiss(root.querySelector(".stonetop-timeline-show"));
 
 		// Drag the column about and throw it, as the relationship map's board is (utils/drag-scroll.js).
 		// A fresh column every repaint, so the old one's wiring (and any glide still running on it) goes.
@@ -545,6 +547,30 @@ export class TimelineWindow extends StonetopDialog {
 		});
 
 		this._wireSync();
+	}
+
+	/**
+	 * Shut the Filter menu when the reader presses anywhere outside it, as a dropdown does.
+	 *
+	 * On the DOCUMENT, in capture, so a press the drag-scroll column (or another window) swallows
+	 * still counts. Shutting it fires `toggle`, which clears `_showMenuOpen` for the next repaint.
+	 * The listener takes itself off once its menu leaves the page: a repaint draws a fresh menu, and
+	 * the sheet-tab panel can be dropped with its sheet without ever passing through `close`.
+	 */
+	_wireShowMenuDismiss(menu) {
+		this._unwireShowMenuDismiss?.();
+		this._unwireShowMenuDismiss = null;
+		if (!menu) return;
+		const onPointerDown = ev => {
+			if (!menu.isConnected) return unwire();
+			if (menu.open && !menu.contains(ev.target)) menu.open = false;
+		};
+		const unwire = () => {
+			document.removeEventListener("pointerdown", onPointerDown, true);
+			if (this._unwireShowMenuDismiss === unwire) this._unwireShowMenuDismiss = null;
+		};
+		document.addEventListener("pointerdown", onPointerDown, true);
+		this._unwireShowMenuDismiss = unwire;
 	}
 
 	/**
@@ -590,6 +616,7 @@ export class TimelineWindow extends StonetopDialog {
 		this._unwireDragScroll = null;
 		this._unwireWheelZoom?.();
 		this._unwireWheelZoom = null;
+		this._unwireShowMenuDismiss?.();
 		return super.close(options);
 	}
 }

@@ -123,7 +123,7 @@ describe("kills on the timeline", () => {
 	});
 });
 
-describe("the reader's Show menu", () => {
+describe("the reader's Filter menu", () => {
 	const track = { trackId: "pc", name: "Ellis", entries: [
 		entry({ id: "a", source: "kills", foes: ["Wolf"] }),
 		entry({ id: "b", source: "levelup", season: "summer" }),

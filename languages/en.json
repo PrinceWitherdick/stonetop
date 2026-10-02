@@ -2739,7 +2739,7 @@
         "confirm": "Write on this thread"
       },
       "allHidden": {
-        "lead": "Everything on this timeline is hidden by your Show menu."
+        "lead": "Everything on this timeline is hidden by your Filter menu."
       },
       "kind": {
         "hand": "Written",
@@ -2754,7 +2754,7 @@
         "follower": "Follower"
       },
       "show": {
-        "label": "Show",
+        "label": "Filter",
         "all": "Show everything",
         "hiddenCount": "{count} hidden",
         "hand": "Written entries",
@@ -2770,9 +2770,10 @@
       },
       "layout": {
         "label": "Timeline layout",
-        "vertical": "Down",
+        "caption": "Layout:",
+        "vertical": "Vertical",
         "verticalTooltip": "Lay the timeline down the page, one season under the next",
-        "horizontal": "Across",
+        "horizontal": "Horizontal",
         "horizontalTooltip": "Lay the timeline across the page along one line, like a slide"
       },
       "kills": {

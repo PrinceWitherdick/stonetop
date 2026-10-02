@@ -37,7 +37,7 @@
 		</button>
 		{{/if}}
 
-		{{!-- A character's running tally, counted over every season and whatever the Show menu hides. --}}
+		{{!-- A character's running tally, counted over every season and whatever the Filter menu hides. --}}
 		{{#if single}}{{#if timeline.killTotal}}
 		<span class="stonetop-timeline-kill-total">
 			<i class="fas fa-skull" aria-hidden="true"></i>
@@ -46,25 +46,6 @@
 		{{/if}}{{/if}}
 
 		<div class="stonetop-timeline-toolbar-end">
-			{{!-- Down or across. TWO buttons, each saying what it is and whether it is pressed, rather
-			      than one whose label flips: a pressed-state button must keep its name, and both
-			      ways in stay on screen whichever is current. --}}
-			<div class="stonetop-timeline-orient-group" role="group" aria-label="{{localize "stonetop.timeline.layout.label"}}">
-				<button type="button" class="stonetop-timeline-orient" data-orientation="vertical"
-				        data-timeline-focus="orient-vertical"
-				        aria-pressed="{{#if horizontal}}false{{else}}true{{/if}}"
-				        data-tooltip="{{localize "stonetop.timeline.layout.verticalTooltip"}}">
-					<i class="fas fa-arrow-down-long" aria-hidden="true"></i>
-					<span>{{localize "stonetop.timeline.layout.vertical"}}</span>
-				</button>
-				<button type="button" class="stonetop-timeline-orient" data-orientation="horizontal"
-				        data-timeline-focus="orient-horizontal"
-				        aria-pressed="{{#if horizontal}}true{{else}}false{{/if}}"
-				        data-tooltip="{{localize "stonetop.timeline.layout.horizontalTooltip"}}">
-					<i class="fas fa-arrow-right-long" aria-hidden="true"></i>
-					<span>{{localize "stonetop.timeline.layout.horizontal"}}</span>
-				</button>
-			</div>
 
 			{{!-- Which kinds of row this reader wants to see. Per reader, and it hides; it never
 			      deletes. The count on the summary says something is hidden even with the menu shut. --}}
@@ -88,6 +69,35 @@
 					</button>
 				</div>
 			</details>
+
+			{{!-- Vertical or horizontal. TWO buttons, each saying what it is and whether it is pressed,
+			      rather than one whose label flips: a pressed-state button must keep its name, and both
+			      ways in stay on screen whichever is current. The visible "Layout:" caption is for the
+			      eye; the group's own label already says it to a screen reader, so the caption is
+			      hidden from one rather than read twice. No id to point at: the tab and the pop-out
+			      can both be open. --}}
+			<div class="stonetop-timeline-layout">
+				<span class="stonetop-timeline-layout-caption" aria-hidden="true">{{localize "stonetop.timeline.layout.caption"}}</span>
+				{{!-- The same segmented strip as the relationship sheets' Table/Board toggle, so the two
+				      "which way is this laid out" controls read as one kind of thing. Pressed is stamped
+				      as `aria-pressed` and the fill hangs off that: every press re-renders. --}}
+				<div class="stonetop-segmented-picker stonetop-timeline-orient-group" role="group" aria-label="{{localize "stonetop.timeline.layout.label"}}">
+					<button type="button" class="stonetop-segmented-picker-option stonetop-timeline-orient" data-orientation="vertical"
+					        data-timeline-focus="orient-vertical"
+					        aria-pressed="{{#if horizontal}}false{{else}}true{{/if}}"
+					        data-tooltip="{{localize "stonetop.timeline.layout.verticalTooltip"}}">
+						<i class="fas fa-arrow-down-long" aria-hidden="true"></i>
+						<span>{{localize "stonetop.timeline.layout.vertical"}}</span>
+					</button>
+					<button type="button" class="stonetop-segmented-picker-option stonetop-timeline-orient" data-orientation="horizontal"
+					        data-timeline-focus="orient-horizontal"
+					        aria-pressed="{{#if horizontal}}true{{else}}false{{/if}}"
+					        data-tooltip="{{localize "stonetop.timeline.layout.horizontalTooltip"}}">
+						<i class="fas fa-arrow-right-long" aria-hidden="true"></i>
+						<span>{{localize "stonetop.timeline.layout.horizontal"}}</span>
+					</button>
+				</div>
+			</div>
 		</div>
 	</header>
 
@@ -118,7 +128,7 @@
 			{{/if}}
 		</div>
 		{{else if timeline.allHidden}}
-		{{!-- Something IS written; the reader's own Show menu is hiding all of it. Saying so, with
+		{{!-- Something IS written; the reader's own Filter menu is hiding all of it. Saying so, with
 		      the way back on the same screen, is what stops this reading as a lost record. --}}
 		<div class="stonetop-timeline-invite">
 			<p class="stonetop-timeline-invite-lead">{{localize "stonetop.timeline.allHidden.lead"}}</p>

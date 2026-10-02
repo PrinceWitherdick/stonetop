@@ -1573,7 +1573,7 @@ export function registerSettings() {
 	});
 
 	// WHICH KINDS OF ROW THIS READER HAS HIDDEN (kills, level-ups, ...): the sources they unticked in
-	// the timeline's "Show" menu. Stored as what is HIDDEN rather than what is shown, so a kind added
+	// the timeline's "Filter" menu. Stored as what is HIDDEN rather than what is shown, so a kind added
 	// in a later release shows up for everybody instead of being silently missing. Per client and
 	// `config: false` for the same reasons as the orientation above.
 	game.settings.register(SYSTEM_ID, "timelineHiddenSources", {

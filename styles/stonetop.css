@@ -40430,7 +40430,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    pseudo-class each, so they outrank this rule wherever they sit. */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn,
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn,
-.stonetop-roll-mode-picker .stonetop-roll-mode-btn {
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn,
+.stonetop-timeline-orient-group .stonetop-timeline-orient {
 	/* inline-flex + width:auto, or core's block-level button rules (display:flex,
 	   width:100%) give each option its own row and the strip stacks vertically.
 	   min-height:0 for the same reason. Mirrors .stonetop-cf-tag. */
@@ -41061,7 +41062,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    pill and double-counts against the view toggle's own `gap`. */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn > i,
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn > i,
-.stonetop-roll-mode-picker .stonetop-roll-mode-btn > i {
+.stonetop-roll-mode-picker .stonetop-roll-mode-btn > i,
+.stonetop-timeline-orient-group .stonetop-timeline-orient > i {
 	margin-right: 0;
 }
 
@@ -41079,6 +41081,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    the strip's own rounded border rather than straddling it. */
 .stonetop-rel-viewpicker .stonetop-rel-view-btn:focus-visible,
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn:focus-visible,
+.stonetop-timeline-orient-group .stonetop-timeline-orient:focus-visible,
 .stonetop-roll-mode-picker .stonetop-roll-mode-btn:focus-visible {
 	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
 	outline-offset: -2px;
@@ -48569,10 +48572,10 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	border-bottom: 1px solid var(--st-card-rule);
 }
 
-/* The toolbar's quieter controls: the door through to the aggregate, the Down/Across pair and the
-   Show menu. Not CTAs -- there is one primary action on this page and it is New Entry. */
+/* The toolbar's quieter controls: the door through to the aggregate and the Filter menu. Not
+   CTAs -- there is one primary action on this page and it is New Entry. The Vertical/Horizontal
+   pair wears the segmented strip instead, further down. */
 .stonetop-timeline-open-full,
-.stonetop-timeline-orient,
 .stonetop-timeline-show-summary,
 .stonetop-timeline-show-all {
 	display: inline-flex;
@@ -48590,7 +48593,6 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 .stonetop-timeline-open-full:hover,
-.stonetop-timeline-orient:hover,
 .stonetop-timeline-show-summary:hover,
 .stonetop-timeline-show-all:hover {
 	border-color: var(--st-slate-hover-border);
@@ -48622,26 +48624,56 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	gap: 8px;
 }
 
-/* Down / Across: two buttons joined into one segmented control. Pressed is said in the ink AND in
-   `aria-pressed`, and each button keeps its own name whichever is pressed. */
-.stonetop-timeline-orient-group {
+/* "Layout:" and the pair it names, kept together so a wrapping toolbar never strands the caption
+   on one line and its buttons on the next. */
+.stonetop-timeline-layout {
 	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stonetop-timeline-layout-caption {
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	white-space: nowrap;
+}
+
+/* Vertical / Horizontal: the relationship sheets' Table/Board strip (`.stonetop-segmented-picker`),
+   so the two layout toggles look like one control. The core-button reset, icon margin and focus ring
+   are the shared ones -- search `.stonetop-rel-viewpicker .stonetop-rel-view-btn,`; only this
+   strip's own box and fill are here, copied from the view toggle's. Pressed hangs off the stamped
+   `aria-pressed` rather than an `.is-active`, since the template already says it there. */
+.stonetop-timeline-orient-group {
+	/* The picker's own `flex-start` would hang it high beside the "Layout:" caption. */
+	align-self: center;
 }
 
 .stonetop-timeline-orient-group .stonetop-timeline-orient {
-	border-radius: 0;
+	flex: 0 0 auto;
+	gap: 5px;
+	padding: 2px 9px;
+	background: transparent;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
+	line-height: 1.5;
+	color: var(--st-text-body);
+	white-space: nowrap;
+	cursor: pointer;
 }
 
-.stonetop-timeline-orient-group .stonetop-timeline-orient:first-child {
-	border-radius: var(--st-radius-sm) 0 0 var(--st-radius-sm);
+.stonetop-timeline-orient-group .stonetop-timeline-orient:last-child { border-right: 0; }
+
+.stonetop-timeline-orient-group .stonetop-timeline-orient[aria-pressed="true"] {
+	background: var(--st-btn-primary-bg, slategrey);
+	color: #fff;
 }
 
-.stonetop-timeline-orient-group .stonetop-timeline-orient:last-child {
-	margin-left: -1px;
-	border-radius: 0 var(--st-radius-sm) var(--st-radius-sm) 0;
+.stonetop-timeline-orient-group .stonetop-timeline-orient:hover:not([aria-pressed="true"]) {
+	background: rgba(100, 116, 139, 0.16);
+	color: var(--st-text-body);
 }
 
-.stonetop-timeline-orient[aria-pressed="true"],
+/* The Filter menu's summary, while open, still wears the blue pressed ink. */
 .stonetop-timeline-show[open] > .stonetop-timeline-show-summary {
 	position: relative;
 	border-color: var(--st-blue-border);
@@ -48649,13 +48681,28 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	color: var(--st-blue-text);
 }
 
-/* The Show menu: a disclosure, so it opens and shuts from the keyboard with nothing scripted. */
+/* The Filter menu: a disclosure, so it opens and shuts from the keyboard with nothing scripted. */
 .stonetop-timeline-show {
 	position: relative;
 }
 
 .stonetop-timeline-show-summary {
 	list-style: none;
+}
+
+/* The toolbar's quieter buttons are the same SIZE as New Entry (`.stonetop-cta`'s box, font and
+   leading) so the whole row lines up; only their colours stay quiet. Colour-only transition for the
+   reason the CTA gives: a metric left to animate makes the button jitter under the pointer. */
+.stonetop-timeline-open-full,
+.stonetop-timeline-show-summary {
+	box-sizing: border-box;
+	min-height: 32px;
+	gap: 0.4em;
+	padding: 4px 14px;
+	font-family: var(--font-stonetop);
+	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
+	line-height: 1.25;
+	transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .stonetop-timeline-show-summary::-webkit-details-marker {

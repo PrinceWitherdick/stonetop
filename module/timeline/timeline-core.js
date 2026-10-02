@@ -38,7 +38,7 @@ export const UNDATED_PERIOD_KEY = "undated";
  * `hand` was typed by somebody. Every other source is a MILESTONE the system wrote when the thing
  * happened -- a Seasons Change, a level gained, a kill, an expedition home, a site visited, a death,
  * a lasting wound, an arcanum, a follower gained or lost -- and each is an ordinary entry that can be
- * edited or deleted like a typed one. The source is what the reader's "Show" filter and the card's
+ * edited or deleted like a typed one. The source is what the reader's "Filter" menu and the card's
  * kind chip read.
  *
  * ⚠ ORDER IS THE FILTER MENU'S ORDER. And a new source must be added HERE, or `normalizeEntry`
