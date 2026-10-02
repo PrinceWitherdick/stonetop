@@ -2776,6 +2776,18 @@
         "horizontal": "Horizontal",
         "horizontalTooltip": "Lay the timeline across the page along one line, like a slide"
       },
+      "colours": {
+        "open": "Colours",
+        "openTooltip": "Choose the colour each kind of entry wears, for everyone in this world",
+        "title": "Timeline Colours",
+        "intro": "The colour each kind of entry wears on the timeline, for everyone at the table. Pick a new one for any kind, or put it back to its default.",
+        "pick": "Colour for {kind}",
+        "reset": "Default",
+        "resetTooltip": "Put {kind} back to its default colour",
+        "nudged": "Adjusted so it can be read on this page.",
+        "save": "Save colours",
+        "cancel": "Cancel"
+      },
       "kills": {
         "title": "Slew {count}",
         "total": "{count} slain"

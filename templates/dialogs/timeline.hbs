@@ -8,8 +8,9 @@
       The CARDS are the same partial in all four, which is what stops an entry reading one way here
       and another way there.
 
-      ⚠ THE SEASON IS NAMED, NOT COLOURED, everywhere. The four `--stonetop-season-*-ink` tokens
-      belong to the steading header's clock and a test counts every read of them in the stylesheet.
+      ⚠ EVERY SEASON HEADING WEARS `seasonClass`, the timeline's OWN season colour (user's call,
+      2026-10-01). Never the four `--stonetop-season-*-ink` tokens: those belong to the steading
+      header's clock and a test counts every read of them in the stylesheet.
 
       `data-track-id` on a lane and on the New Entry button is what the delegated listener reads to
       know which thread a click belongs to; in single-track mode it falls back to the panel's own
@@ -39,13 +40,21 @@
 
 		{{!-- A character's running tally, counted over every season and whatever the Filter menu hides. --}}
 		{{#if single}}{{#if timeline.killTotal}}
-		<span class="stonetop-timeline-kill-total">
+		<span class="stonetop-timeline-kill-total stonetop-timeline-kind--kills">
 			<i class="fas fa-skull" aria-hidden="true"></i>
 			<span>{{killTotalLabel}}</span>
 		</span>
 		{{/if}}{{/if}}
 
 		<div class="stonetop-timeline-toolbar-end">
+			{{!-- The GM's door to the colour each kind wears, for the whole world. --}}
+			{{#if isGM}}
+			<button type="button" class="stonetop-timeline-colours-open" data-timeline-focus="colours"
+			        data-tooltip="{{localize "stonetop.timeline.colours.openTooltip"}}">
+				<i class="fas fa-palette" aria-hidden="true"></i>
+				<span>{{localize "stonetop.timeline.colours.open"}}</span>
+			</button>
+			{{/if}}
 
 			{{!-- Which kinds of row this reader wants to see. Per reader, and it hides; it never
 			      deletes. The count on the summary says something is hidden even with the menu shut. --}}
@@ -57,7 +66,7 @@
 				</summary>
 				<div class="stonetop-timeline-show-menu">
 					{{#each kinds}}
-					<label class="stonetop-timeline-show-kind">
+					<label class="stonetop-timeline-show-kind stonetop-timeline-kind--{{kind}}">
 						<input type="checkbox" class="stonetop-timeline-show-check" data-timeline-source="{{source}}"
 						       data-timeline-focus="show-{{source}}"{{#if shown}} checked{{/if}}>
 						<i class="fas {{icon}}" aria-hidden="true"></i>
@@ -156,7 +165,7 @@
 				<div class="stonetop-timeline-swim" style="--timeline-cols: {{timeline.periods.length}};">
 					<span class="stonetop-timeline-swim-corner" aria-hidden="true"></span>
 					{{#each timeline.periods}}
-					<div class="stonetop-timeline-swim-head{{#if startsYear}} stonetop-timeline-swim-head--year-start{{/if}}" data-period="{{key}}">
+					<div class="stonetop-timeline-swim-head{{#if startsYear}} stonetop-timeline-swim-head--year-start{{/if}}{{#if seasonClass}} {{seasonClass}}{{/if}}" data-period="{{key}}">
 						{{> "stonetop.timeline-period-head"}}
 					</div>
 					{{/each}}
@@ -194,7 +203,7 @@
 					<h2 class="stonetop-timeline-year">{{yearLabel}}</h2>
 					{{/if}}
 					<div class="stonetop-timeline-row" data-period="{{key}}">
-						<div class="stonetop-timeline-row-head">
+						<div class="stonetop-timeline-row-head{{#if seasonClass}} {{seasonClass}}{{/if}}">
 							{{> "stonetop.timeline-period-head"}}
 						</div>
 

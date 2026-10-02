@@ -469,6 +469,57 @@
 	   in screen units, so these ratios hold at every board size.) */
 	--st-relmap-rhythm-at: 3.5;
 
+	/* ── The timeline's kinds ─────────────────────────────────────────────
+	   One colour per kind of row the system records (module/timeline/timeline-colours.js holds
+	   the same values and a test holds the two together). Each was picked for what the kind IS:
+	   the leaf's green for a season turning, gold for a level gained, blood for a kill, teal for
+	   the road, the map's dusty blue for a site (the Places folders' own hue), ash for a death,
+	   rust for a lasting wound, violet for the arcane, rose for a follower's bond.
+
+	   THEY MARK A CARD AND NEVER LETTER IT. The edge, the spine dot, the chip's rim and glyph
+	   wear the colour; every word stays in the ink ramp, and the chip still NAMES the kind. Two
+	   players at this table are red-green colour-blind and one reads on a magnifier, so the colour
+	   is the second way a kind is said and never the only one.
+
+	   MEASURED AS MARKS, 4.5:1 on the page, the panel, a card on the panel and the chip's own
+	   tint (7:1 under the high-contrast skins). That is past the 3:1 a graphical object needs,
+	   because the glyph inside the chip is read at text size. Within that floor each kind sits
+	   at its OWN lightness, not one shared one: at a single lightness the warm half of the wheel
+	   collapses to one brown for a deuteranope, so gold sits lightest and blood darkest.
+
+	   NOT THE SEASON INKS. A Seasons Change row is one kind among nine, green for every season;
+	   the season itself is named by the period it sits in (see season-inks-exclusive).
+
+	   NAMED `--st-timeline-kind-*` and not `*-ink`: the palette sweeps read every `-ink` token as
+	   TEXT at the text bar, and these are marks with a guard of their own
+	   (tests/timeline/timeline-colours.test.js). A GM can repaint any of them for the world;
+	   that writes a <style> of its own after this sheet (applyTimelineKindColours). */
+	--st-timeline-kind-season:     #265218;
+	--st-timeline-kind-levelup:    #705409;
+	--st-timeline-kind-kills:      #6a1219;
+	--st-timeline-kind-expedition: #0a625a;
+	--st-timeline-kind-site:       #295a8c;
+	--st-timeline-kind-death:      #4a4744;
+	--st-timeline-kind-wound:      #7c300a;
+	--st-timeline-kind-arcana:     #7b31a7;
+	--st-timeline-kind-follower:   #9a276a;
+	/* How much of its colour a kind's card and chip are washed with. Zero under the high-contrast
+	   skins, whose cards are bare paper. */
+	--st-timeline-card-wash: 5%;
+	--st-timeline-chip-wash: 14%;
+
+	/* THE TIMELINE'S SEASONS: each season heading's edge, and the tint washed under it, so a
+	   reader finds Spring or Winter at a glance (user's call, 2026-10-01). The timeline's OWN
+	   four, not the clock's `--stonetop-season-*-ink` (see season-inks-exclusive), and never the
+	   only signal: the season's name and glyph sit inside every heading. Each edge clears 3:1
+	   on the panel and on its own tint, and the heading's words 7:1 on the tint
+	   (tests/styles/timeline.test.js). */
+	--st-timeline-season-spring: #3d7a22;
+	--st-timeline-season-summer: #9a6c00;
+	--st-timeline-season-autumn: #ad4614;
+	--st-timeline-season-winter: #2c6390;
+	--st-timeline-season-wash: 22%;
+
 	/* ── Shared type scale ────────────────────────────────────────────────
 	   Relative (em) steps so they scale with the sheet font setting through the
 	   cascade. Use these instead of ad-hoc em sizes so windows stay consistent.
@@ -48476,9 +48527,9 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    ⚠ NO SEASON INKS ANYWHERE IN THIS BLOCK, and that is a rule rather than an oversight. The
    four `--stonetop-season-*-ink` tokens belong to the steading header's clock and nothing
    else; a test in steading-header-season.test.js tallies every read of them in this whole
-   stylesheet and fails on a fifth. A period here is told apart by its season's NAME and by
-   the `.stonetop-season-entry` glyph the location journals already use, which carries the
-   picture without spending the ink. The only warmth used is the neutral `--st-warm-hover-bg`.
+   stylesheet and fails on a fifth. A period's heading wears the timeline's OWN season colour
+   (`--st-timeline-season-*`, user's call 2026-10-01), and its season's NAME and the
+   `.stonetop-season-entry` glyph the location journals use still say which season it is.
    ═════════════════════════════════════════════════════════════════════════════════════ */
 
 /* -- What the tab has to give it: A DEFINITE HEIGHT ---------------------------
@@ -48572,10 +48623,11 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	border-bottom: 1px solid var(--st-card-rule);
 }
 
-/* The toolbar's quieter controls: the door through to the aggregate and the Filter menu. Not
-   CTAs -- there is one primary action on this page and it is New Entry. The Vertical/Horizontal
-   pair wears the segmented strip instead, further down. */
+/* The toolbar's quieter controls: the door through to the aggregate, the GM's Colours and the Filter
+   menu. Not CTAs -- there is one primary action on this page and it is New Entry. The
+   Vertical/Horizontal pair wears the segmented strip instead, further down. */
 .stonetop-timeline-open-full,
+.stonetop-timeline-colours-open,
 .stonetop-timeline-show-summary,
 .stonetop-timeline-show-all {
 	display: inline-flex;
@@ -48593,6 +48645,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 .stonetop-timeline-open-full:hover,
+.stonetop-timeline-colours-open:hover,
 .stonetop-timeline-show-summary:hover,
 .stonetop-timeline-show-all:hover {
 	border-color: var(--st-slate-hover-border);
@@ -48612,6 +48665,11 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	font-weight: 600;
 	color: var(--st-text);
 	white-space: nowrap;
+}
+
+/* Its skull in the kills colour, the same mark the kills rows wear. */
+.stonetop-timeline-kill-total i {
+	color: var(--tl-kind, currentColor);
 }
 
 /* The controls that change only what THIS reader is shown sit at the far end, away from the ones
@@ -48694,6 +48752,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    leading) so the whole row lines up; only their colours stay quiet. Colour-only transition for the
    reason the CTA gives: a metric left to animate makes the button jitter under the pointer. */
 .stonetop-timeline-open-full,
+.stonetop-timeline-colours-open,
 .stonetop-timeline-show-summary {
 	box-sizing: border-box;
 	min-height: 32px;
@@ -48739,10 +48798,12 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	cursor: pointer;
 }
 
+/* The glyph wears its kind's colour, so the menu is also the legend for the cards. The words
+   beside it stay in the ink ramp. */
 .stonetop-timeline-show-kind i {
 	width: 1.2em;
 	text-align: center;
-	color: var(--st-text-secondary);
+	color: var(--tl-kind, var(--st-text-secondary));
 }
 
 .stonetop-timeline-show-menu .stonetop-timeline-show-all {
@@ -48959,17 +49020,32 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 /* A row the system recorded for itself rather than one somebody typed. FULL INK, deliberately:
    a level gained or a foe slain is the record, not small print, and a reader on a magnifier has to
    be able to read it as easily as anything typed. It is told apart by a heavier left edge, a filled
-   dot on the spine, and its kind named in words in the chip -- three signals, none of them faint. */
+   dot on the spine, and its kind named in words in the chip -- three signals, none of them faint.
+
+   AND BY ITS KIND'S COLOUR, on those same three marks and on nothing that is read: the edge, the
+   dot, the chip's rim, tint and glyph. `--tl-kind` comes from the kind class below; a card without
+   one (a typed row, or a kind added before it has a colour) falls back to the plain rule. The card
+   is washed with a breath of it too, `--st-timeline-card-wash` (5%, none under high contrast),
+   which is enough to find the kills in a busy season without costing the account any contrast. */
 .stonetop-timeline-card--auto {
 	border-left-width: 4px;
+	border-left-color: var(--tl-kind, var(--st-card-rule));
+	background:
+		linear-gradient(
+			color-mix(in srgb, var(--tl-kind, transparent) var(--st-timeline-card-wash, 0%), transparent),
+			color-mix(in srgb, var(--tl-kind, transparent) var(--st-timeline-card-wash, 0%), transparent)),
+		var(--st-card-fill);
 }
 
 /* The spine dot sits relative to the padding box, which the wider edge pushes 3px right. */
 .stonetop-timeline-card--auto::before {
 	left: -31px;
-	background: var(--st-card-rule);
+	border-color: var(--tl-kind, var(--st-card-rule));
+	background: var(--tl-kind, var(--st-card-rule));
 }
 
+/* THE LABEL IS FULL INK, a step up from the secondary grey it wore before it sat on a tint: the
+   word is what says which kind a row is, and it must not be the part that lost contrast. */
 .stonetop-timeline-card-kind {
 	float: right;
 	display: inline-flex;
@@ -48977,12 +49053,30 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	gap: 5px;
 	margin: 0 0 4px 8px;
 	padding: 1px 8px;
-	border: 1px solid var(--st-card-rule);
+	border: 1px solid var(--tl-kind, var(--st-card-rule));
 	border-radius: 999px;
+	background: color-mix(in srgb, var(--tl-kind, transparent) var(--st-timeline-chip-wash, 0%), transparent);
 	font-size: var(--st-fs-xs);
-	color: var(--st-text-secondary);
+	color: var(--st-text);
 	white-space: nowrap;
 }
+
+.stonetop-timeline-card-kind i {
+	color: var(--tl-kind, currentColor);
+}
+
+/* WHICH colour a kind wears. One class per kind, set on the card, on its row in the Show menu,
+   on the kill tally and on the colours dialog's preview, so each reads the same token and none of
+   them can drift. Named for the KIND, never for a season (see season-inks-exclusive). */
+.stonetop-timeline-kind--season     { --tl-kind: var(--st-timeline-kind-season); }
+.stonetop-timeline-kind--levelup    { --tl-kind: var(--st-timeline-kind-levelup); }
+.stonetop-timeline-kind--kills      { --tl-kind: var(--st-timeline-kind-kills); }
+.stonetop-timeline-kind--expedition { --tl-kind: var(--st-timeline-kind-expedition); }
+.stonetop-timeline-kind--site       { --tl-kind: var(--st-timeline-kind-site); }
+.stonetop-timeline-kind--death      { --tl-kind: var(--st-timeline-kind-death); }
+.stonetop-timeline-kind--wound      { --tl-kind: var(--st-timeline-kind-wound); }
+.stonetop-timeline-kind--arcana     { --tl-kind: var(--st-timeline-kind-arcana); }
+.stonetop-timeline-kind--follower   { --tl-kind: var(--st-timeline-kind-follower); }
 
 /* Who fell, on a kills row: "Crinwin ×3, Bandit Chief". */
 .stonetop-timeline-card-kills {
@@ -49111,16 +49205,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	white-space: nowrap;
 }
 
-.stonetop-timeline-lane-kills {
-	flex: 0 0 auto;
-	margin-left: auto;
-	font-size: var(--st-fs-xs);
-	color: var(--st-text-secondary);
-	white-space: nowrap;
-}
-
-/* The season's own cell, at the head of its row. A neutral warm wash rather than a season
-   colour: see the note at the top of this block. */
+/* The season's own cell, at the head of its row. The neutral warm wash is the undated row's;
+   a dated one takes its season's colour (the season headings, below). */
 .stonetop-timeline-row-head {
 	display: flex;
 	flex-direction: column;
@@ -49302,6 +49388,44 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	border-left: 4px solid var(--st-text-secondary);
 }
 
+/* -- The season headings, each in its season's colour ---------------------------
+   Every host of a dated period's heading (the Down block, the aggregate's row head, the Across
+   node and the swimlane column head) wears `.stonetop-timeline-season` plus one season's modifier,
+   so a reader finds Spring or Winter at a glance (user's call, 2026-10-01). The colour is the
+   timeline's own `--st-timeline-season-*`, NOT the clock's inks (see the note at the top of this
+   block), and the words stay full ink on a tint mixed into the opaque panel, so a sticky swimlane
+   head still hides the cards sliding under it. Below the hosts' own rules, which these outweigh or
+   tie and so must follow. */
+.stonetop-timeline-season--spring { --tl-season: var(--st-timeline-season-spring); }
+.stonetop-timeline-season--summer { --tl-season: var(--st-timeline-season-summer); }
+.stonetop-timeline-season--autumn { --tl-season: var(--st-timeline-season-autumn); }
+.stonetop-timeline-season--winter { --tl-season: var(--st-timeline-season-winter); }
+
+.stonetop-timeline-period-head.stonetop-timeline-season,
+.stonetop-timeline-row-head.stonetop-timeline-season,
+.stonetop-timeline-hhead.stonetop-timeline-season,
+.stonetop-timeline-swim-head.stonetop-timeline-season {
+	border: 2px solid var(--tl-season);
+	background: color-mix(in srgb, var(--tl-season) var(--st-timeline-season-wash), var(--stonetop-bg));
+}
+
+/* On a single track's spine the heading becomes a chip of its own, like the Across node's. */
+.stonetop-timeline-period-head.stonetop-timeline-season {
+	width: fit-content;
+	padding: 4px 12px;
+	border-radius: 999px;
+}
+
+/* The year still opens its column on the swimlanes with the heavier left edge. */
+.stonetop-timeline-swim-head--year-start.stonetop-timeline-season {
+	border-left: 4px solid var(--st-text-secondary);
+}
+
+/* The year chip keeps the plain panel under its words: its secondary ink loses too much on a tint. */
+.stonetop-timeline-season .stonetop-year-chip {
+	background: var(--stonetop-bg);
+}
+
 /* The name at the TOP of its lane, level with the first card, rather than floating mid-row where a
    long lane puts it a screen away from the season it starts in. */
 .stonetop-timeline-swim-lane-head {
@@ -49434,6 +49558,118 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	margin-top: 4px;
 }
 
+/* -- The GM's colours window ---------------------------------------------------------------
+   One row per kind: the chip as a card prints it (rim and glyph in the colour, word in full ink),
+   the picker, and Default once the kind is repainted. The row's `--tl-kind` is set inline by the
+   dialog, so the chip shows what THIS page will wear, nudges and all. */
+.stonetop-timeline-colours {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 2px;
+}
+
+.stonetop-timeline-colours-intro {
+	margin: 0;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+}
+
+.stonetop-timeline-colours-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.stonetop-timeline-colours-row {
+	display: grid;
+	grid-template-columns: 1fr auto auto;
+	align-items: center;
+	column-gap: 8px;
+	padding: 4px 8px;
+	border-left: 3px solid var(--tl-kind);
+	border-radius: var(--st-radius-sm);
+	background: color-mix(in srgb, var(--tl-kind) var(--st-timeline-card-wash, 0%), transparent);
+}
+
+.stonetop-timeline-colours-chip {
+	justify-self: start;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 1px 8px;
+	border: 1px solid var(--tl-kind);
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--tl-kind) var(--st-timeline-chip-wash, 0%), transparent);
+	font-size: var(--st-fs-xs);
+	color: var(--st-text);
+	white-space: nowrap;
+}
+
+.stonetop-timeline-colours-chip i {
+	color: var(--tl-kind);
+}
+
+/* Sized here rather than left to core, which sizes a colour input for a settings form. */
+.stonetop-timeline-colours-pick {
+	width: 34px;
+	height: 28px;
+	min-width: 0;
+	margin: 0;
+	padding: 1px;
+	border: 1px solid var(--st-card-rule);
+	border-radius: var(--st-radius);
+	background: var(--st-page);
+	cursor: pointer;
+}
+
+/* Hidden takes the button out of the grid's third column without the picker shifting left. */
+.stonetop-timeline-colours-reset {
+	grid-column: 3;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	width: auto;
+	margin: 0;
+	padding: 2px 8px;
+	border: 1px solid var(--st-card-rule);
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-secondary);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.stonetop-timeline-colours-reset[hidden] {
+	display: inline-flex;
+	visibility: hidden;
+}
+
+.stonetop-timeline-colours-reset:hover {
+	border-color: var(--st-slate-hover-border);
+	background: var(--st-slate-hover-bg);
+	color: var(--st-text);
+}
+
+.stonetop-timeline-colours-note {
+	grid-column: 1 / -1;
+	margin: 2px 0 0;
+	font-size: var(--st-fs-2xs);
+	color: var(--st-text-faint);
+}
+
+.stonetop-timeline-colours-note[hidden] { display: none; }
+
+.stonetop-timeline-colours-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 4px;
+}
+
 
 /* ══ DARK PALETTE: "Lamplit" ════════════════════════════════════════════════════════════════
    Driven by the `sheetContrast` client setting (module/settings.js → applySheetContrast), which
@@ -49510,6 +49746,27 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	--st-card-fill: rgba(235, 228, 214, 0.035);
 	--st-card-rule: rgba(235, 228, 214, 0.16);
 	--st-warm-hover-bg: rgba(235, 228, 214, 0.08);
+
+	/* The timeline's kinds, lifted for the dark page (see their note in the first :root): the
+	   same nine hues, each walked up to 4.5:1 or past on the panel, a card and its chip's tint.
+	   Death goes to ASH here, not the near-white its light-paper charcoal would invert to, which
+	   was the bone of the ink ramp and read as a row with no colour at all. */
+	--st-timeline-kind-season:     #79bd63;
+	--st-timeline-kind-levelup:    #d8a71f;
+	--st-timeline-kind-kills:      #fa918b;
+	--st-timeline-kind-expedition: #40bfba;
+	--st-timeline-kind-site:       #a8c7e6;
+	--st-timeline-kind-death:      #b0ada8;
+	--st-timeline-kind-wound:      #f2a46e;
+	--st-timeline-kind-arcana:     #b9a3f3;
+	--st-timeline-kind-follower:   #f1bcdd;
+
+	/* The timeline's seasons, lifted for the dark page (see their note in the first :root). */
+	--st-timeline-season-spring: #79bd63;
+	--st-timeline-season-summer: #d9aa30;
+	--st-timeline-season-autumn: #ec8a52;
+	--st-timeline-season-winter: #86b2dc;
+	--st-timeline-season-wash: 26%;
 
 	/* Hit tiers on a card, lifted off paper ink. */
 	--st-tier-failure-text: #f08c84;
@@ -49733,6 +49990,24 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	--st-heading-ink:  #f0ebe0;
 	--st-gold-border:  #d9b44a;
 	--st-gold-text:    #e6c56a;
+	/* The timeline's kinds at 7:1 on the darker page, and unwashed like the light skin's. */
+	--st-timeline-kind-season:     #6cb654;
+	--st-timeline-kind-levelup:    #cc9d1d;
+	--st-timeline-kind-kills:      #f1848d;
+	--st-timeline-kind-expedition: #3cb5b1;
+	--st-timeline-kind-site:       #9abee2;
+	--st-timeline-kind-death:      #a9a39e;
+	--st-timeline-kind-wound:      #f2aa86;
+	--st-timeline-kind-arcana:     #c590e3;
+	--st-timeline-kind-follower:   #e6a8cc;
+	--st-timeline-card-wash: 0%;
+	--st-timeline-chip-wash: 0%;
+	/* The timeline's seasons on the darker page, with a lighter tint: the edge does the work. */
+	--st-timeline-season-spring: #86cc6e;
+	--st-timeline-season-summer: #e6b83a;
+	--st-timeline-season-autumn: #f59a66;
+	--st-timeline-season-winter: #9cc2e8;
+	--st-timeline-season-wash: 18%;
 	--st-btn-primary-bg:       #0a0806;
 	--st-btn-primary-bg-hover: #1c1814;
 	--st-btn-primary-border:   #d9d2c2;
@@ -49931,6 +50206,26 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	   costs contrast — and the edge becomes a real line at 4.76:1. */
 	--st-card-fill: transparent;
 	--st-card-rule: rgba(0, 0, 0, 0.55);
+
+	/* THE TIMELINE'S KINDS at 7:1 on white, and their washes dropped with the card fill above for
+	   the same reason: a tint only costs the words on it contrast. */
+	--st-timeline-kind-season:     #254e17;
+	--st-timeline-kind-levelup:    #6b5109;
+	--st-timeline-kind-kills:      #a51d28;
+	--st-timeline-kind-expedition: #0d5e5b;
+	--st-timeline-kind-site:       #275788;
+	--st-timeline-kind-death:      #595450;
+	--st-timeline-kind-wound:      #772e0a;
+	--st-timeline-kind-arcana:     #7a30a5;
+	--st-timeline-kind-follower:   #972668;
+	--st-timeline-card-wash: 0%;
+	--st-timeline-chip-wash: 0%;
+	/* The timeline's seasons at 7:1 on white, under a lighter tint: the edge does the work. */
+	--st-timeline-season-spring: #24501a;
+	--st-timeline-season-summer: #634500;
+	--st-timeline-season-autumn: #82320a;
+	--st-timeline-season-winter: #1d4870;
+	--st-timeline-season-wash: 12%;
 
 	/* THE SEMANTIC FAMILIES. Their fills stay light and stay coloured: green still means done
 	   and red still means this destroys something, and a mode that greyed them out would take

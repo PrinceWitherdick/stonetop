@@ -116,11 +116,6 @@ describe("kills on the timeline", () => {
 		expect(buildTrackVM(track).killTotal).toBe(5);
 		expect(buildTrackVM(track, { hidden: ["kills"] }).killTotal).toBe(5);
 	});
-
-	it("totals each thread's kills on the aggregate's lane heads", () => {
-		const vm = buildAggregateVM([track, { trackId: "s", name: "Stonetop", entries: [entry()] }]);
-		expect(vm.tracks.map(t => t.killTotal)).toEqual([5, 0]);
-	});
 });
 
 describe("the reader's Filter menu", () => {

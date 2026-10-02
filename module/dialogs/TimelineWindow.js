@@ -51,6 +51,7 @@ import {
 } from "../settings.js";
 import { buildAggregateVM, buildTrackVM, enrichTrackVM, kindMenu } from "../timeline/timeline-view.js";
 import { timelineNow } from "../timeline/timeline-record.js";
+import { openTimelineColours } from "./TimelineColoursDialog.js";
 import { FINE_ZOOM_STEP } from "../utils/image-zoom.js";
 
 /**
@@ -303,6 +304,8 @@ export class TimelineWindow extends StonetopDialog {
 			// The aggregate has nowhere further to go, so it does not offer the door to itself.
 			showOpenFull: single,
 			horizontal,
+			// Only a GM can write the world's colours, so only a GM is offered the window.
+			isGM: !!game.user?.isGM,
 			kinds: kindMenu(hidden),
 			hiddenCount: hidden.length,
 			hiddenCountLabel: format("stonetop.timeline.show.hiddenCount", { count: hidden.length }),
@@ -501,6 +504,8 @@ export class TimelineWindow extends StonetopDialog {
 			if (orient) return this._onOrientation(orient.dataset.orientation);
 
 			if (target.closest?.(".stonetop-timeline-show-all")) return this._onShowAll();
+
+			if (target.closest?.(".stonetop-timeline-colours-open")) return openTimelineColours();
 
 			const card = target.closest?.("[data-entry-id]");
 			const trackId = target.closest?.("[data-track-id]")?.dataset?.trackId || this._trackId;

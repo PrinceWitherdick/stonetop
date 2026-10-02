@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { readCss, readRepo, stripComments, declarations } from "../fakes/css.js";
+import { readCss, readRepo, stripComments, declarations, ownRule } from "../fakes/css.js";
+import { contrastRatio, parseColor } from "../fakes/contrast.js";
+import { SEASON_IDS } from "../../module/seasons/seasons-change-reminders.js";
+import { seasonColourClass } from "../../module/timeline/timeline-view.js";
 
 // THE TIMELINE'S STYLING, in the places where it fails silently.
 //
@@ -45,11 +48,63 @@ describe("the timeline and the season inks", () => {
 			+ "--st-warm-hover-bg and let the season's NAME say which season").toEqual([]);
 	});
 
-	// The door back: a per-season class hook with no rules behind it is an invitation to fill it in
-	// with the inks later.
-	it("leaves no per-season class hook behind for somebody to colour in", () => {
-		const hooks = BLOCK.match(/\.stonetop-timeline[\w-]*--(?:spring|summer|autumn|fall|winter)/g) ?? [];
-		expect(hooks).toEqual([]);
+	// The season headings DO wear a colour per season (user's call, 2026-10-01), so they are easy to
+	// spot. These pin the terms: the only per-season hooks are the four the view hands out, each
+	// pointing at the timeline's OWN token rather than at the clock's ink.
+	it("colours a season heading with the timeline's own four colours, and only those", () => {
+		const hooks = [...new Set(BLOCK.match(/\.stonetop-timeline[\w-]*--(?:spring|summer|autumn|fall|winter)\b/g) ?? [])];
+		expect(hooks.sort()).toEqual(SEASON_IDS.map(id => `.stonetop-timeline-season--${id}`).sort());
+		for (const id of SEASON_IDS) {
+			expect(seasonColourClass(id)).toBe(`stonetop-timeline-season stonetop-timeline-season--${id}`);
+			expect(value(`.stonetop-timeline-season--${id}`, "--tl-season")).toBe(`var(--st-timeline-season-${id})`);
+		}
+		expect(seasonColourClass("")).toBe("");
+	});
+
+	// Every host of the shared heading carries the class, or one layout would come out uncoloured.
+	it("puts the season colour on every host of the period heading", () => {
+		const hosts = {
+			"templates/dialogs/partials/timeline-period.hbs": "stonetop-timeline-period-head",
+			"templates/dialogs/partials/timeline-hperiod.hbs": "stonetop-timeline-hhead",
+			"templates/dialogs/timeline.hbs": ["stonetop-timeline-row-head", "stonetop-timeline-swim-head"],
+		};
+		for (const [rel, classes] of Object.entries(hosts)) {
+			const src = readRepo(rel);
+			for (const cls of [classes].flat()) {
+				const tag = src.match(new RegExp(`class="${cls}[^"]*"`))?.[0] ?? "";
+				expect(tag, `${rel}: .${cls} does not wear seasonClass`).toContain("{{seasonClass}}");
+				expect(declarations(CSS, `.${cls}.stonetop-timeline-season`), `.${cls} has no season rule`).toContain("var(--tl-season)");
+			}
+		}
+	});
+
+	// A player at this table reads through a magnifier: the heading's words hold 7:1 on the tint, and
+	// its edge 3:1 against both the panel and its own tint, in all four skins.
+	it("keeps every season heading legible in every skin", () => {
+		const props = body => new Map([...(body ?? "").matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)].map(m => [m[1], m[2].trim()]));
+		const mix = (a, b, pct) => {
+			const A = parseColor(a).rgb, B = parseColor(b).rgb, f = pct / 100;
+			return `rgb(${A.map((v, i) => v * f + B[i] * (1 - f)).join(", ")})`;
+		};
+		const light = props(ownRule(CSS, ":root"));
+		const skins = {
+			light,
+			dark: new Map([...light, ...props(ownRule(CSS, ":root.stonetop-dark"))]),
+			darkHigh: new Map([...light, ...props(ownRule(CSS, ":root.stonetop-dark")),
+				...props(ownRule(CSS, ":root.stonetop-dark.stonetop-high-contrast"))]),
+			lightHigh: new Map([...light, ...props(ownRule(CSS, ":root.stonetop-high-contrast"))]),
+		};
+		for (const [skin, p] of Object.entries(skins)) {
+			const bg = p.get("--stonetop-bg"), text = p.get("--st-text"), wash = parseFloat(p.get("--st-timeline-season-wash"));
+			for (const id of SEASON_IDS) {
+				const edge = p.get(`--st-timeline-season-${id}`);
+				expect(edge, `${skin} ${id}`).toBeTruthy();
+				const fill = mix(edge, bg, wash);
+				expect(contrastRatio(text, fill), `${skin} ${id}: words on the tint`).toBeGreaterThanOrEqual(7);
+				expect(contrastRatio(edge, bg), `${skin} ${id}: edge on the panel`).toBeGreaterThanOrEqual(3);
+				expect(contrastRatio(edge, fill), `${skin} ${id}: edge on its tint`).toBeGreaterThanOrEqual(3);
+			}
+		}
 	});
 
 	// The glyph is how a period is told apart at a glance, and it is the location journals' own

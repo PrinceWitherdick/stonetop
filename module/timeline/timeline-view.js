@@ -10,8 +10,10 @@
 //
 // ⚠ THE SEASON INKS ARE NOT USED HERE, AND MUST NOT BE. The four `--stonetop-season-*-ink` tokens
 // belong to the steading header's clock and nothing else; a test counts every read of them in the
-// stylesheet and fails on a fifth. A period is marked by its season's NAME and its glyph, which is
-// the same bargain the location journals' season headings already strike. See season-inks-exclusive.
+// stylesheet and fails on a fifth. A period's heading IS coloured by its season (user's call,
+// 2026-10-01, so the seasons are easy to spot), but with the timeline's OWN four colours
+// (`--st-timeline-season-*`), and its name and glyph still say which season it is. See
+// season-inks-exclusive.
 
 import { SEASON_IDS, seasonLabel } from "../seasons/seasons-change-reminders.js";
 import { yearLabel } from "../seasons/seasons-chronicle.js";
@@ -60,6 +62,7 @@ export function kindMenu(hidden = []) {
 	const off = new Set(hidden);
 	return TIMELINE_SOURCES.map(source => ({
 		source,
+		kind:  source,
 		icon:  KIND_META[source]?.icon ?? KIND_META.hand.icon,
 		label: localize(`stonetop.timeline.show.${source}`),
 		shown: !off.has(source),
@@ -76,6 +79,16 @@ export function kindMenu(hidden = []) {
 export function seasonGlyphClass(seasonId) {
 	if (!SEASON_IDS.includes(seasonId)) return "";
 	return `stonetop-season--${seasonId === "autumn" ? "fall" : seasonId}`;
+}
+
+/**
+ * The classes a season's HEADING wears to take that season's colour: the shared shape and the one
+ * season's modifier. Empty for the undated block, which has no season and stays uncoloured.
+ * Named for the clock's own ids ("autumn"), unlike the glyph above: no art file is involved.
+ */
+export function seasonColourClass(seasonId) {
+	if (!SEASON_IDS.includes(seasonId)) return "";
+	return `stonetop-timeline-season stonetop-timeline-season--${seasonId}`;
 }
 
 /** A kills row's foes as one line: "Crinwin ×3, Bandit Chief". */
@@ -119,6 +132,7 @@ function periodVM(period, entries, opts) {
 		yearLabel:   period.season ? yearLabel(period.year) : "",
 		year:        period.season ? period.year : 0,
 		glyphClass:  seasonGlyphClass(period.season),
+		seasonClass: seasonColourClass(period.season),
 		undated:     period.key === UNDATED_PERIOD_KEY,
 		startsYear:  false,
 		above:       true,
@@ -210,7 +224,7 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 		total += all.length;
 		const buckets = new Map();
 		laneBuckets.set(track.trackId, buckets);
-		laneFacts.set(track.trackId, { count: all.length, killTotal: killTotal(all) });
+		laneFacts.set(track.trackId, { count: all.length });
 		for (const entry of all) {
 			if (off.has(entry.source)) continue;
 			const key = periodKey(entry);
@@ -236,11 +250,10 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 	})));
 
 	const heads = tracks.map(t => ({
-		trackId:   t.trackId,
-		name:      t.name,
-		portrait:  t.actor?.img ?? "",
-		count:     laneFacts.get(t.trackId)?.count ?? 0,
-		killTotal: laneFacts.get(t.trackId)?.killTotal ?? 0,
+		trackId:  t.trackId,
+		name:     t.name,
+		portrait: t.actor?.img ?? "",
+		count:    laneFacts.get(t.trackId)?.count ?? 0,
 	}));
 
 	return {

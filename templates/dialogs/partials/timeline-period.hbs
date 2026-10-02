@@ -16,7 +16,7 @@
 <h2 class="stonetop-timeline-year">{{yearLabel}}</h2>
 {{/if}}
 <section class="stonetop-timeline-period" data-period="{{key}}">
-	<header class="stonetop-timeline-period-head">
+	<header class="stonetop-timeline-period-head{{#if seasonClass}} {{seasonClass}}{{/if}}">
 		{{> "stonetop.timeline-period-head"}}
 	</header>
 

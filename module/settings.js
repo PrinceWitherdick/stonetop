@@ -4,6 +4,7 @@ import { POSTER_MAPS, posterMapSlugOf } from "./book2-art/poster-map-catalog.js"
 import { SYSTEM_ID } from "./system-id.js";
 import { WEATHER_FX_PARTS, WEATHER_FX_SETTING } from "./seasons/weather-fx-parts.js";
 import { isPrimaryGM } from "./utils/primary-gm.js";
+import { applyTimelineKindColours, normalizeKindColours } from "./timeline/timeline-colours.js";
 
 /**
  * A weather-effect setting changed, so the canvas has to catch up with it: unticking Fog must
@@ -1583,6 +1584,19 @@ export function registerSettings() {
 		default: [],
 	});
 
+	// THE COLOURS A GM REPAINTED THE TIMELINE'S KINDS IN, keyed by kind, `#rrggbb` each; a kind not
+	// in it wears the stylesheet's shipped colour. WORLD-scoped and so GM-only to write: a kind's
+	// colour is part of how the whole table reads the record, not one reader's taste. Set from the
+	// timeline toolbar's Colours window, so `config: false`. Foundry fires `onChange` on EVERY
+	// client for a world setting, which is what repaints the table the moment the GM saves.
+	game.settings.register(SYSTEM_ID, "timelineKindColours", {
+		scope: "world",
+		config: false,
+		type: Object,
+		default: {},
+		onChange: value => applyTimelineKindColours(value),
+	});
+
 	// Reopen the document sheets (characters, steadings, monsters, NPCs, items, journals)
 	// this user had open when they reload, at the same position and size. Per-client
 	// because window layout is personal, not shared world state. Defaults on. The
@@ -2235,6 +2249,16 @@ export function getTimelineHiddenSources() {
 export function setTimelineHiddenSources(sources) {
 	const clean = [...new Set((Array.isArray(sources) ? sources : []).filter(s => typeof s === "string" && s))];
 	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineHiddenSources", clean);
+}
+
+/** The kinds the GM has repainted for this world, cleaned: `{kind: "#rrggbb"}`. */
+export function getTimelineKindColours() {
+	return normalizeKindColours(globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineKindColours"));
+}
+
+/** Repaint the world's kinds. World-scoped: only a GM's write is accepted. */
+export function setTimelineKindColours(colours) {
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineKindColours", normalizeKindColours(colours));
 }
 
 /**

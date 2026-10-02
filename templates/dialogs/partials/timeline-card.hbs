@@ -13,11 +13,16 @@
       reader on a magnifier must never have to guess what a row is from an icon or a faint badge.
       Typed cards wear no chip; their words are the whole of them.
 
+      An auto card also wears its kind's COLOUR (`stonetop-timeline-kind--<kind>`), on the edge, the
+      spine dot and the chip's rim and glyph, never on a word. The colour is the second way the kind
+      is said; the chip's word is the first, for the readers at this table who cannot tell the
+      colours apart. A GM can repaint a kind for the world from the toolbar.
+
       A KILLS card prints who fell ("Crinwin ×3, Bandit Chief") above whatever note the table added.
 
       Context: one card view-model (timeline-view.js#cardVM), plus `enrichedBody` where the host has
       enriched it. --}}
-<li class="stonetop-timeline-card{{#if isAuto}} stonetop-timeline-card--auto{{/if}}" data-entry-id="{{id}}">
+<li class="stonetop-timeline-card{{#if isAuto}} stonetop-timeline-card--auto stonetop-timeline-kind--{{kind}}{{/if}}" data-entry-id="{{id}}">
 	{{#if isAuto}}
 	<span class="stonetop-timeline-card-kind">
 		<i class="fas {{kindIcon}}" aria-hidden="true"></i>
