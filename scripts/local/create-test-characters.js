@@ -120,7 +120,14 @@
 //             (which read as green wherever they are read), all four directions, all three
 //             strokes, and the caption size at every rung of its ladder plus one off it, one past
 //             the ceiling, one under the floor and one stored as the base, which reads back as no
-//             size at all. It arrives HIDDEN from the players, which is how every board made with
+//             size at all. All three boards also carry NAMED GROUPS, an outline round some
+//             people and what they are ("The shield wall", "From beyond the valley"): both
+//             shapes, an overlap, groups nested inside groups (one of them a single person), a
+//             group of actorless circles, and on the Test board a shape nobody offers, an
+//             over-long name, a retired ink, two groups of the same people, a membership key for
+//             somebody taken off the map and a group with nobody left in it. The party (on the
+//             party and Test boards) is seated in a fixed order so each group is round people
+//             who sit side by side. The Test board arrives HIDDEN from the players, which is how every board made with
 //             "+" arrives and the only fixture the eye in the strip has. What is NOT seeded here is
 //             the party board's introductions lines: the window draws those itself the first time
 //             the map is opened, which is the pass worth watching happen. The singleton actor itself is
@@ -2265,7 +2272,7 @@
     // folder goes with it, but only if that map was the last thing in it.
     const testMaps = [];
     let testMapPages = 0;
-    const emptiedGraph = { version: RELMAP_VERSION, shape: "ring", nodes: {}, edges: {} };
+    const emptiedGraph = { version: RELMAP_VERSION, shape: "ring", nodes: {}, edges: {}, groups: {} };
     for (const j of [...(game.journal?.contents ?? [])]) {
       if (!j.getFlag(FLAG_SCOPE, "relationshipMap")) continue;
       if (j.getFlag(FLAG_SCOPE, TEST_FLAG)) {
@@ -3739,7 +3746,15 @@
   // ⚠ THE CAPTION IS NOT TRIMMED HERE, and that is on purpose: one fixture below is deliberately
   // longer than RELMAP_LABEL_MAX so the "trim on the way out" rule has something to be seen
   // doing. Names and notes ARE trimmed, to the bounds the store keeps (120 / 480).
-  const relBoardGraph = (cast, links) => {
+  //
+  // `groups` name their members by the same cast keys, stored the way the store keeps them: one
+  // `members.<nodeId>: true` LEAF per person (module/relmap/relmap-store.js `groupMembersPatch`).
+  // A member who is not on this board is dropped, exactly as a link end is. `ghosts: n` adds n
+  // membership keys for node ids that stand NOWHERE on the board, which is what taking somebody
+  // off the map leaves behind on purpose (`dropNodePatch` does not touch groups, so an undo puts
+  // them back in their groups for free) and what `normalizeGraph` filters out on every read. A
+  // group's NAME and SHAPE are not gated here either, for the caption's reason.
+  const relBoardGraph = (cast, links, groupDefs = []) => {
     const seats = relRingsLayout(cast.length);
     const ids = new Map();
     const nodes = {};
@@ -3777,8 +3792,39 @@
         note:   String(link.note ?? "").slice(0, 480),
       };
     }
+    const groups = {};
+    for (const def of groupDefs) {
+      const members = {};
+      for (const key of def.members ?? []) {
+        const id = ids.get(key);
+        if (id) members[id] = true;
+      }
+      for (let k = 0; k < (def.ghosts ?? 0); k++) members[foundry.utils.randomID()] = true;
+      // A group nobody on this board is in is dropped here, unless it was MEANT to be one: a group
+      // made of ghosts alone is its own fixture (stored, read back empty, drawn as nothing).
+      if (!Object.keys(members).length) continue;
+      groups[foundry.utils.randomID()] = {
+        name:  String(def.name ?? ""),
+        shape: def.shape ?? "box",       // box | oval; anything else reads as a box
+        ink:   def.ink   ?? "slate",     // one of RELMAP_INKS, or a #rrggbb of the reader's own
+        members,
+      };
+    }
     // `shape` is what Tidy up last put this board into, and a ring is what was actually laid.
-    return { version: RELMAP_VERSION, shape: "ring", nodes, edges };
+    return { version: RELMAP_VERSION, shape: "ring", nodes, edges, groups };
+  };
+
+  // THE ORDER THE PARTY IS SEATED IN, on the party board and the Test board alike. A group's outline
+  // is worked out from where its members stand, so a group of two people seated on opposite sides of
+  // the ring is an outline the width of the board drawn over everybody between them. Seating the
+  // party in this order puts every group below round people who sit SIDE BY SIDE (the ring runs
+  // clockwise from twelve o'clock and closes back on itself, so Pim sits next to Sael), and leaves
+  // the one board-wide group on the Test board as a fixture of its own rather than an accident. A
+  // player character not named here is seated after everyone who is.
+  const RELMAP_PARTY_SEATS = ["Sael", "Aerin", "Old Bartholomew", "Maelis", "Quill", "Wren", "Coria", "Brakkos", "Pim"];
+  const relPartySeat = (name) => {
+    const at = RELMAP_PARTY_SEATS.indexOf(name);
+    return at < 0 ? RELMAP_PARTY_SEATS.length : at;
   };
 
   // Who stands on the map's own board. Residents first (they are the village board's own cast and
@@ -3964,6 +4010,71 @@
     { a: "Pim",     b: "Wren",    label: "two of two, pointing back",       ink: "rust",   dir: "a-b",  note: "Drawn from the other end, so the pair's two heads arrive at opposite portraits." },
   ];
 
+  // ── Named groups: an outline round some people, and what they are ─────
+  // A group is a name, a shape (box or oval), an ink, and WHO IS IN IT. Its outline is never stored:
+  // the board wraps it round wherever its members stand (`groupOutline` in relmap-geometry.js), so
+  // every group below is round people who sit next to each other in the seating order, or the
+  // outline would be drawn across the whole board. See RELMAP_PARTY_SEATS for the party's order;
+  // the village board seats RELMAP_HOME_CAST in the order it is written.
+  //
+  // Between the three boards these reach: both shapes; an overlap (one person in two groups that
+  // are not one inside the other); NESTING, where an outer outline is drawn round the inner OUTLINES
+  // rather than merely round the same faces; a group of one; a group of actorless circles; people in
+  // no group at all; and, on the Test board, everything a group can hold that the group bar would
+  // never write.
+
+  // The village board. Clockwise from twelve: Maeve, Pell, Tobin | Tovia, Ennis | Yannic (in nothing)
+  // | Bronwen, Vahid | Gethin, Tierney, Brogan, Caradoc | the four PCs | the two plain circles.
+  const RELMAP_HOME_GROUPS = [
+    // Tobin is in both of the first two, which is the overlap: neither group is inside the other.
+    { name: "Pell's family, by blood and by raising", shape: "oval", ink: "rose",   members: ["Maeve", "Pell", "Tobin"] },
+    { name: "The trades on the square",               shape: "box",  ink: "ochre",  members: ["Tobin", "Tovia", "Ennis"] },
+    { name: "Where every rumour goes",                shape: "oval", ink: "indigo", members: ["Bronwen", "Vahid"] },
+    // One outer group holding two inner ones side by side, one of them a group of a single person.
+    { name: "From beyond the valley",                 shape: "box",  ink: "plum",   members: ["Gethin Iron-Hand", "Tierney", "Brogan", "Caradoc"] },
+    { name: "The Hillfolk",                           shape: "oval", ink: "crimson", members: ["Gethin Iron-Hand"] },
+    { name: "Marshedge's own",                        shape: "box",  ink: "slate",  members: ["Tierney", "Brogan"] },
+    { name: "Those who go out past the Wall",         shape: "oval", ink: "green",  members: ["Wren", "Brakkos", "Quill", "Coria"] },
+    // Two circles with no actor behind them, so the outline has nothing to resolve a portrait from.
+    { name: "Not a person among them",                shape: "box",  ink: "rust",   members: ["The Cult of the Black Water", "Marshedge"] },
+  ];
+
+  // The party board. Sael, Aerin, Old Bartholomew | Maelis, Quill (in nothing) | Wren, Coria,
+  // Brakkos, Pim. Coria is in two groups; "Handfasted" sits inside "Who answer to a god".
+  const RELMAP_PARTY_GROUPS = [
+    { name: "Handfasted",                             shape: "oval", ink: "rose",   members: ["Sael", "Aerin"] },
+    { name: "Who answer to a god",                    shape: "box",  ink: "ochre",  members: ["Sael", "Aerin", "Old Bartholomew"] },
+    { name: "Read the ground the same way",           shape: "oval", ink: "green",  members: ["Wren", "Coria"] },
+    { name: "The shield wall",                        shape: "box",  ink: "rust",   members: ["Coria", "Brakkos", "Pim"] },
+  ];
+
+  // The Test board, a legend again: each group's name says what it is. WHAT IS DELIBERATELY OUT OF
+  // BOUNDS, for the reasons the lines above are:
+  //   * a shape nobody offers ("hexagon"), read as a box, on a group whose two members sit on
+  //     opposite sides of the ring, so its outline crosses everyone between them (who must NOT dim
+  //     when it is lit: a lit group rings its members and leaves everyone else alone);
+  //   * a name of 71 characters, over the 60 a name may be drawn at, on that same group;
+  //   * a group drawn in "sage", read as green, as a line in that colour is;
+  //   * a membership key for somebody no longer on the board (`ghosts`), and a group made of nothing
+  //     else, which is stored, read back empty, and draws no outline at all;
+  //   * the same two people in two groups, which is a TIE the board breaks by id so the two still
+  //     draw as two outlines rather than one on top of the other. The second of them has no name.
+  const RELMAP_TEST_GROUPS = [
+    // Three deep: each outline round the one inside it, a step clear of its line and name.
+    { name: "one person, an oval",                    shape: "oval", ink: "rose",   members: ["Sael"] },
+    { name: "a box round the oval",                   shape: "box",  ink: "ochre",  members: ["Sael", "Aerin"] },
+    { name: "an oval round the box: three deep",      shape: "oval", ink: "indigo", members: ["Sael", "Aerin", "Old Bartholomew"] },
+    // An overlap at Quill, and the box carries a member who has been taken off the map.
+    { name: "a box, and one member taken off the map", shape: "box", ink: "plum",   members: ["Maelis", "Quill"], ghosts: 1 },
+    { name: "an oval sharing Quill with the box",     shape: "oval", ink: "crimson", members: ["Quill", "Wren"] },
+    // The tie: the same two people, twice. Colours of the reader's own, as a line may carry.
+    { name: "the same two, in a colour of the reader's own", shape: "box", ink: "#0f5f6b", members: ["Coria", "Brakkos"] },
+    { name: "",                                       shape: "oval", ink: "#7a1f5c", members: ["Coria", "Brakkos"] },
+    { name: "sage, a colour no longer offered, read as green", shape: "oval", ink: "sage", members: ["Pim"] },
+    { name: "a shape nobody offered, read as a box, round two people the board apart", shape: "hexagon", ink: "slate", members: ["Old Bartholomew", "Brakkos"] },
+    { name: "nobody left standing in it: stored, and drawn as nothing", ink: "rust", members: [], ghosts: 2 },
+  ];
+
   // Build all three boards and file them as one map. Returns what was written, or null when there is
   // no party to put on it (a run that created nothing has no map worth making).
   //
@@ -3989,19 +4100,21 @@
     };
 
     const homeCast  = RELMAP_HOME_CAST.map(castRow).filter(Boolean);
-    const partyCast = pcs.map(pc => ({ key: pc.name, uuid: pc.uuid, name: pc.name, img: pc.img ?? "", note: "" }));
+    // Seated in RELMAP_PARTY_SEATS order, so every party group is round neighbours.
+    const seatedPcs = [...pcs].sort((a, b) => relPartySeat(a.name) - relPartySeat(b.name));
+    const partyCast = seatedPcs.map(pc => ({ key: pc.name, uuid: pc.uuid, name: pc.name, img: pc.img ?? "", note: "" }));
     if (!partyCast.length) return null;
 
-    const homeGraph  = relBoardGraph(homeCast, RELMAP_HOME_LINKS);
-    const partyGraph = relBoardGraph(partyCast, RELMAP_PARTY_LINKS);
+    const homeGraph  = relBoardGraph(homeCast, RELMAP_HOME_LINKS, RELMAP_HOME_GROUPS);
+    const partyGraph = relBoardGraph(partyCast, RELMAP_PARTY_LINKS, RELMAP_PARTY_GROUPS);
     // The Test board seats the SAME cast as the party board and shares nothing else with it: its
     // own node ids, its own ring, its own lines. Built from a second copy of the cast rather than
     // from the party graph, because two boards holding the same person are two nodes — that is
     // what makes a board a board (see the header of module/relmap/relmap-doc.js) — and reusing the
     // party's ids would draw the Test board's lines onto portraits that are not on it.
     const testGraph  = relBoardGraph(
-      pcs.map(pc => ({ key: pc.name, uuid: pc.uuid, name: pc.name, img: pc.img ?? "", note: "" })),
-      RELMAP_TEST_LINKS);
+      seatedPcs.map(pc => ({ key: pc.name, uuid: pc.uuid, name: pc.name, img: pc.img ?? "", note: "" })),
+      RELMAP_TEST_LINKS, RELMAP_TEST_GROUPS);
 
     // The village board's ledger: every RESIDENT this board has been handed, by the identity the
     // store recognises a person by (their uuid). Only residents, because only residents are what
@@ -4146,11 +4259,15 @@
     await writeBoard(partyPage,   partyGraph, { relationshipPartyBoard: true });
     await writeBoard(testPage,    testGraph);
 
-    const count = (graph) => ({ people: Object.keys(graph.nodes).length, lines: Object.keys(graph.edges).length });
+    const count = (graph) => ({
+      people: Object.keys(graph.nodes).length,
+      lines:  Object.keys(graph.edges).length,
+      groups: Object.keys(graph.groups ?? {}).length,
+    });
     const home = count(homeGraph);
     const party = count(partyGraph);
     const test = count(testGraph);
-    console.log(`[TEST] Relationship map "${entry.name}" (${made ? "created: this world had no map at all" : "the world's own, written into rather than duplicated"}): ${home.people} people and ${home.lines} lines on the village board, ${party.people} and ${party.lines} on "${RELMAP_PARTY_PAGE}", ${test.people} and ${test.lines} on "${RELMAP_TEST_PAGE}" (hidden from the players until the eye is pressed). The introductions lines are seeded by the window on first open.`);
+    console.log(`[TEST] Relationship map "${entry.name}" (${made ? "created: this world had no map at all" : "the world's own, written into rather than duplicated"}): ${home.people} people, ${home.lines} lines and ${home.groups} groups on the village board, ${party.people}, ${party.lines} and ${party.groups} on "${RELMAP_PARTY_PAGE}", ${test.people}, ${test.lines} and ${test.groups} on "${RELMAP_TEST_PAGE}" (hidden from the players until the eye is pressed). The introductions lines are seeded by the window on first open.`);
     return { entry, home, party, test };
   };
 

@@ -46469,6 +46469,143 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    again at full ink in `.stonetop-relmap-labels-lit`, over the top. */
 .stonetop-relmap.is-lit .stonetop-relmap-labels { opacity: 0.25; }
 
+/* ── Groups: a named box or oval round some people ────────────────────────────
+   "The hunters", "The elders". The outline is worked out from where the members stand on every
+   paint (utils/relmap-geometry.js `groupOutline`), so it is drawn in board pixels in a layer of its
+   own, UNDER everything else on the board: it is a region of paper, and the lines, captions and
+   faces inside it are drawn over it.
+
+   THE STROKE IS BROKEN so it reads as "a region" and never as one more line between people, and the
+   fill is the ink washed nearly to nothing. The colour is the group's own ink, from the same eight
+   keys as the lines (`.stonetop-relmap-ink--*` sets `--relmap-ink`). */
+.stonetop-relmap-groups {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	/* The layer takes no clicks; only the invisible wide stroke round each outline does. The inside
+	   of a group is paper, so a press there pans and a face inside it is clicked as a face. */
+	pointer-events: none;
+	overflow: visible;
+}
+
+.stonetop-relmap-group-fill {
+	fill: color-mix(in srgb, var(--relmap-ink, var(--st-relmap-ink-slate)) 8%, transparent);
+	stroke: none;
+}
+
+.stonetop-relmap-group-line {
+	fill: none;
+	stroke: var(--relmap-ink, var(--st-relmap-ink-slate));
+	stroke-width: 2.5px;
+	stroke-dasharray: 10 6;
+	stroke-linecap: round;
+}
+
+/* WHAT A CLICK LANDS ON, as with a line: the outline again, invisible and wide. */
+.stonetop-relmap-group-hit {
+	fill: none;
+	stroke: transparent;
+	stroke-width: 16px;
+	pointer-events: stroke;
+	cursor: pointer;
+}
+
+.stonetop-relmap.is-readonly .stonetop-relmap-group-hit { cursor: default; }
+
+/* Held by the group bar, or rested on: heavier, and solid, so the mark is a SHAPE change as well as
+   a weight one. Two marks for one fact, the rule every highlight on this board is written to. */
+.stonetop-relmap-group.is-picked .stonetop-relmap-group-line,
+.stonetop-relmap-group.is-lit .stonetop-relmap-group-line {
+	stroke-width: 4px;
+	stroke-dasharray: none;
+}
+
+/* THE NAME, sat on the outline's top edge. Body ink on the page tone with the caption's halo,
+   NEVER coloured type: the colour is on the outline, and a short tab of it beside the words ties
+   the two together. Fixed pixels like a portrait's name, for the reason given there. */
+.stonetop-relmap-group-name {
+	position: absolute;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	max-width: 220px;
+	padding: 1px 7px;
+	border-radius: var(--st-radius-sm);
+	background: var(--st-page);
+	color: var(--st-text-body);
+	font-size: 13px;
+	font-weight: 700;
+	font-variant: small-caps;
+	letter-spacing: 0.04em;
+	line-height: 1.4;
+	white-space: nowrap;
+	cursor: pointer;
+	transform: translate(0, -50%);
+	z-index: 1;
+}
+
+/* An oval's name sits on its top, centred. */
+.stonetop-relmap-group-name.is-centre { transform: translate(-50%, -50%); }
+
+.stonetop-relmap-group-words {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stonetop-relmap-group-name.is-unnamed .stonetop-relmap-group-words {
+	font-style: italic;
+	font-weight: 400;
+	font-variant: normal;
+	color: var(--st-text-muted, var(--st-text-body));
+}
+
+.stonetop-relmap-group-tab {
+	flex: none;
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+	background: var(--relmap-ink, var(--st-relmap-ink-slate));
+}
+
+.stonetop-relmap-group-name.is-picked,
+.stonetop-relmap-group-name.is-lit {
+	box-shadow: 0 0 0 2px var(--relmap-ink, var(--st-relmap-ink-slate));
+}
+
+.stonetop-relmap-group-name:focus-visible {
+	outline: 2px solid var(--st-accent-fill);
+	outline-offset: 2px;
+}
+
+.stonetop-relmap.is-readonly .stonetop-relmap-group-name { cursor: default; }
+
+/* WHO IS IN THE GROUP BEING RESTED ON: a solid ring in the group's own ink, outside a hairline of
+   paper so it reads against any portrait. Nobody else is dimmed (see the lit web above for why a
+   half-faded face is the wrong answer). A box-shadow and not an outline, so it never fights the
+   selection's dashed outline on a face that is both. */
+.stonetop-relmap-node.is-in-group .stonetop-relmap-face {
+	box-shadow: 0 0 0 3px var(--st-page), 0 0 0 6px var(--relmap-group-ink, var(--st-accent-fill));
+}
+
+/* THE GROUP TOOL IS ARMED: the next drag on open paper draws a box, so the board says so. */
+.stonetop-relmap.is-drawing-group .stonetop-relmap-view { cursor: crosshair; }
+.stonetop-relmap-grouptool[aria-pressed="true"] {
+	border-color: var(--st-btn-primary-border);
+	background: var(--st-slate-hover-bg);
+}
+
+/* THE GROUP'S BAR is the tie bar's shape (see `.stonetop-relmap-tiebar`, which it shares rules
+   with); only the name field is its own, because here the name is typed IN the bar. */
+.stonetop-relmap-groupbar-name {
+	width: 11em;
+	height: 26px;
+	margin: 0;
+	font-size: 13px;
+}
+
+.stonetop-relmap-groupbar .stonetop-relmap-tiebar-btn[hidden] { display: none; }
+
 /* ── The people ───────────────────────────────────────────────────────────────
    A round portrait, a name under it, and a handle on the rim. Positioned by its CENTRE, which
    is what the geometry trims its lines to. */
@@ -46834,7 +46971,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
    ON THE PANEL TONE AND NOT THE PAGE, unlike the aside above it. The aside murmurs and belongs to
    the paper; this is chrome laid over the drawing and has to read as a thing in front of it. */
-.stonetop-relmap-tiebar {
+.stonetop-relmap-tiebar,
+.stonetop-relmap-groupbar {
 	position: absolute;
 	/* Written by `place()`. Here so the first paint before it runs is off-screen rather than in the
 	   top-left corner of the board. */
@@ -46854,7 +46992,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 /* `display: flex` above beats the attribute on its own, so the hidden state has to be said. */
-.stonetop-relmap-tiebar[hidden] { display: none; }
+.stonetop-relmap-tiebar[hidden],
+.stonetop-relmap-groupbar[hidden] { display: none; }
 
 /* THE WRITING FIELD, CLIPPED OFF THE BAR.
 
@@ -49308,6 +49447,15 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    wherever it sits; it is here because this is where the mode's rules live. */
 :root.stonetop-high-contrast .stonetop-relmap-line {
 	stroke-dasharray: var(--relmap-dash, none);
+}
+
+/* A GROUP'S OUTLINE, the same way: no wash (a tint is a colour difference, and this skin does not
+   lean on those), a heavier stroke, and the ink's own dash pattern, so two groups that differ only
+   in colour still differ. */
+:root.stonetop-high-contrast .stonetop-relmap-group-fill { fill: none; }
+:root.stonetop-high-contrast .stonetop-relmap-group-line {
+	stroke-width: 3.5px;
+	stroke-dasharray: var(--relmap-dash, 10 6);
 }
 
 /* AND A COLOUR NOBODY NAMED IS TAKEN DOWN WITH THE REST, as far as it can be.

@@ -27,21 +27,21 @@ import { documentPortraitFrame, portraitOrNone } from "../utils/portrait-frame.j
 import { format, localize } from "../utils/i18n.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { ZoomPanSurface } from "../utils/zoom-pan-surface.js";
-import { pressStartsBox, wireRelmapDrag } from "../utils/relmap-drag.js";
+import { groupPressed, pressStartsBox, pressStartsDraw, wireRelmapDrag } from "../utils/relmap-drag.js";
 import {
 	RELMAP_BOARD_ASPECT, RELMAP_BOARD_WIDTH, RELMAP_CAPTION_FLOOR_PX, RELMAP_CAPTION_PX,
 	RELMAP_HEAD_PX,
 	ROUTE_HEAD_PATH, ROUTE_HEAD_VIEWBOX,
 	boardBounds, boardMetrics,
 	captionRoomPx, captionSize, clampReach, clearanceBow, curveWithGap, edgeArrowheads, edgeBow,
-	edgeCurve, edgeLabelAnchor, freeSpot, seatAlong, spreadLabels,
+	edgeCurve, edgeLabelAnchor, freeSpot, groupShapes, groupsInside, seatAlong, spreadLabels,
 } from "../utils/relmap-geometry.js";
 import {
-	RELMAP_DASHES, RELMAP_DASH_DEFAULT, RELMAP_DIRS, RELMAP_FLAG, RELMAP_INKS, RELMAP_LABEL_MAX,
-	RELMAP_SEAT_MIN, RELMAP_SIZES, RELMAP_SIZE_MAX, RELMAP_SIZE_MIN,
-	addEdgePatch,
-	addNodePatch, addNodesPatch, dropEdgePatch, dropNodePatch, edgePatch, fanIndexes,
-	nodePatch, readSeat, seatArrivals, takenSpots,
+	RELMAP_DASHES, RELMAP_DASH_DEFAULT, RELMAP_DIRS, RELMAP_FLAG, RELMAP_GROUP_SHAPES, RELMAP_INKS,
+	RELMAP_LABEL_MAX, RELMAP_SEAT_MIN, RELMAP_SIZES, RELMAP_SIZE_MAX, RELMAP_SIZE_MIN,
+	addEdgePatch, addGroupPatch,
+	addNodePatch, addNodesPatch, dropEdgePatch, dropGroupPatch, dropNodePatch, edgePatch, fanIndexes,
+	groupMembersPatch, groupPatch, nodePatch, readSeat, seatArrivals, takenSpots,
 } from "../relmap/relmap-store.js";
 import { RELMAP_INK_ACROSS, RELMAP_INK_PRESETS, inkPaint, normalizeHex }
 	from "../relmap/relmap-ink.js";
@@ -56,6 +56,7 @@ import {
 	describeWrite, forgetHistory, historyFor, stepPatch,
 } from "../relmap/relmap-history.js";
 import { RelmapTieBar, TIE_DIR_ICONS } from "../utils/relmap-tie-bar.js";
+import { RelmapGroupBar } from "../utils/relmap-group-bar.js";
 import { hasOwnRingArt, partyCharacters } from "../utils/playbook-actors.js";
 import {
 	applyPatch, canEditRelationshipMap, canHideMapPages, createMapPage, deleteMapPage,
@@ -155,7 +156,8 @@ const NUDGE_COMMIT_MS = 250;
  */
 const BOARD_CONTROLS =
 	"[data-relmap-node], [data-relmap-handle], [data-relmap-remove], [data-relmap-edge], "
-	+ "[data-relmap-hit], [data-relmap-open], [data-relmap-action], .stonetop-relmap-tiebar";
+	+ "[data-relmap-hit], [data-relmap-open], [data-relmap-action], .stonetop-relmap-tiebar, "
+	+ "[data-relmap-group], [data-relmap-group-hit], .stonetop-relmap-groupbar";
 
 /**
  * And which of them a RIGHT press must not start one from either.
@@ -172,7 +174,7 @@ const BOARD_CONTROLS =
  * board out from under that press would move the very thing they were reading while they chose. So
  * the bar refuses the drag, and everything actually drawn on the board gives way to it.
  */
-const BOARD_MENUS = ".stonetop-relmap-tiebar";
+const BOARD_MENUS = ".stonetop-relmap-tiebar, .stonetop-relmap-groupbar";
 
 /**
  * ONE GLYPH APIECE FOR THE CORNER OVER THE BOARD, and each is a picture of the thing it resizes
@@ -249,6 +251,8 @@ const TOOLS = Object.freeze({
 	// (Ready.js#_ensurePlayerActorCreationGrant), which is what already lets a background's neighbors
 	// be made on a player's client; a GM who has since revoked it gets a map where only they may.
 	create: { needsEdit: true, needsActorCreate: true, run: app => app._createPerson() },
+	// A GROUP ROUND SOME PEOPLE: the selection at once, or a box drawn on the next drag. See `_groupTool`.
+	group: { needsEdit: true, run: app => app._groupTool() },
 	// ⚠ NO "droppulled", AND NO "hidepulled" EITHER. Everything the old "Pull in ratings" button
 	// left behind is read the way every other line on the board is read now: rubbed out one at a
 	// time from the tie bar, with undo behind it. What the checkbox under the board does instead is
@@ -385,6 +389,15 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// any paint -- so it cannot be taken hold of until the repaint the write set off arrives.
 		// Held here for that one repaint to find. See `_createLink`.
 		this._pendingPick = "";
+		// THE GROUPS. The bar a group raises, which group is lit by the pointer resting on it, which
+		// outline the bar is marked on, a group made a moment ago waiting for the repaint that will
+		// draw it (like `_pendingPick` for a line), and whether the group tool is armed to draw a box
+		// on the next drag. All this reader's own, none of it written anywhere.
+		this._groupBar = null;
+		this._litGroup = null;
+		this._pickedGroupParts = [];
+		this._pendingGroupPick = "";
+		this._drawArmed = false;
 		// THE GEOMETRY THE MARKUP NOW ON SCREEN WAS BUILT FROM, kept for exactly one reason: the
 		// gap cut in each stroke has to be re-cut against the caption that actually painted, and
 		// that cannot be known until the caption is in a document. See `_fitGapsToPaint`.
@@ -706,6 +719,25 @@ export class RelationshipMapWindow extends StonetopDialog {
 			canCreatePerson: mayCreateActors(),
 			createLabel: localize("stonetop.relmap.create"),
 			createHint: localize("stonetop.relmap.createHint"),
+			// DRAWING A GROUP, and the bar a group raises. The bar's words arrive here because it has
+			// no i18n in it; see utils/relmap-group-bar.js.
+			groupLabel: localize("stonetop.relmap.groups.tool"),
+			groupHint: localize("stonetop.relmap.groups.toolHint"),
+			groupBar: {
+				label: localize("stonetop.relmap.groups.bar"),
+				name: localize("stonetop.relmap.groups.name"),
+				placeholder: localize("stonetop.relmap.groups.placeholder"),
+				ink: localize("stonetop.relmap.groups.ink"),
+				shape: localize("stonetop.relmap.groups.shape"),
+				shapes: RELMAP_GROUP_SHAPES.map(key => ({
+					key,
+					name: localize(`stonetop.relmap.groups.shapes.${key}`),
+					icon: key === "oval" ? "far fa-circle" : "far fa-square",
+				})),
+				add: localize("stonetop.relmap.groups.addSelected"),
+				take: localize("stonetop.relmap.groups.takeSelected"),
+				drop: localize("stonetop.relmap.groups.drop"),
+			},
 			// ⚠ THE VISIBLE NAMES ONLY. What each of these two can actually do, and what it would
 			// take back, is written onto the elements by `_paintHistory` — the history is this
 			// reader's own and is not part of the document a render was built from. They come up
@@ -1205,8 +1237,26 @@ export class RelationshipMapWindow extends StonetopDialog {
 			}
 		}
 
+		// THE GROUPS, outermost first. Their outlines are worked out from where the members stand and
+		// kept on `_drawn` beside the lines, for the group bar to sit by and the drag preview to move.
+		const outlines = groupShapes(graph, board);
+		this._drawn.groups = new Map(outlines.map(shape => [shape.id, shape]));
+		const groups = outlines.map(({ id, group, members, outline }) => {
+			const named = group.name || localize("stonetop.relmap.groups.unnamed");
+			const who = members.map(member => this._nameOf(graph, member)).join(", ");
+			const said = format("stonetop.relmap.groups.says", { name: named, who });
+			return {
+				id, ...inkPaint(group.ink), d: outline.d, members: members.join(" "),
+				name: group.name, align: outline.name.align,
+				nameLeft: outline.name.left, nameTop: outline.name.top,
+				tooltip: said,
+				ariaLabel: canEdit ? format("stonetop.relmap.groups.edit", { said }) : said,
+			};
+		});
+
 		return {
-			nodes, edges, labels, heads,
+			nodes, edges, labels, heads, groups,
+			unnamedGroup: localize("stonetop.relmap.groups.unnamed"),
 			// The caption layer's own coordinate space, which is the board's pixels at 1:1. Sent
 			// out rather than written into the stylesheet because the sheet GROWS with the number
 			// of people on it (`boardMetrics`), so there is no constant to write.
@@ -1219,6 +1269,36 @@ export class RelationshipMapWindow extends StonetopDialog {
 		};
 	}
 
+	/**
+	 * THE BARS THAT FLOAT OVER THE BOARD, the line's and the group's, in that order: every one this
+	 * render built, and none it did not.
+	 *
+	 * ⚠ ONLY ONE IS EVER UP, and this list is how that is kept. Each bar is chrome in the viewport
+	 * over one thing on the board, and two standing at once would be two answers to "which thing
+	 * am I editing" -- so every way of raising one goes through `_openBar`, which puts the others
+	 * down first, and everything the window asks of the bars as a whole (a flush before a re-render
+	 * or an undo, a place per frame of a pan, whether a repaint must wait) walks this rather than
+	 * naming each bar. A third bar is one more entry here and nothing else.
+	 *
+	 * A LIST READ OFF THE TWO HANDLES rather than a third thing to keep in step with them: the window
+	 * still has to name one bar for what only that bar does (a caption slid along its line, the
+	 * selection changing under a group).
+	 */
+	get _bars() {
+		return [this._tieBar, this._groupBar].filter(Boolean);
+	}
+
+	/** Raise one bar on one thing, putting every other bar down first. See `_bars`. */
+	_openBar(bar, ...open) {
+		for (const other of this._bars) if (other !== bar) other.close();
+		return bar?.open(...open) ?? false;
+	}
+
+	/** Put every bar down, writing what each holds. */
+	_closeBars() {
+		for (const bar of this._bars) bar.close();
+	}
+
 	activateListeners(html) {
 		super.activateListeners(html);
 		const root = html[0];
@@ -1229,11 +1309,14 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// ⚠ WRITTEN OUT BEFORE IT IS THROWN AWAY. A re-render is not a reason to lose a sentence
 		// somebody was in the middle of: `destroy` flushes nothing, so the flush is asked for here,
 		// while the old bar still has both the id and the field.
-		this._tieBar?.flush();
-		this._tieBar?.destroy();
+		for (const bar of this._bars) {
+			bar.flush();
+			bar.destroy();
+		}
 		this._surface = null;
 		this._teardownDrag = null;
 		this._tieBar = null;
+		this._groupBar = null;
 
 		// Adopted BEFORE the early return. Left until after it, a render that somehow produced no
 		// viewport would leave this pointing at the PREVIOUS render, and the next live update would
@@ -1263,7 +1346,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// layer's own (`pressStartsBox`), asked in the same words, so the two cannot disagree
 			// about a press. `canEdit` last, because it walks the map's pages and nearly every press
 			// has already been answered by the Shift key.
-			yields: ev => pressStartsBox(ev, { view, board }) && this.canEdit,
+			// AND SO IS ANY PLAIN PRESS ON OPEN PAPER WHILE THE GROUP TOOL IS ARMED: that press draws
+			// the group's box. Asked of `pressStartsDraw`, which the drag layer asks too.
+			yields: ev => (pressStartsBox(ev, { view, board })
+				|| (this._drawArmed && pressStartsDraw(ev, { view, board }))) && this.canEdit,
 			controls: BOARD_CONTROLS,
 			menus: BOARD_MENUS,
 			// A gentler wheel than a picture gets, because this board is arranged rather than
@@ -1272,13 +1358,13 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// Every pan and every zoom step, because how big the held line's caption has to be set
 			// to stay readable is a question about the scale. See `_paintCaptionZoom`.
 			//
-			// AND THE TIE BAR COMES WITH IT. The bar is chrome in the viewport rather than a thing
-			// on the board (utils/relmap-tie-bar.js says why at length), so nothing moves it unless
-			// it is told to -- and a bar left behind while the board slid out from under it is a bar
-			// pointing at somebody else's line.
+			// AND THE BARS COME WITH IT. A bar is chrome in the viewport rather than a thing on the
+			// board (utils/relmap-board-bar.js says why), so nothing moves it unless it is told to --
+			// and a bar left behind while the board slid out from under it is a bar pointing at
+			// somebody else's line.
 			onChange: surface => {
 				this._paintCaptionZoom(surface);
-				this._tieBar?.place();
+				for (const bar of this._bars) bar.place();
 			},
 		}).attach();
 		this._paintCaptionZoom(this._surface);
@@ -1333,6 +1419,22 @@ export class RelationshipMapWindow extends StonetopDialog {
 			canEdit: () => this.canEdit,
 		});
 
+		// AND THE GROUP'S BAR, beside it. Only one of the two is ever up: see `_bars`.
+		this._groupBar = new RelmapGroupBar(root, {
+			surface: () => this._surface,
+			groupAt: id => this._groupAt(id),
+			// ONE STEP FOR A BURST, keyed by the group, as the tie bar keys its writes by the line.
+			onField: (id, fields) => this._write(groupPatch(id, fields), {
+				label: localize("stonetop.relmap.history.editedGroup"), coalesce: `group:${id}`,
+				onto: { kind: "groups", id },
+			}),
+			onMembers: (id, way) => this._regroup(id, way),
+			onDrop: id => this._dropGroup(id),
+			onPicked: id => this._paintPickedGroup(id),
+			selected: () => this._selected,
+			canEdit: () => this.canEdit,
+		});
+
 		this._teardownDrag = wireRelmapDrag(root, {
 			surface: this._surface,
 			// Asked per gesture, and for the moving and the Delete key as well, which default to it in the
@@ -1381,11 +1483,20 @@ export class RelationshipMapWindow extends StonetopDialog {
 			onOpen: id => this._openPerson(id),
 			// A LINE TAKEN HOLD OF, which is the bar and no longer a window: everything a line
 			// says is on the bar, and rubbing it out is the last press on it.
-			onPickEdge: (id, from) => this._tieBar?.open(id, { returnTo: from ?? null }),
+			onPickEdge: (id, from) => { this._openBar(this._tieBar, id, { returnTo: from ?? null }); },
 			// AND LET GO AGAIN, by a click that landed on bare paper. The board is the surface a
 			// reader clicks around on while talking, so letting go has to be as easy as taking
 			// hold: an X on the bar would be the only way out of a thing that opens on a click.
-			onPickNone: () => this._tieBar?.close(),
+			onPickNone: () => { this._closeBars(); },
+			// ⚠ THE GROUPS. A group is moved by carrying its members, so the drag layer asks who they
+			// are and then runs the ordinary group move; it never learns where an outline is.
+			groupMembers: id => this._groupMembersOf(id),
+			onPickGroup: (id, from, { keyboard = false } = {}) => this._pickGroup(id, {
+				returnTo: from ?? null, focusName: keyboard,
+			}),
+			onRemoveGroup: id => this._dropGroup(id),
+			drawing: () => this._drawArmed,
+			onDrawn: ids => this._drewGroup(ids),
 			onRemove: id => this._removePerson(id),
 			// THE MOUSE'S ROUTE TO THAT, and until now there was none: taking somebody off was the
 			// Delete key and nothing else, which is a gesture with nothing on screen to suggest it
@@ -1397,6 +1508,15 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// The drag layer owns the board; these are the window's own chrome.
 		root.querySelectorAll("[data-relmap-action]").forEach(button => {
 			button.addEventListener("click", ev => this._onToolClick(ev));
+		});
+		// ESCAPE ON THE GROUP TOOL ITSELF STANDS IT DOWN. The board's own Escape (relmap-drag.js) is
+		// heard on the board only, and right after arming the tool the focus is still on this button:
+		// left to bubble, the key reaches core, which closes the whole window instead.
+		root.querySelector("[data-relmap-action='group']")?.addEventListener("keydown", ev => {
+			if (ev.key !== "Escape" || !this._drawArmed) return;
+			ev.preventDefault();
+			ev.stopPropagation();
+			this._armDraw(false);
 		});
 
 		// WHICH BOARD OF THIS MAP IS UP. Delegated from the strip rather than bound per tab,
@@ -1440,7 +1560,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// What this reader can take back lives on their own machine, not in the markup a render was
 		// built from, and a fresh bar comes up with both buttons enabled until it is told otherwise.
 		this._paintHistory();
+		this._paintGroupTool();
 		if (this._lit) this._lightPerson(this._lit);
+		if (this._litGroup) this._lightGroup(this._litGroup);
 		// The selection outlives a render (a resize, say), and its marks do not. Except onto a board
 		// this reader may no longer rearrange, which is what an ownership change renders for: a
 		// selection is only for moving people, and marks there would promise a move that is refused.
@@ -1711,19 +1833,29 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// off the board: a selection naming somebody who is not there would carry a ghost along
 		// with every group drag.
 		this._paintSelection();
-		// AND SO IS THE MARK ON THE LINE THE READER IS HOLDING, for the same reason and with one
-		// more: the bar itself survives (it is outside the board), so without this it would go on
-		// floating over a picture with nothing on it saying which line it belongs to. `refresh`
-		// also lets go of a line somebody else has just rubbed out. It deliberately does NOT
-		// refill the caption field -- see its own note.
-		this._tieBar?.refresh();
+		// AND SO IS THE MARK ON WHATEVER THE READER IS HOLDING, a line or a group's outline, for the
+		// same reason and with one more: a bar itself survives (it is outside the board), so without
+		// this it would go on floating over a picture with nothing on it saying what it belongs to.
+		// `refresh` also lets go of a line or a group somebody else has just rubbed out. It
+		// deliberately does NOT refill the field being typed into -- see the tie bar's own note.
+		for (const bar of this._bars) bar.refresh();
 		// A LINE DRAWN A MOMENT AGO, now that there is a paint with it in. `_tieAt` answers off
-		// `_drawn`, which is what the two lines above have just rebuilt, so this is the first
-		// moment the bar can be placed over a line that did not exist when it was drawn.
+		// `_drawn`, which this repaint has just rebuilt, so this is the first moment the bar can be
+		// placed over a line that did not exist when it was drawn. Raised like any other bar, so a
+		// group's bar still up from before the line was drawn comes down: see `_bars`.
 		if (this._pendingPick) {
 			const pick = this._pendingPick;
 			this._pendingPick = "";
-			this._tieBar?.open(pick);
+			this._openBar(this._tieBar, pick);
+		}
+		// THE GROUPS' OTHER MARKS, for the same reasons as the line's: the group the pointer is
+		// resting on, and a group drawn a moment ago that can only be taken hold of now that a paint
+		// has it in.
+		if (this._litGroup) this._lightGroup(this._litGroup);
+		if (this._pendingGroupPick) {
+			const pick = this._pendingGroupPick;
+			this._pendingGroupPick = "";
+			this._pickGroup(pick, { focusName: true });
 		}
 		this._paintChrome(plan);
 	}
@@ -2878,8 +3010,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// way the paragraph above says to ask it -- about writing the document does not have yet,
 		// and never about focus. A reader merely resting in that field obstructs nothing, and the
 		// bar writes what it holds within a breath of the last keystroke (TIE_WRITE_DELAY_MS), so
-		// this can only ever hold a repaint back for that long.
-		if (this._tieBar?.isWriting()) return true;
+		// this can only ever hold a repaint back for that long. AND THE SAME FOR A GROUP'S NAME, which
+		// is held back the same breath before it is written: every bar is asked.
+		if (this._bars.some(bar => bar.isWriting())) return true;
 		return false;
 	}
 
@@ -3033,8 +3166,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// caption the document has not got yet, and that caption is a change like any other:
 		// written after this it would land on top of the undo, and merely STARTED here it would
 		// record itself a microtask later — emptying the forward stack under a redo already in
-		// flight, and leaving the board right while the two stacks were wrong.
-		await this._tieBar?.flush();
+		// flight, and leaving the board right while the two stacks were wrong. And a group's name,
+		// held back the same way: every bar, one after the other, each awaited before the next.
+		for (const bar of this._bars) await bar.flush();
 		// ⚠ AND THE ARROW KEYS' MOVES, FOR THE SAME REASON. A nudge or a caption slide is held for a breath
 		// after the last key (NUDGE_COMMIT_MS), and an undo pressed inside that breath peeked at the change
 		// BEFORE it -- took that one back instead -- and then the nudge landed, recorded itself and emptied
@@ -3252,6 +3386,20 @@ export class RelationshipMapWindow extends StonetopDialog {
 				redrawEdge(parts, this._drawn?.healed ? { ...shape, d: shape.unbroken } : shape, preview.board);
 			}
 		}
+		// AND EVERY GROUP ANY OF THEM IS IN, whose outline follows its people. Worked out by the same
+		// builder the paint uses, so the drop lands exactly where the reader watched it settle.
+		if (preview.groupIds.size) {
+			const shapes = groupShapes(preview.graph, preview.board, { within: preview.groupsWithin, only: preview.groupIds });
+			for (const { id, outline } of shapes) {
+				if (!preview.groupIds.has(id)) continue;
+				const parts = preview.groupParts.get(id);
+				for (const path of parts?.paths ?? []) path.setAttribute?.("d", outline.d);
+				if (parts?.name?.style) {
+					parts.name.style.left = `${outline.name.left}%`;
+					parts.name.style.top = `${outline.name.top}%`;
+				}
+			}
+		}
 	}
 
 	/**
@@ -3311,6 +3459,12 @@ export class RelationshipMapWindow extends StonetopDialog {
 			painted: this._drawn?.painted ?? null,
 			// The index the last paint already walked, where there is one. See `_sayLine`.
 			parts: this._drawn?.parts ?? indexEdgeParts(board),
+			// The groups any of them is in, and those groups' markup, walked once per gesture.
+			groupIds: new Set(Object.entries(graph.groups ?? {})
+				.filter(([, group]) => moving.some(id => group.members?.[id]))
+				.map(([id]) => id)),
+			groupsWithin: groupsInside(graph.groups ?? {}),
+			groupParts: indexGroupParts(board),
 		};
 		return this._preview;
 	}
@@ -3593,14 +3747,20 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// answers for whatever page the window points at NOW, so a seat flushed a line later would
 		// be filed against a link the board being ARRIVED at does not have.
 		this._writeSeats();
-		this._tieBar?.flush();
+		// AND WHATEVER THE BARS HOLD, a caption or a group's half-typed name, onto the board it was
+		// typed on. Then the group's bar comes down, as does an armed group tool, because the group
+		// it was over is not on the board being arrived at.
+		for (const bar of this._bars) bar.flush();
+		this._groupBar?.close();
+		this._pendingGroupPick = "";
+		if (this._drawArmed) this._armDraw(false);
 	}
 
 	/**
 	 * Everything half-written on a board that is no longer there, thrown away unwritten.
 	 *
 	 * The other half of `_leaveBoard`, over the same three things: the portraits and the captions the
-	 * arrow keys have moved, and whatever the tie bar is holding. The render that follows replaces
+	 * arrow keys have moved, and whatever the bars are holding. The render that follows replaces
 	 * everything they were drawn on.
 	 */
 	_dropUnwritten() {
@@ -3608,7 +3768,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		this._landingNudge.clear();
 		this._pendingSeat.clear();
 		this._preview = null;
-		this._tieBar?.discard();
+		for (const bar of this._bars) bar.discard();
+		this._pendingGroupPick = "";
+		if (this._drawArmed) this._armDraw(false);
 	}
 
 	/**
@@ -3881,6 +4043,195 @@ export class RelationshipMapWindow extends StonetopDialog {
 		await this._write(dropEdgePatch(id), {
 			announce: localize("stonetop.relmap.unlinked"),
 			label: localize("stonetop.relmap.history.unlinked"),
+		});
+	}
+
+	// ── Groups ──────────────────────────────────────────────────────────────
+	//
+	// A NAMED OUTLINE ROUND SOME PEOPLE: "The hunters", "The elders". What is stored is the name,
+	// the colour, box or oval, and who is in it (relmap-store.js); the outline itself is worked out
+	// from where those people stand on every paint, so it follows them when they move and can never
+	// be left behind on bare paper. A person can be in several groups, and outlines may nest.
+
+	/**
+	 * One group as the bar wants it, off the PAINT: what it is, who is in it, and where on the board
+	 * (percentages) its name sits. Null when the last paint drew no such group.
+	 */
+	_groupAt(id) {
+		const shape = this._drawn?.groups?.get(id);
+		if (!shape) return null;
+		return {
+			group: shape.group,
+			members: shape.members,
+			at: { left: shape.outline.name.left, top: shape.outline.name.top },
+		};
+	}
+
+	/** Who is in a group, off the paint, for the drag layer to carry. */
+	_groupMembersOf(id) {
+		return this._drawn?.groups?.get(id)?.members ?? [];
+	}
+
+	/** Take hold of one group: its bar goes up, and the tie bar comes down. */
+	_pickGroup(id, { returnTo = null, focusName = false } = {}) {
+		this._openBar(this._groupBar, id, { returnTo, focusName });
+	}
+
+	/**
+	 * THE GROUP TOOL ON THE FOOTER.
+	 *
+	 * With people selected, they become a group at once. With nobody selected, the board is ARMED:
+	 * the next drag on open paper draws a box, and whoever is inside it becomes the group. Pressed
+	 * again while armed, it stands down. Escape stands it down too (relmap-drag.js).
+	 */
+	_groupTool() {
+		if (this._drawArmed) { this._armDraw(false); return; }
+		if (this._selected.length) { this._makeGroup(this._selected); return; }
+		this._armDraw(true);
+		this._announce(localize("stonetop.relmap.groups.drawHint"));
+	}
+
+	_armDraw(on) {
+		this._drawArmed = !!on;
+		this._paintGroupTool();
+	}
+
+	/** The tool's pressed state, and the board's cursor while it is armed. */
+	_paintGroupTool() {
+		const root = this._root;
+		if (!root) return;
+		root.querySelector?.("[data-relmap-action='group']")?.setAttribute?.("aria-pressed", this._drawArmed ? "true" : "false");
+		root.querySelector?.(".stonetop-relmap")?.classList?.toggle("is-drawing-group", this._drawArmed);
+	}
+
+	/**
+	 * A box drawn with the tool armed has been let go: `ids` is who is inside it, or null when the
+	 * draw was abandoned. Either way the tool stands down; one box is one group.
+	 */
+	_drewGroup(ids) {
+		this._armDraw(false);
+		if (!ids) return;
+		if (!ids.length) {
+			this._announce(localize("stonetop.relmap.groups.empty"));
+			return;
+		}
+		this._makeGroup(ids);
+	}
+
+	/**
+	 * Draw a new group round these people, and hand it to the reader to name.
+	 *
+	 * NOTHING IS ASKED FIRST, for `_createLink`'s reason: the group exists the moment it is drawn,
+	 * nameless, and its bar opens with the caret in the name. Drawn by mistake, it is one undo.
+	 *
+	 * ITS COLOUR IS THE FIRST OF THE EIGHT NO OTHER GROUP ON THIS BOARD IS WEARING, so two groups
+	 * drawn one after the other can be told apart before anybody has chosen anything.
+	 */
+	async _makeGroup(ids) {
+		const graph = readGraph(this.boardDoc);
+		const members = [...new Set(ids ?? [])].filter(id => graph.nodes[id]);
+		if (!members.length) return;
+		const worn = new Set(Object.values(graph.groups ?? {}).map(group => group.ink));
+		const ink = RELMAP_INKS.find(key => !worn.has(key)) ?? RELMAP_INKS[0];
+		const id = foundry.utils.randomID();
+		const written = await this._write(addGroupPatch(id, { members, ink }), {
+			announce: format("stonetop.relmap.groups.made", { count: members.length }),
+			label: localize("stonetop.relmap.history.grouped"),
+			onto: { kind: "nodes", ids: members },
+		});
+		if (!written) return;
+		// The selection has become the group, so it is let go: what the reader does next is name it.
+		this._select([], { final: false });
+		// Opened by the repaint this write sets off, which is the first paint with the outline in it.
+		// See `_createLink` for the same trap.
+		this._pendingGroupPick = id;
+	}
+
+	/**
+	 * Put the selected people into a group, or take them out of it. Taking out everybody left in it
+	 * rubs the group out instead, in the same single write: an outline round nobody is nothing.
+	 */
+	async _regroup(id, way) {
+		const graph = readGraph(this.boardDoc);
+		const group = graph.groups?.[id];
+		if (!group) return;
+		const chosen = this._selected.filter(member => graph.nodes[member]);
+		if (way === "add") {
+			const add = chosen.filter(member => !group.members[member]);
+			if (!add.length) return;
+			await this._write(groupMembersPatch(id, add), {
+				announce: format("stonetop.relmap.groups.added", { count: add.length }),
+				label: localize("stonetop.relmap.history.groupMembers"),
+				onto: { kind: "groups", id },
+			});
+			return;
+		}
+		const take = chosen.filter(member => group.members[member]);
+		if (!take.length) return;
+		const left = Object.keys(group.members).filter(member => !take.includes(member));
+		if (!left.length) {
+			this._groupBar?.close();
+			await this._dropGroup(id);
+			return;
+		}
+		await this._write(groupMembersPatch(id, [], take), {
+			announce: format("stonetop.relmap.groups.taken", { count: take.length }),
+			label: localize("stonetop.relmap.history.groupMembers"),
+			onto: { kind: "groups", id },
+		});
+	}
+
+	/** Rub one group out. Nobody in it moves or leaves the board, and the undo puts it back whole. */
+	async _dropGroup(id) {
+		if (!readGraph(this.boardDoc).groups?.[id]) return;
+		if (this._groupBar?.id === id) this._groupBar.close();
+		if (this._litGroup === id) this._lightGroup(null);
+		await this._write(dropGroupPatch(id), {
+			announce: localize("stonetop.relmap.groups.dropped"),
+			label: localize("stonetop.relmap.history.ungrouped"),
+		});
+	}
+
+	/** Mark which outline the group bar is holding, and unmark the last one. */
+	_paintPickedGroup(id) {
+		for (const el of this._pickedGroupParts ?? []) el.classList?.remove("is-picked");
+		this._pickedGroupParts = [];
+		const board = id ? this._boardEl() : null;
+		if (!board) return;
+		const parts = indexGroupParts(board).get(id);
+		for (const el of [parts?.group, parts?.name]) {
+			if (!el) continue;
+			el.classList?.add("is-picked");
+			this._pickedGroupParts.push(el);
+		}
+	}
+
+	/**
+	 * Light one group's people, or nobody's: its members' faces are ringed, which is what answers "is
+	 * that face inside the box one of them, or only standing there?". NOBODY ELSE IS DIMMED, for the
+	 * reason the lit web gives in the stylesheet: a half-faded face reads as somebody taken off the
+	 * board. Straight onto the elements, like `_lightPerson`, and put back after every repaint.
+	 */
+	_lightGroup(id) {
+		const root = this._root;
+		const shape = id ? this._drawn?.groups?.get(id) : null;
+		this._litGroup = shape ? id : null;
+		if (!root) return;
+		const members = new Set(shape?.members ?? []);
+		root.classList?.toggle("is-group-lit", !!shape);
+		// The members' ring is drawn in the group's own colour: a token for one of the eight, the hex
+		// itself for a colour of the table's own. See `.stonetop-relmap-node.is-in-group`.
+		const ink = shape?.group?.ink;
+		if (ink) {
+			const { inkKey, inkHex } = inkPaint(ink);
+			root.style?.setProperty?.("--relmap-group-ink", inkHex || `var(--st-relmap-ink-${inkKey})`);
+		}
+		root.querySelectorAll?.("[data-relmap-node]")?.forEach?.(el => {
+			el.classList?.toggle("is-in-group", !!shape && members.has(el.dataset.relmapNode));
+		});
+		root.querySelectorAll?.("[data-relmap-group-shape], [data-relmap-group]")?.forEach?.(el => {
+			const mine = el.dataset.relmapGroupShape ?? el.dataset.relmapGroup;
+			el.classList?.toggle("is-lit", !!shape && mine === id);
 		});
 	}
 
@@ -4304,6 +4655,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const before = this._selected.length;
 		this._selected = [...new Set(ids ?? [])];
 		this._paintSelection();
+		// The group bar's "Add the 2 selected" says how many, so it is told.
+		this._groupBar?.selectionChanged();
 		if (!final) return;
 		const count = this._selected.length;
 		if (count) this._announce(format("stonetop.relmap.selection.count", { count }));
@@ -4359,7 +4712,15 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * for utils/zoom-pan-surface.js. See `boardBounds`.
 	 */
 	_boundsOf(plan) {
-		return boardBounds(Object.values(plan?.graph?.nodes ?? {}), plan?.board);
+		// AND EVERY GROUP'S OUTLINE, which stands further out than the faces it is drawn round: a
+		// group at the edge of what the reader can pan to would otherwise be cut off at its rim.
+		// Off the paint when it was drawn from this very plan, which is every caller but the tests.
+		const drawn = this._drawn?.graph === plan?.graph ? this._drawn?.groups : null;
+		const shapes = drawn
+			? [...drawn.values()]
+			: plan?.graph?.groups && plan?.board ? groupShapes(plan.graph, plan.board) : [];
+		const outlines = shapes.map(({ outline }) => outline);
+		return boardBounds(Object.values(plan?.graph?.nodes ?? {}), plan?.board, outlines);
 	}
 
 	/**
@@ -4599,10 +4960,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// every element boundary the pointer crosses inside the board -- a path, a caption, a name
 		// -- and the answer is almost always "the same person as a moment ago", which is no work at
 		// all. Asking `_isBusy` first put a board lookup and an `activeElement` walk in front of it.
+		// AND A GROUP, by resting on its name or its outline: its people are marked, everybody else
+		// quieted. The same arrive-by-target, leave-by-destination rule as a face.
+		const groupAt = target => groupPressed(target)?.id ?? null;
 		const rest = target => {
 			const id = at(target);
-			if (id === this._lit || this._isBusy()) return;
-			this._lightPerson(id);
+			const group = groupAt(target);
+			if (id === this._lit && group === this._litGroup) return;
+			if (this._isBusy()) return;
+			if (id !== this._lit) this._lightPerson(id);
+			if (group !== this._litGroup) this._lightGroup(group);
 		};
 		board.addEventListener("pointerover", ev => rest(ev.target));
 		board.addEventListener("pointerout", ev => rest(ev.relatedTarget));
@@ -4749,7 +5116,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 	}
 
 	/**
-	 * Unwire everything a render wired: the pan surface, the drag, the tie bar, and every world hook
+	 * Unwire everything a render wired: the pan surface, the drag, the bars, and every world hook
 	 * this window registered.
 	 *
 	 * IDEMPOTENT, AND IT HAS TO BE — two callers reach it. The close is the ordinary one; the other
@@ -4759,8 +5126,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 	_teardown() {
 		this._surface?.destroy();
 		this._surface = null;
-		this._tieBar?.destroy();
+		for (const bar of this._bars) bar.destroy();
 		this._tieBar = null;
+		this._groupBar = null;
 		this._teardownDrag?.();
 		this._teardownDrag = null;
 		// The two document-level listeners the undo keys need. A closed window that kept them would
@@ -4991,6 +5359,27 @@ function indexEdgeParts(board) {
 	// here rather than by reaching into the group with a selector built out of a stored id.
 	each("[data-relmap-words]", el => { partsFor(el.dataset.relmapWords).words = el; });
 	each("[data-relmap-head]", el => { partsFor(el.dataset.relmapHead).heads[el.dataset.relmapEnd] = el; });
+	return parts;
+}
+
+/**
+ * Every group's markup, by id: the outline's three paths (fill, stroke, the wide click target) and
+ * its name. Walked and read off `dataset`, never a selector built out of a stored id, for the reason
+ * `indexEdgeParts` gives.
+ */
+function indexGroupParts(board) {
+	const parts = new Map();
+	const partsFor = id => {
+		let found = parts.get(id);
+		if (!found) parts.set(id, found = { group: null, paths: [], name: null });
+		return found;
+	};
+	board?.querySelectorAll?.("[data-relmap-group-shape]")?.forEach?.(el => {
+		const found = partsFor(el.dataset.relmapGroupShape);
+		found.group = el;
+		found.paths = [...(el.querySelectorAll?.("path") ?? [])];
+	});
+	board?.querySelectorAll?.("[data-relmap-group]")?.forEach?.(el => { partsFor(el.dataset.relmapGroup).name = el; });
 	return parts;
 }
 
