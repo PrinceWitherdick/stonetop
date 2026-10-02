@@ -1,0 +1,7 @@
+{{!-- WHO A THREAD IS, at the head of their lane: one body for both layouts of the board (the column
+      heads read down, the row heads read across), so the two cannot drift. --}}
+{{#if portrait}}
+<img class="stonetop-timeline-lane-portrait" src="{{portrait}}" alt="" draggable="false">
+{{/if}}
+<span class="stonetop-timeline-lane-name">{{name}}</span>
+{{#if killTotal}}<span class="stonetop-timeline-lane-kills"><i class="fas fa-skull" aria-hidden="true"></i> {{killTotal}}</span>{{/if}}

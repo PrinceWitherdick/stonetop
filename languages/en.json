@@ -19,7 +19,8 @@
       "chronicle": "Chronicle",
       "threat": "Threat",
       "hazard": "Hazard",
-      "site": "Site"
+      "site": "Site",
+      "timeline": "Timeline"
     }
   },
   "stonetop": {
@@ -2717,6 +2718,8 @@
         "placeLinked": "Linked",
         "placeLinkedTooltip": "This place links to a document. Editing the name breaks the link; drop again to remake it.",
         "bodyDropHint": "Drop a person, place or creature into the text to link it.",
+        "foes": "Slain",
+        "foesHint": "One foe per line. \"Crinwin ×3\" counts three.",
         "body": "The account",
         "bodyPlaceholder": "As much or as little as you want to write down.",
         "save": "Save the entry",
@@ -2733,11 +2736,70 @@
         "title": "Whose thread?",
         "confirm": "Write on this thread"
       },
-      "auto": {
-        "show": "Show what the system recorded",
-        "hide": "Hide what the system recorded",
-        "tooltip": "Fold in level-ups, moves gained and the seasons as they turned. Only you see this choice.",
-        "badge": "Recorded"
+      "allHidden": {
+        "lead": "Everything on this timeline is hidden by your Show menu."
+      },
+      "kind": {
+        "hand": "Written",
+        "season": "Season",
+        "levelup": "Level up",
+        "kills": "Kills",
+        "expedition": "Expedition",
+        "site": "Site visit",
+        "death": "Death",
+        "wound": "Lasting wound",
+        "arcana": "Arcanum",
+        "follower": "Follower"
+      },
+      "show": {
+        "label": "Show",
+        "all": "Show everything",
+        "hiddenCount": "{count} hidden",
+        "hand": "Written entries",
+        "season": "Seasons Change",
+        "levelup": "Level-ups",
+        "kills": "Kills",
+        "expedition": "Expeditions",
+        "site": "Site visits",
+        "death": "Deaths and fates",
+        "wound": "Lasting wounds",
+        "arcana": "Arcana",
+        "follower": "Followers"
+      },
+      "layout": {
+        "label": "Timeline layout",
+        "vertical": "Down",
+        "verticalTooltip": "Lay the timeline down the page, one season under the next",
+        "horizontal": "Across",
+        "horizontalTooltip": "Lay the timeline across the page along one line, like a slide"
+      },
+      "kills": {
+        "title": "Slew {count}",
+        "total": "{count} slain"
+      },
+      "milestone": {
+        "levelup": "Reached level {level}",
+        "learned": "Learned {move}.",
+        "death": "Died",
+        "insert": {
+          "ghost": "Lingered as a Ghost",
+          "revenant": "Rose again as a Revenant",
+          "thrall": "Returned as a Thrall"
+        },
+        "woundPermanent": "Lasting wound: {text}",
+        "woundScar": "Healed to a scar: {text}",
+        "woundMark": "Marked at Death's Door",
+        "arcanaFound": "Found {name}",
+        "arcanaIdentified": "Identified {name}",
+        "arcanaMajor": "Took up a major arcanum: {name}",
+        "followerGained": "{name} joined",
+        "followerDied": "{name} died",
+        "followerFree": "{name} broke free",
+        "expedition": "Expedition: {label}",
+        "expeditionSetOut": "Set out in {when}.",
+        "expeditionTriumphant": "Returned triumphant.",
+        "expeditionParty": "With {names}.",
+        "site": "Visited {name}"
       }
     },
     "fight": {

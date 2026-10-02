@@ -8,7 +8,13 @@
       The heading itself is the shared partial, so this block and the aggregate's row head cannot
       come to name the same season two different ways.
 
+      A YEAR HEADING opens the block wherever the year moves on (`startsYear`), so a long campaign
+      reads in years first and seasons within them.
+
       Context: one period view-model (timeline-view.js#periodVM). --}}
+{{#if startsYear}}
+<h2 class="stonetop-timeline-year">{{yearLabel}}</h2>
+{{/if}}
 <section class="stonetop-timeline-period" data-period="{{key}}">
 	<header class="stonetop-timeline-period-head">
 		{{> "stonetop.timeline-period-head"}}

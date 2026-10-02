@@ -48,6 +48,16 @@
 		</datalist>
 		<p class="stonetop-timeline-entry-hint">{{localize "stonetop.timeline.dialog.placeDropHint"}}</p>
 
+		{{!-- A KILLS row's foes, one per line, and the only way to correct a kill credited in error
+		      (or add one the table settled by hand). "Crinwin ×3" stands for three. --}}
+		{{#if isKills}}
+		<label class="stonetop-timeline-entry-label" for="stonetop-timeline-foes">
+			{{localize "stonetop.timeline.dialog.foes"}}
+		</label>
+		<textarea id="stonetop-timeline-foes" class="stonetop-timeline-entry-foes" rows="4">{{foesText}}</textarea>
+		<p class="stonetop-timeline-entry-hint">{{localize "stonetop.timeline.dialog.foesHint"}}</p>
+		{{/if}}
+
 		<label class="stonetop-timeline-entry-label" for="stonetop-timeline-body">
 			{{localize "stonetop.timeline.dialog.body"}}
 		</label>

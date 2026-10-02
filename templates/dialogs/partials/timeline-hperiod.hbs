@@ -1,0 +1,26 @@
+{{!-- ONE SEASON ON A SIDEWAYS TIMELINE.
+
+      The slide-deck shape: one axis line across the page, a node on it per season, and that
+      season's cards hanging off the node on a short stalk -- above the line for one season, below
+      it for the next (`above`, alternated by the view model), so neighbours never crowd each other.
+
+      ⚠ THE NODE COMES FIRST IN THE DOM, whichever side its cards hang on. The grid places the cards
+      in the top or the bottom row; a screen reader and the Tab key read the season's name and then
+      what happened in it, in that order, every time.
+
+      The axis itself is drawn by the node (a rule across its whole column), so the line stays
+      continuous from season to season with nothing measured in script. Every node carries its own
+      year chip (the shared heading), and the season that OPENS a year (`startsYear`) is marked on
+      the axis as well, so the years read at a glance along the line.
+
+      Context: one period view-model (timeline-view.js#periodVM). --}}
+<li class="stonetop-timeline-hperiod {{#if above}}stonetop-timeline-hperiod--above{{else}}stonetop-timeline-hperiod--below{{/if}}{{#if startsYear}} stonetop-timeline-hperiod--year-start{{/if}}" data-period="{{key}}">
+	<div class="stonetop-timeline-hnode">
+		<div class="stonetop-timeline-hhead">
+			{{> "stonetop.timeline-period-head"}}
+		</div>
+	</div>
+	<ol class="stonetop-timeline-cards stonetop-timeline-hcards">
+		{{#each entries}}{{> "stonetop.timeline-card"}}{{/each}}
+	</ol>
+</li>

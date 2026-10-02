@@ -656,11 +656,12 @@ export class LevelUpDialog extends StonetopDialog {
 		// slug left over that must not be learned.
 		const invocationSlug = this._stepActive("invocation") ? this._selectedInvocationSlug : null;
 		// `fromLevel` pins the level these choices were built for, so a stale window (the same
-		// level-up already applied elsewhere, or XP spent meanwhile) writes nothing.
+		// level-up already applied elsewhere, or XP spent meanwhile) writes nothing. `moveName`
+		// rides along to the timeline's "Reached level N" row ("Learned Seasoned Warrior.").
 		const result = await this._character.applyLevelUp(
 			this._selectedMoveId, invocationSlug,
 			Object.keys(choices).length ? choices : null,
-			{ fromLevel: this._data.level },
+			{ fromLevel: this._data.level, moveName: entry?.name ?? "" },
 		);
 		// Closed BEFORE the sheet hears back: when there's XP for another level, the sheet
 		// opens the next level-up, and a window still closing under this id would be found by

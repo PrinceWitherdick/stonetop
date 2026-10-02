@@ -53,6 +53,9 @@ global.game = {
 global.Hooks = {
 	once: () => {},
 	on: () => {},
+	off: () => {},
+	call: () => true,
+	callAll: () => true,
 };
 
 // Render a real .hbs file off disk, so a test that asserts on a dialog's markup is asserting on

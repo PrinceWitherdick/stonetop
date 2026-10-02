@@ -179,6 +179,24 @@ export function deletionEntry(keyPath) {
 }
 
 /**
+ * Build the `document.update()` entry that REPLACES `keyPath` with `value` outright instead of
+ * merging into what is stored there: the way to change a stored value's SHAPE (a list becoming an
+ * object keyed by id) without the server's merge folding one into the other. v14 takes a
+ * `ForcedReplacement` and deprecates the `==` key prefix; v13 knows only the prefix. Gated on the
+ * running generation, as `deletionEntry` is above. Returns `[updateKey, value]`.
+ *
+ * @param {string} keyPath  Dotted path to the value to replace (e.g. "system.entries").
+ * @param {*} value
+ * @returns {[string, *]}
+ */
+export function replacementEntry(keyPath, value) {
+	const ForcedReplacement = foundry.data?.operators?.ForcedReplacement;
+	if (ForcedReplacement?.create && coreGeneration() >= 14) return [keyPath, ForcedReplacement.create(value)];
+	const i = keyPath.lastIndexOf(".");
+	return [`${keyPath.slice(0, i + 1)}==${keyPath.slice(i + 1)}`, value];
+}
+
+/**
  * READ ONE BACK: given an update entry, the plain path it deletes, or null when it is an ordinary
  * write of a value.
  *

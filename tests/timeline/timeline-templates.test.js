@@ -17,6 +17,8 @@ const TEMPLATES = [
 	"templates/dialogs/timeline-entry.hbs",
 	"templates/dialogs/partials/timeline-card.hbs",
 	"templates/dialogs/partials/timeline-period.hbs",
+	"templates/dialogs/partials/timeline-hperiod.hbs",
+	"templates/dialogs/partials/timeline-lane-head.hbs",
 	"templates/actor/partials/tab-timeline.hbs",
 	"templates/actor/partials/steading-tab-timeline.hbs",
 	"templates/journal/timeline-page.hbs",
@@ -61,7 +63,7 @@ describe("the aggregate's markup and its stylesheet agree", () => {
 	});
 
 	// Every class the delegated click listener reads has to exist in the markup, or the control is
-	// rendered and dead. These are the five it looks for.
+	// rendered and dead. These are the ones it looks for.
 	it("emits every control the window's listener binds to", () => {
 		const markup = readRepo("templates/dialogs/timeline.hbs")
 			+ readRepo("templates/dialogs/partials/timeline-card.hbs");
@@ -69,7 +71,10 @@ describe("the aggregate's markup and its stylesheet agree", () => {
 		for (const cls of [
 			"stonetop-timeline-new",
 			"stonetop-timeline-open-full",
-			"stonetop-timeline-auto-toggle",
+			"stonetop-timeline-orient",
+			"stonetop-timeline-show-all",
+			"stonetop-timeline-show",
+			"data-timeline-source",
 			"stonetop-timeline-edit",
 			"stonetop-timeline-remove",
 			"stonetop-timeline-move",

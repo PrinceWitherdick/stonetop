@@ -115,6 +115,7 @@ import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING, ALL_IN_THE_WRIST} from "
 import {X_PIERCING_MAX} from "../../utils/damage.js";
 import {healTo} from "../../camp/camp-rules.js";
 import {recoveredHpTo, slowToHeal} from "./deaths-door-actor.js";
+import {LEARNED_OPTION} from "../../timeline/timeline-milestones.js";
 
 /**
  * The state a playbook move leaves on a character, and whether anything they hold still makes it:
@@ -6217,7 +6218,7 @@ export class StonetopCharacter {
 	// `"level"` — the character is no longer at `fromLevel`, the level the caller's choices
 	// were built for (the same level-up already applied from another window); `"xp"` — they
 	// no longer have the 6 + 2×level XP it costs (Book I p.528: the move needs that much).
-	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug, choices = null, { fromLevel = null } = {}) {
+	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug, choices = null, { fromLevel = null, moveName = "" } = {}) {
 		// Through the XP lock (utils/xp.js), not adjustXp: the level and the XP it cost move in
 		// ONE update, and splitting them would leave a moment where the character has the new
 		// level and has not paid for it. Both are therefore read inside the lock, so a mark that
@@ -6232,10 +6233,13 @@ export class StonetopCharacter {
 			const xp    = this._actor.system?.attributes?.xp?.value ?? 0;
 			if (fromLevel != null && level !== fromLevel) return "level";
 			if (xp < xpToLevelUp(level)) return "xp";
-			await this._actor.update({
+			const levelUp = {
 				"system.attributes.level.value": level + 1,
 				"system.attributes.xp.value":   xp - xpToLevelUp(level),
-			});
+			};
+			// The move learned rides on the update so the timeline's level-up row can name it
+			// (timeline/timeline-watch.js reads it back off the options).
+			await this._actor.update(levelUp, moveName ? { [LEARNED_OPTION]: moveName } : {});
 			return null;
 		});
 		if (refused) return { applied: false, reason: refused };

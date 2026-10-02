@@ -101,6 +101,16 @@ describe("a window that keeps its reader's place", () => {
 		expect(again.focus).not.toHaveBeenCalled();
 	});
 
+	// A timeline laid out sideways scrolls across, not down, and a live write must not throw its
+	// reader back to the first season.
+	it("puts a sideways column back where they were reading too", async () => {
+		const first = draw([], 0);
+		first.column.scrollLeft = 900;
+		const next = draw();
+		await redrawing(new Kept(), first, next)._render(false, {});
+		expect(next.column.scrollLeft).toBe(900);
+	});
+
 	// A column at its top is left to be one: the fresh draw already is.
 	it("writes no offset for a column that was at its top", async () => {
 		const next = draw();

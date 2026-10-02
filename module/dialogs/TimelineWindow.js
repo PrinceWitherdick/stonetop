@@ -7,16 +7,21 @@
 // sync. The tab is a third shape of the same thing again -- see TimelinePanel, which is this class
 // mounted frameless, exactly as the relationship map's panel is its window.
 //
+// Either shape can be laid DOWN the page or ACROSS it, per reader (the toolbar's Down/Across
+// pair), and each reader chooses which KINDS of row they see (the toolbar's Show menu). Both are
+// client settings: they change how this reader reads the record, never the record.
+//
 // WHAT THIS FILE IS CAREFUL ABOUT:
 //
-//  • ONE WRITER. Every change to a track's entries goes through `_mutate` below, which reads the
-//    page, runs one of timeline-core's pure mutators, and writes the whole array back. The entry
-//    dialog collects input and knows nothing about storage, so the add path and the edit path
-//    cannot drift.
-//  • A LIVE UPDATE RE-RENDERS, and that is safe here in a way it is not on the relationship map:
-//    there is no zoom or pan to throw away, and AppV1's `scrollY` puts the reader back where they
-//    were. What it must NOT do is re-render while the reader is mid-edit in the entry dialog, and
-//    it does not have to guard that: the dialog is a separate window holding its own state.
+//  • ONE WRITER. Every change to a track's entries goes through `_mutate` below, which hands one of
+//    timeline-core's pure mutators to the store's single write path. The entry dialog collects
+//    input and knows nothing about storage, so the add path and the edit path cannot drift.
+//  • A LIVE UPDATE RE-RENDERS, and the reader keeps their place through it: the scroll column's
+//    offset DOWN and ACROSS (a sideways timeline scrolls left to right) and the toolbar control
+//    that had the keyboard, through StonetopDialog's kept place rather than core's `scrollY`, which
+//    only knows about down. Throttled, because one Apply-damage press that drops three foes is
+//    three page writes, and a reader on a magnifier must not watch the board flash three times. It
+//    never re-renders under the entry dialog: that is a separate window holding its own state.
 //  • THE HOOK COMES OFF ON CLOSE. It is a global journal hook, and a window closed without taking
 //    it off leaves it firing on every journal write at the table for the rest of the session.
 
@@ -25,7 +30,6 @@ import { themedDialogClasses } from "../utils/window-theme.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { openingSize } from "../utils/opening-size.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
-import { seasonStampParts } from "../seasons/current-season.js";
 import { localize, format } from "../utils/i18n.js";
 import { promptForTimelineEntry } from "./TimelineEntryDialog.js";
 import { pickContentOption } from "./content-picker.js";
@@ -36,13 +40,14 @@ import {
 	trackForActor,
 } from "../timeline/timeline-store.js";
 import {
-	addEntry, isDerivedEntryId, moveEntry, patchEntry, removeEntry, sortEntries, trackIdFromKey,
+	TIMELINE_SOURCES, addEntry, moveEntry, patchEntry, removeEntry, trackIdFromKey,
 } from "../timeline/timeline-core.js";
-import { autoRowsForTrack } from "../timeline/timeline-auto-rows.js";
 import { SYSTEM_ID } from "../system-id.js";
-import { readSeasonLog } from "../timeline/timeline-seasons.js";
-import { getTimelineAutoRows, setTimelineAutoRows } from "../settings.js";
-import { buildAggregateVM, buildTrackVM, enrichTrackVM } from "../timeline/timeline-view.js";
+import {
+	getTimelineHiddenSources, getTimelineOrientation, setTimelineHiddenSources, setTimelineOrientation,
+} from "../settings.js";
+import { buildAggregateVM, buildTrackVM, enrichTrackVM, kindMenu } from "../timeline/timeline-view.js";
+import { timelineNow } from "../timeline/timeline-record.js";
 
 /** The aggregate window's DOM id, so a second open focuses the first. */
 export const TIMELINE_WINDOW_ID = "stonetop-timeline-window";
@@ -54,7 +59,7 @@ export class TimelineWindow extends StonetopDialog {
 	 * `_trackDescriptor` below hands the same shape back OUT to `ensureTrackPage`. A key renamed on
 	 * the way in reads as `""` and fails silently twice over: the title and the entry dialog lose
 	 * the thread's name, and the first entry written on a track with no page yet mints one titled
-	 * with the raw actor id, which nothing renames afterwards.
+	 * with the raw actor id.
 	 *
 	 * @param {object}  [track]           Which track to show. Omit entirely for the aggregate.
 	 * @param {string}  [track.trackId]
@@ -67,6 +72,10 @@ export class TimelineWindow extends StonetopDialog {
 		this._trackKind = trackKind;
 		this._trackName = name;
 		this._syncHooks = [];
+		// Whether this reader left the Show menu open. Kept on the instance because every tick in it
+		// re-renders the window, and a menu that shut itself after each tick would be a menu you
+		// have to reopen ten times to hide ten things.
+		this._showMenuOpen = false;
 	}
 
 	static get defaultOptions() {
@@ -78,11 +87,15 @@ export class TimelineWindow extends StonetopDialog {
 			height: size.height,
 			resizable: true,
 			classes: [...themedDialogClasses(), "stonetop", "stonetop-timeline-app"],
-			// The spine is what scrolls, so a repaint after somebody else's entry lands puts the
-			// reader back where they were rather than at the top of the campaign.
-			scrollY: [".stonetop-timeline-scroll"],
 		});
 	}
+
+	// The column that scrolls, kept DOWN and ACROSS through a repaint, so somebody else's entry
+	// landing never throws the reader back to the start of the campaign; and the toolbar control
+	// that had the keyboard, given back. See StonetopDialog#_keptScrollSelector.
+	get _keptScrollSelector() { return ".stonetop-timeline-scroll"; }
+
+	get _focusKeyAttribute() { return "data-timeline-focus"; }
 
 	get title() {
 		return this._trackId
@@ -94,37 +107,6 @@ export class TimelineWindow extends StonetopDialog {
 	get isSingleTrack() { return !!this._trackId; }
 
 	// ── reading ────────────────────────────────────────────────────────────────
-
-	/**
-	 * Is this id one of the derived ledger rows rather than a stored entry?
-	 *
-	 * ⚠ EVERY WRITE PATH ASKS THIS FIRST. A ledger row is a view of another record: it has no
-	 * stored counterpart to patch, and `patchEntry` against an id that is not in the array answers
-	 * `changed: null` and writes nothing -- which is the right outcome reached for the wrong reason,
-	 * and would start writing the moment somebody merged these rows into the page. The cards carry
-	 * no controls, so this is a second guard behind a first; it is here because the cost of being
-	 * wrong is a silent write against the wrong record.
-	 */
-	_isDerived(entryId) {
-		return isDerivedEntryId(entryId);
-	}
-
-	/** Does this reader want what the system recorded folded in? Per client, off by default. */
-	get _showAutoRows() { return getTimelineAutoRows(); }
-
-	/**
-	 * One track's entries, with the derived rows folded in when this reader wants them.
-	 *
-	 * Merged at READ time and never stored, which is what makes the toggle free: turning it off is
-	 * a re-render, not an unpicking of anything written. The log comes from the steading, which is
-	 * resolved once per call rather than per track -- it is an unindexed `game.actors` scan.
-	 */
-	_withAutoRows(track, log) {
-		if (!this._showAutoRows) return track;
-		const rows = autoRowsForTrack(track, log);
-		if (!rows.length) return track;
-		return { ...track, entries: sortEntries([...track.entries, ...rows]) };
-	}
 
 	/**
 	 * The tracks this window draws. One in single-track mode, every track that has a page in the
@@ -180,18 +162,21 @@ export class TimelineWindow extends StonetopDialog {
 	async getData() {
 		// Fresh per render; see `_canEdit`.
 		this._editCache = new Map();
-		const steading = getStonetopSteadingActor();
-		const log = readSeasonLog(steading);
-		const tracks = this._tracks().map(track => this._withAutoRows(track, log));
+		const tracks = this._tracks();
+		const hidden = getTimelineHiddenSources().filter(source => TIMELINE_SOURCES.includes(source));
+		const horizontal = getTimelineOrientation() === "horizontal";
 
+		// The reader's filter is applied INSIDE the builders, before periods are formed, so a season
+		// holding nothing but hidden rows leaves no empty block or column behind. Totals (kills,
+		// counts) are of everything, hidden or not.
 		const single = this.isSingleTrack;
 		const vm = single
-			? buildTrackVM(tracks[0], { canEdit: this._canEdit(this._trackId) })
-			: buildAggregateVM(tracks, { canEdit: (id) => this._canEdit(id) });
+			? buildTrackVM(tracks[0], { canEdit: this._canEdit(this._trackId), hidden })
+			: buildAggregateVM(tracks, { canEdit: (id) => this._canEdit(id), hidden });
 
 		// Enriched after the model is built rather than inside it, and by the shared walker rather
 		// than here: the view model is pure so the three hosts can share it, and enrichment is async
-		// and Foundry-only. Both shapes are walked the same way because the cards are the same
+		// and Foundry-only. Every shape is walked the same way because the cards are the same
 		// objects either way.
 		await enrichTrackVM(vm);
 
@@ -206,22 +191,27 @@ export class TimelineWindow extends StonetopDialog {
 			canEdit: single ? this._canEdit(this._trackId) : tracks.some(t => this._canEdit(t.trackId)),
 			// The aggregate has nowhere further to go, so it does not offer the door to itself.
 			showOpenFull: single,
-			autoRows: this._showAutoRows,
-			autoRowsLabel: localize(this._showAutoRows
-				? "stonetop.timeline.auto.hide"
-				: "stonetop.timeline.auto.show"),
+			horizontal,
+			kinds: kindMenu(hidden),
+			hiddenCount: hidden.length,
+			hiddenCountLabel: format("stonetop.timeline.show.hiddenCount", { count: hidden.length }),
+			showMenuOpen: this._showMenuOpen,
+			killTotalLabel: format("stonetop.timeline.kills.total", { count: vm.killTotal ?? 0 }),
+			scrollLabel: single
+				? format("stonetop.timeline.trackTitle", { name: this._trackName })
+				: localize("stonetop.timeline.windowTitle"),
 		};
 	}
 
 	// ── writing ────────────────────────────────────────────────────────────────
 
 	/**
-	 * The ONE write path. Reads a track's page, runs a pure mutator over its entries, and writes
-	 * the whole array back if anything moved.
+	 * The ONE write path. Hands a pure mutator to the store, which reads the track's page, runs it
+	 * over the entries, and writes back only what moved.
 	 *
 	 * `mutate` returns timeline-core's own `{entries, added|removed|changed|moved}` shape, and a
 	 * null result means nothing moved -- so a no-op write, which would re-render every open sheet
-	 * and every other client's window to no effect, is skipped here rather than at each call site.
+	 * and every other client's window to no effect, is skipped there rather than at each call site.
 	 */
 	async _mutate(trackId, mutate, { create = false } = {}) {
 		try {
@@ -238,10 +228,9 @@ export class TimelineWindow extends StonetopDialog {
 	/**
 	 * What `ensureTrackPage` needs to mint a page for a track this window knows about.
 	 *
-	 * ⚠ THE NAME IS RESOLVED, not just passed on. A page is minted ONCE and nothing renames it
-	 * afterwards, so a blank name here is a thread permanently titled with its raw actor id --
-	 * `trackDisplayName` answers off the live actor and is what the rest of the system titles a
-	 * thread by, which makes the two agree even if this window was opened without a name.
+	 * ⚠ THE NAME IS RESOLVED, not just passed on. A blank name here is a thread titled with its raw
+	 * actor id -- `trackDisplayName` answers off the live actor and is what the rest of the system
+	 * titles a thread by, which makes the two agree even if this window was opened without a name.
 	 */
 	_trackDescriptor(trackId) {
 		if (trackId === this._trackId) {
@@ -249,12 +238,6 @@ export class TimelineWindow extends StonetopDialog {
 		}
 		const actor = game.actors?.get(trackId);
 		return trackForActor(actor) ?? { trackId, trackKind: "", name: trackId };
-	}
-
-	/** The date a new entry opens on: whatever season the campaign clock is actually in. */
-	_currentStamp() {
-		const { seasonId, year } = seasonStampParts(getStonetopSteadingActor());
-		return { season: seasonId, year };
 	}
 
 	/**
@@ -291,7 +274,9 @@ export class TimelineWindow extends StonetopDialog {
 	}
 
 	async _writeNewEntry(trackId) {
-		const stamp = this._currentStamp();
+		// The clock's season -- the same "now" a milestone files under, so a row the reader types and
+		// a row the system writes in the same moment land in the same season.
+		const stamp = timelineNow();
 		const input = await promptForTimelineEntry({
 			season: stamp.season,
 			year:   stamp.year,
@@ -308,7 +293,6 @@ export class TimelineWindow extends StonetopDialog {
 	}
 
 	async _onEditEntry(trackId, entryId) {
-		if (this._isDerived(entryId)) return;
 		const entry = readTrack(trackId).entries.find(e => e.id === entryId);
 		if (!entry) return;
 		const input = await promptForTimelineEntry({ entry, trackName: this._trackNameFor(trackId) });
@@ -317,7 +301,6 @@ export class TimelineWindow extends StonetopDialog {
 	}
 
 	async _onRemoveEntry(trackId, entryId) {
-		if (this._isDerived(entryId)) return;
 		// NAMED BUTTONS rather than Yes/No, and the affirmative first: the question can then be
 		// answered off the buttons alone. The house shape, and the same one every other
 		// delete-with-confirm in this system takes. `stonetop` in the classes or the window gets
@@ -342,7 +325,6 @@ export class TimelineWindow extends StonetopDialog {
 	}
 
 	async _onMoveEntry(trackId, entryId, delta) {
-		if (this._isDerived(entryId)) return;
 		await this._mutate(trackId, entries => moveEntry(entries, entryId, delta));
 	}
 
@@ -360,6 +342,30 @@ export class TimelineWindow extends StonetopDialog {
 	/** The track a changed page belongs to, for the sync gate. Reads the key, writes nothing. */
 	_pageTrackId(page) {
 		return trackIdFromKey(page?.getFlag?.(SYSTEM_ID, "chronicleKey")) || page?.system?.trackId || "";
+	}
+
+	// ── reading preferences (this reader only) ─────────────────────────────────
+
+	/** Lay the timeline down the page or across it. Client-scoped; the re-render is the work. */
+	async _onOrientation(orientation) {
+		const next = orientation === "horizontal" ? "horizontal" : "vertical";
+		if (next === getTimelineOrientation()) return;
+		await setTimelineOrientation(next);
+		this.render(false);
+	}
+
+	/** Show or hide one kind of row. Client-scoped; nothing on the page changes. */
+	async _onShowKind(source, shown) {
+		const hidden = new Set(getTimelineHiddenSources());
+		if (shown) hidden.delete(source);
+		else hidden.add(source);
+		await setTimelineHiddenSources([...hidden]);
+		this.render(false);
+	}
+
+	async _onShowAll() {
+		await setTimelineHiddenSources([]);
+		this.render(false);
 	}
 
 	// ── wiring ─────────────────────────────────────────────────────────────────
@@ -380,13 +386,10 @@ export class TimelineWindow extends StonetopDialog {
 			const full = target.closest?.(".stonetop-timeline-open-full");
 			if (full) return openTimelineWindow();
 
-			const auto = target.closest?.(".stonetop-timeline-auto-toggle");
-			if (auto) {
-				// Client-scoped, so this never reaches anybody else at the table. The re-render is
-				// the whole of the work: the rows are derived, so nothing is written or unpicked.
-				await setTimelineAutoRows(!this._showAutoRows);
-				return this.render(false);
-			}
+			const orient = target.closest?.(".stonetop-timeline-orient");
+			if (orient) return this._onOrientation(orient.dataset.orientation);
+
+			if (target.closest?.(".stonetop-timeline-show-all")) return this._onShowAll();
 
 			const card = target.closest?.("[data-entry-id]");
 			const trackId = target.closest?.("[data-track-id]")?.dataset?.trackId || this._trackId;
@@ -398,6 +401,17 @@ export class TimelineWindow extends StonetopDialog {
 			const move = target.closest(".stonetop-timeline-move");
 			if (move) return this._onMoveEntry(trackId, entryId, Number(move.dataset.delta));
 		});
+
+		root.addEventListener("change", ev => {
+			const box = ev.target?.closest?.("[data-timeline-source]");
+			if (box) this._onShowKind(box.dataset.timelineSource, !!box.checked);
+		});
+
+		// `toggle` does not bubble, so it is caught on the way DOWN (capture). Remembered so the
+		// menu stays open across the re-render each tick in it causes.
+		root.addEventListener("toggle", ev => {
+			if (ev.target?.classList?.contains("stonetop-timeline-show")) this._showMenuOpen = !!ev.target.open;
+		}, true);
 
 		this._wireSync();
 	}
@@ -412,15 +426,18 @@ export class TimelineWindow extends StonetopDialog {
 	 * scans) to rule out a journal of the same name outside the Chronicle folder.
 	 *
 	 * A single-track host then narrows to its OWN thread. Without that, every player's sheet tab
-	 * rebuilds its whole view model -- read, merge the ledger, enrich every body -- each time anyone
-	 * at the table writes on a thread they are not looking at.
+	 * rebuilds its whole view model -- read, enrich every body -- each time anyone at the table
+	 * writes on a thread they are not looking at.
+	 *
+	 * THROTTLED: one press that writes several rows (three foes dropped by one Apply) repaints once
+	 * at the end of the burst, not once per row.
 	 */
 	_wireSync() {
 		this._unwireSync();
 		const ours = (page) => page?.parent?.name === TIMELINE_JOURNAL_NAME
 			&& page.parent.id === findTimelineJournal()?.id
 			&& (!this.isSingleTrack || this._pageTrackId(page) === this._trackId);
-		const repaint = (page) => { if (ours(page) && this.rendered) this.render(false); };
+		const repaint = (page) => { if (ours(page) && this.rendered) this.renderThrottled(); };
 
 		for (const hook of ["updateJournalEntryPage", "createJournalEntryPage", "deleteJournalEntryPage"]) {
 			const id = Hooks.on(hook, repaint);
@@ -436,7 +453,7 @@ export class TimelineWindow extends StonetopDialog {
 	async close(options) {
 		// ⚠ BEFORE the super call, and unconditionally: three global journal hooks left on would
 		// fire on every journal write at the table for the rest of the session, once per window
-		// anybody ever opened.
+		// anybody ever opened. (A repaint still pending from the last burst is StonetopDialog's.)
 		this._unwireSync();
 		return super.close(options);
 	}

@@ -15,11 +15,56 @@
 
 import { SEASON_IDS, seasonLabel } from "../seasons/seasons-change-reminders.js";
 import { yearLabel } from "../seasons/seasons-chronicle.js";
-import { localize } from "../utils/i18n.js";
+import { periodLabel } from "../seasons/current-season.js";
+import { localize, format } from "../utils/i18n.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import {
-	UNDATED_PERIOD_KEY, groupByPeriod, isDerivedEntry, periodFacts, periodKey, sortEntries,
+	TIMELINE_KILLS_SOURCE, TIMELINE_SOURCES, UNDATED_PERIOD_KEY, foeLines, groupByPeriod, killTotal,
+	periodFacts, periodKey, readEntries, sortEntries,
 } from "./timeline-core.js";
+
+/**
+ * What each kind of row is called and the glyph it wears, in the card's chip and in the reader's
+ * "Show" menu. A kind is ALWAYS named in words beside its glyph: an icon alone is a guess for a
+ * reader on a magnifier, and the chip is the one thing that says a row was written by the system.
+ *
+ * ⚠ NO SEASON-NAMED KEYS OR CLASSES. The Seasons Change row is one kind among ten, marked by the
+ * leaf like the rest; the season itself is named by the period it sits in.
+ */
+export const KIND_META = {
+	hand:       { icon: "fa-feather-pointed" },
+	season:     { icon: "fa-leaf" },
+	levelup:    { icon: "fa-angles-up" },
+	kills:      { icon: "fa-skull" },
+	expedition: { icon: "fa-person-hiking" },
+	site:       { icon: "fa-mountain-sun" },
+	death:      { icon: "fa-door-open" },
+	wound:      { icon: "fa-bandage" },
+	arcana:     { icon: "fa-wand-sparkles" },
+	follower:   { icon: "fa-user-group" },
+};
+
+/** The chip on one card: its glyph and its name. */
+export function kindChip(source) {
+	const kind = KIND_META[source] ? source : "hand";
+	return { kind, icon: KIND_META[kind].icon, label: localize(`stonetop.timeline.kind.${kind}`) };
+}
+
+/**
+ * Every kind the "Show" menu offers, in TIMELINE_SOURCES order, each marked shown or hidden for
+ * this reader.
+ *
+ * @param {string[]} hidden  The sources this reader unticked.
+ */
+export function kindMenu(hidden = []) {
+	const off = new Set(hidden);
+	return TIMELINE_SOURCES.map(source => ({
+		source,
+		icon:  KIND_META[source]?.icon ?? KIND_META.hand.icon,
+		label: localize(`stonetop.timeline.show.${source}`),
+		shown: !off.has(source),
+	}));
+}
 
 /**
  * The CSS modifier a season's heading glyph wears.
@@ -33,70 +78,97 @@ export function seasonGlyphClass(seasonId) {
 	return `stonetop-season--${seasonId === "autumn" ? "fall" : seasonId}`;
 }
 
-/**
- * What a period is called on the spine: the season, then the year it belongs to.
- *
- * The season leads because a run of blocks is read down a column and the season is what changes
- * between neighbours; the year is the constant that only sometimes moves. `yearLabel` is the same
- * function the Seasons Change journal titles its pages with, so a reader looking at both sees one
- * naming scheme rather than two.
- */
-export function periodLabel({ season, year } = {}) {
-	if (!season) return localize("stonetop.timeline.beforeRecord");
-	return `${seasonLabel(season)}, ${yearLabel(year)}`;
+/** A kills row's foes as one line: "Crinwin ×3, Bandit Chief". */
+export function killSummaryText(foes) {
+	return foeLines(foes).join(", ");
 }
 
 /** One entry, ready to print. `body` stays raw for the host to enrich. */
 function cardVM(entry, { canEdit = false } = {}) {
-	// A row DERIVED from the change ledger, as against one stored on the page. The Seasons Change
-	// row is stored and so is editable like any other; a ledger row is a view of another record and
-	// has nothing here to edit. Refusing its controls in the model rather than in the template is
-	// what keeps the three hosts from each having to remember.
-	const derived = isDerivedEntry(entry);
+	const chip = kindChip(entry.source);
+	const isKills = entry.source === TIMELINE_KILLS_SOURCE;
+	const killCount = isKills ? entry.foes.length : 0;
 	return {
 		id:        entry.id,
-		title:     entry.title,
+		// A kills row the GM never titled reads as what it is, counted.
+		title:     entry.title || (isKills ? format("stonetop.timeline.kills.title", { count: killCount }) : ""),
 		place:     entry.place,
 		placeUuid: entry.placeUuid,
 		// Only a place that IS a document gets a link. Everything else is a name somebody typed,
 		// and a link to nowhere reads as a broken one.
 		placeLinked: !!entry.placeUuid,
 		body:      entry.body,
-		// A row the system wrote for itself rather than one somebody typed. Rendered differently,
-		// so a reader can always tell the record from the bookkeeping.
+		kind:      chip.kind,
+		kindIcon:  chip.icon,
+		kindLabel: chip.label,
+		// A row the system wrote for itself rather than one somebody typed. It wears its kind's chip,
+		// so a reader can always tell the record from what they wrote. Every row is STORED, so an
+		// auto row is edited and removed exactly like a typed one.
 		isAuto:    entry.source !== "hand",
-		canEdit:   canEdit && !derived,
+		killSummary: isKills ? killSummaryText(entry.foes) : "",
+		canEdit,
 	};
 }
 
-/** One period block, with whatever it holds. */
+/** One period block, with whatever it holds. `startsYear` and `above` are set by the builders. */
 function periodVM(period, entries, opts) {
 	return {
 		key:         period.key,
 		label:       periodLabel(period),
 		seasonLabel: period.season ? seasonLabel(period.season) : "",
 		yearLabel:   period.season ? yearLabel(period.year) : "",
+		year:        period.season ? period.year : 0,
 		glyphClass:  seasonGlyphClass(period.season),
 		undated:     period.key === UNDATED_PERIOD_KEY,
+		startsYear:  false,
+		above:       true,
 		entries:     entries.map(e => cardVM(e, opts)),
 	};
 }
 
 /**
+ * Mark where each year begins, and which side of a sideways axis each period's cards hang on.
+ *
+ * A year heading opens at the first dated period and wherever the year moves on, so a long campaign
+ * reads in years first and seasons within them. The undated block is before every year and opens
+ * none. Sides alternate period by period, the slide-deck timeline the reader asked for: one season's
+ * cards above the line, the next season's below, so neighbours never crowd each other.
+ */
+function markYearsAndSides(periods) {
+	let lastYear = null;
+	periods.forEach((period, index) => {
+		period.above = index % 2 === 0;
+		if (period.undated) return;
+		period.startsYear = period.year !== lastYear;
+		lastYear = period.year;
+	});
+	return periods;
+}
+
+/**
  * One track as its own timeline: every period it has anything in, oldest first.
  *
+ * `count` and `killTotal` are of the WHOLE track, before the reader's filter: hiding kills must not
+ * make a character read as never having killed anything, and an empty track is told apart from a
+ * fully filtered one (`isEmpty` against `allHidden`).
+ *
  * @param {{trackId, name, entries, actor?}} track
- * @param {{canEdit?: boolean}} [opts]
+ * @param {{canEdit?: boolean, hidden?: string[]}} [opts]
  */
 export function buildTrackVM(track, opts = {}) {
-	const periods = groupByPeriod(track?.entries ?? []);
+	const all = readEntries(track?.entries ?? []);
+	const off = new Set(opts.hidden ?? []);
+	const shown = all.filter(e => !off.has(e.source));
+	const periods = groupByPeriod(shown);
 	return {
-		trackId: track?.trackId ?? "",
-		name:    track?.name ?? "",
-		portrait: track?.actor?.img ?? "",
-		isEmpty: !periods.length,
-		count:   periods.reduce((n, p) => n + p.entries.length, 0),
-		periods: periods.map(p => periodVM(p, p.entries, opts)),
+		trackId:   track?.trackId ?? "",
+		name:      track?.name ?? "",
+		portrait:  track?.actor?.img ?? "",
+		isEmpty:   !all.length,
+		allHidden: all.length > 0 && !shown.length,
+		count:     all.length,
+		killTotal: killTotal(all),
+		periods:   markYearsAndSides(periods.map(p => periodVM(p, p.entries, opts))),
 	};
 }
 
@@ -111,11 +183,17 @@ export function buildTrackVM(track, opts = {}) {
  * Tracks with no entries at all are kept as lanes: an empty column under a character's name is how
  * the reader sees there is a thread there to write in.
  *
+ * TWO SHAPES OF THE SAME CELLS. `periods[].lanes[]` is the board read down (a row per season), and
+ * `swimlanes[].cells[]` is it read across (a row per thread, a column per season). Handlebars cannot
+ * index one by the other, so the transposition happens here -- and the cells are the SAME objects in
+ * both, so enriching one shape enriches the other.
+ *
  * @param {Array<{trackId, name, entries, actor?}>} tracks
- * @param {{canEdit?: (trackId: string) => boolean}} [opts]
+ * @param {{canEdit?: (trackId: string) => boolean, hidden?: string[]}} [opts]
  */
 export function buildAggregateVM(tracks = [], opts = {}) {
 	const canEdit = opts.canEdit ?? (() => false);
+	const off = new Set(opts.hidden ?? []);
 
 	// One pass over every track: the periods in play, keyed so a season shared by three tracks is
 	// one row, and at the same time each track's entries bucketed under that same key.
@@ -125,13 +203,16 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 	// on twenty seasons across five threads is ten thousand key builds to place five hundred cards.
 	const byKey = new Map();
 	const laneBuckets = new Map();
-	const laneCounts = new Map();
+	const laneFacts = new Map();
+	let total = 0;
 	for (const track of tracks) {
-		const entries = sortEntries(track?.entries ?? []);
+		const all = sortEntries(track?.entries ?? []);
+		total += all.length;
 		const buckets = new Map();
 		laneBuckets.set(track.trackId, buckets);
-		laneCounts.set(track.trackId, entries.length);
-		for (const entry of entries) {
+		laneFacts.set(track.trackId, { count: all.length, killTotal: killTotal(all) });
+		for (const entry of all) {
+			if (off.has(entry.source)) continue;
 			const key = periodKey(entry);
 			if (!byKey.has(key)) byKey.set(key, periodFacts(entry));
 			if (!buckets.has(key)) buckets.set(key, []);
@@ -139,7 +220,7 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 		}
 	}
 
-	const periods = [...byKey.values()].sort((a, b) => a.rank - b.rank).map(period => ({
+	const periods = markYearsAndSides([...byKey.values()].sort((a, b) => a.rank - b.rank).map(period => ({
 		...periodVM(period, [], {}),
 		// The lane, not the block, holds the cards here: a row of this table is one season across
 		// every thread, and each cell is what that thread did in it.
@@ -152,17 +233,22 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 				entries: entries.map(e => cardVM(e, { canEdit: canEdit(track.trackId) })),
 			};
 		}),
+	})));
+
+	const heads = tracks.map(t => ({
+		trackId:   t.trackId,
+		name:      t.name,
+		portrait:  t.actor?.img ?? "",
+		count:     laneFacts.get(t.trackId)?.count ?? 0,
+		killTotal: laneFacts.get(t.trackId)?.killTotal ?? 0,
 	}));
 
 	return {
-		tracks: tracks.map(t => ({
-			trackId:  t.trackId,
-			name:     t.name,
-			portrait: t.actor?.img ?? "",
-			count:    laneCounts.get(t.trackId) ?? 0,
-		})),
+		tracks: heads,
 		periods,
-		isEmpty: !periods.length,
+		swimlanes: heads.map((head, index) => ({ ...head, cells: periods.map(period => period.lanes[index]) })),
+		isEmpty:   total === 0,
+		allHidden: total > 0 && !periods.length,
 	};
 }
 
@@ -173,9 +259,9 @@ export function buildAggregateVM(tracks = [], opts = {}) {
  * one Foundry-only step, and it lives here so a card gaining a second enriched field reaches all
  * three hosts rather than whichever one was remembered.
  *
- * A card with an empty body is skipped rather than enriched to "": with auto-rows on, every ledger
- * row has one, and a season's worth of them is hundreds of round trips that can only give back what
- * they were handed. The rest go out together, since they do not depend on each other.
+ * A card with an empty body is skipped rather than enriched to "": most milestone rows have none,
+ * and a campaign's worth of them is hundreds of round trips that can only give back what they were
+ * handed. The rest go out together, since they do not depend on each other.
  *
  * @param {{periods: Array}} vm  From buildTrackVM or buildAggregateVM. Mutated in place.
  * @returns {Promise<object>} The same vm, for chaining.

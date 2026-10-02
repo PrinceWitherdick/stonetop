@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
 	TIMELINE_TRACK_STEADING, UNDATED_PERIOD_KEY,
-	addEntry, groupByPeriod, moveEntry, normalizeEntry, patchEntry, periodKey, periodRank,
-	readEntries, removeEntry, sortEntries, trackIdFromKey, trackKey,
+	addEntry, addKills, foeSummary, foesToLines, groupByPeriod, isLeftover, killTotal, linesToFoes,
+	entriesById, entriesDiff, moveEntry, normalizeEntry, patchEntry, periodKey, periodRank, readEntries,
+	removeEntry, sortEntries,
+	trackIdFromKey, trackKey, upsertByKey,
 } from "../../module/timeline/timeline-core.js";
 
 // The timeline's pure half: dates, ordering and the list algebra. Nothing here touches a document,
@@ -67,9 +69,9 @@ describe("readEntries", () => {
 		expect(readEntries([entry({ title: "" })])).toHaveLength(1);
 	});
 
-	it("answers empty for anything that is not a list", () => {
+	it("answers empty for anything that is neither a list nor a keyed object", () => {
 		expect(readEntries(null)).toEqual([]);
-		expect(readEntries({ 0: entry() })).toEqual([]);
+		expect(readEntries("entries")).toEqual([]);
 	});
 });
 
@@ -259,5 +261,169 @@ describe("periodKey", () => {
 	it("uses the stamp shape the rest of the system files seasons under", () => {
 		expect(periodKey(entry({ year: 2, season: "winter" }))).toBe("2:winter");
 		expect(periodKey(entry({ season: "" }))).toBe(UNDATED_PERIOD_KEY);
+	});
+});
+
+describe("the milestone fields survive every write", () => {
+	// ⚠ EVERY WRITE RE-NORMALISES THE ENTRIES IT TOUCHES (writeEntries), so a field normalizeEntry does
+	// not emit is deleted from every row the next time anybody writes it.
+	it("carries key and foes through normalisation", () => {
+		const row = normalizeEntry({ ...entry(), source: "kills", key: " levelup:3 ", foes: ["Wolf", " ", "Crinwin "] });
+		expect(row.key).toBe("levelup:3");
+		expect(row.foes).toEqual(["Wolf", "Crinwin"]);
+		expect(row.source).toBe("kills");
+	});
+
+	it("gives a typed row an empty key and no foes", () => {
+		const row = normalizeEntry(entry());
+		expect(row.key).toBe("");
+		expect(row.foes).toEqual([]);
+	});
+
+	// A list is a new object on every normalise; compared by identity, an unedited kills row would
+	// read as changed and write on every save.
+	it("writes nothing when a kills row is re-saved unchanged", () => {
+		const list = [entry({ source: "kills", foes: ["Wolf", "Wolf"] })];
+		expect(patchEntry(list, "e1", { foes: ["Wolf", "Wolf"] }).changed).toBeNull();
+		expect(patchEntry(list, "e1", { foes: ["Wolf"] }).changed).not.toBeNull();
+	});
+});
+
+describe("upsertByKey", () => {
+	const ids = () => { let n = 0; return () => "m" + (++n); };
+
+	it("adds a milestone the track does not have yet", () => {
+		const { entries, added } = upsertByKey([], { source: "levelup", key: "levelup:2", title: "Reached level 2" }, { makeId: ids() });
+		expect(added.key).toBe("levelup:2");
+		expect(entries).toHaveLength(1);
+	});
+
+	// The same event recorded twice is still one row.
+	it("does not add a second row for the same key", () => {
+		const first = upsertByKey([], { source: "levelup", key: "levelup:2", title: "Reached level 2" }, { makeId: ids() }).entries;
+		const again = upsertByKey(first, { source: "levelup", key: "levelup:2", title: "Reached level 2" }, { makeId: ids() });
+		expect(again.added).toBeNull();
+		expect(again.changed).toBeNull();
+		expect(again.entries).toHaveLength(1);
+	});
+
+	// A GM may have re-dated or retitled the row; only the fields named in `refresh` follow a
+	// re-record.
+	it("refreshes only the fields it is told to", () => {
+		const first = upsertByKey([], { source: "expedition", key: "expedition:t1", title: "Expedition: Ford", body: "Set out." }, { makeId: ids() }).entries;
+		const retitled = patchEntry(first, first[0].id, { title: "The long walk", season: "summer" }).entries;
+		const { entries, changed } = upsertByKey(retitled, {
+			source: "expedition", key: "expedition:t1", title: "Expedition: Ford", body: "Set out. Returned triumphant.", season: "spring",
+		}, { refresh: ["body"] });
+		expect(changed).not.toBeNull();
+		expect(entries[0].title).toBe("The long walk");
+		expect(entries[0].season).toBe("summer");
+		expect(entries[0].body).toBe("Set out. Returned triumphant.");
+	});
+
+	it("simply adds an entry with no key", () => {
+		const list = [entry({ id: "a" })];
+		expect(upsertByKey(list, { title: "Another", season: "spring" }, { makeId: ids() }).entries).toHaveLength(2);
+	});
+});
+
+describe("addKills", () => {
+	const SUMMER = { season: "summer", year: 2 };
+
+	it("opens one row for a season's kills and adds to it after", () => {
+		const first = addKills([], SUMMER, ["Crinwin"], {}, () => "k1");
+		expect(first.added.source).toBe("kills");
+		const second = addKills(first.entries, SUMMER, ["Crinwin", "Bandit Chief"]);
+		expect(second.entries).toHaveLength(1);
+		expect(second.entries[0].foes).toEqual(["Crinwin", "Crinwin", "Bandit Chief"]);
+	});
+
+	it("opens a new row in a new season", () => {
+		const first = addKills([], SUMMER, ["Wolf"], {}, () => "k1").entries;
+		const next = addKills(first, { season: "autumn", year: 2 }, ["Wolf"], {}, () => "k2").entries;
+		expect(sortEntries(next).map(e => e.season)).toEqual(["summer", "autumn"]);
+	});
+
+	// ⚠ FOUND BY ITS DATE. A row the GM moved to another season stops collecting for the season it
+	// left; the next kill there opens a fresh row.
+	it("stops adding to a row the GM re-dated", () => {
+		const first = addKills([], SUMMER, ["Wolf"], {}, () => "k1").entries;
+		const moved = patchEntry(first, "k1", { season: "spring" }).entries;
+		const next = addKills(moved, SUMMER, ["Crinwin"], {}, () => "k2").entries;
+		expect(next.find(e => e.id === "k1").foes).toEqual(["Wolf"]);
+		expect(next.find(e => e.id === "k2").foes).toEqual(["Crinwin"]);
+	});
+
+	it("writes nothing for no names", () => {
+		expect(addKills([], SUMMER, ["", "  "]).added).toBeNull();
+	});
+
+	it("totals every kill on a track", () => {
+		const list = [
+			entry({ id: "a", source: "kills", foes: ["Wolf", "Wolf"] }),
+			entry({ id: "b", source: "kills", season: "summer", foes: ["Crinwin"] }),
+			entry({ id: "c", source: "hand", foes: ["not a kill"] }),
+		];
+		expect(killTotal(list)).toBe(3);
+	});
+});
+
+describe("the Slain field", () => {
+	it("counts foes by name, in the order each first fell", () => {
+		expect(foeSummary(["Crinwin", "Bandit Chief", "Crinwin"])).toEqual([
+			{ name: "Crinwin", count: 2 }, { name: "Bandit Chief", count: 1 },
+		]);
+	});
+
+	it("round-trips a list through the text a GM edits", () => {
+		const foes = ["Crinwin", "Crinwin", "Crinwin", "Bandit Chief"];
+		expect(foesToLines(foes)).toBe("Crinwin ×3\nBandit Chief");
+		expect(linesToFoes(foesToLines(foes))).toEqual(foes);
+	});
+
+	it("reads x, X and × with or without a space", () => {
+		expect(linesToFoes("Wolf x2\nBoar X 2\nHag×1")).toEqual(["Wolf", "Wolf", "Boar", "Boar", "Hag"]);
+	});
+
+	it("does not take the last letter of a name for a count", () => {
+		expect(linesToFoes("Max 3\nLynx 2")).toEqual(["Max 3", "Lynx 2"]);
+		expect(linesToFoes("Lynx x2")).toEqual(["Lynx", "Lynx"]);
+	});
+
+	// A typo must not mint ten thousand kills.
+	it("caps one line's count", () => {
+		expect(linesToFoes("Crinwin ×10000")).toHaveLength(99);
+	});
+
+	it("skips blank lines", () => {
+		expect(linesToFoes("\n  \nWolf\n")).toEqual(["Wolf"]);
+	});
+});
+
+describe("entries keyed by id", () => {
+	it("reads a keyed page and a list the same way", () => {
+		const keyed = entriesById([entry({ id: "a" }), entry({ id: "b", title: "B" })]);
+		expect(Object.keys(keyed)).toEqual(["a", "b"]);
+		expect(readEntries(keyed).map(e => e.title)).toEqual(["A thing", "B"]);
+	});
+
+	it("leaves out a row stored with no id of its own: the leftover of a patch onto a deleted row", () => {
+		const keyed = { a: entry({ id: "a" }), gone: { foes: ["Wolf"] }, blank: { id: "", title: "" } };
+		expect(readEntries(keyed).map(e => e.id)).toEqual(["a"]);
+		expect(isLeftover(keyed.gone)).toBe(true);
+		expect(isLeftover(keyed.a)).toBe(false);
+	});
+
+	it("diffs two lists entry by entry: added whole, changed by field, removed by id", () => {
+		const diff = entriesDiff([entry({ id: "a" }), entry({ id: "b" })], [entry({ id: "a", title: "New" }), entry({ id: "c" })]);
+		expect(Object.keys(diff.added)).toEqual(["c"]);
+		expect(diff.changed).toEqual({ a: { title: "New" } });
+		expect(diff.removed).toEqual(["b"]);
+	});
+
+	it("compares foes by value, and answers null when nothing moved", () => {
+		const kills = entry({ id: "k", source: "kills", foes: ["Wolf"] });
+		expect(entriesDiff([kills], [{ ...kills, foes: ["Wolf"] }])).toBeNull();
+		expect(entriesDiff([kills], [{ ...kills, foes: ["Wolf", "Wolf"] }]).changed).toEqual({ k: { foes: ["Wolf", "Wolf"] } });
 	});
 });

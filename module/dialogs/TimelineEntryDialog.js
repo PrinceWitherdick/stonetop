@@ -20,6 +20,7 @@ import { placeSuggestions } from "../timeline/timeline-places.js";
 import { wireDocumentDropZone } from "../utils/card-drop-zone.js";
 import { StonetopAutocomplete } from "../utils/autocomplete.js";
 import { localize } from "../utils/i18n.js";
+import { TIMELINE_KILLS_SOURCE, foesToLines, linesToFoes } from "../timeline/timeline-core.js";
 
 export class TimelineEntryDialog extends StonetopDialog {
 	/**
@@ -44,6 +45,10 @@ export class TimelineEntryDialog extends StonetopDialog {
 		// holds only the NAME. Cleared the moment that name is edited by hand -- see the input
 		// listener below for why that is the honest rule rather than a lossy one.
 		this._placeUuid = String(entry?.placeUuid ?? "").trim();
+		// A KILLS row's foes, as the text the Slain field opens with. Kept so `_save` can tell an
+		// edited list from an untouched one -- see there for why that matters.
+		this._isKills = entry?.source === TIMELINE_KILLS_SOURCE;
+		this._foesText = this._isKills ? foesToLines(entry?.foes ?? []) : "";
 	}
 
 	static get defaultOptions() {
@@ -82,6 +87,8 @@ export class TimelineEntryDialog extends StonetopDialog {
 			placeLinked: !!this._placeUuid,
 			body:       this._entry?.body ?? "",
 			places:     placeSuggestions(),
+			isKills:    this._isKills,
+			foesText:   this._foesText,
 		};
 	}
 
@@ -239,9 +246,10 @@ export class TimelineEntryDialog extends StonetopDialog {
 		const title = StonetopDialog.readValue(root, ".stonetop-timeline-entry-title").trim();
 		const place = StonetopDialog.readValue(root, ".stonetop-timeline-entry-place").trim();
 		const body  = StonetopDialog.readValue(root, ".stonetop-timeline-entry-body").trim();
-		if (!title && !place && !body) return this.close();
+		// A kills row is worth saving with every text field blank: its foes are the content.
+		if (!title && !place && !body && !this._isKills) return this.close();
 
-		return this._resolveWith({
+		const result = {
 			season: this._season,
 			year:   this._readYear(root),
 			title,
@@ -250,13 +258,22 @@ export class TimelineEntryDialog extends StonetopDialog {
 			// that is no longer there is not a claim worth keeping.
 			placeUuid: place ? this._placeUuid : "",
 			body,
-		});
+		};
+
+		// ⚠ THE FOES GO BACK ONLY IF THE SLAIN FIELD WAS EDITED. The GM's client appends to this row
+		// whenever a foe drops, and a player can have this dialog open across a whole fight. Sending
+		// back the list the dialog OPENED with would quietly delete every kill made since.
+		if (this._isKills) {
+			const text = StonetopDialog.readValue(root, ".stonetop-timeline-entry-foes");
+			if (text.trim() !== this._foesText.trim()) result.foes = linesToFoes(text);
+		}
+		return this._resolveWith(result);
 	}
 }
 
 /**
- * Ask for one entry. Resolves with `{season, year, title, place, body}`, or null if the reader
- * backed out.
+ * Ask for one entry. Resolves with `{season, year, title, place, placeUuid, body}` (plus `foes` when
+ * a kills row's Slain field was edited), or null if the reader backed out.
  *
  * The one door in, so no caller stands the dialog up itself and quietly forgets to await it.
  */

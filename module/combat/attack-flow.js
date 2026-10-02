@@ -41,7 +41,7 @@ import {rollTargets} from "../fight/fight-targets.js";
 // used are let go once it is (fight/fight-shots.js).
 import {recordShots, releaseSpentTargets, shotOnRecordAt} from "../fight/fight-shots.js";
 // A lone attacker's blow on a token standing for a group hits one member of it (fight/group-hits.js).
-import {isLoneBlowOnGroup, applyMemberHit, applyRosterHit, moveRosterHit, rosterGroupFor} from "../fight/group-hits.js";
+import {isLoneBlowOnGroup, applyMemberHit, applyRosterHit, killsFromHit, moveRosterHit, rosterGroupFor} from "../fight/group-hits.js";
 import {halveDamage, spentOn} from "../fight/defend-spend.js";
 // Playbook moves the fight turns on: Undaunted's +1 armor and +1d6, Big Damn Hero's locked eyes
 // (fight/hero-moves.js).
@@ -64,6 +64,7 @@ import {offerBattleJoyOnDamage} from "./battle-joy-offer.js";
 import {revealOnAttack} from "../actors/character/fight-states.js";
 import {playBlowFx, playMissFx, playHitReactions} from "./attack-fx.js";
 import {hitReaction} from "./attack-fx-table.js";
+import {fightsAsGroup} from "../fight/fight-sides.js";
 
 const SCOPE = STONETOP_SCOPE;
 
@@ -2884,13 +2885,24 @@ async function applyOwedDamage(message, damage) {
 		// Unstoppable: "Each time you take damage while at 0 HP, mark 1". Asked BEFORE the blow, which
 		// is what "while at 0 HP" means: the blow that puts them on 0 marks nothing.
 		const fightingOn = effective > 0 && !damageSet(current, "unstoppableOff").has(r.uuid) && keepsFightingAtZero(targetActor);
+		// A group fought as one pool (p.416) loses MEMBERS as its pool drains, so a blow on it can drop
+		// several: read the headcount before the write, to say how many this one felled.
+		const pool = fightsAsGroup({ type: targetActor.type, fightAsGroup: targetActor.system?.fightAsGroup, organization: targetActor.system?.organization })
+			? { count: targetActor.system?.count, hpMax: targetActor.system?.attributes?.hp?.max }
+			: null;
 		const t = await applyDamageToActor(targetActor, effective);
 		// A target actor with no hp attribute (e.g. a steading token) yields null. Skip it
 		// without recording it as applied, so it can be retried if the actor is fixed —
 		// rather than rendering "undefined → undefined HP" and marking it done forever.
 		if (!t) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: has no HP to damage</li>`); continue; }
 		reactions.push({ uuid: struck, reaction: hitReaction({ raw, effective, lowered: t.newHp < t.oldHp }) });
-		nextApplied.push({ uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp, ...(defender ? { by: standIn.by } : {}) });
+		// How many bodies it dropped, on the row: the kill tally reads it back off the card
+		// (timeline/timeline-watch.js), so the damage path says what happened and nothing more.
+		const felled = killsFromHit({ oldHp: t.oldHp, newHp: t.newHp, group: pool });
+		nextApplied.push({
+			uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp,
+			...(defender ? { by: standIn.by } : {}), ...(felled ? { felled } : {}),
+		});
 		// Payback: "a foe that has harmed you or one of your allies". Written on the character who took
 		// it, by whoever applied it — the one client certain to be allowed to write anything here.
 		//

@@ -1561,52 +1561,26 @@ export function registerSettings() {
 		default: false,
 	});
 
-	// IS THE NARRATIVE TIMELINE PART OF THIS WORLD AT ALL? Off, and shipped off.
-	//
-	// The timeline is built and tested but has not been released, and it is not meant to be seen in
-	// 0.9.x. This is the one switch that decides: with it off, neither sheet grows a Timeline tab,
-	// WorldSetup mints no track pages, the Seasons Change move writes no row, the journal page type
-	// registers no model and no sheet, and `game.stonetop.openTimeline` is not defined.
-	// `isTimelineEnabled` below lists every door that reads it.
-	//
-	// WORLD scope, not client: the feature is a set of shared journal pages, so one player seeing a
-	// tab that another does not would be a bug rather than a preference. `config: false` because
-	// nobody at a table should be able to switch on an unfinished feature by browsing the settings
-	// window; this is a developer's switch, thrown from the console:
-	//
-	//     game.settings.set("stonetop-pwd", "timelineEnabled", true)
-	//
-	// AND ONE THING THE SWITCH CANNOT DO. The `timeline` JournalEntryPage subtype has to be declared
-	// in the MANIFEST, which is read long before any setting exists, so it was taken back out of
-	// `system.json` (`documentTypes.JournalEntryPage`) along with its `TYPES.JournalEntryPage` label
-	// in `languages/en.json`. Turning the feature on for development means putting those two lines
-	// back and RELAUNCHING the world, since a new subtype is not picked up by a reload. Until they
-	// are back the track pages cannot be created, and the tab says for itself that it has no page.
-	game.settings.register(SYSTEM_ID, "timelineEnabled", {
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false,
-	});
-
-	// Fold what the system already recorded into the timeline: levels gained, moves learned, the
-	// seasons as they turned. Per client, because it is a way of READING the record rather than a
-	// fact about it -- one player wants their character's whole history, another wants only what
-	// the table wrote down, and neither should change what the other sees.
-	//
-	// OFF BY DEFAULT. These rows are derived and can be numerous (the ledger holds up to 300 per
-	// actor), and a timeline that opens full of bookkeeping buries the one line somebody actually
-	// wrote about that season. Turning them on is one click in the timeline's own toolbar, which
-	// is where the choice is made rather than here -- this registration is only where it lives.
-	//
-	// `config: false` for that reason: a setting whose control sits on the thing it affects does
-	// not also want a row in the settings window, where it would read as a second, disagreeing
-	// switch. See utils/timeline-auto-rows.js for what is actually folded in.
-	game.settings.register(SYSTEM_ID, "timelineAutoRows", {
+	// HOW THIS READER LAYS THE TIMELINE OUT: down the page ("vertical", the default) or across it
+	// ("horizontal", one axis with the seasons strung along it). Per client, because it is a way of
+	// READING the record, not a fact about it. `config: false` because the switch sits in the
+	// timeline's own toolbar, and a second one in the settings window would be a disagreeing copy.
+	game.settings.register(SYSTEM_ID, "timelineOrientation", {
 		scope: "client",
 		config: false,
-		type: Boolean,
-		default: false,
+		type: String,
+		default: "vertical",
+	});
+
+	// WHICH KINDS OF ROW THIS READER HAS HIDDEN (kills, level-ups, ...): the sources they unticked in
+	// the timeline's "Show" menu. Stored as what is HIDDEN rather than what is shown, so a kind added
+	// in a later release shows up for everybody instead of being silently missing. Per client and
+	// `config: false` for the same reasons as the orientation above.
+	game.settings.register(SYSTEM_ID, "timelineHiddenSources", {
+		scope: "client",
+		config: false,
+		type: Array,
+		default: [],
 	});
 
 	// Reopen the document sheets (characters, steadings, monsters, NPCs, items, journals)
@@ -2241,34 +2215,26 @@ export function isAttackFxOn() {
 	return getBooleanSetting("attackFx", true);
 }
 
-/**
- * Is the narrative timeline switched on in this world? Defaults to NO, and NO is what ships.
- *
- * Read by every door the feature has: both sheets' `getData` (which is what draws or withholds the
- * tab) and their tab lifecycle, `stonetop.js` (the page model and sheet registration), the
- * WorldSetup lane that mints track pages, the Seasons Change row in `seasons/seasons-chronicle.js`,
- * and `game.stonetop.openTimeline` in `hooks/Ready.js`.
- *
- * Tolerant of an unregistered key, like its neighbours here: a sheet rendered in a test that never
- * called `registerSettings` gets the shipped answer rather than a throw.
- *
- * NOT read by `seasons/current-season.js`, which keeps logging when each season began whatever this
- * says. That log is an invisible flag, it is the only record of WHEN a season turned, and it can
- * only be collected as it happens: a world that played a year with the switch off and then turned
- * it on would otherwise have no way to place its own history. See timeline/timeline-seasons.js.
- */
-export function isTimelineEnabled() {
-	return globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineEnabled") ?? false;
+/** This reader's timeline layout: "vertical" (the default) or "horizontal". */
+export function getTimelineOrientation() {
+	const value = globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineOrientation");
+	return value === "horizontal" ? "horizontal" : "vertical";
 }
 
-/** Does this reader want the timeline to fold in what the system recorded? Defaults to no. */
-export function getTimelineAutoRows() {
-	return globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineAutoRows") ?? false;
+/** Remember this reader's layout. Client-scoped, so it never reaches anybody else at the table. */
+export function setTimelineOrientation(orientation) {
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineOrientation", orientation === "horizontal" ? "horizontal" : "vertical");
 }
 
-/** Remember this reader's answer. Client-scoped, so it never reaches anybody else at the table. */
-export function setTimelineAutoRows(on) {
-	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineAutoRows", !!on);
+/** The kinds of timeline row this reader has hidden, as source names. */
+export function getTimelineHiddenSources() {
+	return getArraySetting("timelineHiddenSources").filter(s => typeof s === "string" && s);
+}
+
+/** Remember which kinds this reader has hidden. */
+export function setTimelineHiddenSources(sources) {
+	const clean = [...new Set((Array.isArray(sources) ? sources : []).filter(s => typeof s === "string" && s))];
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineHiddenSources", clean);
 }
 
 /**

@@ -48386,7 +48386,9 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    One thread of the campaign, drawn down a spine: Stonetop's own, or one character's. The
    same markup serves three hosts (the tab on either sheet, the pop-out window, and the
    journal page a track reads back as), and the aggregate lays every thread out side by side
-   under one shared column of seasons. See module/timeline/ and module/dialogs/TimelineWindow.js.
+   under one shared column of seasons. Each reader can lay either shape ACROSS the page instead
+   (`.stonetop-timeline--horizontal`): one axis line with the seasons strung along it, or for the
+   aggregate one swimlane per thread. See module/timeline/ and module/dialogs/TimelineWindow.js.
 
    ⚠ NO SEASON INKS ANYWHERE IN THIS BLOCK, and that is a rule rather than an oversight. The
    four `--stonetop-season-*-ink` tokens belong to the steading header's clock and nothing
@@ -48441,16 +48443,19 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
 .stonetop-timeline-toolbar {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
 	padding: 8px 12px;
 	border-bottom: 1px solid var(--st-card-rule);
 }
 
-/* The toolbar's quieter controls: the door through to the aggregate, and the auto-rows toggle.
-   Not CTAs -- there is one primary action on this page and it is New Entry. */
+/* The toolbar's quieter controls: the door through to the aggregate, the Down/Across pair and the
+   Show menu. Not CTAs -- there is one primary action on this page and it is New Entry. */
 .stonetop-timeline-open-full,
-.stonetop-timeline-auto-toggle {
+.stonetop-timeline-orient,
+.stonetop-timeline-show-summary,
+.stonetop-timeline-show-all {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -48462,36 +48467,142 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	color: var(--st-text-secondary);
 	white-space: nowrap;
 	width: auto;
+	cursor: pointer;
 }
 
 .stonetop-timeline-open-full:hover,
-.stonetop-timeline-auto-toggle:hover {
+.stonetop-timeline-orient:hover,
+.stonetop-timeline-show-summary:hover,
+.stonetop-timeline-show-all:hover {
 	border-color: var(--st-slate-hover-border);
 	background: var(--st-slate-hover-bg);
 	color: var(--st-text);
 }
 
-/* The toggle sits at the far end, away from the two controls that DO something to the record:
-   it changes only what this reader is shown. */
-.stonetop-timeline-auto-toggle {
-	margin-left: auto;
+/* A character's running kill tally. Read, not pressed, so it is a chip rather than a button. */
+.stonetop-timeline-kill-total {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	background: var(--st-warm-hover-bg);
+	font-size: var(--st-fs-xs);
+	font-weight: 600;
+	color: var(--st-text);
+	white-space: nowrap;
 }
 
-/* On, said in the ink rather than in the label: the label already says what pressing it will do
-   next, so the state has to be carried by something else or the button reads as its own opposite. */
-.stonetop-timeline-auto-toggle.is-on {
+/* The controls that change only what THIS reader is shown sit at the far end, away from the ones
+   that do something to the record. */
+.stonetop-timeline-toolbar-end {
+	margin-left: auto;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+/* Down / Across: two buttons joined into one segmented control. Pressed is said in the ink AND in
+   `aria-pressed`, and each button keeps its own name whichever is pressed. */
+.stonetop-timeline-orient-group {
+	display: inline-flex;
+}
+
+.stonetop-timeline-orient-group .stonetop-timeline-orient {
+	border-radius: 0;
+}
+
+.stonetop-timeline-orient-group .stonetop-timeline-orient:first-child {
+	border-radius: var(--st-radius-sm) 0 0 var(--st-radius-sm);
+}
+
+.stonetop-timeline-orient-group .stonetop-timeline-orient:last-child {
+	margin-left: -1px;
+	border-radius: 0 var(--st-radius-sm) var(--st-radius-sm) 0;
+}
+
+.stonetop-timeline-orient[aria-pressed="true"],
+.stonetop-timeline-show[open] > .stonetop-timeline-show-summary {
+	position: relative;
 	border-color: var(--st-blue-border);
 	background: var(--st-blue-bg);
 	color: var(--st-blue-text);
 }
 
+/* The Show menu: a disclosure, so it opens and shuts from the keyboard with nothing scripted. */
+.stonetop-timeline-show {
+	position: relative;
+}
+
+.stonetop-timeline-show-summary {
+	list-style: none;
+}
+
+.stonetop-timeline-show-summary::-webkit-details-marker {
+	display: none;
+}
+
+.stonetop-timeline-show-count {
+	font-weight: 600;
+}
+
+.stonetop-timeline-show-menu {
+	position: absolute;
+	top: calc(100% + 4px);
+	right: 0;
+	z-index: 5;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 15em;
+	padding: 8px;
+	border: 1px solid var(--st-card-rule);
+	border-radius: var(--st-radius);
+	background: var(--stonetop-bg);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.stonetop-timeline-show-kind {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 3px 4px;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text);
+	cursor: pointer;
+}
+
+.stonetop-timeline-show-kind i {
+	width: 1.2em;
+	text-align: center;
+	color: var(--st-text-secondary);
+}
+
+.stonetop-timeline-show-menu .stonetop-timeline-show-all {
+	justify-content: center;
+	margin-top: 6px;
+}
+
 /* The one scrollport. `min-height: 0` is load-bearing on a grid child: without it the row
-   refuses to shrink below its content and the scrollbar never appears. */
+   refuses to shrink below its content and the scrollbar never appears.
+
+   FOCUSABLE (tabindex in the template), so a keyboard can scroll it, and it says so when it has the
+   keyboard. Across scrolls sideways; Down never does. */
 .stonetop-timeline-scroll {
 	min-height: 0;
 	overflow-y: auto;
 	overflow-x: hidden;
 	padding: 12px;
+}
+
+.stonetop-timeline-scroll:focus-visible {
+	outline: 2px solid var(--st-btn-primary-bg);
+	outline-offset: -2px;
+}
+
+.stonetop-timeline--horizontal .stonetop-timeline-scroll {
+	overflow-x: auto;
 }
 
 /* Nothing written down yet, or a thread with no page. Centred rather than parked at the top:
@@ -48541,6 +48652,30 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	color: var(--st-text);
 }
 
+/* A YEAR, opening the seasons that belong to it: the campaign reads in years first and seasons
+   within them. The rule runs out to the edge so the break is seen before the words are read. */
+.stonetop-timeline-year {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 0 0 10px;
+	border: none;
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xl);
+	color: var(--st-text);
+}
+
+.stonetop-timeline-year::after {
+	content: "";
+	flex: 1 1 auto;
+	border-top: 2px solid var(--st-card-rule);
+}
+
+.stonetop-timeline-period + .stonetop-timeline-year,
+.stonetop-timeline-row + .stonetop-timeline-year {
+	margin-top: 26px;
+}
+
 /* THE SPINE. A rule down the left of the season's cards, with each card marked on it by the
    dot below. Drawn as a border on the list rather than as a pseudo-element on the block, so
    it starts and stops exactly where the cards do and a season with one entry gets a stub
@@ -48579,27 +48714,39 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	background: var(--stonetop-bg);
 }
 
-/* A row the system recorded for itself rather than one somebody typed. Quieter ink and a
-   dashed edge, so a reader can always tell the record from the bookkeeping without reading
-   a word of it. */
+/* A row the system recorded for itself rather than one somebody typed. FULL INK, deliberately:
+   a level gained or a foe slain is the record, not small print, and a reader on a magnifier has to
+   be able to read it as easily as anything typed. It is told apart by a heavier left edge, a filled
+   dot on the spine, and its kind named in words in the chip -- three signals, none of them faint. */
 .stonetop-timeline-card--auto {
-	border-style: dashed;
-	background: transparent;
-	color: var(--st-text-secondary);
+	border-left-width: 4px;
 }
 
+/* The spine dot sits relative to the padding box, which the wider edge pushes 3px right. */
 .stonetop-timeline-card--auto::before {
+	left: -31px;
 	background: var(--st-card-rule);
 }
 
-.stonetop-timeline-card-badge {
+.stonetop-timeline-card-kind {
 	float: right;
-	margin-left: 8px;
-	font-family: var(--font-stonetop);
-	font-size: var(--st-fs-2xs);
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--st-text-faint);
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	margin: 0 0 4px 8px;
+	padding: 1px 8px;
+	border: 1px solid var(--st-card-rule);
+	border-radius: 999px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	white-space: nowrap;
+}
+
+/* Who fell, on a kills row: "Crinwin ×3, Bandit Chief". */
+.stonetop-timeline-card-kills {
+	margin: 4px 0 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text);
 }
 
 .stonetop-timeline-card-title {
@@ -48722,6 +48869,14 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	white-space: nowrap;
 }
 
+.stonetop-timeline-lane-kills {
+	flex: 0 0 auto;
+	margin-left: auto;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-secondary);
+	white-space: nowrap;
+}
+
 /* The season's own cell, at the head of its row. A neutral warm wash rather than a season
    colour: see the note at the top of this block. */
 .stonetop-timeline-row-head {
@@ -48755,6 +48910,176 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 }
 
 .stonetop-timeline-board .stonetop-timeline-card::before {
+	content: none;
+}
+
+/* -- Across, one thread: an axis line with the seasons strung along it ----------
+   Every season is a column of THREE shared rows: cards above the line, the line, cards below. The
+   columns share their rows through `subgrid`, so the line sits at one height all the way across
+   however many cards hang off any one season. Seasons alternate sides (the view model's `above`),
+   which is what keeps neighbours from crowding each other. */
+.stonetop-timeline-htrack {
+	list-style: none;
+	margin: 0;
+	padding: 0 0 8px;
+	min-height: 100%;
+	display: grid;
+	grid-template-rows: auto auto auto;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(15rem, 19rem);
+	align-content: center;
+	column-gap: 0;
+}
+
+.stonetop-timeline-hperiod {
+	grid-row: 1 / -1;
+	display: grid;
+	grid-template-rows: subgrid;
+	min-width: 0;
+	padding: 0 8px;
+}
+
+/* The node: the season's own heading, pinned ON the line. The line is this node's rule, run out
+   over the column's padding so it meets the next one with no gap. */
+.stonetop-timeline-hnode {
+	grid-row: 2;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 0;
+}
+
+.stonetop-timeline-hnode::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: -8px;
+	right: -8px;
+	border-top: 3px solid var(--st-card-rule);
+	transform: translateY(-50%);
+}
+
+.stonetop-timeline-hhead {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 12px;
+	border: 2px solid var(--st-card-rule);
+	border-radius: 999px;
+	background: var(--stonetop-bg);
+}
+
+/* The season that opens a year: a tick across the line and a warmer node, so the years read at a
+   glance along it. */
+.stonetop-timeline-hperiod--year-start .stonetop-timeline-hnode::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -8px;
+	border-left: 3px solid var(--st-text-secondary);
+}
+
+.stonetop-timeline-hperiod--year-start .stonetop-timeline-hhead {
+	border-color: var(--st-text-secondary);
+	background: linear-gradient(var(--st-warm-hover-bg), var(--st-warm-hover-bg)), var(--stonetop-bg);
+}
+
+/* The cards, on a short stalk down to (or up from) the line. No spine and no dots: the line is
+   the spine here. */
+.stonetop-timeline-hcards {
+	position: relative;
+	margin: 0;
+	border-left: none;
+}
+
+.stonetop-timeline-hperiod--above .stonetop-timeline-hcards {
+	grid-row: 1;
+	align-self: end;
+	padding: 0 0 16px;
+}
+
+.stonetop-timeline-hperiod--below .stonetop-timeline-hcards {
+	grid-row: 3;
+	align-self: start;
+	padding: 16px 0 0;
+}
+
+.stonetop-timeline-hcards:not(:empty)::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	height: 16px;
+	border-left: 2px solid var(--st-card-rule);
+}
+
+.stonetop-timeline-hperiod--above .stonetop-timeline-hcards::after { bottom: 0; }
+.stonetop-timeline-hperiod--below .stonetop-timeline-hcards::after { top: 0; }
+
+.stonetop-timeline-hcards .stonetop-timeline-card::before {
+	content: none;
+}
+
+/* -- Across, every thread: one swimlane per thread, one column per season --------
+   ONE grid, so a season's column lines up down every thread. The corner, the season heads and the
+   thread heads are sticky, so neither axis scrolls out from under the reader. Sticky cells need an
+   opaque fill or the cards slide visibly underneath them. */
+.stonetop-timeline-swim {
+	display: grid;
+	grid-template-columns: 11rem repeat(var(--timeline-cols, 1), minmax(15rem, 1fr));
+	gap: 10px;
+	align-items: start;
+}
+
+.stonetop-timeline-swim-corner,
+.stonetop-timeline-swim-head {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	background: var(--stonetop-bg);
+}
+
+.stonetop-timeline-swim-corner {
+	left: 0;
+	z-index: 3;
+	align-self: stretch;
+}
+
+.stonetop-timeline-swim-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	border-radius: var(--st-radius);
+	background: linear-gradient(var(--st-warm-hover-bg), var(--st-warm-hover-bg)), var(--stonetop-bg);
+}
+
+.stonetop-timeline-swim-head--year-start {
+	border-left: 4px solid var(--st-text-secondary);
+}
+
+/* The name at the TOP of its lane, level with the first card, rather than floating mid-row where a
+   long lane puts it a screen away from the season it starts in. */
+.stonetop-timeline-swim-lane-head {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	align-self: stretch;
+	align-items: flex-start;
+	padding: 8px 8px 6px 0;
+	border-right: 1px solid var(--st-card-rule);
+	background: var(--stonetop-bg);
+}
+
+.stonetop-timeline-swim .stonetop-timeline-cards {
+	margin: 0;
+	padding: 0;
+	border-left: none;
+}
+
+.stonetop-timeline-swim .stonetop-timeline-card::before {
 	content: none;
 }
 
@@ -48794,6 +49119,12 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    dialog past the screen: `_autoHeight` re-fits the window to its content on every render. */
 .stonetop-timeline-entry-body {
 	max-height: 220px;
+	resize: vertical;
+}
+
+/* A kills row's foes, one per line. Capped for the same reason as the account above. */
+.stonetop-timeline-entry-foes {
+	max-height: 160px;
 	resize: vertical;
 }
 

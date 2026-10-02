@@ -95,7 +95,7 @@ import {HEALERS_ARTS, HEALERS_ARTS_STOCK, HEALERS_ARTS_STOCK_HP, healersArtsCare
 import {isUnliving, recoveredHpTo, slowToHeal} from "./deaths-door-actor.js";
 import {peopleNames, steadingPeopleActors, usedPersonPortraits, createPersonNpc, isActorRow, personRowActor, personRowKey, personRowIdentity, rebasePersonRows, addCharacterToSteadingPlayers} from "../steading/steading-people.js";
 import {openPeoplePortraitPicker} from "../steading/PeopleGalleryDialog.js";
-import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getFollowerCardsCollapsed, setFollowerCardsCollapsed, getInventoryLoreExpanded, setInventoryLoreExpanded, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode, getAskRollModeEachRollSetting, isClassicLayout, layoutClasses, stampLayoutClass, isTimelineEnabled} from "../../settings.js";
+import {getHoverDescriptionSetting, getRollStatChipsSetting, getCrewSectionsOpen, setCrewSectionsOpen, getMovesSectionsCollapsed, setMovesSectionsCollapsed, getArcanaSectionsCollapsed, setArcanaSectionsCollapsed, getArcanaContentExpanded, setArcanaContentExpanded, getArcanaCardsCollapsed, setArcanaCardsCollapsed, getFollowerCardsCollapsed, setFollowerCardsCollapsed, getInventoryLoreExpanded, setInventoryLoreExpanded, getSidebarCollapsed, setSidebarCollapsed, getOpenSheetsInEditMode, getAskRollModeEachRollSetting, isClassicLayout, layoutClasses, stampLayoutClass} from "../../settings.js";
 import {bringDialogToFront} from "../../utils/front-on-open.js";
 import {wireSidebarToggle} from "../../utils/sidebar-toggle.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
@@ -1430,12 +1430,6 @@ export function createStonetopCharacterSheetClass(Base) {
 			// off whichever sheet's context it lands in, which is why all three sheets name it
 			// `stonetop.classicLayout` with no sheet suffix.
 			context.stonetop.classicLayout = isClassicLayout("character");
-			// Is the narrative timeline part of this world at all? Unreleased, and off in every
-			// shipped world, so this is normally false and the tab below is simply not drawn. The
-			// guard sits in the TEMPLATE rather than in the tab lifecycle because that is already
-			// how classic layout withholds this tab: with no mount in the markup, `syncTimelineTab`
-			// finds nothing and builds nothing. See `isTimelineEnabled` in module/settings.js.
-			context.stonetop.timelineEnabled = isTimelineEnabled();
 			context.stonetop.hideUnselected = this.actor.getFlag(STONETOP_SCOPE, "hideUnselected") ?? true;
 			// "Organize by category": whether the Playbook Moves section heads each of the
 			// playbook's three onboarding clusters, or draws one flat owned / un-owned list.
@@ -10553,6 +10547,11 @@ export function createStonetopCharacterSheetClass(Base) {
 						ui.notifications?.warn?.(game.i18n.format("stonetop.character.followers.fate.crewStale", { name: plainWho }));
 					}
 				}
+				// Announced, for the timeline (timeline/timeline-watch.js puts it on the character's
+				// thread). Here and not off a flag diff: the companion, an initiate and a beast keep no
+				// stored record of dying at all, and this is the one moment that knows a death from a
+				// dismissal. Before the let-go return below, which skips the card.
+				Hooks.callAll("stonetop.followerDied", this.actor, { follower, slug, index, name: plainWho });
 				// SIR, PERMISSION TO DIE, SIR: "If you let them go, mark XP." One card, death and receipt.
 				if (letGo && ownsLearnedMoveNamed(this.actor, SIR_PERMISSION_TO_DIE)) {
 					await postLetGoReceipt(this.actor, body);

@@ -175,17 +175,55 @@ describe("the aggregate's columns", () => {
 	});
 });
 
-describe("telling the record from the bookkeeping", () => {
-	// A row the system wrote for itself has to be distinguishable from one somebody typed WITHOUT
-	// reading it, and by more than one signal: a reader who cannot pick the dashed edge out still
-	// has the quieter ink, and the badge says it in words.
-	it("draws an auto row differently from a typed one", () => {
-		expect(value(".stonetop-timeline-card--auto", "border-style"),
-			"an auto row is not marked out by its edge").toBe("dashed");
+describe("telling the record from what the system wrote", () => {
+	// A milestone (a level, a kill, a death) is the RECORD, not small print. It used to wear quieter
+	// ink, a dashed edge and a 2xs faint badge, which is exactly what a player reading through a
+	// magnifier cannot see. It is told apart by its kind named in words and a heavier edge instead,
+	// at full ink.
+	it("draws an auto row at full ink, told apart by its edge and a worded chip", () => {
 		expect(value(".stonetop-timeline-card--auto", "color"),
-			"an auto row is not marked out by its ink").toBeTruthy();
+			"an auto row must not dim its own ink").toBeNull();
+		expect(value(".stonetop-timeline-card--auto", "border-style"),
+			"a dashed edge is the faint signal this replaced").toBeNull();
+		expect(value(".stonetop-timeline-card--auto", "border-left-width"),
+			"an auto row is not marked out by its edge").toBeTruthy();
 		expect(readRepo("templates/dialogs/partials/timeline-card.hbs"))
-			.toContain("stonetop.timeline.auto.badge");
+			.toContain("{{kindLabel}}");
+	});
+
+	it("keeps the kind chip readable", () => {
+		expect(value(".stonetop-timeline-card-kind", "font-size")).toBe("var(--st-fs-xs)");
+		expect(value(".stonetop-timeline-card-kind", "color")).not.toContain("faint");
+	});
+});
+
+describe("the timeline laid across the page", () => {
+	// Across scrolls sideways and Down never does; a sideways scroll on the vertical layout is how a
+	// too-wide card turns into a page that slides under the reader's magnifier.
+	it("scrolls sideways only when laid across", () => {
+		expect(value(".stonetop-timeline-scroll", "overflow-x")).toBe("hidden");
+		expect(value(".stonetop-timeline--horizontal .stonetop-timeline-scroll", "overflow-x")).toBe("auto");
+	});
+
+	// The line sits at one height all the way across only because every season shares the same
+	// three rows.
+	it("shares the three rows of the axis across every season", () => {
+		expect(value(".stonetop-timeline-hperiod", "grid-template-rows")).toBe("subgrid");
+		expect(value(".stonetop-timeline-htrack", "grid-template-rows")).toBe("auto auto auto");
+	});
+
+	// Sticky cells with no fill let the cards slide visibly underneath them.
+	it("pins the swimlane heads with an opaque fill", () => {
+		for (const sel of [".stonetop-timeline-swim-lane-head", ".stonetop-timeline-swim-corner"]) {
+			expect(value(sel, "position"), `${sel} is not pinned`).toBe("sticky");
+			expect(value(sel, "background"), `${sel} has no fill`).toContain("--stonetop-bg");
+		}
+	});
+
+	// The scroll region is focusable so a keyboard can move it; it must show when it has focus.
+	it("shows the keyboard on the scroll region", () => {
+		expect(declarations(CSS, ".stonetop-timeline-scroll:focus-visible")).toContain("outline");
+		expect(readRepo("templates/dialogs/timeline.hbs")).toMatch(/stonetop-timeline-scroll" tabindex="0"/);
 	});
 });
 

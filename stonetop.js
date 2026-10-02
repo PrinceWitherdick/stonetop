@@ -1,4 +1,4 @@
-import { registerSettings, getSetting, isTimelineEnabled, applyMoveDescriptionBodyClass } from "./module/settings.js";
+import { registerSettings, getSetting, applyMoveDescriptionBodyClass } from "./module/settings.js";
 import { createStonetopActorClass } from "./module/actors/StonetopActor.js";
 import { createStonetopItemClass } from "./module/item/StonetopItem.js";
 import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSheet.js";
@@ -49,6 +49,7 @@ import { installBattleHolds } from "./module/combat/battle-holds.js";
 import { hideAttackFxForReducedMotion } from "./module/combat/attack-fx.js";
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { installOutOfTheFight } from "./module/fight/out-of-the-fight.js";
+import { registerTimelineWatch } from "./module/timeline/timeline-watch.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onUpdateSiteNote } from "./module/sites/site-scene-pins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
@@ -487,21 +488,13 @@ Hooks.once("init", () => {
 	// sheet draws is the good version, but a journal page is what a table can share and print, and
 	// keeping the record legible outside our own UI is half of what makes it a chronicle. The sheet
 	// is read-only: everything that writes goes through the entry dialog. See module/timeline/.
-	//
-	// BEHIND THE FEATURE FLAG, and off in every shipped world. `registerSettings` ran at the top of
-	// this same hook, so the switch can be read here. Registering the model and the sheet for a
-	// subtype the manifest does not declare would be dead weight at best and a warning at worst, so
-	// the whole block stands or falls with `timelineEnabled`. See `isTimelineEnabled` in
-	// module/settings.js, which also says what has to go back into system.json to develop this.
-	if (isTimelineEnabled()) {
-		CONFIG.JournalEntryPage.dataModels["timeline"] = TimelinePageModel;
-		const StonetopTimelinePageSheet = createStonetopTimelinePageSheetClass(JournalPageSheetV1);
-		foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopTimelinePageSheet, {
-			types:       ["timeline"],
-			makeDefault: true,
-			label:       "Stonetop Timeline Page",
-		});
-	}
+	CONFIG.JournalEntryPage.dataModels["timeline"] = TimelinePageModel;
+	const StonetopTimelinePageSheet = createStonetopTimelinePageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopTimelinePageSheet, {
+		types:       ["timeline"],
+		makeDefault: true,
+		label:       "Stonetop Timeline Page",
+	});
 
 	// A relationship map is a JournalEntry, so it has a row in every player's Journal sidebar.
 	// Clicking that row must open the BOARD, not Foundry's prose editor on an entry whose only
@@ -673,6 +666,8 @@ Hooks.once("init", () => {
 		"stonetop.timeline-card":             "systems/stonetop-pwd/templates/dialogs/partials/timeline-card.hbs",
 		"stonetop.timeline-period":           "systems/stonetop-pwd/templates/dialogs/partials/timeline-period.hbs",
 		"stonetop.timeline-period-head":      "systems/stonetop-pwd/templates/dialogs/partials/timeline-period-head.hbs",
+		"stonetop.timeline-hperiod":          "systems/stonetop-pwd/templates/dialogs/partials/timeline-hperiod.hbs",
+		"stonetop.timeline-lane-head":        "systems/stonetop-pwd/templates/dialogs/partials/timeline-lane-head.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
 		"stonetop.artifact-gm":              "systems/stonetop-pwd/templates/dialogs/artifact-gm.hbs",
 		"stonetop.header-toggle-glyph":       "systems/stonetop-pwd/templates/actor/partials/header-toggle-glyph.hbs",
@@ -745,6 +740,12 @@ Hooks.on("updateActor", onUpdateActorPlaybookName);
 // wrong sheet when one is laid or lifted. Repaint the affected targets by hand.
 // See module/hooks/CondemnedTag.js.
 Hooks.on("updateActor", onUpdateCondemned);
+
+// -- THE TIMELINE, KEPT UP ---------------------------------------
+// A character's milestones (a level, a death, a lasting wound, an arcanum, a follower) written onto
+// their thread by the client that made the change; a new character's page minted, a renamed one's
+// page renamed. See module/timeline/timeline-watch.js.
+registerTimelineWatch();
 
 // -- READY -----------------------------------------------------
 // FIRST of the ready listeners, deliberately. This one reports whether the startup it is reporting
