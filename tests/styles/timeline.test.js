@@ -110,7 +110,7 @@ describe("the tab has to give the panel a definite height", () => {
 		for (const sel of CHAIN.slice(0, 2)) {
 			expect(value(sel, "overflow"), `${sel} must clip, not scroll`).toBe("hidden");
 		}
-		expect(value(".stonetop-timeline-scroll", "overflow-y")).toBe("auto");
+		expect(value(".stonetop-timeline-scroll", "overflow")).toBe("auto");
 	});
 
 	// The clip above only holds if it actually WINS. Each `:not()` costs a class of specificity, so
@@ -198,11 +198,35 @@ describe("telling the record from what the system wrote", () => {
 });
 
 describe("the timeline laid across the page", () => {
-	// Across scrolls sideways and Down never does; a sideways scroll on the vertical layout is how a
-	// too-wide card turns into a page that slides under the reader's magnifier.
-	it("scrolls sideways only when laid across", () => {
-		expect(value(".stonetop-timeline-scroll", "overflow-x")).toBe("hidden");
-		expect(value(".stonetop-timeline--horizontal .stonetop-timeline-scroll", "overflow-x")).toBe("auto");
+	// Both layouts scroll both ways now, into the empty gutter the timeline is dragged off into (user,
+	// 2026-10-01). What Down still must not do is let a too-wide card widen the CONTENT: that is how a
+	// page ends up sliding under the reader's magnifier on its own. So Down's canvas is held to the
+	// column, and only Across sizes to its seasons.
+	it("scrolls both ways, but holds Down's content to the column's width", () => {
+		expect(value(".stonetop-timeline-scroll", "overflow")).toBe("auto");
+		expect(value(".stonetop-timeline-canvas", "width")).toBe("100%");
+		expect(value(".stonetop-timeline-canvas", "grid-template-columns")).toBe("minmax(0, 1fr)");
+		expect(value(".stonetop-timeline--horizontal .stonetop-timeline-canvas", "width")).toBe("fit-content");
+		expect(value(".stonetop-timeline--horizontal .stonetop-timeline-canvas", "min-width")).toBe("100%");
+	});
+
+	// The gutter is ADDED round the timeline, never carved out of it, on all four sides.
+	it("pads the canvas by the measured gutter on every side", () => {
+		expect(value(".stonetop-timeline-canvas", "box-sizing")).toBe("content-box");
+		expect(value(".stonetop-timeline-canvas", "padding"))
+			.toBe("var(--drag-scroll-gutter-y, 0px) var(--drag-scroll-gutter-x, 0px)");
+		expect(readRepo("templates/dialogs/timeline.hbs"))
+			.toMatch(/stonetop-timeline-scroll"[^>]*>\s*\{\{!--[\s\S]*?--\}\}\s*<div class="stonetop-timeline-canvas">/);
+	});
+
+	// THE WHEEL'S ZOOM goes on the picture and never on the canvas, whose padding is the drag gutter
+	// (a share of the window). Down's canvas widens by the same scale, or a zoomed Down timeline only
+	// re-wraps its cards bigger instead of growing as one picture the way the map's board does.
+	it("zooms the picture inside the canvas, and widens Down's canvas with it", () => {
+		expect(value(".stonetop-timeline-canvas > *", "zoom")).toBe("var(--wheel-zoom, 1)");
+		expect(value(".stonetop-timeline-canvas", "zoom")).toBeNull();
+		expect(value(".stonetop-timeline:not(.stonetop-timeline--horizontal) .stonetop-timeline-canvas", "width"))
+			.toBe("calc(100% * var(--wheel-zoom, 1))");
 	});
 
 	// The line sits at one height all the way across only because every season shares the same
@@ -210,6 +234,12 @@ describe("the timeline laid across the page", () => {
 	it("shares the three rows of the axis across every season", () => {
 		expect(value(".stonetop-timeline-hperiod", "grid-template-rows")).toBe("subgrid");
 		expect(value(".stonetop-timeline-htrack", "grid-template-rows")).toBe("auto auto auto");
+	});
+
+	// A sticky `top: 0` pins below the scroll box's top padding, leaving a strip the cards show through.
+	it("keeps the pinned heads flush with the top of the scroll box", () => {
+		expect(value(".stonetop-timeline-scroll", "padding")).toMatch(/^0\b/);
+		expect(value(".stonetop-timeline-scroll > :first-child", "margin-top")).toBe("12px");
 	});
 
 	// Sticky cells with no fill let the cards slide visibly underneath them.
@@ -224,6 +254,41 @@ describe("the timeline laid across the page", () => {
 	it("shows the keyboard on the scroll region", () => {
 		expect(declarations(CSS, ".stonetop-timeline-scroll:focus-visible")).toContain("outline");
 		expect(readRepo("templates/dialogs/timeline.hbs")).toMatch(/stonetop-timeline-scroll" tabindex="0"/);
+	});
+});
+
+describe("in a sheet it runs edge to edge, like the relationship map's tab", () => {
+	// User, 2026-10-01: no scrollbars, and out to the sheet's edge. The canvas carries a drag gutter
+	// on every side, so the column ALWAYS overflows both ways; without this both bars are always drawn.
+	it("hides the column's scrollbars on both sheets", () => {
+		for (const sel of [
+			".pbta.sheet.actor.character .tab.timeline .stonetop-timeline-scroll",
+			".steading-sheet .tab.timeline .stonetop-timeline-scroll",
+		]) expect(value(sel, "scrollbar-width"), sel).toBe("none");
+	});
+
+	it("drops the steading's 12px tab padding", () => {
+		expect(value(".steading-sheet .tab.timeline .sheet-tab", "padding")).toBe("0");
+	});
+
+	// The steading shares the relationship map tab's three bleed rules (see
+	// relationship-map-tab-bleed.test.js); each must name the timeline tab too.
+	it("takes the map tab's bleed on the steading", () => {
+		for (const sel of [
+			".steading-sheet .sheet-wrapper:has(.tab.timeline.active)",
+			".steading-sheet-layout:has(> .sheet-body > .tab.timeline.active)",
+			".steading-sheet .sheet-body:has(> .tab.timeline.active)",
+		]) expect(declarations(CSS, sel), sel).toBeTruthy();
+		expect(value(".steading-sheet-layout:has(> .sheet-body > .tab.timeline.active)", "margin-inline")).toBe("-8px");
+	});
+
+	// Left over the form's 8px only (the moves sidebar is the right-hand neighbour), and the gutter
+	// given back so the column meets the sidebar's rule.
+	it("bleeds left and gives back the gutter on the character sheet", () => {
+		expect(value(".pbta.sheet.actor.character .stonetop-sheet-layout:has(> .sheet-body > .tab.timeline.active)", "margin-left"))
+			.toBe("-8px");
+		expect(value(".pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body:has(> .tab.timeline.active)", "scrollbar-gutter"))
+			.toBe("auto");
 	});
 });
 

@@ -94,6 +94,10 @@
 	{{!-- Focusable, so a keyboard can scroll it -- across as well as down -- and named, so a screen
 	      reader says what it has landed in. --}}
 	<div class="stonetop-timeline-scroll" tabindex="0" role="region" aria-label="{{scrollLabel}}">
+	{{!-- The CANVAS: everything below, padded on every side by the empty room the timeline can be
+	      dragged off into (utils/drag-scroll.js sizes it; the stylesheet spends it). Not re-indented
+	      under it, so the shapes below read as they always did. --}}
+	<div class="stonetop-timeline-canvas">
 
 		{{!-- A thread with no page yet reads differently from an empty one: the first is waiting on
 		      a GM opening the world, the second on the reader picking up a pen. --}}
@@ -201,5 +205,6 @@
 
 		{{/if}}
 		{{/unless}}
+	</div>{{!-- /canvas --}}
 	</div>
 </div>

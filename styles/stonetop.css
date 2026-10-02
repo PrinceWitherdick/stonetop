@@ -17847,6 +17847,18 @@ button.stonetop-mark-sign-btn.is-active:hover {
    STEADING SHEET
    ================================================================ */
 
+/* THE FORM HOLDS THE WINDOW'S HEIGHT, which is what makes the wrapper's `height: 100%` below mean
+   anything. The form is a flex item of `.window-content`, and a flex item's `min-height: auto`
+   refuses to shrink below its content: it grew to whatever the active tab held, `.window-content`
+   (the last-resort scroller) scrolled the whole sheet as one piece, and no tab's own scrollport
+   ever engaged. The timeline showed it worst (user, 2026-10-01: "I can scroll way high up the
+   timeline sheet but not far down"): its column grew to its full height, the drag gutter under the
+   last entry ended up below the window, and only the gutter above was ever reachable. The
+   character sheet's form has carried the same `min-height: 0` all along. */
+.window-content > .steading-sheet {
+	min-height: 0;
+}
+
 .steading-sheet .sheet-wrapper {
 	display: flex;
 	flex-direction: column;
@@ -19234,7 +19246,12 @@ button.stonetop-mark-sign-btn.is-active:hover {
    margin on anything below it is simply clipped and NOTHING MOVES — the failure is silent and
    looks exactly like the rule not applying. `overflow: clip` with a clip margin keeps the wrapper
    doing the one job it is there for (it is not a scroll container and must not become one, which
-   is why this is not `visible`) while letting the map's 8px past on each side. */
+   is why this is not `visible`) while letting the map's 8px past on each side.
+
+   THE TIMELINE TAB TAKES THE SAME BLEED (user, 2026-10-01: "the same way we show the relationship
+   map"). Its body is the timeline window's body in the same sense, so it runs to the same edges;
+   the character sheet's version of these rules is in the timeline's own block. */
+.steading-sheet .sheet-wrapper:has(.tab.timeline.active),
 .steading-sheet .sheet-wrapper:has(.tab.relmap.active) {
 	overflow: clip;
 	overflow-clip-margin: 8px;
@@ -19243,10 +19260,12 @@ button.stonetop-mark-sign-btn.is-active:hover {
 /* On the LAYOUT and not on the tab: the tab's two ancestors below the wrapper both clip as well,
    so a negative margin down there would need this same treatment three times over. Widening the
    layout instead lets the body and the tab inherit the extra width the ordinary way. */
+.steading-sheet-layout:has(> .sheet-body > .tab.timeline.active),
 .steading-sheet-layout:has(> .sheet-body > .tab.relmap.active) {
 	margin-inline: -8px;
 }
 
+.steading-sheet .sheet-body:has(> .tab.timeline.active),
 .steading-sheet .sheet-body:has(> .tab.relmap.active) {
 	scrollbar-gutter: auto;
 }
@@ -48481,9 +48500,48 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
 .pbta.sheet.actor.character .tab.timeline .sheet-tab,
 .steading-sheet .tab.timeline .sheet-tab {
+	/* Edge to edge, as the relationship map's tab is: the steading's 12px `.sheet-tab` padding
+	   would inset the toolbar's rule and the scrolling column from the sheet's edges. */
+	padding: 0;
 	height: 100%;
 	min-height: 0;
 	overflow: hidden;
+}
+
+/* NO SCROLLBARS IN A SHEET. The column is grabbed and thrown (utils/drag-scroll.js), and the canvas
+   carries a drag gutter on every side, so it ALWAYS overflows both ways and both bars were always
+   drawn: two strips of chrome along the tab's edges for a picture that is moved by hand, which the
+   relationship map's tab never shows. Keyboard (the column is focusable), a sideways trackpad swipe
+   and scrollIntoView all still scroll it; the wheel zooms it, as the map's wheel does. The pop-out
+   window keeps its bars. */
+.pbta.sheet.actor.character .tab.timeline .stonetop-timeline-scroll,
+.steading-sheet .tab.timeline .stonetop-timeline-scroll {
+	scrollbar-width: none;
+}
+
+/* THE CHARACTER SHEET'S HALF OF THE EDGE-TO-EDGE BLEED (the steading's is beside the relationship
+   map tab's, which it shares). Two insets stand between this tab and the sheet's edges:
+
+   LEFT, the actor form's 8px (`.pbta.sheet.actor .window-content form`). Given back by widening
+   the layout, not by dropping the form's padding, which would move the portrait header too. Left
+   only: the layout's right-hand neighbour is the moves sidebar, not the window's edge. Nothing
+   above the layout clips here (`.window-content` has no padding of its own, so -8px lands exactly
+   on its edge), so no clip margin is needed as on the steading.
+
+   RIGHT, the body's reserved `scrollbar-gutter`, for a bar this tab never draws (the tab clips and
+   the panel scrolls). Dropped so the timeline meets the sidebar's rule. The sidebar's collapse
+   handle is parked in that gutter (`left: -15px`), so it now sits over the toolbar's right end,
+   and the toolbar's end padding grows by the handle's 15px to keep the Down/Across pair clear. */
+.pbta.sheet.actor.character .stonetop-sheet-layout:has(> .sheet-body > .tab.timeline.active) {
+	margin-left: -8px;
+}
+
+.pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body:has(> .tab.timeline.active) {
+	scrollbar-gutter: auto;
+}
+
+.pbta.sheet.actor.character .tab.timeline .stonetop-timeline-toolbar {
+	padding-right: calc(12px + 15px);
 }
 
 .stonetop-timeline-mount {
@@ -48649,12 +48707,75 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    refuses to shrink below its content and the scrollbar never appears.
 
    FOCUSABLE (tabindex in the template), so a keyboard can scroll it, and it says so when it has the
-   keyboard. Across scrolls sideways; Down never does. */
+   keyboard. It scrolls BOTH ways in both layouts, because the canvas below has empty room on every
+   side to drag the timeline off into (user, 2026-10-01). What Down still never does is let the
+   CONTENT grow wider than the column: see the canvas. */
+/* NO TOP PADDING on the scroll box: a sticky `top: 0` pins to the edge of the padding, not of the
+   box, so a 12px pad leaves a strip above the pinned heads that the cards scroll visibly through.
+   The inset moves onto the first child instead, where it scrolls away like any content. */
 .stonetop-timeline-scroll {
 	min-height: 0;
-	overflow-y: auto;
-	overflow-x: hidden;
-	padding: 12px;
+	overflow: auto;
+	padding: 0 12px 12px;
+}
+
+/* THE CANVAS: the timeline, padded on every side by the gutter utils/drag-scroll.js measures off the
+   column (`--drag-scroll-gutter-x/-y`, 0 until it has). The column opens scrolled past the top and
+   left gutters, so the timeline starts where it always did, and the reader can drag it off any edge
+   until three quarters of the window is empty paper, as the relationship map's board goes.
+
+   ⚠ CONTENT-BOX, so the gutter is ADDED round the timeline rather than carved out of it.
+
+   A one-column GRID, `align-items: start` so its one child (a shape, or the invite) keeps its own
+   height: the swimlane grid stretched would hand the spare height to its rows and every lane would
+   grow.
+
+   THE WINDOW'S HEIGHT ONLY UNDER THE AXIS, which centres itself in the window by `min-height: 100%`
+   and so needs a grid area that tall to resolve against (the 12px is the first child's top inset,
+   the rule above). Nowhere else: a canvas padded out to the window under a SHORT timeline would let
+   the far gutter carry the timeline clean out of sight, with nothing left on screen to grab.
+
+   DOWN: exactly the column's width (`minmax(0, 1fr)` stops a long word in a card widening it), so the
+   only sideways room is the gutter itself and the cards never slide under a magnifier on their own.
+   ACROSS: as wide as the seasons need, and never narrower than the column. */
+.stonetop-timeline-canvas {
+	box-sizing: content-box;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	align-items: start;
+	width: 100%;
+	padding: var(--drag-scroll-gutter-y, 0px) var(--drag-scroll-gutter-x, 0px);
+}
+
+/* THE WHEEL'S ZOOM (utils/wheel-zoom-scroll.js hands the scale over as `--wheel-zoom`). CSS `zoom`,
+   not a transform, so the scroll extent follows the picture and the sticky heads still pin to the
+   column's edge. On the picture only, never the canvas: the gutter round it is a share of the WINDOW
+   and must not grow and shrink with the type.
+
+   DOWN, THE CANVAS WIDENS BY THE SAME SCALE. Down fills the column's width, so a zoomed picture
+   left at that width would just re-wrap its cards at a bigger size and never get any wider: that is
+   the browser's text zoom, not the map's. Widened with it, the timeline scales as one picture, and
+   past 1 it runs off the right edge for the drag to bring back. Across already sizes to its content. */
+.stonetop-timeline-canvas > * {
+	zoom: var(--wheel-zoom, 1);
+}
+
+.stonetop-timeline:not(.stonetop-timeline--horizontal) .stonetop-timeline-canvas {
+	width: calc(100% * var(--wheel-zoom, 1));
+}
+
+.stonetop-timeline-canvas:has(> .stonetop-timeline-htrack) {
+	min-height: calc(100% - 12px);
+}
+
+.stonetop-timeline--horizontal .stonetop-timeline-canvas {
+	grid-template-columns: auto;
+	width: fit-content;
+	min-width: 100%;
+}
+
+.stonetop-timeline-scroll > :first-child {
+	margin-top: 12px;
 }
 
 .stonetop-timeline-scroll:focus-visible {
@@ -48662,8 +48783,21 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	outline-offset: -2px;
 }
 
-.stonetop-timeline--horizontal .stonetop-timeline-scroll {
-	overflow-x: auto;
+/* Grab-and-throw (utils/drag-scroll.js). The grab hand only while there is somewhere to go, so it
+   never promises a drag that would do nothing; controls keep their own pointer. While a drag is
+   moving the column nothing under it selects: the press began on a card's words, and a reader
+   hauling the timeline sideways did not mean to highlight half of it. */
+.stonetop-timeline-scroll.stonetop-drag-scroll--pannable {
+	cursor: grab;
+}
+
+.stonetop-timeline-scroll.stonetop-drag-scroll--panning {
+	cursor: grabbing;
+	user-select: none;
+}
+
+.stonetop-timeline-scroll.stonetop-drag-scroll--panning * {
+	cursor: grabbing !important;
 }
 
 /* Nothing written down yet, or a thread with no page. Centred rather than parked at the top:

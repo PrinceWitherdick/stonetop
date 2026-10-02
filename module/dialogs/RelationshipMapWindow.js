@@ -74,6 +74,7 @@ import { playbookSlug } from "../utils/playbook-slug.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { pickPersonToAdd, pickPersonToLink } from "./RelationshipLinkDialog.js";
 import { promptForText } from "./content-picker.js";
+import { FINE_ZOOM_STEP } from "../utils/image-zoom.js";
 
 // Plain literals, not built from SYSTEM_ID: tests/templates/partial-registration.test.js proves
 // every precached template is actually reached by finding its PATH in the JS, and an interpolated
@@ -100,7 +101,7 @@ const SYNC_DEBOUNCE_MS = 50;
  * or so notches, which is one unhurried flick -- and a wheel that is nudged rather than spun now
  * nudges. Fractional deltas (`wheelNotches`) make a trackpad finer still.
  */
-const RELMAP_ZOOM_STEP = 1.08;
+const RELMAP_ZOOM_STEP = FINE_ZOOM_STEP;
 
 /**
  * The size, ON SCREEN, that the held line's caption is kept at while the board is zoomed out.

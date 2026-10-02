@@ -79,6 +79,16 @@ describe("character sheet tab scrollports", () => {
 	});
 });
 
+describe("steading sheet tab scrollports", () => {
+	it("lets the form shrink to the window so the wrapper's 100% resolves", () => {
+		// The form is a flex item of `.window-content`; without this its `min-height: auto`
+		// grows it to the active tab's content, the whole sheet scrolls as one piece, and the
+		// timeline's bottom drag gutter lands below the window where it can never be reached.
+		expect(ruleFor(".window-content > .steading-sheet")).toContain("min-height: 0");
+		expect(ruleFor(".steading-sheet .sheet-wrapper")).toContain("height: 100%");
+	});
+});
+
 describe("tab scrollbars stay hidden", () => {
 	it.each([
 		["character", ".pbta.sheet.actor.character .stonetop-sheet-layout .sheet-body > .tab.active:not(.notes)"],

@@ -203,9 +203,14 @@ export class StonetopDialog extends Application {
 	_restorePlace(place) {
 		if (!place) return;
 		const after = this.element?.[0];
-		const column = place.scrolled || place.scrolledLeft ? after?.querySelector?.(place.scroller) : null;
-		if (column && place.scrolled) column.scrollTop = place.scrolled;
-		if (column && place.scrolledLeft) column.scrollLeft = place.scrolledLeft;
+		// ⚠ ZERO IS PUT BACK TOO. A fresh column does not always start at 0: the timeline's opens past
+		// its drag gutter (utils/drag-scroll.js), so a reader who had scrolled right up to the edge
+		// would otherwise be thrown a whole gutter by somebody else's write.
+		const column = place.scroller ? after?.querySelector?.(place.scroller) : null;
+		if (column) {
+			column.scrollTop = place.scrolled;
+			column.scrollLeft = place.scrolledLeft;
+		}
 		if (place.focused) after?.querySelector?.(place.focused)?.focus?.({ preventScroll: true });
 	}
 

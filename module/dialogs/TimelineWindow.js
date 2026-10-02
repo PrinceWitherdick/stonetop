@@ -35,6 +35,8 @@ import { promptForTimelineEntry } from "./TimelineEntryDialog.js";
 import { pickContentOption } from "./content-picker.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
 import { escHtml } from "../utils/strings.js";
+import { GUTTER_X_VAR, GUTTER_Y_VAR, wireDragScroll } from "../utils/drag-scroll.js";
+import { clampScale, wireWheelZoom } from "../utils/wheel-zoom-scroll.js";
 import {
 	TIMELINE_JOURNAL_NAME, allTracks, findTimelineJournal, mutateTrack, readTrack, trackDisplayName,
 	trackForActor,
@@ -48,6 +50,28 @@ import {
 } from "../settings.js";
 import { buildAggregateVM, buildTrackVM, enrichTrackVM, kindMenu } from "../timeline/timeline-view.js";
 import { timelineNow } from "../timeline/timeline-record.js";
+import { FINE_ZOOM_STEP } from "../utils/image-zoom.js";
+
+/**
+ * How far past each edge the timeline can be dragged, as a share of the column it is seen in: three
+ * quarters, so a reader can haul it nearly out of sight and a quarter of the window still has the
+ * timeline in it to grab and bring back.
+ */
+const TIMELINE_DRAG_GUTTER = 0.75;
+
+/**
+ * What one wheel notch multiplies the timeline's zoom by: the relationship map's own gentle step,
+ * so the two read the same under one hand.
+ */
+const TIMELINE_ZOOM_STEP = FINE_ZOOM_STEP;
+
+/**
+ * How far the wheel zooms the timeline. A quarter is a long campaign seen whole; four times is a
+ * card's words large enough to read under a magnifier. Narrower than the map's range, because past
+ * these a column of prose is either specks or one word to a screen.
+ */
+const TIMELINE_ZOOM_MIN = 0.25;
+const TIMELINE_ZOOM_MAX = 4;
 
 /** The aggregate window's DOM id, so a second open focuses the first. */
 export const TIMELINE_WINDOW_ID = "stonetop-timeline-window";
@@ -72,6 +96,12 @@ export class TimelineWindow extends StonetopDialog {
 		this._trackKind = trackKind;
 		this._trackName = name;
 		this._syncHooks = [];
+		// Takes the grab-and-throw back off the scroll column a repaint is about to replace.
+		this._unwireDragScroll = null;
+		// The wheel's zoom, kept on the instance so a repaint (anyone's write at the table) leaves the
+		// reader at the size they chose. Every open starts at 1, as the map's board starts fitted.
+		this._zoom = 1;
+		this._unwireWheelZoom = null;
 		// Whether this reader left the Show menu open. Kept on the instance because every tick in it
 		// re-renders the window, and a menu that shut itself after each tick would be a menu you
 		// have to reopen ten times to hide ten things.
@@ -413,6 +443,27 @@ export class TimelineWindow extends StonetopDialog {
 			if (ev.target?.classList?.contains("stonetop-timeline-show")) this._showMenuOpen = !!ev.target.open;
 		}, true);
 
+		// Drag the column about and throw it, as the relationship map's board is (utils/drag-scroll.js).
+		// A fresh column every repaint, so the old one's wiring (and any glide still running on it) goes.
+		// The gutter is empty room past every edge to drag the timeline off into, as the map's board
+		// goes off any side; `.stonetop-timeline-canvas` is what spends it.
+		this._unwireDragScroll?.();
+		this._unwireDragScroll = wireDragScroll(root.querySelector(".stonetop-timeline-scroll"), {
+			gutter: TIMELINE_DRAG_GUTTER,
+		});
+		// And the wheel zooms it about the cursor, as the map's wheel zooms the board
+		// (utils/wheel-zoom-scroll.js). The canvas's one child is the picture; the stylesheet spends
+		// the scale on it, and the gutter round it stays a window's worth whatever the size.
+		this._unwireWheelZoom?.();
+		this._unwireWheelZoom = wireWheelZoom(root.querySelector(".stonetop-timeline-scroll"), {
+			content: ".stonetop-timeline-canvas > *",
+			get: () => this._zoom,
+			set: scale => { this._zoom = scale; },
+			step: TIMELINE_ZOOM_STEP,
+			min: TIMELINE_ZOOM_MIN,
+			max: TIMELINE_ZOOM_MAX,
+		});
+
 		this._wireSync();
 	}
 
@@ -455,6 +506,10 @@ export class TimelineWindow extends StonetopDialog {
 		// fire on every journal write at the table for the rest of the session, once per window
 		// anybody ever opened. (A repaint still pending from the last burst is StonetopDialog's.)
 		this._unwireSync();
+		this._unwireDragScroll?.();
+		this._unwireDragScroll = null;
+		this._unwireWheelZoom?.();
+		this._unwireWheelZoom = null;
 		return super.close(options);
 	}
 }
