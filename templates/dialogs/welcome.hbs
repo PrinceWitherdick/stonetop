@@ -14,7 +14,7 @@
         <li class="stonetop-guide-toc-item{{#if selected}} is-active{{/if}}">
           <button type="button" class="stonetop-guide-toc-btn stonetop-welcome-tab" data-tab="{{key}}"{{#if selected}} aria-current="true"{{/if}}>
             <i class="fas {{icon}} stonetop-guide-toc-icon"></i>
-            <span class="stonetop-guide-toc-text">{{title}}</span>
+            <span class="stonetop-guide-toc-text" data-label="{{title}}">{{title}}</span>
           </button>
         </li>
         {{/each}}

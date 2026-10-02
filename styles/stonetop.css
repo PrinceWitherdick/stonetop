@@ -32425,6 +32425,23 @@ th:has(> .stonetop-roll-table-btn) {
 	overflow-y: auto;
 }
 
+/* The rail sizes to its longest label instead of the shared 168px, and no label wraps. The
+   selected entry goes bold, which is wider: at the fixed width "Review the setting" fit in
+   regular weight and broke onto two lines the moment it was selected. Each label carries a
+   zero-height bold copy of itself (`data-label`), so every entry is measured at its bold width
+   whether selected or not and the rail never shifts as the steps change. Sized by the text,
+   so it follows the user's Foundry font size rather than a pixel guess. */
+.stonetop-welcome-split > .stonetop-guide-toc { width: max-content; }
+.stonetop-welcome-split .stonetop-guide-toc-text { white-space: nowrap; }
+.stonetop-welcome-split .stonetop-guide-toc-text::after {
+	content: attr(data-label);
+	display: block;
+	height: 0;
+	overflow: hidden;
+	visibility: hidden;
+	font-weight: 700;
+}
+
 .stonetop-welcome-nav { flex: 0 0 auto; }
 
 /* One step per panel; only the active one shows (JS toggles `hidden`). Plain block
