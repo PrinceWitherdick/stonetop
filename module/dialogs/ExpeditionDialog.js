@@ -198,8 +198,8 @@ const RESUME_KEY = "expedition";
 //
 // The chapter's weather section is NOT a step either. It taught nothing this
 // walkthrough has to walk you through, and every tool it pointed at is a click
-// away without it: the seasonal table is the Weather picker's whole window (hotbar
-// slot 4, and the glyph beside the steading's clock), and the hoped-for-weather
+// away without it: the seasonal table is the Weather picker's whole window (the
+// weather in the time banner, and the glyph beside the steading's clock), and the hoped-for-weather
 // oracle is a Die of Fate roll. A step per section of the chapter was making the
 // rail long enough to read as a chore.
 //

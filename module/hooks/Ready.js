@@ -81,16 +81,17 @@ const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
 
-// The Chronicle hotbar macro (slot 9): compiles the recorded Introductions + Spring
+// The Chronicle hotbar macro (slot 7): compiles the recorded Introductions + Spring
 // Burst answers and expedition log into the shared "The Chronicle" journal and opens it
 // (GM-only — saveChronicle is seed-once, so re-running it preserves inline edits). Sits
-// just before End of Session and, like it, is handled separately from the slots-1–5
-// _SYSTEM_MACROS set and keyed on its command so it won't collide with a user macro of
-// the same name.
+// straight after the _SYSTEM_MACROS a new world gets and, like End of Session, is handled
+// separately from that set and keyed on its command so it won't collide with a user macro
+// of the same name. It was slot 9 until the two legacy macros left new worlds' bars; a
+// world that already has it placed keeps it where it is.
 const _CHRONICLE_MACRO_NAME   = "The Chronicle";
 const _CHRONICLE_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/bookmarklet.svg";
 const _CHRONICLE_MACRO_SCRIPT = "game.stonetop?.saveChronicle?.()";
-const _CHRONICLE_HOTBAR_SLOT  = 9;
+const _CHRONICLE_HOTBAR_SLOT  = 7;
 
 // The "(TEST ONLY) Populate World" dev macro, added to the Macro Directory but never
 // the hotbar. Its body is the create-test-characters dev script — that file is the single
@@ -120,35 +121,46 @@ const _RETIRED_BROWSER_MACROS = [
 	{ name: "Browse the Bestiary", command: "game.stonetop?.openBestiaryBrowser?.()" },
 ];
 
-// The ordered system hotbar macros (slots 1–7), in their canonical order. The
-// single source of truth for both _ensureHotbarMacro (places any that are missing)
-// and _reorderSystemMacros (snaps them into this order). Chronicle (9) / End of Session
-// (10) are handled separately below because they also key on their command. Seasons
-// Change took the spring icon that Welcome used to carry; Welcome now uses the
-// direction-signs. "Write a Love Letter" (slot 5) is GM prep (Book I p.568), and
-// "Browse Stonetop" (slot 7) reads GM-hidden compendia and the GM's own NPC notes — a
-// GM-only block places these, so they never reach a player's hotbar.
+// The ordered system hotbar macros, in their canonical order. The single source of truth
+// for both _ensureHotbarMacro (places any that are missing) and _reorderSystemMacros (snaps
+// them into this order). Chronicle (7) / End of Session (10, the key marked 0) are handled
+// separately below because they also key on their command. "Browse Stonetop" reads
+// GM-hidden compendia and the GM's own NPC notes — a GM-only block places these, so they
+// never reach a player's hotbar.
 //
-// `shared` marks the one macro the whole table uses: the Die of Fate is rolled by whoever
+// `shared` marks a macro the whole table uses: the Die of Fate is rolled by whoever
 // the fiction points at, not just the GM, so it is created readable by everyone and placed
 // on each player's own hotbar at `playerSlot` (see _ensurePlayerHotbarMacros). A player's
-// bar is otherwise empty of system macros, so it starts at slot 1 rather than the GM's 6.
+// bar is otherwise empty of system macros, so it starts at slot 1 rather than the GM's 4.
+//
+// `legacy` marks the two a new world no longer gets: Seasons Change and Weather, which the
+// time banner across the top of the screen opens (seasons/time-banner.js). A legacy
+// macro is never CREATED, only kept up where a world already has one, so an older world's bar
+// is left exactly as it was. Their slots sit after the Chronicle, so a GM's bar in an older
+// world still fills 1-10 with no gap when it is placed or re-snapped; in a new world 8-9 are
+// simply empty. The rest moved left into the slots they vacated (2 and 4); that is NOT a
+// layout-version bump, because an older world's arrangement is not wrong and re-snapping it
+// would undo any arrangement its GM had made.
 const _SYSTEM_MACROS = [
 	{ name: "Welcome to Stonetop", img: "systems/stonetop-pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
-	{ name: "Seasons Change",      img: "systems/stonetop-pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 2 },
-	{ name: "Run an Expedition",   img: "systems/stonetop-pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 3 },
-	{ name: "Weather",             img: "systems/stonetop-pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 4 },
-	{ name: "Write a Love Letter", img: "systems/stonetop-pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 5 },
-	{ name: "Die of Fate",         img: "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6, shared: true, playerSlot: 1 },
+	{ name: "Run an Expedition",   img: "systems/stonetop-pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 2 },
+	// GM prep (Book I p.568), and its only door: the character sheet reads, edits and deletes a
+	// letter but never writes a new one.
+	{ name: "Write a Love Letter", img: "systems/stonetop-pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 3 },
+	{ name: "Die of Fate",         img: "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 4, shared: true, playerSlot: 1 },
 	// One window over the arcana, the bestiary and the world's people (see
 	// dialogs/StonetopBrowserDialog.js), so a magnifying glass rather than any one list's
 	// symbol — it is the LOOKING that all three tabs have in common.
-	{ name: "Browse Stonetop",     img: "systems/stonetop-pwd/assets/icons/macros/magnifying-glass.svg", command: "game.stonetop?.openBrowser?.()",        slot: 7 },
+	{ name: "Browse Stonetop",     img: "systems/stonetop-pwd/assets/icons/macros/magnifying-glass.svg", command: "game.stonetop?.openBrowser?.()",        slot: 5 },
 	// Shared, unlike its neighbours: everyone at the table owns the relationship maps and edits
 	// them, so a macro only the GM could reach would be a window most of its users could not open.
 	// The picture is the board itself: boxed people joined by lines. Not the truce handshake End
 	// of Session already wears, because two macros on one picture are indistinguishable on the bar.
-	{ name: "Relationship Map",    img: "systems/stonetop-pwd/assets/icons/macros/relationship-map.svg", command: "game.stonetop?.openRelationshipMap?.()", slot: 8, shared: true, playerSlot: 2 },
+	{ name: "Relationship Map",    img: "systems/stonetop-pwd/assets/icons/macros/relationship-map.svg", command: "game.stonetop?.openRelationshipMap?.()", slot: 6, shared: true, playerSlot: 2 },
+	// Seasons Change took the spring icon that Welcome used to carry; Welcome now uses the
+	// direction-signs.
+	{ name: "Seasons Change",      img: "systems/stonetop-pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 8, legacy: true },
+	{ name: "Weather",             img: "systems/stonetop-pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 9, legacy: true },
 ];
 
 // Bump to re-snap the system macros into their canonical slots once, on every client
@@ -161,7 +173,8 @@ const _SYSTEM_MACROS = [
 // where they were. _ensureHotbarMacro places a missing macro whatever the layout version, and
 // _retireMergedBrowserMacros frees slot 7 for it. Re-snapping would lift every system macro
 // off the hotbar and put it back — undoing any arrangement a GM had made — to fix an order
-// that isn't wrong.
+// that isn't wrong. Not bumped either when the two legacy macros left new worlds and the
+// rest moved left (see _SYSTEM_MACROS), for the same reason.
 const _HOTBAR_LAYOUT_VERSION = 3;
 
 export async function onReady() {
@@ -498,7 +511,7 @@ export async function onReady() {
 	// the record is the table's, not the GM's.
 	//
 	// NO HOTBAR MACRO GOES WITH THIS, and that is a decision rather than an omission: slots 1-10
-	// are all spoken for, and the timeline already has two doors that the macros do not (a tab on
+	// were all spoken for when it shipped (an older world's still are), and the timeline already has two doors that the macros do not (a tab on
 	// the steading sheet and one on every character sheet, each with a button through to here).
 	// This entry is what lets a GM who wants it on the bar make their own.
 	game.stonetop.openTimeline = () => openTimelineWindow();
@@ -601,9 +614,10 @@ export async function onReady() {
 		await _clearDanglingHotbarSlots();
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order
-		// — 1 Welcome · 2 Seasons Change · 3 Run an Expedition · 4 Weather · 5 Write a
-		// Love Letter · 6 Die of Fate · 7 Browse Stonetop · 9 The Chronicle · 10 End of
-		// Session — is applied for the slots-1–6 set per layout version by _reorderSystemMacros, below;
+		// — 1 Welcome · 2 Run an Expedition · 3 Write a Love Letter · 4 Die of Fate ·
+		// 5 Browse Stonetop · 6 Relationship Map · 7 The Chronicle · 10 End of Session, plus
+		// 8 Seasons Change · 9 Weather in an older world that already has them — is
+		// applied for the _SYSTEM_MACROS set per layout version by _reorderSystemMacros, below;
 		// Chronicle and End of Session are placed (but not reordered) by their own
 		// _ensureHotbarMacro calls.
 		for (const macro of _SYSTEM_MACROS) await _ensureHotbarMacro(macro);
@@ -1154,9 +1168,14 @@ function _firstFreeHotbarSlot(from = 1) {
 // set ownership: a Macro is created at ownership.default NONE, and only a GM may change
 // that. A `shared` macro is raised to OBSERVER — on creation AND on an existing macro in
 // a world that predates the flag, so the fix reaches tables already playing.
-async function _ensureHotbarMacro({ name, img, command, slot, match, shared }) {
+//
+// A `legacy` macro is only ever found, never created (see _SYSTEM_MACROS), and is found by
+// its command as well as its name, so a GM's own "Weather" in a new world is not adopted.
+async function _ensureHotbarMacro({ name, img, command, slot, match, shared, legacy }) {
 	const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+	if (legacy) match ??= m => m.name === name && m.command === command;
 	let macro = game.macros.find(match ?? (m => m.name === name));
+	if (!macro && legacy) return;
 	if (!macro) {
 		macro = await Macro.create({
 			name, type: "script", img, command, scope: "global",
@@ -1199,8 +1218,8 @@ export async function ensurePlayerHotbarMacros() {
 	}
 }
 
-// Snap the system macros into their canonical order (1 Welcome · 2 Seasons Change ·
-// 3 Run an Expedition · 4 Weather · 5 Write a Love Letter · 6 Die of Fate), then leave the arrangement alone
+// Snap the system macros into their canonical order (the _SYSTEM_MACROS slots; a legacy
+// macro the world never had is simply absent from the set), then leave the arrangement alone
 // so the GM is free to rearrange the hotbar. Guarded by a per-client layout version
 // (the hotbar is per-user): it runs once per layout, so bumping _HOTBAR_LAYOUT_VERSION
 // re-snaps everyone once (e.g. when Seasons Change was inserted) but later manual moves
