@@ -764,7 +764,8 @@
       "discoverConfirm": "Have you tracked down and recovered this arcanum? Its full details will be revealed.",
       "discoverYes": "Reveal the arcanum",
       "discoverNo": "Not yet",
-      "leadText": "You have a lead on this arcanum's whereabouts, but haven't recovered it yet."
+      "leadText": "You have a lead on this arcanum's whereabouts, but haven't recovered it yet.",
+      "missingText": "This arcanum's card can no longer be found in this world. Remove it to clear its marks."
     },
     "inventory": {
       "regularItems": "Items",

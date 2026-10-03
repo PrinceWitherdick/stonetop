@@ -13,6 +13,7 @@ import { isCarriedArcanumItem } from "../../data/arcana-facets.js";
 import { CONDENSED_MOVE_SLUG, condensedArcanumMove, findArcanumMove, markArcanumMoveNames } from "../../data/arcana-moves.js";
 import { boxIndexBefore, centerArcanumTracks, injectGlyphCheckboxes } from "../../utils/glyphs.js";
 import { stonetopChatCard } from "../../utils/chat.js";
+import { prettifySlug } from "../../utils/ledger-core.js";
 import { frontTaskTrack } from "./seeker-collection.js";
 
 // Some arcana "items" are a place, structure, or phenomenon rather than carried gear
@@ -301,7 +302,6 @@ export class CharacterArcana {
 		const backOwedSlugs    = this.backOwedSlugs;
 		const leadSlugs        = this.leadSlugs;
 		const unlockCounts     = this.unlockCounts;
-		const backOptionCounts = this.backOptionCounts;
 		const arcanaBoxes      = this._flags.getFlag("boxes") ?? {};
 
 		const fetchedItems = await this._arcanaRepo.findBySlugs([...ownedSlugs]);
@@ -315,7 +315,6 @@ export class CharacterArcana {
 					.withDescription(li.description)
 					.withCount(count)
 					.withMax(li.max ?? 1)
-					.withSelected(count > 0)
 					.build();
 			});
 
@@ -330,16 +329,10 @@ export class CharacterArcana {
 				.withUnlock(new ArcanumUnlockSection(unlockDesc, unlockItems))
 				.build();
 
-			const backOpts = (item.back.options ?? []).map(o => {
-				const count = backOptionCounts[`${item.slug}:${o.slug}`] ?? 0;
-				return new ArcanaBackOptionSnapshotBuilder()
-					.withSlug(o.slug)
-					.withDescription(o.description)
-					.withCount(count)
-					.withMax(o.max ?? 1)
-					.withSelected(count > 0)
-					.build();
-			});
+			const backOpts = (item.back.options ?? []).map(o => new ArcanaBackOptionSnapshotBuilder()
+				.withSlug(o.slug)
+				.withDescription(o.description)
+				.build());
 
 			const backResource = item.back.resource
 				? new ResourceBuilder()
@@ -426,8 +419,26 @@ export class CharacterArcana {
 				.build();
 		});
 
+		// A held slug no pack or world arcanum answers to any more (a homebrew card the GM deleted)
+		// becomes a stub with Remove instead of silently vanishing: left out, its slug and marks
+		// stayed on the character with nothing on the sheet that could clear them, and a later card
+		// minted with the same slug came back already marked. Its tier is unknown, so it is listed
+		// with the minors; its title is the slug, the only name left for it.
+		const resolved = new Set(fetchedItems.map(item => item.slug));
+		const missing = [...ownedSlugs].filter(slug => slug && !resolved.has(slug)).map(slug =>
+			new MinorArcanumSnapshotBuilder()
+				.withSlug(slug)
+				.withFront({ title: prettifySlug(slug), description: "", item: null, unlock: null })
+				.withBack(null)
+				.withOwned(true)
+				.withChecked(false)
+				.withUnlocked(false)
+				.withIdentified(false)
+				.withMissing(true)
+				.build());
+
 		const major = new ArcanaSectionSnapshot("Major Arcana", allItems.filter(i => i.major));
-		const minor = new ArcanaSectionSnapshot("Minor Arcana", allItems.filter(i => !i.major));
+		const minor = new ArcanaSectionSnapshot("Minor Arcana", [...allItems.filter(i => !i.major), ...missing]);
 		return new ArcanaSnapshot(minor, major);
 	}
 

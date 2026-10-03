@@ -166,13 +166,21 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect(snap.minor.items).toHaveLength(1);
 		});
 
-		it("owned slug missing from repo is omitted silently", async () => {
+		// A homebrew card the GM deleted: the held slug and its marks stay on the character, so the
+		// tab draws a stub with Remove rather than nothing at all (which left them uncleared).
+		it("owned slug missing from repo becomes a missing-card stub, listed with the minors", async () => {
 			const arcana = new CharacterArcana(
-				makeFlags({ owned: ["nonexistent-slug"] }),
+				makeFlags({ owned: ["huge-wooden-sphere", "glass-eye-of-the-deep"], identified: ["glass-eye-of-the-deep"] }),
 				new FakeArcanaRepository([FFYRNIG_SPHERE]),
 			);
 			const snap = await arcana.buildSnapshot();
-			expect(snap.minor.items).toHaveLength(0);
+			expect(snap.minor.items.map(i => i.slug)).toEqual(["huge-wooden-sphere", "glass-eye-of-the-deep"]);
+			const stub = snap.minor.items[1];
+			expect(stub).toBeInstanceOf(MinorArcanumSnapshot);
+			expect(stub).toMatchObject({ missing: true, owned: true, identified: false, lead: false, back: null });
+			expect(stub.front.title).toBe("Glass Eye of the Deep");
+			expect(snap.minor.hasOwned).toBe(true);
+			expect(snap.minor.items[0].missing).toBe(false);
 		});
 
 		it("every item in minor.items has owned: true", async () => {
@@ -372,10 +380,12 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect(opt.description).toBe("… first dig up and clean the sphere.");
 		});
 
-		it("unlock option defaults to count 0 and selected false", async () => {
+		// The template draws `max` boxes and checks the first `count`; nothing read a `selected`, so
+		// the snapshot no longer carries one.
+		it("unlock option defaults to count 0, and carries no selected", async () => {
 			const opt = (await getItem()).front.unlock.requirements[1];
 			expect(opt.count).toBe(0);
-			expect(opt.selected).toBe(false);
+			expect(opt).not.toHaveProperty("selected");
 		});
 
 		it("unlock option max defaults to 1", async () => {
@@ -386,10 +396,9 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect((await getItem()).front.unlock.requirements[4].max).toBe(3);
 		});
 
-		it("unlock option count and selected reflect saved flags", async () => {
+		it("unlock option count reflects saved flags", async () => {
 			const opt = (await getItem({ unlock: { "huge-wooden-sphere:dig-sphere": 1 } })).front.unlock.requirements[1];
 			expect(opt.count).toBe(1);
-			expect(opt.selected).toBe(true);
 		});
 	});
 
@@ -573,21 +582,11 @@ describe("CharacterArcana.buildSnapshot()", () => {
 			expect(options[0]).toBeInstanceOf(ArcanaBackOptionSnapshot);
 		});
 
-		it("back option has correct slug, description, max", async () => {
-			const opt = (await getItem()).back.options[0];
-			expect(opt.slug).toBe("opt-a");
-			expect(opt.description).toBe("<p>Option A.</p>");
-			expect(opt.max).toBe(1);
-		});
-
-		it("back option max > 1 reflects JSON value", async () => {
-			expect((await getItem()).back.options[1].max).toBe(2);
-		});
-
-		it("back option count and selected reflect saved flags", async () => {
+		// A back option is only a label now: the ledger names a ticked option by it, and nothing draws
+		// back options as a track or writes a count for one, so no count, max or selected is carried.
+		it("back option has its slug and description, and nothing else", async () => {
 			const opt = (await getItem({ backOptions: { "test-arcanum:opt-a": 1 } })).back.options[0];
-			expect(opt.count).toBe(1);
-			expect(opt.selected).toBe(true);
+			expect({ ...opt }).toEqual({ slug: "opt-a", description: "<p>Option A.</p>" });
 		});
 	});
 

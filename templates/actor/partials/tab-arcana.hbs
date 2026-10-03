@@ -31,7 +31,28 @@
 		        title="{{localize 'stonetop.arcana.toggleCard'}}"
 		        aria-label="{{localize 'stonetop.arcana.toggleCard'}}"></button>
 
-		{{#if identified}}
+		{{#if missing}}
+		{{!-- Missing state: the character holds this slug but no pack or world arcanum answers
+		      to it (a homebrew card since deleted). Its title is the slug; Remove clears the slug
+		      and every mark kept against it (CharacterArcana#removeArcanum). --}}
+		<div class="stonetop-arcanum-header">
+			<div class="stonetop-arcanum-header-left">
+				<span class="stonetop-arcanum-title">{{front.title}}</span>
+			</div>
+		</div>
+		<div class="stonetop-arcanum-body stonetop-arcanum-missing-body">
+			<p>{{localize "stonetop.arcana.missingText"}}</p>
+		</div>
+		{{#if sectionEditable}}
+		<div class="stonetop-arcanum-footer">
+			<button type="button" class="stonetop-arcanum-delete" data-slug="{{slug}}"
+			        title="{{localize 'stonetop.arcana.removeArcanum'}}">
+				<i class="fas fa-trash"></i> Remove
+			</button>
+		</div>
+		{{/if}}
+
+		{{else if identified}}
 
 		{{!-- Front and (when visible) back render as side-by-side panels: front | back.
 		      With only the front shown the single panel fills the card. --}}
