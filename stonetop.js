@@ -87,7 +87,7 @@ import { registerRollRewrite } from "./module/utils/roll-rewrite.js";
 import { ROLL_CARD_QUERY, handleRollCardQuery, pressRollCard, registerRollCardAction, writeCardRoll } from "./module/utils/roll-card-writer.js";
 import { inCardTurn } from "./module/utils/card-queue.js";
 import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
-import { moveChatCard, canRewriteCard } from "./module/utils/chat.js";
+import { moveChatCard, canRewriteCard, rolledTotalCard } from "./module/utils/chat.js";
 import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOffersPicks } from "./module/utils/pick-tally.js";
 import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
@@ -1857,7 +1857,7 @@ function _chatWireAurochsHunt(message, html) {
 		errorNote: "Error gaining the aurochs hunt's Surplus",
 		run: async steading => {
 			const roll = await new Roll("1d4").evaluate();
-			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: "Aurochs Hunt: Surplus (1d4)" });
+			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: rolledTotalCard(roll, "Aurochs Hunt", "Surplus gained") });
 			const live = steading.getStatValue("surplus");
 			await steading.applyChanges({ system: { "attributes.surplus.value": live + roll.total } }, { stonetopMove: "Aurochs Hunt" });
 			return { stamp: { gained: roll.total }, notice: `The hunt brings home ${roll.total} Surplus (${live + roll.total} now).` };
@@ -1871,7 +1871,7 @@ function _chatWireAurochsHunt(message, html) {
 		errorNote: "Error rolling the aurochs hunt's lost horses",
 		run: async steading => {
 			const roll = await new Roll("1d4").evaluate();
-			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: "Aurochs Hunt: horses lamed or killed (1d4)" });
+			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: rolledTotalCard(roll, "Aurochs Hunt", "horses lamed or killed") });
 			const lost = await steading.loseHorses(roll.total, { stonetopMove: "Aurochs Hunt" });
 			return {
 				stamp: { rolled: roll.total },

@@ -11,7 +11,7 @@ import {wireTabSearch} from "../../utils/tab-search.js";
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {escHtml} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
-import {postMoveToChat} from "../../utils/chat.js";
+import {postMoveToChat, rolledTotalCard, stonetopChatCard} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
 import {addPersonToSteading, personFieldPath, isActorRow, personRowActor, usedPersonPortraits, HOME_STONETOP} from "./steading-people.js";
 import {PERSON_DEFAULT_IMG} from "../../utils/person-portrait.js";
@@ -272,6 +272,10 @@ const STEADING_STAT_TOOLTIPS = {
 	debilities: "Ongoing afflictions that drag the steading down: diminished (injury, sickness, or doubt), lacking (shortages, hoarding, or distrust), and malcontent (fear, anger, or despair). Check any that apply; each imposes its own penalty until it's cleared.",
 };
 const _esc = escHtml;
+
+// Who says the Seasons Change rolls (the harvest, winter's consumption, the herd) in chat: the
+// move, not whichever character the GM happens to have selected.
+const SEASONS_SPEAKER = { alias: "Seasons Change" };
 
 /**
  * One yes/no question an improvement (or the Marshal's Logistics) asks in a homefront window.
@@ -2939,7 +2943,7 @@ export function createStonetopSteadingSheetClass(Base) {
 							const { formula } = winterAgainNow();
 							const roll = await new Roll(formula).evaluate();
 							const owed = Math.max(0, roll.total);
-							await roll.toMessage({ flavor: "Winter is not done: further Surplus consumption" });
+							await roll.toMessage({ speaker: SEASONS_SPEAKER, flavor: rolledTotalCard(roll, "Winter is not done", "further Surplus owed") });
 							if (!owed) {
 								// Nothing owed is still the roll made: closed like any other.
 								await this._stonetopSteading.setSeasonStepApplied(WINTER_DEBT_STEP, year, seasonId);
@@ -3388,7 +3392,7 @@ export function createStonetopSteadingSheetClass(Base) {
 							const formula = rollConsumptionBtn.dataset.formula;
 							const roll = await new Roll(formula).evaluate();
 							consumption = Math.max(0, roll.total);
-							await roll.toMessage({ flavor: "Winter Surplus Consumption" });
+							await roll.toMessage({ speaker: SEASONS_SPEAKER, flavor: rolledTotalCard(roll, ["Surplus Consumption", "Winter"], "Surplus consumed") });
 							// Kept before it is shown, so closing the window from here on resumes
 							// this roll rather than offering winter a second one.
 							await this._stonetopSteading.setWinterConsumptionRolled(consumption, year, seasonId);
@@ -4046,8 +4050,8 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			if (answer.failed) {
 				await ChatMessage.create({
-					speaker: { alias: "Seasons Change" },
-					content: `<p><strong>The harvest failed.</strong> The steading gets no Surplus from it, and Meets with Disaster.</p>`,
+					speaker: SEASONS_SPEAKER,
+					content: stonetopChatCard(["The Harvest", label], `<div class="card-content"><p><strong>The harvest failed.</strong> The steading gets no Surplus from it, and Meets with Disaster.</p></div>`),
 				});
 				const { fortunes, disaster } = await meetWithDisaster(steading, {
 					...seasonsMove,
@@ -4065,7 +4069,7 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			const roll = await new Roll(surplusRollFormula(formula, answer)).evaluate();
 			const gain = Math.max(0, roll.total);
-			await roll.toMessage({ flavor: harvest ? `The Harvest (${label})` : `Surplus Generation (${label})` });
+			await roll.toMessage({ speaker: SEASONS_SPEAKER, flavor: rolledTotalCard(roll, [harvest ? "The Harvest" : "Surplus Generation", label], "Surplus gained") });
 			const total = steading.getStatValue("surplus") + gain;
 			await steading.applyChanges({
 				system: { "attributes.surplus.value": total },
@@ -4100,7 +4104,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// (1d4 + Fortunes), not a bare 1d4 that disagrees with the herd change / notification.
 			const formula = fortunes >= 0 ? `1d4 + ${fortunes}` : `1d4 - ${Math.abs(fortunes)}`;
 			const roll = await new Roll(formula).evaluate();
-			await roll.toMessage({ flavor: `Herd: new foals (1d4 + Fortunes ${sign(fortunes)})` });
+			await roll.toMessage({ speaker: SEASONS_SPEAKER, flavor: rolledTotalCard(roll, ["The Herd", "Summer"], "new foals", `1d4 + Fortunes (${sign(fortunes)})`) });
 			const newFoals = Math.max(0, roll.total);
 			const next = StonetopSteading.advanceHerdForSummer(before, newFoals);
 			await this._stonetopSteading.setHerd(next, { stonetopMove: "Seasons Change" });
@@ -4127,7 +4131,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			let losses = 0;
 			if (shortfall > 0) {
 				const roll = await new Roll(`${shortfall}d6`).evaluate();
-				await roll.toMessage({ flavor: `Herd losses (${shortfall}× 1d6, ${shortfall} Surplus short)` });
+				await roll.toMessage({ speaker: SEASONS_SPEAKER, flavor: rolledTotalCard(roll, ["The Herd", "Winter"], "horses lost", `${shortfall} Surplus short: 1d6 for each`) });
 				losses = roll.total;
 			}
 			const result = StonetopSteading.feedHerdForWinter(before, surplus, losses);

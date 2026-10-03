@@ -25,7 +25,7 @@ import { STONETOP_SCOPE, readableFlags } from "./StonetopFlags.js";
 import { restoreActorHp, restoreFollowerCardHp } from "./invocation-apply.js";
 import { followerActorFromLink } from "./follower-actors.js";
 import { applyDamageToActor } from "../../utils/damage.js";
-import { haulCard } from "./provisions.js";
+import { rolledTotalCard } from "../../utils/chat.js";
 import { withCardLatch, wireLatchedButtons } from "../../utils/card-latch.js";
 import { escHtml } from "../../utils/strings.js";
 import { format, localize } from "../../utils/i18n.js";
@@ -122,7 +122,7 @@ export async function lendStrength(actor, { cardHp, npc = companionNpc(actor) } 
 	];
 	await roll.toMessage({
 		speaker: globalThis.ChatMessage?.getSpeaker?.({ actor }),
-		flavor:  haulCard(roll, [LEND_STRENGTH, localize(`${KEY}.bondHeading`)], localize(`${KEY}.lendLabel`), lines),
+		flavor:  rolledTotalCard(roll, [LEND_STRENGTH, localize(`${KEY}.bondHeading`)], localize(`${KEY}.lendLabel`), lines),
 	});
 	return { amount, hp, card, npc: npcHp };
 }

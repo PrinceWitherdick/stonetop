@@ -4,7 +4,7 @@ import { escHtml, formatOutcomeDetail, stripHtmlToText, sign } from "./strings.j
 import { pickLimitsFrom } from "./move-picks.js";
 import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
 import { markRolledTier, moveTiersHtml } from "./move-tiers.js";
-import { stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
+import { stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, dieResultsText, multiDieFaces, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
 import { XP_MARK_FLAG, XP_MARK_FOR_FLAG, XP_UNDONE_FLAG, MISS_XP_FLAG, takeBackXpMark } from "./undo-xp-mark.js";
 import { inCardTurn } from "./card-queue.js";
@@ -191,26 +191,9 @@ function _resultTableLadder(resultTable, tier) {
 // The title row's "?" that reveals a hidden move description, shared by every card that carries one.
 const DESC_TOGGLE_HTML = `<button class="stonetop-roll-card-desc-toggle" type="button" title="Show move description"><i class="fas fa-question-circle"></i></button>`;
 
-/**
- * Pull the individual die faces out of an evaluated Roll, e.g. a 2d6 that came up
- * 2 and 3 yields "2, 3". Discarded dice (the dropped die on adv/dis) are flagged with
- * a strike-through so the hover readout still shows what was rolled. Returns "" when
- * the roll has no dice terms.
- */
-export function dieResultsText(roll) {
-	const dice = roll?.dice ?? [];
-	const faces = dice.flatMap(term =>
-		(term.results ?? []).map(r => (r.active === false || r.discarded ? `(${r.result})` : `${r.result}`))
-	);
-	return faces.join(", ");
-}
-
-/** Die faces for a *multi*-die roll ("2, 4"), or "" for a single die — the readout
- *  only helps when more than one die contributed (a 1d6 just echoes its total). */
-export function multiDieFaces(roll) {
-	const faces = dieResultsText(roll);
-	return faces.includes(",") ? faces : "";
-}
+// The die-faces readouts live with the card pieces (utils/chat.js); re-exported for the callers that
+// have always taken them from here.
+export { dieResultsText, multiDieFaces };
 
 /**
  * Roll a Seasons-Change-style omen card (Spring Burst's first spring, the

@@ -25,7 +25,7 @@
  */
 
 import { askWithButtons, confirmOutcome } from "../../utils/ask-with-buttons.js";
-import { stonetopChatCard } from "../../utils/chat.js";
+import { rolledTotalCard, stonetopChatCard } from "../../utils/chat.js";
 import { escHtml, joinNames } from "../../utils/strings.js";
 import { format, localize } from "../../utils/i18n.js";
 import { DEATHS_DOOR_STATE, FAVOR_MAX, FAVOR_TRACK, FINAL_CONSEQUENCE, halfMaxHp } from "./deaths-door.js";
@@ -333,7 +333,9 @@ async function _rollHeal(character, source) {
 		: format(`${_I18N}.rolledNoGain`, { roll: roll.total });
 	await roll.toMessage({
 		speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: character._actor }),
-		flavor:  `<strong>${escHtml(source)}</strong>: ${line}`,
+		flavor:  rolledTotalCard(roll, source, localize(`${_I18N}.healLabel`), raised
+			? format(`${_I18N}.healLine`, { from, to: character.hp })
+			: localize(`${_I18N}.healFull`)),
 	});
 	return { lines: [line], posted: true };
 }

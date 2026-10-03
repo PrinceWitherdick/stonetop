@@ -21,7 +21,7 @@ import { withCardLatch } from "../../utils/card-latch.js";
 import { belongsToMessage } from "../../utils/picked-option-button.js";
 import { speakerActor } from "../../utils/speaker-actor.js";
 import { rollDamageAt, rollOptionDamage, pcDamageDie } from "../../combat/attack-flow.js";
-import { haulCard } from "./provisions.js";
+import { rolledTotalCard } from "../../utils/chat.js";
 import { heldOnTrack, takeBackHeld } from "./MoveResources.js";
 import { isPostDeathMove } from "./post-death-moves.js";
 
@@ -126,7 +126,7 @@ export async function loseHp(actor, formula, { moveName, detail = "", alongside 
 	const newHp = hp?.newHp ?? 0;
 	await roll.toMessage({
 		speaker: ChatMessage.getSpeaker({ actor }),
-		flavor:  haulCard(roll, moveName || localize(`${KEY}.hpLost`), localize(`${KEY}.hpLost`),
+		flavor:  rolledTotalCard(roll, moveName || localize(`${KEY}.hpLost`), localize(`${KEY}.hpLost`),
 			[detail, bought.line, format(`${KEY}.hpLine`, { from: oldHp, to: newHp })].filter(Boolean)),
 	});
 	return { lost, oldHp, newHp };

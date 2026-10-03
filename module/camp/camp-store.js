@@ -3,7 +3,7 @@ import { autoOpenUserId, ownerUsers } from "../hooks/DeathsDoorPrompt.js";
 import { THRALL_MARK, hasThrallMark, isOutOfPlay, isUnliving, slowToHeal } from "../actors/character/deaths-door-actor.js";
 import { customGroupPresent } from "../utils/crew.js";
 import { deletionTarget } from "../utils/foundry-compat.js";
-import { postMoveToChat } from "../utils/chat.js";
+import { postMoveToChat, rolledTotalCard } from "../utils/chat.js";
 import { capitalizeFirst } from "../utils/strings.js";
 import {
 	BREAK_BREAD, CAMP_FLAG, CAMP_OWED_FLAG, CAMP_STATE, CAMP_STATUS, HAD_ALL_ALONG, HOME_FIRES, SETTLE_REFUSAL,
@@ -151,7 +151,7 @@ async function rollHunger(actor) {
 	const roll = await new Roll("1d4").evaluate();
 	await roll.toMessage({
 		speaker: ChatMessage.getSpeaker({ actor }),
-		flavor:  "Ravenous (1d4 extra provisions or uses of supplies at the camp)",
+		flavor:  rolledTotalCard(roll, "Ravenous", "extra provisions or uses of supplies", "at the camp"),
 	});
 	return count(roll.total);
 }
@@ -467,8 +467,8 @@ async function settleHere(camp, host, ledger) {
 	// table can watch land, spoken by the character it heals. Made together, in one request, bedrolls
 	// first.
 	const dice = [
-		...rolls.map(die => ({ ...die, flavor: "Bedroll (1d6 extra HP)" })),
-		...breads.map(die => ({ ...die, flavor: "Break Bread (1d8 extra HP)" })),
+		...rolls.map(die => ({ ...die, flavor: rolledTotalCard(die.roll, "Bedroll", "extra HP") })),
+		...breads.map(die => ({ ...die, flavor: rolledTotalCard(die.roll, "Break Bread", "extra HP") })),
 	];
 	const messages = await Promise.all(dice.map(({ member, roll, flavor }) => roll.toMessage({
 		speaker: ChatMessage.getSpeaker({ actor: game.actors?.get(member.actorId) }),
