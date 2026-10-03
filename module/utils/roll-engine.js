@@ -4,7 +4,7 @@ import { normalizeWoundList } from "../actors/character/wound-record.js";
 import { escHtml, formatOutcomeDetail, stripHtmlToText, sign } from "./strings.js";
 import { pickLimitsFrom } from "./move-picks.js";
 import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
-import { markRolledTier, moveTiersHtml } from "./move-tiers.js";
+import { markRolledTier, moveTiersHtml, rollCardBody } from "./move-tiers.js";
 import { stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, dieResultsText, multiDieFaces, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
 import { XP_MARK_FLAG, XP_MARK_FOR_FLAG, XP_UNDONE_FLAG, MISS_XP_FLAG, takeBackXpMark } from "./undo-xp-mark.js";
@@ -778,6 +778,8 @@ export function messageOfRoll(roll) {
  * @param {{title?: string, hint?: string}} [options.pickReference] - List `pickOptions` to READ,
  *   in a titled box under the legend, rather than as a checklist (pickReferenceHtml): for a
  *   choice made aloud and recorded elsewhere, like the seasonal gains.
+ * @param {boolean} [options.pickable]  false keeps the move's printed list as prose, for a list someone
+ *   other than the roller answers (Interfere aimed at a PC)
  * @returns {Promise<Roll>}
  */
 export async function rollStat(statKey, actor, options = {}) {
@@ -789,7 +791,15 @@ export async function rollStat(statKey, actor, options = {}) {
 	const forward    = options.forward  ?? 0;
 	const ongoing    = options.ongoing  ?? 0;
 
-	const moveDescription = options.moveDescription ?? "";
+	// The move's text as a roll card lays it out, ladder and all, whether the caller built it or
+	// handed over raw prose (move-tiers.js#rollCardBody). Its printed list is ticked only when the
+	// roll declares no pool of its own, which would be the card's checklist instead, and only when
+	// the caller has not said its list is someone else's to answer (`pickable: false`, Interfere
+	// aimed at a PC: StonetopItem#roll). A body with no ladder in it is laid out again here, so the
+	// caller's word has to reach this call too, not only the one that built the body.
+	const declaresPool = TIER_KEYS.some(tier => normalizePickPools(options.pickOptions).byTier[tier].length);
+	const moveDescription = rollCardBody(options.moveDescription ?? "", options.moveResults ?? null,
+		{ pickable: options.pickable !== false && !declaresPool });
 
 	const rollData    = modifier !== 0 ? { stat: statValue, mod: modifier } : { stat: statValue };
 	const rollOptions = {

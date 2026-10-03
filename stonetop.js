@@ -75,8 +75,7 @@ import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
-import { moveBodyHtml } from "./module/utils/move-tiers.js";
-import { MOVE_TIERS_CLASS, ROLLED_TIER_ATTR } from "./module/utils/move-results.js";
+import { moveBodyHtml, remarkRolledTier } from "./module/utils/move-tiers.js";
 import { hbsTruthy } from "./module/utils/hbs-truthy.js";
 import { rollSeasonsCard, sign, markMissXp, reconcileMissXp, pbtaDiceFormula, seasonsRollTable, seasonsRollPicks, syncCountedNotePill } from "./module/utils/roll-engine.js";
 import { countedResult, rolledRecord, cardCountedTier, totalTier } from "./module/utils/counted-tier.js";
@@ -2653,9 +2652,7 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 		// two (utils/move-tiers.js `markRolledTier`), so it moves the mark instead of joining the
 		// hide/show loop below: the ladder is the move's printed text, and a Shift Down must not
 		// take two thirds of it off a card the table has already read.
-		const ladder = wrapper.querySelector(
-			`.stonetop-roll-card ul.${MOVE_TIERS_CLASS}[${ROLLED_TIER_ATTR}]`);
-		if (ladder) ladder.setAttribute(ROLLED_TIER_ATTR, activeTier);
+		remarkRolledTier(wrapper, activeTier);
 
 		for (const group of wrapper.querySelectorAll(".stonetop-roll-card [data-active-tier]")) {
 			group.dataset.activeTier = activeTier;

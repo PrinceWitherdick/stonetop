@@ -16,7 +16,6 @@ import { escHtml, stripHtmlToText } from "../../utils/strings.js";
 import { applyDamageToActor, readOptionDamage } from "../../utils/damage.js";
 import { askWithButtons } from "../../utils/ask-with-buttons.js";
 import { firstOptionList, postMoveNote, canRewriteCard } from "../../utils/chat.js";
-import { moveCardBody } from "../../utils/move-tiers.js";
 import { withCardLatch } from "../../utils/card-latch.js";
 import { belongsToMessage } from "../../utils/picked-option-button.js";
 import { speakerActor } from "../../utils/speaker-actor.js";
@@ -255,7 +254,8 @@ async function spendFavorAndRoll(actor, moveName, prompt) {
 		statValue: spend,
 		moveName,
 		moveResults,
-		moveDescription: moveCardBody(item.system?.description ?? "", moveResults),
+		// Raw: rollStat lays it out with its ladder (move-tiers.js#rollCardBody).
+		moveDescription: item.system?.description ?? "",
 		conditionNotes: [format(`${KEY}.favorSpent`, { n: spend })],
 		tierActions: tierDamageButtons(moveResults, { move: moveName }),
 		...prompted,

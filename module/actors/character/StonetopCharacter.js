@@ -6228,7 +6228,7 @@ export class StonetopCharacter {
 				// The mark options ride along with the copies already held, so the level-up's marks step
 				// can ask a foreign Beast of Legend's pick as it asks the Ranger's own (LevelUpDialog).
 				out.push({
-					compendiumId: def.id, name: def.name, description: def.description ?? "", playbook: pb,
+					compendiumId: def.id, name: def.name, description: def.description ?? "", moveResults: def.moveResults ?? null, playbook: pb,
 					requiresLabel: requirementLabel(def.requirement, { replaces: def.replaces ?? null }),
 					markOptions: def.markOptions ?? null, markBudget: def.markBudget ?? null, ownedIds,
 				});

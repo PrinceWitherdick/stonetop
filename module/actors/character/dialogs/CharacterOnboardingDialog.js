@@ -2214,6 +2214,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 						id:          doc.id,
 						name:        this._normalizeOnboardingText(doc.name),
 						description: this._normalizeOnboardingText(doc.system?.description),
+						// The stored tiers, so a move whose outcomes live only there still shows its
+						// ladder on the card (`moveBody`, utils/move-tiers.js).
+						moveResults: doc.system?.moveResults ?? null,
 						selected:    this._selections.moveChoices[groupIndex] === doc.id,
 					}];
 				}),
@@ -2233,6 +2236,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 						id:          doc.id,
 						name:        this._normalizeOnboardingText(doc.name),
 						description: this._normalizeOnboardingText(doc.system?.description),
+						moveResults: doc.system?.moveResults ?? null,
 						selected:    chosenIds.has(doc.id),
 						disabled:    !chosenIds.has(doc.id) && atLimit,
 						groups:      moveGroupKeys(this._playbookDoc.name, doc.name),

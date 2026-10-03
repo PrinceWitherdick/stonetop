@@ -392,6 +392,20 @@ describe("rollStat", () => {
 	const CLASH = JSON.parse(fs.readFileSync(
 		path.resolve("packs/src/stonetop-items/basic-moves/clash.json"), "utf8")).system;
 
+	// Interfere aimed at a PC: the foiled player answers the list, on a card that is not theirs to
+	// tick. A body with no ladder is laid out again in here, and must keep the caller's word.
+	it("leaves a printed list as prose when the caller says it is not the roller's to tick", async () => {
+		rollTotal = 10;
+		const body = "<p>Choose 1:</p><ul><li>They lose their grip</li><li>They are off balance</li></ul>";
+
+		await rollStat("str", makeActor(), { noXpOnMiss: true, moveDescription: body, pickable: false });
+		expect(rollMessages[0].flavor).not.toContain("stonetop-picklist-check");
+
+		rollMessages.length = 0;
+		await rollStat("str", makeActor(), { noXpOnMiss: true, moveDescription: body });
+		expect(rollMessages[0].flavor).toContain("stonetop-picklist-check");
+	});
+
 	it("prints the lead-in alone when the description already offers that tier's options", async () => {
 		rollTotal = 10;
 
@@ -427,19 +441,38 @@ describe("rollStat", () => {
 		);
 	});
 
+	// A description that prints no list of its own has no boxes to tick, however it arrives.
 	it("keeps the options in the block when the description carries no boxes", async () => {
 		rollTotal = 10;
 
 		await rollStat("str", makeActor(), {
 			noXpOnMiss: true,
 			moveResults: { success: { value: CLASH_SUCCESS }, partial: { value: "" }, failure: { value: "" } },
-			moveDescription: CLASH.description,
+			moveDescription: "<p>When you fight in melee or close quarters, roll +STR.</p>",
 		});
 
 		const flavor = rollMessages[0].flavor;
 		expect(flavor).toContain("stonetop-roll-result-picks");
 		expect(flavor).toContain("Strike hard and fast");
 		expect(flavor).not.toContain("data-picked-tiers");
+	});
+
+	// rollStat lays the move out itself, so a caller handing over raw prose still gets the ladder
+	// and the boxes, and a caller's own body is not laid out twice.
+	it("builds the ladder and the boxes from a raw description, once", async () => {
+		rollTotal = 10;
+		const moveResults = { success: { value: CLASH_SUCCESS }, partial: { value: "" }, failure: { value: "" } };
+
+		await rollStat("str", makeActor(), { noXpOnMiss: true, moveResults, moveDescription: CLASH.description });
+		const raw = rollMessages[0].flavor;
+		expect(raw).toContain('class="stonetop-move-tiers"');
+		expect(raw).toContain("stonetop-picklist");
+		expect(raw).toContain('data-rolled-tier="success"');
+
+		await rollStat("str", makeActor(), { noXpOnMiss: true, moveResults, moveDescription: moveCardBody(CLASH.description, moveResults) });
+		const built = rollMessages[1].flavor;
+		expect(built.match(/class="stonetop-move-tiers"/g)).toHaveLength(1);
+		expect(built).toBe(raw);
 	});
 
 	it("omits the outcome line when the move has no moveResults", async () => {

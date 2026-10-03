@@ -161,6 +161,9 @@ export class LevelUpDialog extends StonetopDialog {
 			compendiumId:  m.compendiumId,
 			name:          m.name,
 			description:   m.description,
+			// The move's stored tiers, for the moves whose description states no outcome (Borrow
+			// Power, Veil): without them the card shows no ladder at all (utils/move-tiers.js).
+			moveResults:   m.moveResults ?? null,
 			requiresLabel: m.requiresLabel,
 			groupsAttr:    moveGroupKeys(playbookName, m.name).join(" "),
 			selected:      m.compendiumId === this._selectedMoveId,
@@ -170,6 +173,7 @@ export class LevelUpDialog extends StonetopDialog {
 			compendiumId:  m.compendiumId,
 			name:          m.name,
 			description:   m.description,
+			moveResults:   m.moveResults ?? null,
 			requiresLabel: m.requiresLabel,
 			groupsAttr:    moveGroupKeys(playbookName, m.name).join(" "),
 		}));
@@ -191,6 +195,7 @@ export class LevelUpDialog extends StonetopDialog {
 			compendiumId:  m.compendiumId,
 			name:          m.name,
 			description:   m.description,
+			moveResults:   m.moveResults ?? null,
 			playbook:      m.playbook,
 			requiresLabel: m.requiresLabel ?? null,
 			// "Costs Stock; you have no sacred pouch", or null. Display only (see

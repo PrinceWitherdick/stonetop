@@ -7060,11 +7060,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					// A move roll with no item behind it: offered its lines by the move's name.
 					const prompted = await this._promptRollOptions({ title: name, offersFor: name });
 					if (!prompted) return;
-					await this._postGuidedCharacterMove(name, guide, html);
+					await this._postGuidedCharacterMove(name, guide, html, { withText: !guide.card });
 					// "roll +nothing" (the Demonhide Cloak's The Flesh Remembers) is a flat 2d6:
 					// no stat stands behind it, so the value is spelled out rather than looked up.
 					const flat = stat === "nothing" ? { statValue: 0 } : {};
-					await this._stonetopCharacter.onDirectStatRoll(stat, { moveName: name, ...flat, ...prompted });
+					// The move's own ladder on the roll card (an arcanum mystery's printed text, `guide.card`),
+					// so the card marks the rung the dice landed on as an item move's card does.
+					const ladder = guide.card ? { moveDescription: moveCardBody(guide.card, null) } : {};
+					await this._stonetopCharacter.onDirectStatRoll(stat, { moveName: name, ...ladder, ...flat, ...prompted });
 				};
 				buttons.roll = {
 					label: fixedStat ? `Roll +${fixedStat.toUpperCase()}` : "Roll",
@@ -7288,10 +7291,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			const prompted = await this._promptRollOptions({ title: IMPROVISE, offersFor: IMPROVISE });
 			if (!prompted) return;
 			// Aimed at the mystery, not at whoever is still targeted on the map.
-			await this._stonetopCharacter.onDirectStatRoll("int", { ...improviseRollOptions(this.actor, offer), ...prompted, targets: [] });
+			// The move's text gets its tier ladder from rollStat (move-tiers.js#rollCardBody).
+			const improvised = improviseRollOptions(this.actor, offer);
+			await this._stonetopCharacter.onDirectStatRoll("int", { ...improvised, ...prompted, targets: [] });
 		}
 
-		async _postGuidedCharacterMove(name, guide, html) {
+		async _postGuidedCharacterMove(name, guide, html, { withText = true } = {}) {
 			const form = html[0]?.querySelector(".stonetop-character-move-dialog");
 			if (!form) return;
 			const data = Object.fromEntries(new FormData(form));
@@ -7306,8 +7311,13 @@ export function createStonetopCharacterSheetClass(Base) {
 				const picked = selected.length
 					? `<ul class="stonetop-arcanum-move-picks">${selected.map(pick => `<li>${_esc(pick)}</li>`).join("")}</ul>`
 					: "";
+				// A ROLLED mystery's roll card carries the printed text and its ladder already (rollWith
+				// in _openGuidedCharacterMove), so the card posted ahead of it keeps only what was
+				// ticked, and is not posted at all when nothing was.
+				if (!withText && !picked) return;
 				await ChatMessage.create({
-					content: moveChatCard(name, guide.card + picked),
+					// Laid out with its tier ladder, as the same move's text-only post is (_onArcanumMoveName).
+					content: moveChatCard(name, (withText ? moveBodyHtml(guide.card, null) : "") + picked),
 					speaker: ChatMessage.getSpeaker({ actor: this.actor }),
 				});
 				return;
@@ -9166,8 +9176,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				moveName:        "Know Things",
 				// And what the roller brings to the card, as StonetopItem.roll lays it: Well Versed's
 				// follow-up question, "even on a 6-" (move-pick-bonuses.js).
-				moveDescription: withMovePickBonuses(owned?.system?.description
-					?? `<p>When you <strong><em>consult your accumulated knowledge</em></strong>, roll +INT.</p>`, this.actor, "Know Things"),
+				// Laid out as StonetopItem.roll lays it too (`moveCardBody`): the tier ladder, so the
+				// card marks the rung the dice landed on.
+				moveDescription: withMovePickBonuses(moveCardBody(owned?.system?.description
+					?? `<p>When you <strong><em>consult your accumulated knowledge</em></strong>, roll +INT.</p>`,
+				owned?.system?.moveResults ?? null), this.actor, "Know Things"),
 				moveResults: buildMoveTierResults(results),
 			});
 			return { roll };
@@ -9385,8 +9398,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				targets:      [],   // about the artifact, never at whoever is still targeted on the map
 				messageFlags: { [STONETOP_SCOPE]: { move: "Seek Insight", artifact: knowledge.id } },
 				moveName:        "Seek Insight",
-				moveDescription: owned?.system?.description
+				// With its tier ladder (`moveCardBody`), so the card marks the rung the dice landed on.
+				moveDescription: moveCardBody(owned?.system?.description
 					?? `<p>When you <strong><em>study a situation or person, looking to the GM for insight</em></strong>, roll +WIS.</p>`,
+				owned?.system?.moveResults ?? null),
 				moveResults: buildMoveTierResults(seekInsightArtifactResults()),
 			});
 			// A miss asks nothing, unless the roller asks one "even on a 6-" (Perceptive).

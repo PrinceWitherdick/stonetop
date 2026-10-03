@@ -512,7 +512,7 @@
 						<strong class="stonetop-onboarding-card-title">{{name}}</strong>
 					</div>
 					{{#if description}}
-					<div class="stonetop-onboarding-card-desc">{{{moveBody description}}}</div>
+					<div class="stonetop-onboarding-card-desc">{{{moveBody description moveResults}}}</div>
 					{{/if}}
 				</label>
 				{{/each}}
@@ -548,7 +548,7 @@
 					<strong class="stonetop-onboarding-card-title">{{name}}</strong>
 				</div>
 				{{#if description}}
-				<div class="stonetop-onboarding-card-desc">{{{moveBody description}}}</div>
+				<div class="stonetop-onboarding-card-desc">{{{moveBody description moveResults}}}</div>
 				{{/if}}
 				{{#if statChoice}}
 				{{!-- Inline "+1 to which stat?" picker (Improved Stat). stopPropagation keeps a
