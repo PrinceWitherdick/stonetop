@@ -47,6 +47,7 @@ import {followerInFight} from "../../fight/follower-fight.js";
 import {altStatGrantsFor} from "../../data/alt-stat-grants.js";
 import {readOnboardingResume, writeOnboardingResume, clearOnboardingResume} from "./onboarding-resume.js";
 import {trackCreationFlow} from "./creation-flow.js";
+import {CREATION_FINISHED_FLAG, isMidCreation} from "./onboarding-progress.js";
 import {CharacterLedger} from "./CharacterLedger.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
 import {createPacker, fitColumns, makeColumns, packShortest, wireMasonry} from "../../utils/masonry.js";
@@ -11688,8 +11689,12 @@ export function createStonetopCharacterSheetClass(Base) {
 						picked = true;
 						this._launchOnboarding(playbookDoc, { openSheetOnce, openPicker });
 					},
-					// Closing the picker without picking is leaving creation entirely.
-					{ onClose: () => { if (!picked) { this._setOnboardingState("exited"); openSheetOnce(); } } },
+					// Closing the picker without picking is leaving creation entirely. `actorId`
+					// keeps this character's own playbook out of the cards' "Taken by" notes.
+					{
+						onClose: () => { if (!picked) { this._setOnboardingState("exited"); openSheetOnce(); } },
+						actorId: this.actor.id,
+					},
 				), this.actor.id).render(true);
 			};
 
@@ -11824,6 +11829,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					// finished character runs a different path (_openEditCharacterOnboarding),
 					// so a GM who takes a departed player off the roster keeps them off.
 					await this._addToSteadingRoster();
+					await this._markCreationFinished();
 				},
 				{
 					initialSelections,
@@ -11874,6 +11880,18 @@ export function createStonetopCharacterSheetClass(Base) {
 			ui.notifications?.info?.(`${this.actor.name} joins the people of ${steading?.name || "Stonetop"}.`);
 		}
 
+		// Stamp the character as really finished (onboarding-progress.js#CREATION_FINISHED_FLAG):
+		// a committed playbook alone is not, because "Save & close" commits one part-way through.
+		// Never throws: the character is already committed, and a failed stamp only leaves the
+		// roster reading the last page the player was on.
+		async _markCreationFinished() {
+			try {
+				await this.actor.setFlag(STONETOP_SCOPE, CREATION_FINISHED_FLAG, true);
+			} catch (err) {
+				console.error("Stonetop | failed to mark character creation finished", err);
+			}
+		}
+
 		async _openEditCharacterOnboarding(options = {}) {
 			const playbookUuid = this.actor.system?.playbook?.uuid;
 			if (!playbookUuid) return;
@@ -11886,13 +11904,29 @@ export function createStonetopCharacterSheetClass(Base) {
 			const selections = this._readSelectionsFromActor(playbookDoc);
 			const trackProgress = CharacterOnboardingDialog.hasIncompleteQuestions(playbookDoc, selections);
 
+			// The walkthrough a "Save & close" left part-way: its playbook is committed but its
+			// first real Finish has not happened yet, so it lands HERE (the sheet's banner) rather
+			// than in _launchOnboarding's completion. That Finish is the creation's own, and files
+			// the character on the steading as _launchOnboarding's does; a character already
+			// finished keeps the GM's roster edits, as before. Read as isMidCreation (no stamp AND a
+			// live progress flag, which "Save & close" always leaves), not as the stamp's absence alone:
+			// a character made before the stamp existed has none either, and is not being created.
+			const firstFinish = isMidCreation(this.actor);
+
 			// Note: _applyPlaybookSelections updates the prototype token image but not
 			// any already-placed tokens; those are left for the GM to sync manually.
-			new CharacterOnboardingDialog(
+			//
+			// Tracked against the character, like the first-pass walkthrough: a delete closes it
+			// rather than leaving it open over a dead actor, and a greeting can't open on top of it.
+			trackCreationFlow(new CharacterOnboardingDialog(
 				playbookDoc,
 				async (sel) => {
 					await this._applyPlaybookSelections(playbookDoc, sel);
-					if (trackProgress) await this._clearOnboardingProgress();
+					if (trackProgress || firstFinish) await this._clearOnboardingProgress();
+					if (firstFinish) {
+						await this._addToSteadingRoster();
+						await this._markCreationFinished();
+					}
 				},
 				{
 					initialSelections: selections,
@@ -11914,7 +11948,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						: {}),
 				},
 				// no onBack ? back button is hidden
-			).render(true);
+			), this.actor.id).render(true);
 		}
 
 		_logOnboardingQuestionDiagnostics(diagnostics = null) {

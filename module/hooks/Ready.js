@@ -42,10 +42,10 @@ import { postAttackFxSuggestionOnce } from "../combat/attack-fx-suggestion.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
 import { FoundryBasicsDialog } from "../dialogs/FoundryBasicsDialog.js";
 import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCreationDialog.js";
-import { creationFlowOpen, registerCreationFlowCleanup } from "../actors/character/creation-flow.js";
-import { progressFor } from "../actors/character/onboarding-progress.js";
+import { creationFlowOpen, holdCreationFlow, registerCreationFlowCleanup } from "../actors/character/creation-flow.js";
+import { isMidCreation, progressFor } from "../actors/character/onboarding-progress.js";
 import { readOnboardingResume, clearOnboardingResume } from "../actors/character/onboarding-resume.js";
-import { playbookSlug } from "../utils/playbook-actors.js";
+import { assignedToAnother, playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
 import { LoveLetterDialog } from "../dialogs/LoveLetterDialog.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
@@ -72,6 +72,7 @@ import { updatePlacedTokens } from "../utils/placed-tokens.js";
 import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
 import { grandfatherRetiredMoves } from "../migration/retired-move-grandfather.js";
 import { grandfatherWouldBeHeroes } from "../migration/would-be-hero-grandfather.js";
+import { grandfatherCreationFinished, CREATION_FINISHED_SWEEP } from "../migration/creation-finished-grandfather.js";
 import { repairAllPossessionGrants } from "../migration/possession-grant-repair.js";
 import { repairMasteredArcanumCircles } from "../migration/mastered-arcanum-circles.js";
 import { settleAllArcanumBoxLayouts, settleOwnArcanumBoxLayouts } from "../migration/tulpa-move-boxes.js";
@@ -252,6 +253,11 @@ export async function onReady() {
 		// only ever reaches moves made under a release that crossed off on ownership.
 		try { await oncePerVersion("wouldBeHeroGrandfather", grandfatherWouldBeHeroes); }
 		catch (err) { console.error("Stonetop | Would-Be Hero grandfathering failed", err); }
+		// Stamp the characters made before `creationFinished` existed as finished, so a stale progress
+		// flag does not read as half built (migration/creation-finished-grandfather.js). Once per WORLD:
+		// the work itself skips any world that has a stamp for it.
+		try { await oncePerVersion(CREATION_FINISHED_SWEEP, grandfatherCreationFinished); }
+		catch (err) { console.error("Stonetop | creation-finished grandfathering failed", err); }
 		// Bring special-possession gear made before its grant was corrected up to the grant (the
 		// Tannery cuirass made as a stacking modifier; see migration/possession-grant-repair.js).
 		// Per VERSION, because a grant only changes with a release: each new version is one more
@@ -1023,8 +1029,8 @@ function _isMyCharacter(actor) {
 	const mine = game.user.character?.id === actor.id
 		|| (actor.ownership?.[game.user.id] ?? 0) >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
 	if (!mine) return false;
-	const users = game.users?.contents ?? game.users ?? [];
-	return ![...users].some(u => u.id !== game.user.id && u.character?.id === actor.id);
+	// The same test createCharacterForUser lists a player's characters by (charactersPlayedBy).
+	return !assignedToAnother(actor, game.user.id);
 }
 
 // Greet a player with character creation, or resume an interrupted one:
@@ -1038,7 +1044,7 @@ function _isMyCharacter(actor) {
 //     onboarding from themselves.
 // A character that already has a playbook is finished (or was explicitly saved):
 // only a brand-new mint pops its sheet; a reload leaves a finished character alone.
-function _maybeOpenCharacterCreation(actor) {
+export function _maybeOpenCharacterCreation(actor) {
 	if (actor?.type !== "character") return;
 	const mintedForMe = actor.getFlag?.(STONETOP_SCOPE, "autoOpenFor") === game.user.id;
 	if (!mintedForMe && !_isMyCharacter(actor)) return;
@@ -1055,15 +1061,19 @@ function _maybeOpenCharacterCreation(actor) {
 	if (mintedForMe) actor.unsetFlag(STONETOP_SCOPE, "autoOpenFor").catch(() => {});
 
 	if (playbookSlug(actor)) {
-		// Finished — never re-enter creation. Clear any progress flag / resume
-		// snapshot a mid-creation "Save & close" (or an edit pass) left behind, so the
-		// GM roster reads "Finished" rather than a stale "exited"/page note.
+		// A committed playbook — never re-enter creation. Clear any progress flag / resume
+		// snapshot an edit pass left behind on a FINISHED character, so the GM roster reads
+		// "Finished" rather than a stale "exited"/page note.
+		//
+		// NOT on one that was saved and closed part-way through (a playbook, no
+		// `creationFinished`, a live progress flag: isMidCreation). That flag is the only record
+		// the GM has that the character is half built, and what the replace warning reads.
 		//
 		// Only when there IS one: unsetFlag issues its update unconditionally, and this
 		// runs once per character of mine on every load. With a player able to run several,
 		// an unguarded call is a document write and a broadcast per finished sheet per
 		// login, all of them deleting a key that is already gone.
-		if (actor.getFlag?.(STONETOP_SCOPE, "onboardingProgress")) {
+		if (actor.getFlag?.(STONETOP_SCOPE, "onboardingProgress") && !isMidCreation(actor)) {
 			actor.unsetFlag?.(STONETOP_SCOPE, "onboardingProgress").catch(() => {});
 		}
 		clearOnboardingResume(actor);
@@ -1078,9 +1088,15 @@ function _maybeOpenCharacterCreation(actor) {
 	// sheet (see CharacterCreationDialog / _onNewCharacter's `openSheetWhenDone`). This
 	// fires for both a fresh mint and the player's own assigned-but-unstarted character,
 	// so reloading before picking a playbook re-prompts rather than stranding them.
+	//
+	// Both prompts below are HELD (holdCreationFlow) from the moment they start: each can await
+	// before its window registers (the resume fetches its playbook, open() waits out a stale
+	// greeting), and the ready-time sweep is synchronous. Unheld, a player with two half-built
+	// characters got a second flow opened beside the first in that gap.
 	const snap = readOnboardingResume(actor);
 	if (snap?.playbookUuid && snap?.selections) {
-		actor.sheet._onNewCharacter({ openSheetWhenDone: true, resume: true });
+		holdCreationFlow(actor.id, actor.sheet._onNewCharacter({ openSheetWhenDone: true, resume: true }))
+			?.catch?.(err => console.error("Stonetop | failed to resume character creation", err));
 	} else if (!mintedForMe && progressFor(actor).status === "exited") {
 		// They have already been offered this and deliberately backed out, with nothing saved
 		// to resume. Re-modalling them on every load is nagging, and the modal is the thing
@@ -1092,7 +1108,7 @@ function _maybeOpenCharacterCreation(actor) {
 		// Fire-and-forget from a sync hook callback, so catch here: open() awaits a stale
 		// dialog's close, and an unhandled rejection would surface as a bare console error
 		// with no hint that a player simply never got greeted.
-		CharacterCreationDialog.open(actor)
+		holdCreationFlow(actor.id, CharacterCreationDialog.open(actor))
 			.catch(err => console.error("Stonetop | failed to open character creation", err));
 	}
 }

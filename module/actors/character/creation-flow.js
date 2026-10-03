@@ -55,11 +55,101 @@ function _live() {
 	return _flowWindows;
 }
 
+// The render states this module waits on, as both application classes number them.
+const RENDERING = 1;
+const CLOSING   = -2;
+const POLL_MS    = 25;
+const POLL_LIMIT = 400;   // ten seconds: a render or a fade that takes longer has failed
+
+function _stateOf(app) {
+	const state = app?.state ?? app?._state;
+	return Number.isFinite(state) ? state : null;
+}
+
+async function _waitWhile(app, state) {
+	for (let i = 0; i < POLL_LIMIT && _stateOf(app) === state; i++) {
+		await new Promise(resolve => setTimeout(resolve, POLL_MS));
+	}
+}
+
+/**
+ * Close a window, and resolve only once it has really gone.
+ *
+ * Core's AppV1 `close()` does nothing at all unless the window is RENDERED (or ERROR): one still
+ * painting carries on and appears anyway, and one already fading out returns at once, before its
+ * element leaves the DOM. Both bite here. A creation window caught mid-render by its character's
+ * delete stayed open over the dead actor; and a window opened under the same DOM id while its
+ * predecessor was still fading found the OLD element by id (`Application#element` falls back to
+ * `$("#id")`), drew into it, and vanished with it when the fade finished. So: let a render
+ * finish, close, then wait out the fade.
+ */
+export async function closeAndSettle(app) {
+	if (!app) return;
+	await _waitWhile(app, RENDERING);
+	await app.close();
+	await _waitWhile(app, CLOSING);
+}
+
+// Characters deleted on this client since load. A flow that registers for one of them is closed
+// on arrival: it was already on its way (an await between the click and the window) when its
+// character went.
+const _deletedActors = new Set();
+
+/** Close one tracked window on its character's behalf, with its exit callbacks suppressed. */
+function _closeForGone(app) {
+	// The window's exit callbacks are suppressed, because the character they would act on has
+	// already gone. `onClose` is openSheetOnce, which renders the sheet of a DELETED actor:
+	// a ghost window that looks live and silently refuses every edit made in it. `onExit` is
+	// saveResume, which writes back the very resume snapshot the caller clears a line before
+	// calling this, so the deliberate "drop the snapshot first" ordering was undone by the
+	// close that followed it. `_suppressOnClose` is the dialog's own switch for this: it is
+	// what stepping back to the picker uses, so a step backwards is not read as giving up.
+	app._suppressOnClose = true;
+	// Not drawn yet: callers register first and chain `.render(true)` on the return, and core's
+	// close() does nothing to a window in NONE, so the render that follows would paint it over
+	// the dead actor anyway. Stop that render instead; there is nothing on screen to close.
+	const state = _stateOf(app);
+	if (state === 0 || (state === null && !app.rendered)) {
+		app.render = () => app;
+		return;
+	}
+	try {
+		// Mid-render, core's close() would be a no-op (see closeAndSettle); wait for the paint.
+		const closing = _stateOf(app) === RENDERING ? closeAndSettle(app) : app.close();
+		Promise.resolve(closing).catch(() => {});   // a failed close must not stop the rest
+	} catch { /* likewise */ }
+}
+
 /** Register a creation window against the character it is building. */
 export function trackCreationFlow(app, actorId) {
 	if (!app || !actorId) return app;
+	if (_deletedActors.has(actorId)) {
+		_closeForGone(app);
+		return app;
+	}
 	_flowWindows.set(app, actorId);
 	return app;
+}
+
+// Flows that are on their way but have no window yet: token -> the character they are for.
+const _pending = new Map();
+
+/**
+ * Count a flow as open from the moment it is STARTED, not from when its window registers.
+ *
+ * Starting one can await before the window exists (the resume path fetches its playbook from the
+ * compendium first), and the ready-time sweep over the player's characters is synchronous: in
+ * that gap a second character's greeting would open beside the first. Held until `promise`
+ * settles, by which time the flow's own window has registered through trackCreationFlow.
+ * Returns `promise`.
+ */
+export function holdCreationFlow(actorId, promise) {
+	if (!actorId) return promise;
+	const token = {};
+	_pending.set(token, actorId);
+	const release = () => { _pending.delete(token); };
+	Promise.resolve(promise).then(release, release);
+	return promise;
 }
 
 /**
@@ -70,9 +160,9 @@ export function trackCreationFlow(app, actorId) {
  * progress — whatever character that flow is for, re-entering would bury it.
  */
 export function creationFlowOpen(actorId = null) {
-	const live = _live();
-	if (!actorId) return live.size > 0;
-	return [...live.values()].includes(actorId);
+	const ids = [..._live().values(), ..._pending.values()];
+	if (!actorId) return ids.length > 0;
+	return ids.includes(actorId);
 }
 
 /** Close every creation window building `actorId`. Returns how many were closed. */
@@ -83,15 +173,7 @@ export function closeCreationFlowFor(actorId) {
 		if (id !== actorId) continue;
 		_flowWindows.delete(app);
 		closed++;
-		// The window's exit callbacks are suppressed, because the character they would act on has
-		// already gone. `onClose` is openSheetOnce, which renders the sheet of a DELETED actor —
-		// a ghost window that looks live and silently refuses every edit made in it. `onExit` is
-		// saveResume, which writes back the very resume snapshot the caller clears a line before
-		// calling this, so the deliberate "drop the snapshot first" ordering was undone by the
-		// close that followed it. `_suppressOnClose` is the dialog's own switch for this: it is
-		// what stepping back to the picker uses, so a step backwards is not read as giving up.
-		app._suppressOnClose = true;
-		Promise.resolve(app.close()).catch(() => {});   // a failed close must not stop the rest
+		_closeForGone(app);
 	}
 	return closed;
 }
@@ -111,6 +193,7 @@ export function registerCreationFlowCleanup() {
 		// it behind means a later character could never be told apart from this one's
 		// abandoned progress.
 		clearOnboardingResume(actor);
+		if (actor.id) _deletedActors.add(actor.id);
 		if (!closeCreationFlowFor(actor.id)) return;
 		ui.notifications?.warn(`Character creation closed: “${actor.name}” was removed.`);
 	});

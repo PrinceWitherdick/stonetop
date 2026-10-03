@@ -155,6 +155,11 @@ export function isOutOfPlay(actor) {
 	return !!actor && resolvedFlagProperty(actor, DEATHS_DOOR_FLAG) === DEATHS_DOOR_STATE.DEAD;
 }
 
+/** `isOutOfPlay` for a roster read that must never throw: a sheet that can't say is not dead. */
+export function isOutOfPlaySafe(actor) {
+	try { return isOutOfPlay(actor); } catch { return false; }
+}
+
 /**
  * The post-death inserts whose Unliving move reads "You need not eat nor drink nor sleep ... You
  * gain no benefit from magical healing, Make Camp, Recover or Convalesce." A Thrall eats, sleeps and

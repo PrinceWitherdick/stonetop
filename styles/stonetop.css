@@ -22770,6 +22770,20 @@ a.steading-player-open:hover {
 	line-height: 1.2;
 }
 
+/* "Taken by Pim (Aderyn)" under a playbook another player holds (Book I p.49, no doubling up).
+   A note, not a lock: the card stays clickable. Body ink like the name above, since the card is
+   white in both themes. */
+.stonetop .stonetop-playbook-picker-card-holders {
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	font-style: italic;
+	text-align: center;
+	color: var(--st-text-body);
+	line-height: 1.2;
+}
+.stonetop .stonetop-playbook-picker-card.is-taken { border-style: dashed; }
+.stonetop .stonetop-playbook-picker-card.is-taken:not(:hover) { border-color: slategrey; }
+
 /* Per-playbook accent colors on hover border */
 .stonetop-playbook-picker-card--the-blessed:hover      { border-color: var(--color-the-blessed); }
 .stonetop-playbook-picker-card--the-fox:hover           { border-color: var(--color-the-fox); }

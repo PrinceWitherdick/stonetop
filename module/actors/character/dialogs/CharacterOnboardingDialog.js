@@ -3712,6 +3712,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	async _goBack() {
+		// Once: Back stays live through the 200ms fade-out, and a double-click opened two pickers.
+		if (this._goingBack) return;
+		this._goingBack = true;
 		this._clearPopups();
 		// Returning to the picker is navigation, not an exit — don't let the close
 		// trigger the "open the finished sheet" callback.
