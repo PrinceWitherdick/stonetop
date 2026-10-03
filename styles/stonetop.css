@@ -5595,6 +5595,13 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	color: var(--st-green-text);
 }
 
+/* Tor's blessing: the two rolled rows on offer, one of which the GM keeps. A dashed edge
+   rather than the green fill, so neither reads as already chosen. */
+.stonetop-weather-row.is-offered {
+	font-weight: 600;
+	border: 2px dashed var(--st-green-border);
+}
+
 .stonetop-weather-row-range {
 	flex: 0 0 auto;
 	min-width: 2.4em;
@@ -22140,6 +22147,22 @@ a.steading-player-open:hover {
 	margin: 10px 0;
 	border: none;
 	border-top: 1px solid rgba(0,0,0,0.15);
+}
+
+/* A later half of a step, on screen but locked (winter's +Fortunes roll until the toll is
+   settled): greyed, with its own note at full ink saying what unlocks it. */
+.stonetop-season-later > :not(.stonetop-season-later-note, .stonetop-season-divider) {
+	opacity: 0.45;
+	filter: grayscale(1);
+}
+.stonetop-season-later-note {
+	display: none;
+	font-style: italic;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-secondary);
+}
+.stonetop-season-later .stonetop-season-later-note {
+	display: block;
 }
 
 .stonetop-season-gains {

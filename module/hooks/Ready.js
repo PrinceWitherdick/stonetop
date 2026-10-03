@@ -420,8 +420,10 @@ export async function onReady() {
 	};
 	// The same move with the picker skipped: straight to the season after the one the clock is in
 	// (Winter turns over into Spring of the next year). The top-of-screen bar's "Next Season"
-	// button (seasons/time-banner.js). Warns if there's no steading yet.
+	// button (seasons/time-banner.js). Warns if there's no steading yet. GM-only, like the bar's
+	// button: the move it runs writes the steading's clock, gains and Fortunes.
 	game.stonetop.openNextSeason = () => {
+		if (!game.user?.isGM) return;
 		const steading = getStonetopSteadingActorOrWarn();
 		if (!steading) return;
 		const next = nextSeasonStamp(readCurrentSeason(steading), readCurrentYear(steading));
@@ -434,7 +436,8 @@ export async function onReady() {
 	game.stonetop.saveChronicle     = () => writeChronicle().then(j => j?.sheet?.render(true));
 	game.stonetop.openExpedition    = () => ExpeditionDialog.open();
 	game.stonetop.onExpeditionLog   = (value, userId) => ExpeditionDialog.onLogChanged(value, userId);
-	game.stonetop.openWeather       = () => WeatherDialog.open();
+	// GM-only, here and again in WeatherDialog.open for any caller that reaches the class itself.
+	game.stonetop.openWeather       = () => (game.user?.isGM ? WeatherDialog.open() : null);
 	// Put the canvas weather back in step with the weather-effect settings. Registered here
 	// because settings.js reaches this way rather than importing the seasons module, which reads
 	// settings.js itself; its onChange handlers call this whenever one of those switches moves.

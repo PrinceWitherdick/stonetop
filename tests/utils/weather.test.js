@@ -1,12 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	WEATHER_SEASONS,
 	CAMPAIGN_SEASON_TABLES,
+	WEATHER_ROLL_PLANS,
 	getWeatherSeason,
 	resolveWeatherRow,
 	rowRange,
 	weatherSeasonForCampaignSeason,
 	defaultWeatherSeason,
+	weatherRollPlan,
+	rollWeatherResult,
+	rollWeatherResults,
 } from "../../module/utils/weather.js";
 import { SEASON_IDS } from "../../module/seasons/seasons-change-reminders.js";
 
@@ -73,6 +77,66 @@ describe("weather tables", () => {
 	});
 });
 
+// Every row as Book I prints it (p.325, the right-hand page of the 324/325 spread), with its
+// range and whether it carries "; roll again later with disadvantage", which the data holds as
+// `reroll` rather than in the text. Quoted verbatim, the book's own spelling included ("thunder
+// storms", the missing "a" before "day of cold").
+const BOOK_TABLES = {
+	"late-winter-early-spring": [
+		["1",   "Snow/sleet/hail, an early thunderstorm or day of cold, soaking rains"],
+		["2–3", "Cold and windy, maybe some showers"],
+		["4",   "Clouds on the horizon, steady wind", "reroll"],
+		["5–6", "A fine, sunny spring day; some clouds, some gusting winds"],
+	],
+	"spring-early-summer": [
+		["1",   "A heavy storm; high winds, hail, thunder, lightning"],
+		["2",   "Steady, chilly rain"],
+		["3–4", "Warm and windy, maybe some brief showers"],
+		["5–6", "Warm, sunny, pleasant"],
+	],
+	"summer": [
+		["1",   "A heavy storm; high winds, hail, thunder, lightning, tornadoes"],
+		["2",   "Blazing heat, still air, not a cloud in sight"],
+		["3",   "Hot and humid, with brief, drenching thunder storms"],
+		["4–5", "Hot, muggy, some wind"],
+		["6",   "Warm, sunny, breezy, perfect"],
+	],
+	"late-summer-early-autumn": [
+		["1",   "A powerful thunderstorm or cold, soaking rain"],
+		["2",   "Windy with a few rain showers"],
+		["3",   "Warm, clouds on the horizon, steady wind", "reroll"],
+		["4–5", "Hot and dry during the day; cooler and windy at night"],
+		["6",   "Warm, sunny, breezy, perfect"],
+	],
+	"autumn": [
+		["1",   "Cold, drenching rain and/or sleet"],
+		["2",   "Cold, windy, light rain or early snow"],
+		["3",   "Chilly, windy, clouds on the horizon", "reroll"],
+		["4–6", "Crisp, breezy"],
+	],
+	"winter": [
+		["1",   "Blizzard: wind, snow, all of it"],
+		["2",   "Intense cold and wind"],
+		["3",   "Very cold, very clear, very still"],
+		["4",   "Cold and snowy, or cold and windy"],
+		["5",   "Some snow, but mostly just dreary"],
+		["6",   "Warm (for winter) and sunny"],
+	],
+};
+
+describe("the weather tables, against the book", () => {
+	it("has exactly the book's six tables", () => {
+		expect(WEATHER_SEASONS.map(s => s.key)).toEqual(Object.keys(BOOK_TABLES));
+	});
+
+	for (const [key, rows] of Object.entries(BOOK_TABLES)) {
+		it(`quotes ${key} row for row`, () => {
+			const table = getWeatherSeason(key).rows.map(r => [rowRange(r), r.text, ...(r.reroll ? ["reroll"] : [])]);
+			expect(table).toEqual(rows);
+		});
+	}
+});
+
 // The picker opens on the season the steading's clock is in. The map is written out in
 // weather.js rather than imported from the seasons module (see the note there), so the two
 // halves are pinned together here instead.
@@ -100,19 +164,35 @@ describe("the campaign season's table", () => {
 	});
 });
 
+// The clock as the picker hands it over: the season, and its "<year>:<season>" stamp key.
+const clock = (season, year = 1) => ({ season, key: `${year}:${season}` });
+
 describe("the picker's opening season", () => {
 	it("follows the clock over a pick made in an earlier season", () => {
-		expect(defaultWeatherSeason("autumn", { key: "summer", for: "summer" })).toBe("autumn");
+		expect(defaultWeatherSeason(clock("autumn"), { key: "summer", for: "1:summer" })).toBe("autumn");
 	});
 
 	it("follows the clock when nothing has been picked yet", () => {
-		expect(defaultWeatherSeason("winter")).toBe("winter");
-		expect(defaultWeatherSeason("winter", {})).toBe("winter");
+		expect(defaultWeatherSeason(clock("winter"))).toBe("winter");
+		expect(defaultWeatherSeason(clock("winter"), {})).toBe("winter");
 	});
 
 	it("keeps a deliberate pick made within the season showing", () => {
-		expect(defaultWeatherSeason("autumn", { key: "late-summer-early-autumn", for: "autumn" }))
+		expect(defaultWeatherSeason(clock("autumn"), { key: "late-summer-early-autumn", for: "1:autumn" }))
 			.toBe("late-summer-early-autumn");
+	});
+
+	// The same season a YEAR later is a different season. Keyed by the bare id, a straddle
+	// table picked in the first summer came back as the opening table of the second.
+	it("does not carry a pick into the same season of a later year", () => {
+		expect(defaultWeatherSeason(clock("summer", 2), { key: "late-summer-early-autumn", for: "1:summer" }))
+			.toBe("summer");
+	});
+
+	// A pick saved by an older build, under the bare season id, gives way to the clock once.
+	it("lets a pick saved under the old bare-season key give way to the clock", () => {
+		expect(defaultWeatherSeason(clock("autumn"), { key: "late-summer-early-autumn", for: "autumn" }))
+			.toBe("autumn");
 	});
 
 	it("keeps the remembered pick in a world with no season stamped", () => {
@@ -121,7 +201,7 @@ describe("the picker's opening season", () => {
 
 	it("honours a pick saved before it was paired, but only where the clock is silent", () => {
 		expect(defaultWeatherSeason(null, "winter")).toBe("winter");
-		expect(defaultWeatherSeason("spring", "winter")).toBe("spring-early-summer");
+		expect(defaultWeatherSeason(clock("spring"), "winter")).toBe("spring-early-summer");
 	});
 
 	it("falls back to the first table when there is nothing to go on", () => {
@@ -131,6 +211,94 @@ describe("the picker's opening season", () => {
 	});
 
 	it("always names a real table", () => {
-		expect(getWeatherSeason(defaultWeatherSeason("summer", { key: "nope", for: "summer" }))).not.toBeNull();
+		expect(getWeatherSeason(defaultWeatherSeason(clock("summer"), { key: "nope", for: "1:summer" }))).not.toBeNull();
+	});
+});
+
+// ── How the die is thrown ────────────────────────────────────────────────────
+// Tor's blessing ("roll twice and take your pick", p.518) and the rider ("roll again later with
+// disadvantage", p.325). Both together cancel to one plain d6: the user's ruling, 2026-10-02.
+describe("the weather roll's plan", () => {
+	it("throws one plain d6 when nothing applies", () => {
+		const plan = weatherRollPlan();
+		expect(plan).toBe(WEATHER_ROLL_PLANS.plain);
+		expect(plan.dice).toBe(1);
+		expect(plan.rollMode).toBe("normal");
+		expect(plan.hint).toBe("");
+	});
+
+	it("throws two separate dice under Tor's blessing", () => {
+		const plan = weatherRollPlan({ blessing: true });
+		expect(plan.dice).toBe(2);
+		expect(plan.rollMode).toBe("normal");
+	});
+
+	it("throws two and keeps the lower while the rider is owed", () => {
+		const plan = weatherRollPlan({ rider: true });
+		expect(plan.dice).toBe(1);
+		expect(plan.rollMode).toBe("dis");
+	});
+
+	it("cancels the blessing against the rider to one plain roll, and says so", () => {
+		const plan = weatherRollPlan({ blessing: true, rider: true });
+		expect(plan).toBe(WEATHER_ROLL_PLANS.cancel);
+		expect(plan.dice).toBe(1);
+		expect(plan.rollMode).toBe("normal");
+		expect(plan.hint).toBe("Tor's blessing and the clouds' warning cancel out: one plain roll.");
+		expect(plan.note).toBe(plan.hint);
+	});
+
+	it("explains every plan but the plain one, before the roll and after", () => {
+		for (const plan of Object.values(WEATHER_ROLL_PLANS)) {
+			const says = plan.key !== "plain";
+			expect(Boolean(plan.hint), plan.key).toBe(says);
+			expect(Boolean(plan.note), plan.key).toBe(says);
+			// House rule: no em dashes in user-facing copy.
+			expect(plan.hint + plan.note, plan.key).not.toContain(String.fromCharCode(0x2014));
+		}
+	});
+});
+
+describe("rolling the weather", () => {
+	let formulas;
+	beforeEach(() => {
+		formulas = [];
+		let face = 0;
+		globalThis.Roll = class {
+			constructor(formula) { this.formula = formula; formulas.push(formula); }
+			async evaluate() { this.total = [2, 5][face++ % 2]; return this; }
+		};
+	});
+	afterEach(() => { delete globalThis.Roll; });
+
+	it("rolls a plain d6 by default", async () => {
+		const result = await rollWeatherResult("winter");
+		expect(formulas).toEqual(["1d6"]);
+		expect(result.row).toBe(resolveWeatherRow("winter", 2));
+	});
+
+	it("rolls two dice and keeps the lower under disadvantage", async () => {
+		const [result] = await rollWeatherResults("winter", WEATHER_ROLL_PLANS.disadvantage);
+		expect(formulas).toEqual(["2d6kl1"]);
+		expect(result.roll.formula).toBe("2d6kl1");
+	});
+
+	it("rolls two separate Rolls under the blessing, each with its own row", async () => {
+		const results = await rollWeatherResults("winter", WEATHER_ROLL_PLANS.blessing);
+		expect(formulas).toEqual(["1d6", "1d6"]);
+		expect(results.map(r => r.roll.total)).toEqual([2, 5]);
+		expect(results.map(r => r.row)).toEqual([resolveWeatherRow("winter", 2), resolveWeatherRow("winter", 5)]);
+		expect(results[0].roll).not.toBe(results[1].roll);
+	});
+
+	it("rolls one plain d6 when the two cancel", async () => {
+		const results = await rollWeatherResults("winter", WEATHER_ROLL_PLANS.cancel);
+		expect(formulas).toEqual(["1d6"]);
+		expect(results).toHaveLength(1);
+	});
+
+	it("rolls nothing for an unknown season", async () => {
+		expect(await rollWeatherResults("nope", WEATHER_ROLL_PLANS.blessing)).toBeNull();
+		expect(formulas).toEqual([]);
 	});
 });

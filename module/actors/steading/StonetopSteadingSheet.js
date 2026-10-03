@@ -49,6 +49,7 @@ import {readCurrentSeason, recordCurrentSeason, currentSeasonView, readCurrentYe
 import {readCurrentWeather, currentWeatherView} from "../../seasons/current-weather.js";
 import {openSeasonPicker} from "../../seasons/season-picker.js";
 import {SEASONAL_GAINS} from "../../dialogs/spring-burst-data.js";
+import {applySeasonalGains} from "./seasonal-gains.js";
 import {addStonetopSteadingButton} from "../../utils/world.js";
 import {createInlineActionsDialog} from "../../utils/inline-actions-dialog.js";
 import {SETTLEMENTS} from "../../data/settlements.js";
@@ -1109,7 +1110,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// The weather glyph left of the clock opens the Weather picker — the window that
 			// decides what that glyph shows, so the readout is the way back to what set it.
 			// Through `game.stonetop.openWeather` rather than the class, which is what the hotbar
-			// macro and the Expedition dialog's own weather button both call: one entry point, so
+			// macro and the time banner's weather part both call: one entry point, so
 			// `openOrFocus` in there can keep it to one window however it was reached.
 			//
 			// GM-only, like the clock: the template renders a plain span for everyone else, so
@@ -2147,44 +2148,14 @@ export function createStonetopSteadingSheetClass(Base) {
 				.map(key => SEASONAL_GAINS.find(g => g.key === key)?.name)
 				.filter(Boolean);
 
-			// Apply the mechanical gains the GM ticked (the others are narrative-only) in one
-			// update — effects of the Seasons Change homefront move, so the ledger names it;
-			// batching keeps it to a single ledger append and one combined stat-change card.
-			// Notices are queued so they still read in the Population → Bounty order.
-			const updates = {};
-			const notices = [];
-			if (checkedKeys.includes("population")) {
-				const newPopulation = Math.min(this._stonetopSteading.getStatValue("population") + 1, 3);
-				updates["attributes.population.value"] = newPopulation;
-				notices.push(`Population boom: Population increased to ${sign(newPopulation)}.`);
-			}
-
-			// Net Surplus change over the whole season flow (the harvest/bounty, or winter
-			// consumption): the live value already reflects the season's surplus/consumption
-			// buttons, plus the bounty we're about to add. Computed locally so it doesn't
-			// depend on reading the value back after the write.
-			const finalSurplus = this._stonetopSteading.getStatValue("surplus") + (checkedKeys.includes("bounty") ? 1 : 0);
-			if (checkedKeys.includes("bounty")) {
-				updates["attributes.surplus.value"] = finalSurplus;
-				notices.push(`Unexpected bounty: Surplus increased to ${finalSurplus}.`);
-			}
-
-			// Tor's blessing is the one gain that leaves something BEHIND: "+1 to Pull Together
-			// this season, and when you roll the Die of Fate for weather, roll twice and take
-			// your pick." Recorded against this year+season so it expires by simply ceasing to
-			// match the clock, and shows in the header while it lasts. The other four ticked
-			// gains are either applied above or narrative, and leave nothing to track.
-			const flagUpdates = {};
-			if (checkedKeys.includes("tor")) {
-				Object.assign(flagUpdates, this._stonetopSteading.torsBlessingFlags(year, seasonId));
-				notices.push("Tor's blessing holds for the season.");
-			}
-
 			// A muster does not survive the turning of the season ("until the threat passes, the
 			// Seasons Change, or you cease to oversee it"). It would lapse on its own by the
 			// clock, but a muster that took the +1 Defenses has to be stood DOWN rather than
 			// simply forgotten, or the bonus is stranded on the sheet with nothing left to
 			// explain it. Read raw, since the clock may already have moved past it.
+			const updates = {};
+			const flagUpdates = {};
+			const notices = [];
 			const lapse = this._stonetopSteading.musterLapseChanges();
 			if (lapse) {
 				Object.assign(updates, lapse.system);
@@ -2194,9 +2165,15 @@ export function createStonetopSteadingSheetClass(Base) {
 					: "The muster lapses with the season.");
 			}
 
-			await this._stonetopSteading.applyChanges(
-				{ system: updates, flags: flagUpdates }, { stonetopMove: "Seasons Change" });
-			for (const notice of notices) ui.notifications.info(notice);
+			// Apply the mechanical gains the GM ticked (Population boom, Unexpected bounty, Tor's
+			// blessing; the others are narrative-only) with the lapse above, in ONE update named
+			// for the Seasons Change, so the ledger appends once and the stats card together.
+			// The gains themselves live in seasonal-gains.js, shared with the session-zero spring.
+			//
+			// `surplus` is the Surplus once the bounty lands, the end of the season flow's net
+			// change: the live value already reflects the season's surplus/consumption buttons.
+			const { surplus: finalSurplus } = await applySeasonalGains(this._stonetopSteading, checkedKeys,
+				{ year, seasonId, also: { system: updates, flags: flagUpdates, notices } });
 
 			const surplusChange = Number.isFinite(initialSurplus) ? finalSurplus - initialSurplus : 0;
 
@@ -2657,8 +2634,12 @@ export function createStonetopSteadingSheetClass(Base) {
 								${winterConsequencesHtml()}
 							</div>
 						</div>
-						<div id="stonetop-winter-step3" hidden>
+						<!-- On screen from the start, greyed and inert, so the window shows winter
+						     HAS a +Fortunes roll before the toll is settled (the book's order:
+						     "Then, roll +Fortunes"). Unlocked by the render callback. -->
+						<div id="stonetop-winter-step3" class="stonetop-season-later" inert>
 							<hr class="stonetop-season-divider">
+							<p class="stonetop-season-later-note"><i class="fas fa-lock" aria-hidden="true"></i> Once the toll above is settled:</p>
 							<p>Then, roll +Fortunes:</p>
 							<ul>
 								<li><strong>10+:</strong> Winter is relatively mild. Each player names a local NPC with whom their relationship improves.</li>
@@ -3286,10 +3267,17 @@ export function createStonetopSteadingSheetClass(Base) {
 					// already settled, the window opens on what is left instead of on a dead button.
 					const hide = sel => { const el = root.querySelector(sel); if (el) el.hidden = true; };
 					const show = sel => { const el = root.querySelector(sel); if (el) el.hidden = false; };
+					// Step 3 is on screen from the start, greyed and inert; settling the toll unlocks it.
+					const unlockWinterFortunes = () => {
+						const el = root.querySelector("#stonetop-winter-step3");
+						if (!el) return;
+						el.inert = false;
+						el.classList.remove("stonetop-season-later");
+					};
 					if (this._disableIfSeasonStepDone(rollConsumptionBtn, "consumption", year, seasonId)) {
 						hide("#stonetop-winter-step1");
 						show("#stonetop-winter-settled");
-						show("#stonetop-winter-step3");
+						unlockWinterFortunes();
 					}
 
 					// A consumption on the table, waiting to be taken: the roll just made, or one made
@@ -3341,7 +3329,7 @@ export function createStonetopSteadingSheetClass(Base) {
 								}, seasonsMove);
 								this.render(false);
 								hide("#stonetop-winter-ok");
-								show("#stonetop-winter-step3");
+								unlockWinterFortunes();
 								ui.notifications.info(`Consumed ${consumption} Surplus. Remaining: ${remaining}.`);
 							} catch (err) { busy = false; throw err; }
 						});
@@ -3362,7 +3350,7 @@ export function createStonetopSteadingSheetClass(Base) {
 									});
 									this.render(false);
 									hide("#stonetop-winter-step2");
-									show("#stonetop-winter-step3");
+									unlockWinterFortunes();
 								} catch (err) { busy = false; throw err; }
 							});
 						});

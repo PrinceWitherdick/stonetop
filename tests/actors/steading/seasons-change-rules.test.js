@@ -230,8 +230,11 @@ describe("Tor's blessing", () => {
 		expect(body).toContain("...standing.notes.map(note => `${note} on this roll.`),");
 	});
 
+	// Said as the roll plan's hint (utils/weather.js), which the blessing chooses; the roll itself
+	// is tests/dialogs/weather-pick.test.js's business.
 	it("is said in the weather window, where the Die of Fate is rolled", () => {
-		expect(read("templates/dialogs/weather.hbs")).toContain("{{#if torsBlessing}}");
+		expect(read("templates/dialogs/weather.hbs")).toContain("{{#if rollHint}}");
+		expect(read("module/dialogs/WeatherDialog.js")).toContain("weatherRollPlan({ blessing: this._torsBlessing()");
 	});
 });
 

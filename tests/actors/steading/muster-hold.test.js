@@ -141,14 +141,20 @@ describe("Tor's blessing", () => {
 		expect(STEADING.slice(at, at + 220)).toContain("torsBlessing: `${year}:${seasonId}`");
 	});
 
+	// The gains are applied in seasonal-gains.js, shared with the session-zero spring; the
+	// behaviour is tests/actors/steading/seasonal-gains.test.js's. Here: the window still goes
+	// through it, and the lapse rides in the same write.
 	it("is granted when its gain is ticked at the Seasons Change", () => {
 		const at = SHEET.indexOf("_saveSeasonChange(seasonId");
 		const body = SHEET.slice(at, at + 4000);
-		expect(body).toContain(`checkedKeys.includes("tor")`);
-		expect(body).toContain("torsBlessingFlags(year, seasonId)");
+		expect(body).toContain("applySeasonalGains(this._stonetopSteading, checkedKeys");
+		expect(body).toContain("also: { system: updates, flags: flagUpdates, notices }");
+		const gains = read("module/actors/steading/seasonal-gains.js");
+		expect(gains).toContain(`picked.has("tor")`);
+		expect(gains).toContain("steading.torsBlessingFlags(year, seasonId)");
 		// Folded into the season's single applyChanges rather than written on its own, so the
 		// blessing does not card separately from the gains it arrives with.
-		expect(body).toContain("applyChanges(");
+		expect(gains).toContain("steading.applyChanges(");
 	});
 });
 

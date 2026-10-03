@@ -202,6 +202,9 @@ export async function recordCurrentSeason(actor, season, year, { advanceOnly = f
 	if (advancesYear(actor, wantYear)) flags[CURRENT_YEAR_KEY] = wantYear;
 	if (!Object.keys(flags).length) return;
 	await actor.update({ flags: { [STONETOP_SCOPE]: flags } });
+	// A turned season makes the posted weather stale, and stale weather stays off the map.
+	// Reached through game.stonetop (as settings.js does) since current-weather reads this module.
+	if (flags[CURRENT_SEASON_KEY]) await globalThis.game?.stonetop?.refreshWeatherFx?.();
 }
 
 /**
