@@ -87,9 +87,11 @@ export class CharacterPossessions {
 		await this._flags.setFlag("subChoices", { ...current, [possessionSlug]: updated });
 	}
 
-	async setChoiceUses(possessionSlug, choiceSlug, count) {
+	// `options` (a `stonetopMove`, say) rides on the write when given, so a move spending these uses
+	// is named for it in the ledger.
+	async setChoiceUses(possessionSlug, choiceSlug, count, options) {
 		const key = `${possessionSlug}:${choiceSlug}`;
-		await this._flags.setFlag("choiceUses", { ...this.choiceUses, [key]: count });
+		await this._flags.setFlag("choiceUses", { ...this.choiceUses, [key]: count }, options);
 	}
 
 	// Which of a gear-bearing bundle's *picked* options are actually being carried — the

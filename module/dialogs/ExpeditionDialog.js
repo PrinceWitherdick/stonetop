@@ -3046,7 +3046,10 @@ export class ExpeditionDialog extends StepperDialog {
 		// The readout is GM-only and lives on one step. Off that step there is nothing on screen
 		// to keep honest, and a player never builds it at all.
 		if (!game.user?.isGM || this._stepNav().step?.key !== "outfit") return;
-		const onActor = actor => { if (_carriesLoad(actor)) this._loadChanged(); };
+		// The ledger's own bookkeeping write follows each real change and never moves the load.
+		const onActor = (actor, _changed, options) => {
+			if (!options?.stonetopLedgerWrite && _carriesLoad(actor)) this._loadChanged();
+		};
 		const onItem  = item  => { if (_carriesLoad(item?.parent)) this._loadChanged(); };
 		this._loadHooks = [
 			["updateActor", Hooks.on("updateActor", onActor)],

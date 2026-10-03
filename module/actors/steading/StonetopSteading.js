@@ -22,6 +22,7 @@ import {innGatheringState, INN_SEASON_STEP} from "./inn-gathering.js";
 import {steadingHolds} from "./steading-holds.js";
 import {MILITIA_SEASON_STEP, militiaTactics} from "./season-effects.js";
 import { inTurn } from "../../utils/turn-queue.js";
+import { deletionEntry } from "../../utils/foundry-compat.js";
 
 /** Which season's Weapons of War maintenance has been paid ("each spring, 1 Surplus"). */
 export const WEAPONS_SEASON_STEP = "weaponsUpkeep";
@@ -776,7 +777,13 @@ export class StonetopSteading {
 		// a subkey (an emptied list, a cleared pick) already rely on.
 		if (!systemEntries.length) {
 			const merged = { ...foundry.utils.deepClone(this._flags), ...flags };
-			await this._actor.setFlag(STONETOP_SCOPE, "steading", merged);
+			// setFlag takes no options, so a caller's `stonetopMove` was dropped right here and a
+			// move's flag-only write reached the ledger unnamed. The same write, through update.
+			if (Object.keys(options ?? {}).length) {
+				await this._actor.update({ [`flags.${STONETOP_SCOPE}.steading`]: merged }, options);
+			} else {
+				await this._actor.setFlag(STONETOP_SCOPE, "steading", merged);
+			}
 			return;
 		}
 
@@ -1080,7 +1087,15 @@ export class StonetopSteading {
 		const next = this.customImprovements.filter(d => d.slug !== slug);
 		const improvements = { ...(this._flags.improvements ?? {}) };
 		delete improvements[slug];
-		await this.setFlags({ customImprovements: next, improvements });
+		// The whole steading object as setFlags writes it, PLUS an explicit deletion of the slug's
+		// tracking entry. A flag object is written by MERGING, so leaving the slug out of the map
+		// left it stored, ticks and all, and a card re-added under the same slug came back with
+		// them; meanwhile the ledger read the absence as every tick taken off.
+		const [deleteKey, deleteValue] = deletionEntry(`flags.${STONETOP_SCOPE}.steading.improvements.${slug}`);
+		await this._actor.update({
+			[`flags.${STONETOP_SCOPE}.steading`]: { ...foundry.utils.deepClone(this._flags), customImprovements: next, improvements },
+			[deleteKey]: deleteValue,
+		});
 		return { label: def.label ?? slug, reverted };
 	}
 

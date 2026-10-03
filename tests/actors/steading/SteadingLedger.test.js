@@ -304,4 +304,63 @@ describe("SteadingLedger", () => {
 
 		expect(entries).toEqual([]);
 	});
+
+	// #3: deleting a row splices the list, so every row below the gap moves up one.
+	it("reads a deleted row as that row removed, not as renames down the list", () => {
+		const assets = [{ name: "Wagon", checked: true }, { name: "Mill", checked: false }, { name: "Forge", checked: false }];
+		const actor = makeActor({ stonetop: { steading: { assets } } });
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({ assets: assets.slice(1) }));
+
+		expect(entries.map(e => e.action)).toEqual(["Asset removed: Wagon"]);
+	});
+
+	it("matches actor-backed rows by the actor they point at", () => {
+		const players = [
+			{ uuid: "Actor.a", name: "Aled", checked: true },
+			{ uuid: "Actor.b", name: "Bryn", checked: true },
+		];
+		const actor = makeActor({ stonetop: { steading: { players } } });
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({ players: [players[1]] }));
+
+		expect(entries.map(e => e.action)).toEqual(["Player removed: Aled"]);
+	});
+
+	it("still reads a name edited in place as a rename", () => {
+		const actor = makeActor({ stonetop: { steading: { assets: [{ name: "Wagon" }, { name: "Mill" }] } } });
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, steadingUpdate({ assets: [{ name: "Wagon" }, { name: "Windmill" }] }));
+
+		expect(entries.map(e => e.action)).toEqual(["Asset renamed from Mill to Windmill"]);
+	});
+
+	// #7: the improvements map is written by MERGING, so a slug a write leaves out is untouched.
+	it("does not read an improvement the write leaves out as cleared", () => {
+		const actor = makeActor({ stonetop: { steading: { improvements: {
+			palisade: { completed: true, r: [true, true, true, true] },
+			mill:     { completed: false, r: [false, true] },
+		} } } });
+
+		const entries = SteadingLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop.steading.improvements.mill.r": [true, true],
+		});
+
+		expect(entries.map(e => e.action)).toEqual(["Improvement step marked: Mill · An exceptional engineer/foreman"]);
+	});
+
+	it("records an improvement deleted outright, in either core's spelling, once", () => {
+		const imps = { "custom-foo": { completed: false, r: [true, true] } };
+		const flags = { stonetop: { steading: { improvements: imps, customImprovements: [{ slug: "custom-foo", label: "Foo Works" }] } } };
+
+		const v14 = SteadingLedger.entriesForActorUpdate(makeActor(flags), {
+			"flags.stonetop.steading.improvements.custom-foo": new foundry.data.operators.ForcedDeletion(),
+		});
+		const v13 = SteadingLedger.entriesForActorUpdate(makeActor(flags), {
+			"flags.stonetop.steading.improvements.-=custom-foo": null,
+		});
+
+		expect(v14.map(e => e.action)).toEqual(["Improvement removed: Foo Works"]);
+		expect(v13.map(e => e.action)).toEqual(["Improvement removed: Foo Works"]);
+	});
 });

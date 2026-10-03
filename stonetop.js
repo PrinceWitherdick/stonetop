@@ -1003,6 +1003,9 @@ for (const hook of ["createActor", "updateActor", "deleteActor", "createItem", "
 // it can't reintroduce the scroll jump.
 Hooks.on("updateActor", (actor, _changes, options, userId) => {
 	if (options?.render !== false || userId === game.user?.id) return;
+	// The ledger's own write is render:false too, and no sheet draws it: repainting for it cost
+	// every other client a second full repaint per change.
+	if (options?.stonetopLedgerWrite) return;
 	for (const app of Object.values(actor.apps ?? {})) app?.render?.(false);
 });
 

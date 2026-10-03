@@ -34,6 +34,17 @@ describe("StonetopSteading", () => {
 		}, {});
 	});
 
+	// #14: setFlag takes no options, so a move's flag-only write used to lose its name.
+	it("carries a flag-only change's options (its stonetopMove) through to the write", async () => {
+		const actor = { ...makeSteadingActor({ steadingFlags: { size: "village" } }), setFlag: vi.fn() };
+		await new StonetopSteading(actor).applyChanges({ flags: { musterHold: { year: 1 } } }, { stonetopMove: "Muster" });
+		expect(actor.setFlag).not.toHaveBeenCalled();
+		expect(actor.update).toHaveBeenCalledWith(
+			{ "flags.stonetop-pwd.steading": { size: "village", musterHold: { year: 1 } } },
+			{ stonetopMove: "Muster" },
+		);
+	});
+
 	it("marks improvements as earned when completed or requirement progress exists", async () => {
 		const actor = makeSteadingActor({
 			steadingFlags: {
@@ -477,8 +488,13 @@ describe("StonetopSteading", () => {
 
 			expect(await steading.removeCustomImprovement("custom-roadbuilding"))
 				.toMatchObject({ label: "ROADBUILDING", reverted: [] });
-			expect(actor.flags.stonetop.steading.customImprovements).toEqual([]);
-			expect(actor.flags.stonetop.steading.improvements).toEqual({ palisade: { completed: true, r: [] } });
+			// Read off the payload: this fake's `update` is a spy that applies nothing.
+			const payload = actor.update.mock.calls.at(-1)[0];
+			expect(payload["flags.stonetop-pwd.steading"].customImprovements).toEqual([]);
+			expect(payload["flags.stonetop-pwd.steading"].improvements).toEqual({ palisade: { completed: true, r: [] } });
+			// AND the slug deleted outright (#7): the flag object is written by merging, so leaving
+			// it out of the map left it stored, ticks and all. v13 spelling here (no core in tests).
+			expect(payload).toHaveProperty(["flags.stonetop-pwd.steading.improvements.-=custom-roadbuilding"], null);
 			// Removing an unknown slug is a no-op.
 			expect(await steading.removeCustomImprovement("custom-nope")).toBe(false);
 		});
@@ -598,15 +614,17 @@ describe("StonetopSteading", () => {
 			// The reversal itself, read off the update payload: this fake's `update` is a spy
 			// that applies nothing, so the stat has to be checked where it is written. Both the
 			// system value and its flag mirror, as every grant write does.
-			const payload = actor.update.mock.calls.at(-1)[0];
+			const payload = actor.update.mock.calls.at(-2)[0];
 			expect(payload["system.stats.fortunes.value"]).toBe(1);
 			expect(payload["flags.stonetop-pwd.steading.system.stats.fortunes.value"]).toBe(1);
 			expect(payload["flags.stonetop-pwd.steading.fortifications"])
 				.not.toContainEqual(expect.objectContaining({ name: "Palisade (homebrew)" }));
 
-			// And the definition and its tracking entry are gone.
-			expect(actor.flags.stonetop.steading.customImprovements).toEqual([]);
-			expect(actor.flags.stonetop.steading.improvements).toEqual({});
+			// And the definition and its tracking entry are gone, the entry deleted outright.
+			const removal = actor.update.mock.calls.at(-1)[0];
+			expect(removal["flags.stonetop-pwd.steading"].customImprovements).toEqual([]);
+			expect(removal["flags.stonetop-pwd.steading"].improvements).toEqual({});
+			expect(removal).toHaveProperty(["flags.stonetop-pwd.steading.improvements.-=custom-palisade-homebrew"], null);
 		});
 	});
 

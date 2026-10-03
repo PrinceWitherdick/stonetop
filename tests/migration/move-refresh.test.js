@@ -76,9 +76,10 @@ describe("refreshHeldMoves", () => {
 		const npc = { type: "npc", items: [move("Stentorian")], updateEmbeddedDocuments: vi.fn() };
 		const entries = [entry("Stentorian", { resource: { max: 2, title: "Command" } }), entry("Clash")];
 		expect(await refreshHeldMoves({ actors: [stale, fresh, npc], entries })).toBe(1);
+		// Quiet in the ledger: the pack's text refreshing is not an edit anybody made.
 		expect(stale.updateEmbeddedDocuments).toHaveBeenCalledWith("Item", [
 			{ _id: "id-Stentorian", "system.resource": { max: 2, title: "Command" } },
-		]);
+		], { stonetopLedger: true });
 		expect(fresh.updateEmbeddedDocuments).not.toHaveBeenCalled();
 		expect(npc.updateEmbeddedDocuments).not.toHaveBeenCalled();
 	});

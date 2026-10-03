@@ -36,6 +36,7 @@ import {
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {normalizeRollMode, tookOffer} from "../../dialogs/RollDialog.js";
 import {deletionEntry} from "../../utils/foundry-compat.js";
+import {appendLedgerEntries} from "../../utils/ledger-core.js";
 import {statRequirementsUnmet} from "./stat-requirement.js";
 import {effectiveRequiredMoves, requiredMovesUnmet, requirementLabel} from "./move-requirement.js";
 import {MoveResources, learnedTrack, takeBackHeld} from "./MoveResources.js";
@@ -44,7 +45,7 @@ import {normalizeWound as _normalizeWound, normalizeWoundList} from "./wound-rec
 import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
 import {markEntries, filledMarks, filledMarkCount, trimEmptyTail, oncePerLevelCautions, ONCE_PER_LEVEL_MARKS} from "./pfg-marks.js";
 import {MARK_STAT_CAPS} from "./stat-rules.js";
-import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, MIRRORED_HP_PENALTY_FLAG, resolvedFlags, readableFlags, resolvedFlagProperty} from "./StonetopFlags.js";
 import {DEATHS_DOOR_FLAG, DEATHS_DOOR_STATE, FINAL_CONSEQUENCE, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, lostToTheGm, stateOnTakingInsert, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
@@ -2245,7 +2246,8 @@ export class StonetopCharacter {
 	async setPostDeathLoreText(loreSlug, optSlug, value) { await this._postDeath.lore.setText(loreSlug, optSlug, value); }
 
 	async setInventoryItemChecked(slug, isChecked) { await this._inventory.setItemChecked(slug, isChecked); }
-	async setInventoryResource(slug, count)         { await this._inventory.setResource(slug, count); }
+	// `options` reaches the write, so a move spending a use can name itself to the ledger ({stonetopMove}).
+	async setInventoryResource(slug, count, options) { await this._inventory.setResource(slug, count, options); }
 	// Fragment forms, for a move that changes several things at once and wants one write for the
 	// lot of them (see camp/camp-rules.js#campShareUpdate; heldAdvantageData is with the held modes).
 	inventoryResourceData(slug, count)              { return this._inventory.resourceData(slug, count); }
@@ -3161,7 +3163,8 @@ export class StonetopCharacter {
 			const count = Number(resources[item._id]);
 			if (repair.resourceMax != null && count > repair.resourceMax) clamps.push([item._id, repair.resourceMax]);
 		}
-		if (updates.length) await this._actor.updateEmbeddedDocuments("Item", updates);
+		// Quiet in the ledger: a repair to match the playbook's text, not an edit anybody made.
+		if (updates.length) await this._actor.updateEmbeddedDocuments("Item", updates, { stonetopLedger: true });
 		for (const [id, max] of clamps) await this._inventory.setResource(id, max);
 		return updates.length;
 	}
@@ -3213,7 +3216,7 @@ export class StonetopCharacter {
 		await this._possessions.writeSubChoices(possessionSlug, remaining, { uncarry });
 	}
 	async selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs) { await this._possessions.selectExclusive(possessionSlug, choiceSlug, exclusiveSlugs); }
-	async setSubChoiceUses(possessionSlug, choiceSlug, count) { await this._possessions.setChoiceUses(possessionSlug, choiceSlug, count); }
+	async setSubChoiceUses(possessionSlug, choiceSlug, count, options) { await this._possessions.setChoiceUses(possessionSlug, choiceSlug, count, options); }
 	/** The ○○ count on one gear-choice option. The read half of setSubChoiceUses, so the
 	 *  `possessions.choiceUses` path and its `possession:choice` key shape stay in the class
 	 *  that owns that store rather than being spelled out again by the combat flow. */
@@ -4523,7 +4526,7 @@ export class StonetopCharacter {
 			this._postDeath.hpPenalty(),
 		]);
 		const { armor, unpierceable, conditional, conditionalSource } = this._armorFrom(gear, moveBonuses);
-		return { armor, unpierceable, conditional, conditionalSource, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0 };
+		return { armor, unpierceable, conditional, conditionalSource, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0, hpPenalty };
 	}
 
 	/**
@@ -4565,14 +4568,16 @@ export class StonetopCharacter {
 	 * either writes both. A non-finite armor (nothing worked out, or a move bonus that is not a number)
 	 * writes neither, where 0 is real (unarmored) and must overwrite a stale number. Max HP only with a
 	 * playbook to derive it from (0 says there is none). Ledger-silenced: the real change was the gear,
-	 * the level or the Mark, which the ledger already files. Returns whether it wrote.
+	 * the level or the Mark, which the ledger already files; the one exception is HP a falling max takes
+	 * down with it, which is filed on its own line. Returns whether it wrote.
 	 *
 	 * @param {{armor: number|null, unpierceable: number, conditional?: number, conditionalSource?: string, maxHp: number}} [vitals]  computedVitals' answer.
 	 *   A caller handing in its own numbers must carry the WHOLE armor group: the write is one update
 	 *   over all four fields, so an omitted `conditional` writes the default back over a real one.
 	 */
 	async syncStoredVitals(vitals = null) {
-		const { armor, unpierceable, maxHp, conditional = 0, conditionalSource = "" } = vitals ?? await this.computedVitals();
+		const worked = vitals ?? await this.computedVitals();
+		const { armor, unpierceable, maxHp, conditional = 0, conditionalSource = "" } = worked;
 		const attrs = this._actor.system?.attributes ?? {};
 		const update = {};
 		const floor = Number(unpierceable) || 0;
@@ -4580,6 +4585,7 @@ export class StonetopCharacter {
 		// damage card reads this document, and it offers that armor back (combat/attack-flow.js).
 		const gated = Math.max(0, Math.trunc(Number(conditional) || 0));
 		const gatedBy = gated > 0 ? String(conditionalSource || "") : "";
+		let penaltyBefore, penaltyNow = 0;
 		if (armor !== null && Number.isFinite(Number(armor))
 			&& (Number(attrs.armor?.value) !== Number(armor) || (Number(attrs.armor?.unpierceable) || 0) !== floor
 				|| (Number(attrs.armor?.conditional) || 0) !== gated || (attrs.armor?.conditionalSource ?? "") !== gatedBy)) {
@@ -4595,9 +4601,31 @@ export class StonetopCharacter {
 			// the HP down with it, in the same write: nobody holds more HP than their max. Only when the
 			// max MOVES, so HP this sync did not cause stays the table's business.
 			if ((Number(attrs.hp?.value) || 0) > hpMax) update["system.attributes.hp.value"] = hpMax;
+			// The insert penalty this max is built from, kept so the NEXT fall can tell whether the Marks
+			// moved (maxHpFallCause). Written only when it differs: a character who never had a Mark
+			// carries none, and reads as 0.
+			const penalty = Number(worked.hpPenalty ?? await this._postDeath?.hpPenalty?.()) || 0;
+			penaltyBefore = readableFlags(this._actor)?.[MIRRORED_HP_PENALTY_FLAG];
+			if ((penaltyBefore ?? 0) !== penalty) update[`flags.${STONETOP_SCOPE}.${MIRRORED_HP_PENALTY_FLAG}`] = penalty;
+			penaltyNow = penalty;
 		}
 		if (!Object.keys(update).length) return false;
-		await this._actor.update(update, { stonetopLedger: true });
+		const hpBefore = Number(attrs.hp?.value) || 0;
+		const written = await this._actor.update(update, { stonetopLedger: true });
+		// The mirror stays quiet, but HP taken down with a falling max is HP the character LOST, and
+		// nothing else files it. One line for it, naming what lowered the max where that is known.
+		//
+		// Only from the client whose write actually landed. Every owner with the sheet open runs this
+		// sync, and the author's client runs the mirror too, so two can read the old max and both send
+		// the clamp; core returns nothing for the one that arrives second and changes nothing.
+		const clamped = update["system.attributes.hp.value"];
+		if (clamped !== undefined && written) {
+			const cause = maxHpFallCause(this, penaltyBefore, penaltyNow);
+			await appendLedgerEntries(this._actor, [{
+				category: "stats",
+				action: `HP changed from ${hpBefore} to ${clamped} (max HP fell to ${hpMax}${cause ? `: ${cause}` : ""})`,
+			}]);
+		}
 		return true;
 	}
 
@@ -6607,6 +6635,18 @@ function _buildWoundsSection(actor) {
 function _derivedDamageDie(playbookData, moveBonuses = {}) {
 	if (!playbookData) return null;
 	return moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage;
+}
+
+/**
+ * What lowered a character's max HP, for the ledger, or null when it is not knowable here. A
+ * post-death insert's marked options are the one source this can name: a Thrall's "Reduce your max
+ * HP by 2" Mark. Named only when the penalty GREW since the last max was written (`before`, the
+ * MIRRORED_HP_PENALTY_FLAG, absent for 0): a Mark taken long ago did not cause today's fall.
+ */
+function maxHpFallCause(character, before, now) {
+	const slug = character?._postDeath?.activeSlug;
+	if (!slug) return null;
+	return now > (Number(before) || 0) ? `the ${capitalizeFirst(slug)}'s Marks` : null;
 }
 
 /**

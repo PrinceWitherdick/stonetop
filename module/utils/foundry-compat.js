@@ -196,6 +196,22 @@ export function replacementEntry(keyPath, value) {
 	return [`${keyPath.slice(0, i + 1)}==${keyPath.slice(i + 1)}`, value];
 }
 
+/** A v14 ForcedDeletion operator (`deletionEntry`'s v14 spelling), which is never a value to show. */
+export function isForcedDeletion(value) {
+	const ForcedDeletion = globalThis.foundry?.data?.operators?.ForcedDeletion;
+	return !!ForcedDeletion && value instanceof ForcedDeletion;
+}
+
+/**
+ * When something happened, on the server's clock. Every client stamps its own times, and two
+ * machines' clocks can sit minutes apart. `serverTime` is absent outside a running game (tests),
+ * hence the fallback.
+ */
+export function serverNow() {
+	const server = Number(globalThis.game?.time?.serverTime);
+	return Number.isFinite(server) && server > 0 ? server : Date.now();
+}
+
 /**
  * READ ONE BACK: given an update entry, the plain path it deletes, or null when it is an ordinary
  * write of a value.
@@ -214,8 +230,7 @@ export function replacementEntry(keyPath, value) {
  */
 export function deletionTarget(keyPath, value) {
 	if (typeof keyPath !== "string" || !keyPath) return null;
-	const ForcedDeletion = foundry.data?.operators?.ForcedDeletion;
-	if (ForcedDeletion && value instanceof ForcedDeletion) return keyPath;
+	if (isForcedDeletion(value)) return keyPath;
 	const i = keyPath.lastIndexOf(".");
 	const leaf = keyPath.slice(i + 1);
 	// ⚠ THE VALUE IS PART OF THE QUESTION. A person on this board could be named `-=x`; only the

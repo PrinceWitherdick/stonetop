@@ -679,6 +679,8 @@ describe("StonetopCharacter: repairPossessionGrants", () => {
 		await character.repairPossessionGrants();
 		expect(await character.repairPossessionGrants()).toBe(0);
 		expect(actor.updateEmbeddedDocuments).toHaveBeenCalledTimes(1);
+		// Quiet in the ledger (#21b logs item edits): a repair to match the playbook is not one.
+		expect(actor.updateEmbeddedDocuments.mock.calls[0][2]).toEqual({ stonetopLedger: true });
 	});
 
 	it("leaves the marks and a track's count alone, clamping the count only when the track shrank past it", async () => {

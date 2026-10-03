@@ -215,7 +215,8 @@ export async function backfillTreasureWriteups() {
 		...[...(game.actors ?? [])].map(actor => ({
 			where:  `"${actor.name}"`,
 			items:  actor.items ?? [],
-			commit: u => actor.updateEmbeddedDocuments("Item", u),
+			// Quiet in the ledger: a back-fill on load, not an edit anybody made.
+			commit: u => actor.updateEmbeddedDocuments("Item", u, { stonetopLedger: true }),
 		})),
 	];
 

@@ -78,7 +78,8 @@ export async function refreshHeldMoves({ actors = globalThis.game?.actors ?? [],
 			.map(item => moveRefreshUpdate(item, packEntryFor(item, byName)))
 			.filter(Boolean);
 		if (!updates.length) continue;
-		await actor.updateEmbeddedDocuments("Item", updates);
+		// Quiet in the ledger: the pack's text refreshed, not an edit anybody made.
+		await actor.updateEmbeddedDocuments("Item", updates, { stonetopLedger: true });
 		written += 1;
 	}
 	return written;

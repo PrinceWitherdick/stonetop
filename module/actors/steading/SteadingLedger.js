@@ -4,6 +4,7 @@ import {
 	isBlank, valuesEqual, actionForField, coalesceEntries, prettifySlug,
 	truncateValue, scalarEntry,
 } from "../../utils/ledger-core.js";
+import { deletionTarget } from "../../utils/foundry-compat.js";
 import { IMPROVEMENT_DEFINITIONS } from "./StonetopSteading.js";
 import { flatRequirementItems } from "../../utils/improvement-def.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
@@ -84,14 +85,54 @@ function neighborLabel(item) {
 	return home ? `${name} (from ${home})` : name;
 }
 
+/**
+ * Pair each row of a list before the write with the row it became after it.
+ *
+ * NOT by position: deleting a row splices the array (StonetopSteadingSheet#_onListItemDelete), so
+ * every row below the gap moves up one, and a positional diff read removing "Wagon" from
+ * [Wagon, Mill, Forge] as "Wagon renamed to Mill, Mill renamed to Forge, Forge removed". Rows are
+ * matched by the actor they point at (`uuid` / `id`) first, then by name, and only what is left
+ * over is paired up in order, which is where a rename (same slot, new name) still reads as one.
+ *
+ * @returns {[object, object][]} `[before, after]`, either side `{}` for an added / removed row
+ */
+function pairRows(oldValue, newValue) {
+	const identity = (row) => String(row?.uuid || row?.id || "");
+	const olds = oldValue.map((row, i) => ({ row: row ?? {}, i }));
+	const news = newValue.map((row, i) => ({ row: row ?? {}, i }));
+	const usedOld = new Set();
+	const pairs = [];
+	const take = (n, o) => { usedOld.add(o); n.pair = o; };
+
+	for (const n of news) {
+		const id = identity(n.row);
+		if (!id) continue;
+		const o = olds.find(o => !usedOld.has(o) && identity(o.row) === id);
+		if (o) take(n, o);
+	}
+	for (const n of news) {
+		const name = itemName(n.row);
+		if (n.pair || !name) continue;
+		const o = olds.find(o => !usedOld.has(o) && itemName(o.row) === name
+			&& !(identity(o.row) && identity(n.row) && identity(o.row) !== identity(n.row)));
+		if (o) take(n, o);
+	}
+	const leftOld = olds.filter(o => !usedOld.has(o));
+	const leftNew = news.filter(n => !n.pair);
+	for (let k = 0; k < Math.max(leftOld.length, leftNew.length); k++) {
+		if (leftNew[k] && leftOld[k]) take(leftNew[k], leftOld[k]);
+	}
+
+	for (const n of news) pairs.push({ at: n.i, before: n.pair?.row ?? {}, after: n.row });
+	for (const o of olds) if (!usedOld.has(o)) pairs.push({ at: o.i, before: o.row, after: {} });
+	return pairs.sort((a, b) => a.at - b.at).map(({ before, after }) => [before, after]);
+}
+
 function listEntries(label, oldValue, newValue) {
 	if (!Array.isArray(oldValue) || !Array.isArray(newValue)) return null;
 	const entries = [];
-	const max = Math.max(oldValue.length, newValue.length);
 
-	for (let i = 0; i < max; i++) {
-		const oldItem = oldValue[i] ?? {};
-		const newItem = newValue[i] ?? {};
+	for (const [oldItem, newItem] of pairRows(oldValue, newValue)) {
 		const oldName = itemName(oldItem);
 		const newName = itemName(newItem);
 
@@ -101,8 +142,10 @@ function listEntries(label, oldValue, newValue) {
 			else entries.push({ action: `${label} renamed from ${oldName} to ${newName}` });
 		}
 
-		if (oldName || newName) {
-			const toggle = checkedToggleEntry(newName || oldName, oldItem, newItem);
+		// Not for a removed row: "Wagon removed" is the whole story, and "Wagon deselected" after
+		// it reads as a tick taken off a row still on the list.
+		if (newName) {
+			const toggle = checkedToggleEntry(newName, oldItem, newItem);
 			if (toggle) entries.push(toggle);
 		}
 	}
@@ -142,11 +185,8 @@ function checkedToggleEntry(name, oldItem, newItem) {
 function neighborEntries(oldValue, newValue) {
 	if (!Array.isArray(oldValue) || !Array.isArray(newValue)) return null;
 	const entries = [];
-	const max = Math.max(oldValue.length, newValue.length);
 
-	for (let i = 0; i < max; i++) {
-		const oldItem = oldValue[i] ?? {};
-		const newItem = newValue[i] ?? {};
+	for (const [oldItem, newItem] of pairRows(oldValue, newValue)) {
 		const oldName = itemName(oldItem);
 		const newName = itemName(newItem);
 
@@ -181,7 +221,8 @@ function neighborEntries(oldValue, newValue) {
 				else entries.push({ action: `${name} ${field} changed from ${before} to ${after}` });
 			}
 
-			const toggle = checkedToggleEntry(name, oldItem, newItem);
+			// Not for a removal, which the removal line already says (see listEntries).
+			const toggle = newName ? checkedToggleEntry(name, oldItem, newItem) : null;
 			if (toggle) entries.push(toggle);
 		}
 	}
@@ -211,31 +252,50 @@ function improvementDefs(actor) {
 	return defs;
 }
 
+/** An improvement this update deletes outright (the stored map keeps no record of it). */
+const REMOVED_IMPROVEMENT = Symbol("removed-improvement");
+
 /**
- * Reconstruct the post-update improvements map from the flattened changes. The
- * store is an object keyed by slug, so a single toggle arrives as leaf sub-paths
- * (`…improvements.<slug>.completed` / `.r`) rather than one whole-object key.
+ * What this update writes into the improvements map, per slug: the fields it sets, or
+ * REMOVED_IMPROVEMENT for a slug it deletes. The store is an object keyed by slug, so a toggle
+ * arrives as leaf sub-paths (`…improvements.<slug>.completed` / `.r`) rather than one key.
+ *
+ * Only what the update NAMES. The map is written by merging, so a slug the write leaves out is
+ * still stored exactly as it was, not cleared; reading the absence as "now empty" filed
+ * "Improvement step unmarked" for ticks that never moved.
  */
 function readChangedImprovements(flat) {
 	const result = {};
 	for (const [rawPath, value] of Object.entries(flat)) {
-		const path = normalizeFlagPath(rawPath);
-		if (path === IMPROVEMENTS_PATH) return value && typeof value === "object" ? value : {};
+		const written = normalizeFlagPath(rawPath);
+		const deleted = deletionTarget(written, value);
+		const path = deleted ?? written;
+		if (path === IMPROVEMENTS_PATH) {
+			if (!deleted && value && typeof value === "object") Object.assign(result, value);
+			continue;
+		}
 		if (!path.startsWith(`${IMPROVEMENTS_PATH}.`)) continue;
 		const [slug, field] = path.slice(IMPROVEMENTS_PATH.length + 1).split(".");
-		(result[slug] ??= {})[field] = value;
+		if (deleted && !field) { result[slug] = REMOVED_IMPROVEMENT; continue; }
+		if (result[slug] === REMOVED_IMPROVEMENT) continue;
+		(result[slug] ??= {})[field] = deleted ? undefined : value;
 	}
 	return result;
 }
 
-function improvementEntries(actor, oldImps, newImps) {
+function improvementEntries(actor, oldImps, changes) {
 	const defs = improvementDefs(actor);
 	const entries = [];
-	for (const slug of new Set([...Object.keys(oldImps ?? {}), ...Object.keys(newImps ?? {})])) {
+	for (const slug of Object.keys(changes ?? {})) {
 		const def = defs.get(slug);
 		const label = def?.label ?? prettifySlug(slug);
 		const before = oldImps?.[slug] ?? {};
-		const after = newImps?.[slug] ?? {};
+		if (changes[slug] === REMOVED_IMPROVEMENT) {
+			if (oldImps?.[slug]) entries.push({ action: `Improvement removed: ${label}` });
+			continue;
+		}
+		// Merged over what was stored, as the write itself is.
+		const after = { ...before, ...changes[slug] };
 
 		const wasComplete = !!before.completed;
 		const isComplete = !!after.completed;
@@ -304,6 +364,9 @@ function actorUpdateEntries(actor, changed) {
 			continue;
 		}
 
+		// Any other deletion, in either core's spelling, is not a value to report.
+		if (deletionTarget(normalizedPath, newValue) !== null) continue;
+
 		if (normalizedPath === NOTES_PATH) {
 			entries.push(...notesEntry(getActorProperty(actor, NOTES_PATH), newValue));
 			continue;
@@ -344,9 +407,9 @@ export class SteadingLedger {
 		await appendLedgerEntries(actor, entries, { defaultCategory: "steading", ...options });
 	}
 
-	static async deleteEntries(actor, ids) {
-		if (!isSteadingActor(actor)) return;
-		await deleteLedgerEntries(actor, ids);
+	static async deleteEntries(actor, ids, options) {
+		if (!isSteadingActor(actor)) return [];
+		return deleteLedgerEntries(actor, ids, options);
 	}
 
 	static entriesForActorUpdate(actor, changed) {

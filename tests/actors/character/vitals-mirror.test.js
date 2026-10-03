@@ -10,6 +10,7 @@ import { INSPIRATION_FLAG } from "../../../module/actors/character/inspiration.j
 import { BLESSING_FLAG } from "../../../module/actors/character/roll-boosts.js";
 import { ONGOING_INVOCATION_FLAGS } from "../../../module/actors/character/ongoing-invocation.js";
 import { HOLY_LIGHT_FLAG } from "../../../module/actors/character/holy-light.js";
+import { MIRRORED_HP_PENALTY_FLAG } from "../../../module/actors/character/StonetopFlags.js";
 
 // The stored armor and max HP are what the token bar, the Fight tab and the ledger read. They have to
 // follow a change made with the character's sheet closed, on exactly one client: the one that made it.
@@ -44,11 +45,18 @@ describe("what moves a vital", () => {
 		expect(mayMoveVitals({ flags: { "stonetop-pwd": { "-=camp": null } } })).toBe(false);
 	});
 
+	// The keyed ledger's own writes: one entry per key, and the one-time conversion of an old
+	// array ledger, which v13 spells as a forced replacement `==ledger`.
+	it("ignores the ledger's keyed writes and its v13 replacement", () => {
+		expect(mayMoveVitals({ flags: { "stonetop-pwd": { ledger: { abc: { action: "HP changed from 5 to 4" } } } } })).toBe(false);
+		expect(mayMoveVitals({ flags: { "stonetop-pwd": { "==ledger": { abc: { action: "x" } } } } })).toBe(false);
+	});
+
 	it("spells each quiet flag as its owner does", () => {
 		expect([...FLAG_NOISE].sort()).toEqual([
 			READINESS_FLAG, LEDGER_KEY, CAMP_FLAG, CAMP_OWED_FLAG, DEATHS_DOOR_FLAG,
 			CLASHED_FLAG, HARMED_BY_FLAG, KNOCKED_DOWN_FLAG, ALPHA_FLAG,
-			INSPIRATION_FLAG, BLESSING_FLAG, "invocations", ...ONGOING_INVOCATION_FLAGS,
+			INSPIRATION_FLAG, BLESSING_FLAG, "invocations", ...ONGOING_INVOCATION_FLAGS, MIRRORED_HP_PENALTY_FLAG,
 		].sort());
 		// The Candle against the Dark's armor reads the light, so lighting it must re-mirror.
 		expect(FLAG_NOISE.has(HOLY_LIGHT_FLAG)).toBe(false);
@@ -155,8 +163,10 @@ describe("the vitals mirror hooks", () => {
 });
 
 describe("StonetopCharacter#syncStoredVitals", () => {
-	function typed(attributes, computed) {
-		const actor = { system: { attributes }, update: vi.fn(async () => {}) };
+	// update() resolves to the document when the write changed it, as core's does; to nothing when it did not.
+	function typed(attributes, computed, flags = {}) {
+		const actor = { system: { attributes }, flags: { "stonetop-pwd": flags } };
+		actor.update = vi.fn(async () => actor);
 		return { self: { _actor: actor, computedVitals: async () => computed }, actor };
 	}
 	const sync = self => StonetopCharacter.prototype.syncStoredVitals.call(self);
@@ -208,6 +218,49 @@ describe("StonetopCharacter#syncStoredVitals", () => {
 		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 18, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16 });
 		await sync(self);
 		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16, "system.attributes.hp.value": 16 }, { stonetopLedger: true });
+	});
+
+	// #20: the clamp is HP lost, so it is logged, naming the Mark when one did it.
+	it("files the HP a falling max takes, naming a post-death insert's Marks", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 18, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16, hpPenalty: 2 });
+		self._postDeath = { activeSlug: "thrall" };
+		await sync(self);
+		const ledgerWrite = actor.update.mock.calls.map(([data]) => data).find(data => Object.keys(data).some(k => k.includes(".ledger.")));
+		expect(Object.values(ledgerWrite).map(e => e.action))
+			.toEqual(["HP changed from 18 to 16 (max HP fell to 16: the Thrall's Marks)"]);
+	});
+
+	// Another Mark taken long ago did not cause today's fall: the penalty the last max was built from
+	// is the same one, so something else (a move unmarked, an arcanum's cost) lowered it.
+	it("does not blame Marks that did not change since the last max was written", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 18, max: 18 } },
+			{ armor: 2, unpierceable: 0, maxHp: 16, hpPenalty: 2 }, { mirroredHpPenalty: 2 });
+		self._postDeath = { activeSlug: "thrall" };
+		await sync(self);
+		const ledgerWrite = actor.update.mock.calls.map(([data]) => data).find(data => Object.keys(data).some(k => k.includes(".ledger.")));
+		expect(Object.values(ledgerWrite).map(e => e.action)).toEqual(["HP changed from 18 to 16 (max HP fell to 16)"]);
+	});
+
+	it("records the penalty the max is built from, alongside the max", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 9, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16, hpPenalty: 2 });
+		await sync(self);
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16, "flags.stonetop-pwd.mirroredHpPenalty": 2 }, { stonetopLedger: true });
+	});
+
+	// Every owner client syncs; the one whose write arrives second changes nothing, and must not
+	// file the same lost HP a second time.
+	it("files nothing when its write changed nothing because another client got there first", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 18, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16 });
+		actor.update = vi.fn(async () => undefined);
+		await sync(self);
+		expect(actor.update).toHaveBeenCalledTimes(1);
+	});
+
+	it("files a plain note when what lowered the max is not knowable", async () => {
+		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 18, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16 });
+		await sync(self);
+		const ledgerWrite = actor.update.mock.calls.map(([data]) => data).find(data => Object.keys(data).some(k => k.includes(".ledger.")));
+		expect(Object.values(ledgerWrite).map(e => e.action)).toEqual(["HP changed from 18 to 16 (max HP fell to 16)"]);
 	});
 
 	it("leaves HP under the new max where it is", async () => {

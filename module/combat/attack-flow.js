@@ -280,10 +280,14 @@ export async function letFlyAmmoStatuses(actor) {
 
 // Mark the next ammo status. The slug is a dot-free inventory slug, so a sub-key write is
 // safe and leaves other weapons' resources untouched. Returns the new status.
-async function advanceWeaponAmmo(actor, weapon) {
+//
+// `moveName` is the move that spent the ammo (Let Fly, Blot Out the Sun), and every store's write
+// carries it, so the ledger says "via <move>" whichever track the weapon keeps its ammo on.
+async function advanceWeaponAmmo(actor, weapon, moveName = null) {
 	const track = ammoTrack(weapon);
 	const slug = weapon?.slug;
 	const next = Math.min(weaponAmmoIndex(actor, weapon) + 1, track.max);
+	const ledger = moveName ? { stonetopMove: moveName } : {};
 	if (weapon?.ammoStore === "move") {
 		// The move's own track, through its store's writer (a sub-key, so no sibling move's track is
 		// touched), attributed to the move for the ledger.
@@ -293,9 +297,9 @@ async function advanceWeaponAmmo(actor, weapon) {
 		// gear-choice key contains a colon, and a whole-object write keeps it out of Foundry's
 		// path expansion entirely (the same reason setChoiceUses is written that way).
 		const [possessionSlug, choiceSlug] = String(slug).split(":");
-		await actor.typedActor?.setSubChoiceUses?.(possessionSlug, choiceSlug, next);
+		await actor.typedActor?.setSubChoiceUses?.(possessionSlug, choiceSlug, next, moveName ? ledger : undefined);
 	} else {
-		await actor.update({ [`flags.${SCOPE}.inventory.resources.${slug}`]: next });
+		await actor.update({ [`flags.${SCOPE}.inventory.resources.${slug}`]: next }, ledger);
 	}
 	return { index: next, label: ammoStatusLabel(next, track), allOut: next >= track.max };
 }
@@ -902,7 +906,7 @@ async function askBlotOutTheSun(actor, move, weapon) {
 	// targets; the arrows come off once those are settled (see the caller), because a question backed out
 	// of is a shot never loosed.
 	const spend = async (archer, bow) => {
-		const spent = await advanceWeaponAmmo(archer, bow);
+		const spent = await advanceWeaponAmmo(archer, bow, BLOT_OUT_THE_SUN);
 		await ChatMessage.create({
 			content: stonetopChatCard(BLOT_OUT_THE_SUN, `<div class="card-content"><p>${escHtml(format("stonetop.fight.heroMoves.blotOut.spent", {
 				name: archer.name, weapon: bow?.name ?? "", status: spent.label,
@@ -2500,7 +2504,7 @@ export async function depleteAmmoAndPost(message, pc, attack, index) {
 	depleting.add(message.id);
 	let status;
 	try {
-		status = await advanceWeaponAmmo(pc, attack.weapon);
+		status = await advanceWeaponAmmo(pc, attack.weapon, attack.move ?? null);
 		await message.setFlag(SCOPE, AMMO_FLAG, { [index]: { label: status.label, allOut: status.allOut } });
 	} finally {
 		depleting.delete(message.id);
