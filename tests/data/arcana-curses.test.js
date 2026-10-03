@@ -49,6 +49,50 @@ describe("ARCANA_CURSES table", () => {
 	});
 });
 
+// The file's own rubric, read off the shipped Consequences text: a permanent debility, a lost
+// max HP or a replaced instinct is ruinous, and a ruinous track must show one of those (or a
+// Death's Door 6- that ends you, or an unconditional new instinct).
+describe("grading follows the stated rubric", () => {
+	const trackOf = slug => {
+		const back = BY_SLUG.get(slug)?.back?.description ?? "";
+		const at = back.search(/<h[1-6][^>]*>\s*Consequences/i);
+		return back.slice(at).replace(/<[^>]+>/g, " ");
+	};
+	const RUINOUS_MARK = /permanently mark|replace your instinct|max HP by/i;
+	const ANY_RUINOUS = /permanently mark|replace your instinct|max HP by|Death's Door|^\W*your instinct becomes/im;
+
+	it("grades every track with a permanent debility, lost max HP or replaced instinct as ruinous", () => {
+		for (const slug of Object.keys(ARCANA_CURSES)) {
+			if (RUINOUS_MARK.test(trackOf(slug))) expect(ARCANA_CURSES[slug].tier, slug).toBe("ruinous");
+		}
+	});
+
+	it("grades nothing ruinous whose track shows none of the ruinous marks", () => {
+		for (const [slug, { tier }] of Object.entries(ARCANA_CURSES)) {
+			if (tier === "ruinous") expect(ANY_RUINOUS.test(trackOf(slug).replace(/□/g, "\n")), slug).toBe(true);
+		}
+	});
+
+	it("is the regraded table", () => {
+		const bySlug = Object.fromEntries(Object.entries(ARCANA_CURSES).map(([slug, e]) => [slug, e.tier]));
+		expect(bySlug).toEqual({
+			"hungering-maw-of-hlad": "ruinous", "redwood-effigy": "ruinous", "norubas-ice-sphere": "ruinous",
+			"blood-quenched-sword": "ruinous", "staff-of-the-lidless-orb": "ruinous",
+			"hectumel-codex": "grim", "ring-of-daagon": "grim", "demonhide-cloak": "grim", "azure-hand": "grim",
+			"whispering-rocks": "grim", "rune-laden-scales": "grim", "ineffable-words": "grim", "storm-markings": "grim",
+			"red-scepter": "grim", "shield-of-the-wisent-witch": "grim", "twisted-spear": "grim",
+			"mindgem": "mild",
+		});
+	});
+
+	it("states the costs the regrade turned on", () => {
+		expect(ARCANA_CURSES["staff-of-the-lidless-orb"].cost).toMatch(/miserable/);
+		expect(ARCANA_CURSES["staff-of-the-lidless-orb"].cost).toMatch(/instinct/);
+		expect(ARCANA_CURSES["demonhide-cloak"].cost).toMatch(/during a session/);
+		expect(ARCANA_CURSES["twisted-spear"].cost).toMatch(/Make Camp/);
+	});
+});
+
 describe("coverage against the shipped cards", () => {
 	it("grades exactly the majors that HAVE a Consequences track", () => {
 		const withTrack = [...BY_SLUG.entries()]

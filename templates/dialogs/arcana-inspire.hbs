@@ -52,8 +52,8 @@
 			<p class="stonetop-inspire-intro">Pick or roll each result. They're meant to spur your creativity, not limit it — interpret them loosely.</p>
 
 			{{#each fields}}
-			<div class="stonetop-inspire-field">
-				<label for="stonetop-inspire-{{key}}">{{label}}</label>
+			<div class="stonetop-inspire-field{{#if followUp}} stonetop-inspire-field--follow{{/if}}">
+				<label for="stonetop-inspire-{{key}}">{{label}}{{#if page}}<span class="stonetop-inspire-page">p. {{page}}</span>{{/if}}</label>
 				<div class="stonetop-inspire-field-row">
 					<select id="stonetop-inspire-{{key}}" data-inspire-field="{{key}}">
 						<option value="" {{#unless chosen}}selected{{/unless}}>— pick or roll —</option>

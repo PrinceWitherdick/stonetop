@@ -35325,6 +35325,18 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text-secondary);
 }
 
+/* A follow-up a picked row opened ("go to step 2e", "roll again"): set in under its parent. */
+.stonetop-arcana-inspire-dialog .stonetop-inspire-field--follow {
+	margin-left: 1.25em;
+}
+
+/* The Book II page a table is printed on, beside its label. */
+.stonetop-arcana-inspire-dialog .stonetop-inspire-page {
+	margin-left: 0.4em;
+	font-weight: 400;
+	color: var(--st-text-muted);
+}
+
 .stonetop-arcana-inspire-dialog .stonetop-inspire-field-row {
 	display: flex;
 	align-items: center;

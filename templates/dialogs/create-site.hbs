@@ -64,6 +64,7 @@
         </label>
         {{#if terrainPick.slots.length}}
         {{> "stonetop.cs-pick-slots" terrainPick}}
+        {{#each terrainTables}}{{> "stonetop.cs-pick-slots" this}}{{/each}}
         {{#if regionNote}}<p class="stonetop-cs-note">{{regionNote}} <span class="stonetop-cs-page">{{regionPage}}</span></p>{{/if}}
         {{/if}}
         {{/if}}
