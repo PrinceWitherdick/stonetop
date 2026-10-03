@@ -49,7 +49,11 @@ export const CASTIGATE      = "Castigate";
 // body of people rather than a person, but nothing downstream did anything different with that
 // fact, and it cost the add form a tick box that had to be got right before typing a name. The
 // name says which it is.
-const roster = createRoster({ prefix: "condemned" });
+//
+// TOKEN-SCOPED (the user's ruling): a brand laid by dropping one unlinked token is on that token
+// alone, so branding one bandit does not tag every token of the same base actor. A brand laid from
+// the sidebar still names the actor and all its tokens. See marked-people.js#tokenKey.
+const roster = createRoster({ prefix: "condemned", tokenScoped: true });
 
 /**
  * Whether this character can brand anyone. ONLY Condemn — deliberately narrower than the family

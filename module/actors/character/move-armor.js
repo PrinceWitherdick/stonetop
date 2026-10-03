@@ -24,7 +24,7 @@
 
 import { SYSTEM_ID } from "../../system-id.js";
 import { ownsLearnedMoveNamed } from "./owns-move.js";
-import { BARKSKIN, BLESSED_MARKS_FLAG } from "./blessed-marks.js";
+import { BARKSKIN, BLESSED_MARKS_FLAG, markKindKey } from "./blessed-marks.js";
 import { actorMatchKeys, normalizeName, trailingActorId } from "./marked-people.js";
 
 export const CANDLE_AGAINST_THE_DARK = "A Candle Against the Dark";
@@ -157,7 +157,10 @@ export function barkskinMarks(actors = [], { except = null } = {}) {
 		if (!Array.isArray(rows) || !rows.length) continue;
 		if (!ownsLearnedMoveNamed(blessed, BARKSKIN)) continue;
 		for (const row of rows) {
-			if (row?.kind !== "barkskin") continue;
+			// The kind through the roster's OWN reader, so a row the window lists under Barkskin (an
+			// unknown or missing stored kind falls back there) is a row that grants it, and a raw
+			// spelling can never put the two out of step.
+			if (!row || markKindKey(row.kind) !== "barkskin") continue;
 			if (row.uuid) ids.add(trailingActorId(row.uuid));
 			else if (normalizeName(row.name)) names.add(normalizeName(row.name));
 		}

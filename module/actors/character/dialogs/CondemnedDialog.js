@@ -29,7 +29,7 @@
 import { StonetopAutocomplete } from "../../../utils/autocomplete.js";
 import { openLinkedActorSheet, ACTOR_LINK_MISSING } from "../../../utils/actor-link.js";
 import { brandIndex, isBrandedBy, showCondemn } from "../condemn.js";
-import { oathIndex, isSwornBy, showOaths } from "../oaths.js";
+import { showOaths } from "../oaths.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { RosterDialog } from "./RosterDialog.js";
 
@@ -129,7 +129,6 @@ export class CondemnedDialog extends RosterDialog {
 		// in the world twice per render to say so was the window's whole cost on a large world.
 		const pool = this._rosterPool();
 		const branded = brandIndex(brands);
-		const sworn   = oathIndex(oathList);
 		// The rail, over whichever halves this Judge actually gets. Both at once is the ordinary
 		// case for a level-6 Judge; one alone renders with no rail at all and the panel showing,
 		// which is what `activeTab` being pointed at the only section buys (see `_railFor`).
@@ -169,8 +168,11 @@ export class CondemnedDialog extends RosterDialog {
 			// Parameterised over WHICH list, because the two halves exclude different people:
 			// somebody the Judge has branded may perfectly well also have sworn an oath, and one
 			// shared suggestion pool would have hidden them from the field that still needed them.
+			//
+			// The oath field excludes NOBODY: every oath witnessed is its own row (oaths.js), so a
+			// person who has already sworn one may perfectly well swear the next.
 			suggestions:     this._suggestionRows(pool, actor => isBrandedBy(branded, actor)),
-			oathSuggestions: this._suggestionRows(pool, actor => isSwornBy(sworn, actor)),
+			oathSuggestions: this._suggestionRows(pool),
 			// The Judge's own playbook mark, over the rule. THE JUDGE'S, not this character's:
 			// the window belongs to the moves, and a Fox who took Condemn through Versatile should
 			// still see whose brand they are carrying rather than their own fox.
@@ -328,7 +330,7 @@ export class CondemnedDialog extends RosterDialog {
 		if (await this._character.dismissCondemned(id)) this.renderIfOpen();
 	}
 
-	/** Witness an oath and redraw. A refusal means this person has already sworn one to this Judge. */
+	/** Witness an oath and redraw. Every oath is its own row, so only a nameless one is refused. */
 	async _witness(entry, note = null) {
 		const added = await this._character.witnessOath(entry);
 		if (!added) return this._warn("stonetop.oaths.already", { name: entry.name });

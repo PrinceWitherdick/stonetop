@@ -3,7 +3,7 @@ import {
 	moveArmor, barkskinMarkedBy, barkskinMarks, wearsBarkskin, withBarkskinBase, followerArmorGate, armorGateWords,
 	MOVE_ARMOR_BASE, CANDLE_AGAINST_THE_DARK, ARMOR_SOURCE_JOIN,
 } from "../../../module/actors/character/move-armor.js";
-import { BARKSKIN, BLESSED_MARKS_FLAG } from "../../../module/actors/character/blessed-marks.js";
+import { BARKSKIN, BLESSED_MARKS_FLAG, readMarks } from "../../../module/actors/character/blessed-marks.js";
 import { SYSTEM_ID } from "../../../module/system-id.js";
 
 // The two moves that say a character HAS 2 armor, which is a worn base and not a bonus.
@@ -81,6 +81,21 @@ describe("Barkskin on somebody who is not a character", () => {
 		expect(wearsBarkskin(marks, { name: "Seren" }, { byName: true })).toBe(false);
 		// Only a Blessed who still has the move learned grants it.
 		expect(barkskinMarks([blessed([{ kind: "barkskin", name: "Olwin" }], [])]).names.size).toBe(0);
+	});
+
+	// The armor reads a row's kind exactly as the roster window does (blessed-marks.js#markKindKey):
+	// a row the window lists under Barkskin grants it, and a padded spelling is still Barkskin.
+	it("reads a row's kind the way the roster does", () => {
+		const rows = [
+			{ kind: "  barkskin ", uuid: "Actor.padded" },
+			{ kind: "someRenamedKind", uuid: "Actor.unknown" },
+			{ uuid: "Actor.none" },
+			{ kind: "charm", uuid: "Actor.charm" },
+		];
+		expect(readMarks(rows.map(r => ({ ...r, name: "n" }))).map(m => m.kind))
+			.toEqual(["barkskin", "barkskin", "barkskin", "charm"]);
+		const marks = barkskinMarks([blessed(rows)]);
+		expect([...marks.ids].sort()).toEqual(["none", "padded", "unknown"]);
 	});
 
 	it("is a 2-armor BASE: the better of it and their own, never the two added", () => {

@@ -118,6 +118,7 @@ import {X_PIERCING_MAX} from "../../utils/damage.js";
 import {healTo} from "../../camp/camp-rules.js";
 import {recoveredHpTo, slowToHeal} from "./deaths-door-actor.js";
 import {LEARNED_OPTION} from "../../timeline/timeline-milestones.js";
+import {inTurn} from "../../utils/turn-queue.js";
 
 /**
  * The state a playbook move leaves on a character, and whether anything they hold still makes it:
@@ -5007,12 +5008,26 @@ export class StonetopCharacter {
 	 * And: an operation that changed nothing writes NOTHING. Re-Censuring somebody already branded
 	 * would otherwise broadcast an update and re-render every open sheet to store what was already
 	 * there.
+	 *
+	 * `op` is the roster operation itself, `raw => result`, not its result: it is run against the
+	 * list as stored AFTER every earlier write to this flag has landed. Writes to one actor's flag
+	 * queue behind each other (turn-queue.js#inTurn), because the document only takes a write once the
+	 * server answers. Run on the spot, a note blurred and a tick clicked a moment later both read
+	 * the list from before the note, and the tick's whole-array write put the old note back.
 	 */
-	async _rosterWrite(flag, { entries, added, removed, changed }) {
-		const result = added ?? removed ?? changed ?? null;
-		if (!result) return null;
-		await this._actor.setFlag(STONETOP_SCOPE, flag, entries);
-		return result;
+	async _rosterWrite(flag, op) {
+		return (await this._rosterOp(flag, op)).done;
+	}
+
+	/** `_rosterWrite`'s queue, answering `{ result, done }`: the operation's whole result as well. */
+	_rosterOp(flag, op) {
+		// Keyed by actor uuid, not this wrapper, which is not guaranteed to be the same object twice.
+		return inTurn(`roster:${this._actor?.uuid ?? this._actor?.id ?? ""}|${flag}`, async () => {
+			const result = op(this._rosterRaw(flag));
+			const done = result?.added ?? result?.removed ?? result?.changed ?? null;
+			if (done) await this._actor.setFlag(STONETOP_SCOPE, flag, result.entries);
+			return { result, done };
+		});
 	}
 
 	// -- Condemn (the Judge's brand) --------------------------------------------------
@@ -5037,8 +5052,7 @@ export class StonetopCharacter {
 		// opens the window that lays brands. The blow now lands where the Censure itself is used (the
 		// sheet's _censure), and a brand laid from the window afterwards, or added by hand, rolls
 		// nothing, so one Censure is never two 1d4s.
-		return this._rosterWrite(CONDEMNED_FLAG,
-			addCondemned(this._rosterRaw(CONDEMNED_FLAG), entry, newRosterId));
+		return this._rosterWrite(CONDEMNED_FLAG, raw => addCondemned(raw, entry, newRosterId));
 	}
 
 	/** Whether this Judge's Censure hurts: Castigate LEARNED, not merely listed. */
@@ -5068,12 +5082,12 @@ export class StonetopCharacter {
 
 	/** Dismiss one brand — the only way it ever ends. Returns the entry that was lifted, or null. */
 	async dismissCondemned(id) {
-		return this._rosterWrite(CONDEMNED_FLAG, removeCondemned(this._rosterRaw(CONDEMNED_FLAG), id));
+		return this._rosterWrite(CONDEMNED_FLAG, raw => removeCondemned(raw, id));
 	}
 
 	/** Re-word why somebody is branded. Returns the patched entry, or null when nothing changed. */
 	async setCondemnedNote(id, note) {
-		return this._rosterWrite(CONDEMNED_FLAG, noteCondemned(this._rosterRaw(CONDEMNED_FLAG), id, note));
+		return this._rosterWrite(CONDEMNED_FLAG, raw => noteCondemned(raw, id, note));
 	}
 
 	// -- Oaths (the Judge's Binding Arbitration) ---------------------------------------
@@ -5090,26 +5104,26 @@ export class StonetopCharacter {
 	}
 
 	/**
-	 * Witness an oath. Returns the stored entry, or null when the list was left alone — a nameless
-	 * swearer, or one already on the list.
+	 * Witness an oath. Returns the stored entry, or null for a nameless swearer. Every oath is its
+	 * own row (oaths.js), so somebody already on the list swearing again is a second row.
 	 */
 	async witnessOath(entry) {
-		return this._rosterWrite(OATHS_FLAG, addOath(this._rosterRaw(OATHS_FLAG), entry, newRosterId));
+		return this._rosterWrite(OATHS_FLAG, raw => addOath(raw, entry, newRosterId));
 	}
 
 	/** Release somebody from an oath — the only way it ends. Returns the entry lifted, or null. */
 	async releaseOath(id) {
-		return this._rosterWrite(OATHS_FLAG, removeOath(this._rosterRaw(OATHS_FLAG), id));
+		return this._rosterWrite(OATHS_FLAG, raw => removeOath(raw, id));
 	}
 
 	/** Re-word what somebody swore. Returns the patched entry, or null when nothing changed. */
 	async setOathNote(id, note) {
-		return this._rosterWrite(OATHS_FLAG, noteOath(this._rosterRaw(OATHS_FLAG), id, note));
+		return this._rosterWrite(OATHS_FLAG, raw => noteOath(raw, id, note));
 	}
 
 	/** Mark an oath kept or broken — a broken one is advantage on all rolls against them. */
 	async setOathBroken(id, broken) {
-		return this._rosterWrite(OATHS_FLAG, setOathBroken(this._rosterRaw(OATHS_FLAG), id, broken));
+		return this._rosterWrite(OATHS_FLAG, raw => setOathBroken(raw, id, broken));
 	}
 
 	// -- The Blessed's marks -----------------------------------------------------------
@@ -5127,18 +5141,17 @@ export class StonetopCharacter {
 
 	/** Lay a mark. Returns the stored entry, or null for a nameless or already-marked subject. */
 	async layBlessedMark(entry) {
-		return this._rosterWrite(BLESSED_MARKS_FLAG,
-			addMark(this._rosterRaw(BLESSED_MARKS_FLAG), entry, newRosterId));
+		return this._rosterWrite(BLESSED_MARKS_FLAG, raw => addMark(raw, entry, newRosterId));
 	}
 
 	/** Lift a mark. Returns the entry lifted, or null when the id matched nothing. */
 	async liftBlessedMark(id) {
-		return this._rosterWrite(BLESSED_MARKS_FLAG, removeMark(this._rosterRaw(BLESSED_MARKS_FLAG), id));
+		return this._rosterWrite(BLESSED_MARKS_FLAG, raw => removeMark(raw, id));
 	}
 
 	/** Re-word what a mark is for. Returns the patched entry, or null when nothing changed. */
 	async setBlessedMarkNote(id, note) {
-		return this._rosterWrite(BLESSED_MARKS_FLAG, noteMark(this._rosterRaw(BLESSED_MARKS_FLAG), id, note));
+		return this._rosterWrite(BLESSED_MARKS_FLAG, raw => noteMark(raw, id, note));
 	}
 
 	/**
@@ -5147,7 +5160,7 @@ export class StonetopCharacter {
 	 * or null when nothing changed, which is also what the four kinds without the choice get back.
 	 */
 	async setBlessedMarkSign(id, sign) {
-		return this._rosterWrite(BLESSED_MARKS_FLAG, setMarkSign(this._rosterRaw(BLESSED_MARKS_FLAG), id, sign));
+		return this._rosterWrite(BLESSED_MARKS_FLAG, raw => setMarkSign(raw, id, sign));
 	}
 
 	/**
@@ -5160,9 +5173,9 @@ export class StonetopCharacter {
 	 * rather than storing and broadcasting an exhausted row first.
 	 */
 	async setBlessedMarkLoyalty(id, loyalty, options = {}) {
-		const result = setMarkLoyalty(this._rosterRaw(BLESSED_MARKS_FLAG), id, loyalty, options);
-		const changed = await this._rosterWrite(BLESSED_MARKS_FLAG, result);
-		return { changed, ended: changed ? result.ended : false };
+		const { result, done } = await this._rosterOp(BLESSED_MARKS_FLAG,
+			raw => setMarkLoyalty(raw, id, loyalty, options));
+		return { changed: done, ended: done ? result.ended : false };
 	}
 
 	// -- Battle Joy (the Heavy) ---------------------------------------------------------
