@@ -606,7 +606,8 @@
         "summary": "When you <em><strong>rest for a few days, in safety and comfort</strong></em>, recover all your HP and clear all your debilities.",
         "nothingHint": "You're already at full HP with no debilities to clear.",
         "unlivingHint": "Unliving: no benefit. A Ghost or Revenant gains nothing from Convalesce."
-      }
+      },
+      "dyingHint": "Dying: you can't save yourself. Someone who tends you Aids your {move} roll instead."
     },
     "undeath": {
       "becameGhost": "Gave up the Revenant insert and became a <strong>Ghost</strong>. Your Terrible Purpose stays with you; choose your first Consequence as a Ghost.",

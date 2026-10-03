@@ -158,6 +158,8 @@ function outcomeLine(entry) {
 	if (!entry.rests) return `Ate, but got no real sleep, so took no pick tonight${tail}.`;
 	const parts = [];
 	if (entry.benefit === CAMP_BENEFIT.DEBILITY) parts.push(`Cleared ${entry.debility?.name ?? "a debility"}`);
+	// Book I p.240 and p.245: dying, they can't save themselves; whoever tends them Aids the roll.
+	else if (entry.dying) parts.push("Dying, so the night restores no HP: someone who tends them Aids their roll at the Door instead");
 	else if (entry.hpAfterPick > entry.hpBefore) parts.push(`HP ${entry.hpBefore} → ${entry.hpAfterPick} (half max)`);
 	else parts.push(`HP already full at ${entry.hpBefore}`);
 	parts.push(...after);

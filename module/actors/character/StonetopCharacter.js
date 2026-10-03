@@ -40,6 +40,7 @@ import {statRequirementsUnmet} from "./stat-requirement.js";
 import {effectiveRequiredMoves, requiredMovesUnmet, requirementLabel} from "./move-requirement.js";
 import {MoveResources, learnedTrack, takeBackHeld} from "./MoveResources.js";
 import {debilityData, walkItOffChoice} from "./walk-it-off.js";
+import {normalizeWound as _normalizeWound, normalizeWoundList} from "./wound-record.js";
 import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
 import {markEntries, filledMarks, filledMarkCount, trimEmptyTail, oncePerLevelCautions, ONCE_PER_LEVEL_MARKS} from "./pfg-marks.js";
 import {MARK_STAT_CAPS} from "./stat-rules.js";
@@ -5930,10 +5931,16 @@ export class StonetopCharacter {
 	// current list, recomputes it, and writes the whole thing back. `moveName`, when
 	// given, tags the write so the character ledger attributes it ("via Recover", etc.).
 
-	// A defensive, normalized copy of the current wound list.
+	// A defensive, normalized copy of the current wound list. A record stored with no id reads
+	// with the same stand-in id every time (wound-record.js#normalizeWoundList), so the ids the
+	// sheet renders are the ids the CRUD below finds.
 	_woundList() {
-		const arr = this._actor.system?.attributes?.wounds;
-		return Array.isArray(arr) ? arr.map(w => _normalizeWound(w)) : [];
+		return normalizeWoundList(this._actor.system?.attributes?.wounds);
+	}
+
+	/** The current wound records, normalized: what the sheet's wound editor and Tend read. */
+	woundRecords() {
+		return this._woundList();
 	}
 
 	async _writeWounds(wounds, moveName) {
@@ -5944,9 +5951,10 @@ export class StonetopCharacter {
 	}
 
 	// Add a wound. Returns its generated id so callers can immediately open it for editing.
-	async addWound(data = {}) {
+	// `moveName` tags the write for the ledger when a move records it (Death's Door's 10+ mark).
+	async addWound(data = {}, { moveName } = {}) {
 		const { update, id } = this.addWoundUpdate(data);
-		await this._actor.update(update);
+		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
 		return id;
 	}
 
@@ -6565,39 +6573,10 @@ function _buildDebilitiesSection(actor, moveResources) {
 	);
 }
 
-// Valid wound enum values. Kept here (not as StringField `choices`) so the read path
-// can coerce anything unexpected — a wound record written by a newer build, or a
-// hand-edited world — back to a safe default instead of wedging the sheet.
-const _WOUND_STATUSES = ["problematic", "stabilized", "permanent"];
-const _WOUND_ORIGINS  = ["wound", "deaths-door"];
-
-// Coerce a stored/partial wound record into the canonical shape the schema and sheet
-// expect, filling defaults and normalizing the two enum fields. `keepId` false mints a
-// fresh id (used when adding); true preserves whatever id came in (used when editing).
-function _normalizeWound(w = {}, { keepId = true } = {}) {
-	return {
-		id:              (keepId && w.id) ? w.id : foundry.utils.randomID(),
-		text:            typeof w.text === "string" ? w.text : "",
-		status:          _WOUND_STATUSES.includes(w.status) ? w.status : "problematic",
-		origin:          _WOUND_ORIGINS.includes(w.origin) ? w.origin : "wound",
-		requirementNote: typeof w.requirementNote === "string" ? w.requirementNote : "",
-		planNote:        typeof w.planNote === "string" ? w.planNote : "",
-		planRequirements: Array.isArray(w.planRequirements)
-			? w.planRequirements
-				.map(r => ({ text: typeof r?.text === "string" ? r.text : "", done: !!r?.done }))
-				.filter(r => r.text)
-			: [],
-		mechanicalTag:   typeof w.mechanicalTag === "string" ? w.mechanicalTag : "",
-		reminderMove:    typeof w.reminderMove === "string" ? w.reminderMove : "",
-		healed:          !!w.healed,
-	};
-}
-
+// The wound record's one reading (normalizeWound / normalizeWoundList) lives in wound-record.js,
+// shared with the ledger and the roll card.
 function _buildWoundsSection(actor) {
-	const arr = actor.system?.attributes?.wounds;
-	if (!Array.isArray(arr)) return [];
-	return arr.map(w => {
-		const n = _normalizeWound(w);
+	return normalizeWoundList(actor.system?.attributes?.wounds).map(n => {
 		return new WoundSnapshotBuilder()
 			.withId(n.id)
 			.withText(n.text)

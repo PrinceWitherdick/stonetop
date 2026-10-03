@@ -128,6 +128,18 @@ describe("DeathsDoorDialog — the 10+ mark records itself", () => {
 		});
 	});
 
+	// Every automated move write names its move, so the ledger reads "via Death's Door".
+	it("records the mark as Death's Door's own write, for the ledger", async () => {
+		const character = makeCharacter();
+		const add = character.addWound.bind(character);
+		const options = [];
+		character.addWound = async (data, opts) => { options.push(opts); return add(data); };
+
+		await makeDialog(character)._applyTier("success");
+
+		expect(options).toEqual([{ moveName: "Death's Door" }]);
+	});
+
 	it("a failed seed doesn't sink the tier, and the next save retries it", async () => {
 		const character = makeCharacter();
 		const add = character.addWound.bind(character);

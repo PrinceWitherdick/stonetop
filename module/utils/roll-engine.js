@@ -1,5 +1,6 @@
 import { maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
 import { WOUND_STATUS_LABEL } from "../actors/character/wound-display.js";
+import { normalizeWoundList } from "../actors/character/wound-record.js";
 import { escHtml, formatOutcomeDetail, stripHtmlToText, sign } from "./strings.js";
 import { pickLimitsFrom } from "./move-picks.js";
 import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
@@ -576,8 +577,9 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", k
 // carries a mechanicalTag and is set to remind on this move (or on "*", all rolls).
 // A reminder only — it never changes the roll; the GM/player applies it in the fiction.
 function _woundReminderHtml(actor, moveName) {
-	const wounds = actor?.system?.attributes?.wounds;
-	if (!Array.isArray(wounds) || !wounds.length) return "";
+	// Read as the sheet reads them (wound-record.js), so a record the sheet shows is one this sees.
+	const wounds = normalizeWoundList(actor?.system?.attributes?.wounds);
+	if (!wounds.length) return "";
 	// "Ask" moves (Defy Danger/Interfere) and fixed moves rolled with an alternate stat
 	// arrive here as "<Name> with <STAT>" (see StonetopItem.roll), but the reminder picker
 	// stores the bare move name — so compare against the base so a reminder on "Defy Danger"
@@ -625,8 +627,10 @@ const WOUND_JUSTIFY_TIERS = TIER_KEYS.filter(tier => tier !== "success");
 // tag there, the wound as written here -- so the same injury appearing in both is not the same
 // line said twice.
 function _woundJustifyNotice(actor) {
-	const wounds = actor?.system?.attributes?.wounds;
-	if (!Array.isArray(wounds) || !wounds.length) return "";
+	// Normalized as the sheet reads them: a record stored with a blank status shows there as
+	// problematic, so it is one here too.
+	const wounds = normalizeWoundList(actor?.system?.attributes?.wounds);
+	if (!wounds.length) return "";
 	const items = wounds
 		.filter(w => w && !w.healed && JUSTIFYING_WOUND_STATUSES.has(w.status))
 		// The wound as the player wrote it, falling back to its mechanical tag for one entered as a
@@ -912,7 +916,10 @@ export async function rollStat(statKey, actor, options = {}) {
 		countsAs: { missCountsAsPartial, partialCountsAsSuccess },
 		tierActions,
 		conditionsHtml,
-		noticesHtml: _woundReminderHtml(actor, moveName) + _woundJustifyHtml(actor, result.key),
+		// The wounds are the rolling CHARACTER's: a follower's roll (Order Followers, a Struggle as One
+		// follower row) is made on the PC's actor, but the PC's injuries neither hinder nor explain it.
+		noticesHtml: statKey === "follower" ? ""
+			: _woundReminderHtml(actor, moveName) + _woundJustifyHtml(actor, result.key),
 		buttons: true,
 		total: roll.total,
 		formula: roll.formula,

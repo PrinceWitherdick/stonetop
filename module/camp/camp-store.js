@@ -127,6 +127,9 @@ export function campMember(actor, hostId) {
 		maxHp:            record?.vitals.maxHp || count(actor.system?.attributes?.hp?.max),
 		activeDebilities: markedDebilities(actor, record?.vitals),
 		unliving:         isUnliving(actor),
+		// At 0 HP with their 0-HP move still to face: the night restores them no HP (camp-rules.js
+		// #freezeCampPlan). Read live, so one brought back up mid-camp heals as anyone does.
+		dying:            !!actor.typedActor?.canFaceDeathsDoor,
 		// Read live, like the debilities: a move learned or switched off mid-camp counts as it is now.
 		breaksBread:      ownsLearnedMoveNamed(actor, BREAK_BREAD),
 		hearthCha:        ownsLearnedMoveNamed(actor, HOME_FIRES) ? Math.trunc(Number(actor.system?.stats?.cha?.value) || 0) : null,

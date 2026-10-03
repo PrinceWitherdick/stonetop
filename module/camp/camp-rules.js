@@ -446,7 +446,7 @@ export function restsTonight(member, ledger) {
 
 /** Whether a bedroll's "recover 1d6 extra HP when you Make Camp" is owed to this member. */
 export function rollsBedroll(member, ledger) {
-	return restsTonight(member, ledger) && member.record.bedroll && member.record.vitals.bedroll;
+	return restsTonight(member, ledger) && member.record.bedroll && member.record.vitals.bedroll && !member.dying;
 }
 
 /**
@@ -463,7 +463,8 @@ export function breakBreadOffered(ledger) {
  * however many at the fire hold the move.
  */
 export function rollsBreakBread(member, ledger) {
-	return breakBreadOffered(ledger) && ledger.properMeal !== false && eatsTonight(member);
+	// Not for one dying at the fire, whose night restores no HP (freezeCampPlan): no die for nothing.
+	return breakBreadOffered(ledger) && ledger.properMeal !== false && eatsTonight(member) && !member.dying;
 }
 
 /**
@@ -613,8 +614,11 @@ export function freezeCampPlan(ledger, { bedrolls = {}, breads = {} } = {}) {
 		const maxHp    = count(m.maxHp);
 		const halfMax  = Math.ceil(maxHp / 2);
 		const hpBefore = count(m.hpValue);
-		const picked   = benefit === CAMP_BENEFIT.HP ? healTo(hpBefore, halfMax, maxHp) : hpBefore;
-		const extras   = healInTurn(picked, CAMP_EXTRAS.map(x => [x.source, x.amount(m, ledger, { bedrolls, breads })]), maxHp);
+		// Dying at the fire (their 0-HP move still to face): they "can't save themselves" (Book I p.240),
+		// so the night restores none of their HP, pick or extras; whoever tends them Aids the roll (p.245).
+		const dying    = !!m.dying;
+		const picked   = benefit === CAMP_BENEFIT.HP && !dying ? healTo(hpBefore, halfMax, maxHp) : hpBefore;
+		const extras   = dying ? [] : healInTurn(picked, CAMP_EXTRAS.map(x => [x.source, x.amount(m, ledger, { bedrolls, breads })]), maxHp);
 		// What the night SHOULD heal, pick and extras alike; Torment's Blessing then halves the whole of
 		// it once (deaths-door-actor.js#recoveredHpTo). The steps above stay what they should have been,
 		// so the card can say what was halved.
@@ -636,6 +640,7 @@ export function freezeCampPlan(ledger, { bedrolls = {}, breads = {} } = {}) {
 			extras,
 			slowToHeal: slow,
 			hpAfter:  recoveredHpTo(hpBefore, healed, slow),
+			...(dying ? { dying: true } : {}),
 			peaceful: rests && m.record.peaceful,
 			// Whose Quicksilver Dreams trouble this member's night, as names; held disadvantage when any.
 			nightmares: nightmaresFor(m, ledger),
@@ -680,7 +685,8 @@ export function campShareUpdate(entry, { resources = {}, hpValue = 0, resourceDa
 		if (entry.benefit === CAMP_BENEFIT.DEBILITY && entry.debility?.key) {
 			// Walk It Off's box, when that is the one picked (walk-it-off.js).
 			Object.assign(update, debilityData(entry.debility.key, false));
-		} else if (entry.benefit === CAMP_BENEFIT.HP) {
+		} else if (entry.benefit === CAMP_BENEFIT.HP && !entry.dying) {
+			// Not for one dying at the fire (freezeCampPlan): they can't save themselves.
 			hp = healTo(hp, entry.halfMax, entry.maxHp);
 		}
 		// Held, not the sticky roll-modifier selector: "advantage on your next roll" is a promise

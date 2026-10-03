@@ -1006,4 +1006,29 @@ describe("rollStat problematic-wound prompt", () => {
 
 		expect(rollMessages[0].flavor).toContain("Problematic wounds");
 	});
+
+	// A follower's roll rides the PC's actor (Order Followers, a Struggle as One follower row), but
+	// the PC's injuries neither hinder the follower nor explain their miss.
+	it("puts neither wound notice on a follower's roll", async () => {
+		rollTotal = 5;
+		await rollStat("follower", actorWithWounds([
+			{ ...BLEEDING, mechanicalTag: "Everything hurts", reminderMove: "*" },
+		]), { statValue: 1, moveName: "Order Followers" });
+
+		const flavor = rollMessages[0].flavor;
+		expect(flavor).toContain("stonetop-roll-card");
+		expect(flavor).not.toContain("stonetop-roll-wound-justify");
+		expect(flavor).not.toContain("Lasting injury");
+	});
+
+	// Read as the sheet reads them: a stored blank status shows there as problematic.
+	it("names a wound stored with a blank status, as the sheet shows it", async () => {
+		rollTotal = 5;
+		await rollStat("str", actorWithWounds([
+			null,
+			{ id: "", text: "Torn shoulder", status: "", healed: false },
+		]), { moveName: "Clash" });
+
+		expect(rollMessages[0].flavor).toContain("Torn shoulder");
+	});
 });
