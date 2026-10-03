@@ -5,6 +5,8 @@ import { TIER_LABELS } from "../utils/move-results.js";
 // running the factory, and that window still has to be told which trip to switch to.
 import { findOpenApp } from "../utils/open-windows.js";
 import { crewExists, customGroupPresent, customGroupSize } from "../utils/crew.js";
+import { followerInParty } from "../actors/character/follower-party.js";
+import { partyFollowersOf } from "../actors/character/follower-roster.js";
 import { sign, rollSeasonsCard, pbtaDiceFormula } from "../utils/roll-engine.js";
 import { normalizeRollMode, wireModePicker } from "./RollDialog.js";
 import { getStonetopSteadingActor, isSteadingActor } from "../utils/world.js";
@@ -151,6 +153,9 @@ function _offHooks(registered) {
 function _carriesLoad(actor) {
 	return actor?.type === "character" || isSteadingActor(actor);
 }
+
+/** The built-in followers a load row is drawn for off their card, and the tag each row wears. */
+const BUILT_IN_LOAD_TAGS = Object.freeze({ "animal-companion": "animal companion", "initiate": "initiate", "beast": "beast" });
 
 /**
  * The tag a returned PC wears on their load row: `{ kind, label }`, or null for the living.
@@ -3500,9 +3505,13 @@ export class ExpeditionDialog extends StepperDialog {
 		// Only on-trip PCs need a snapshot, and each is a full character build — run them
 		// concurrently rather than awaiting one heavy build per PC in series (this re-runs
 		// on every Outfit render, including each party-toggle click).
+		// And each one's party followers (follower-roster.js), which reads which built-in followers
+		// they have from their flags and playbook. Both batches at once.
 		const onTrip = pcs.filter(({ actor }) => !out[actor.id]);
-		const snaps  = await Promise.all(onTrip.map(({ actor }) =>
-			Promise.resolve(actor.typedActor?.buildSnapshot?.()).catch(() => null)));
+		const [snaps, partyFollowers] = await Promise.all([
+			Promise.all(onTrip.map(({ actor }) => Promise.resolve(actor.typedActor?.buildSnapshot?.()).catch(() => null))),
+			Promise.all(onTrip.map(({ actor }) => partyFollowersOf(actor))),
+		]);
 
 		const rows = [];
 		onTrip.forEach(({ actor, undeadKind }, i) => {
@@ -3514,7 +3523,7 @@ export class ExpeditionDialog extends StepperDialog {
 			const over   = !!load?.loadLevelOverloaded;
 
 			rows.push(this._pcRow(actor, snap, tier, over, Number(load?.totalMarks) || 0, limits, undeadKind));
-			for (const fol of this._partyFollowersOf(actor)) rows.push(fol);
+			for (const fol of this._partyFollowersOf(actor, partyFollowers[i])) rows.push(fol);
 		});
 
 		// Summary counts every laden member (PCs + followers): heavy and overloaded are
@@ -3583,21 +3592,36 @@ export class ExpeditionDialog extends StepperDialog {
 			});
 	}
 
-	// A PC's followers, each as a load row: the Marshal's crew (whose gear pips carry
-	// weights) plus any custom followers marked "in the party" (the Followers-tab
-	// toggle). A follower's load is its ✓ gear marks (Book I p.472), bucketed by the
-	// standard caps: nothing raises a follower's.
-	_partyFollowersOf(actor) {
+	// A PC's followers travelling with the party (the toggle every follower card carries,
+	// follower-party.js), each as a load row: the crew (whose gear pips carry weights), the
+	// animal companion, initiates and beasts (their ✓ gear checklist), and custom followers. A
+	// follower's load is its ✓ gear marks (Book I p.472), bucketed by the standard caps: nothing
+	// raises a follower's. `followers` are the PC's party followers (follower-roster.js
+	// #partyFollowersOf); without them only the crew and custom followers can be read.
+	_partyFollowersOf(actor, followers = null) {
 		const rows = [];
-		const crew = this._crewRow(actor);
+		const crew = followerInParty(actor, "crew") ? this._crewRow(actor) : null;
 		if (crew) rows.push(crew);
+		for (const fol of (Array.isArray(followers) ? followers : [])) {
+			if (!BUILT_IN_LOAD_TAGS[fol?.ftype] || !fol.party || fol.dead) continue;
+			rows.push(this._builtInFollowerRow(fol));
+		}
 		const map = actor.getFlag?.(SYSTEM_ID, "customFollowers") ?? {};
-		for (const f of Object.values(map)
-			.filter(f => f?.party)
-			.sort((a, b) => (Number(a?.order) || 0) - (Number(b?.order) || 0))) {
+		for (const [, f] of Object.entries(map)
+			.filter(([slug, f]) => followerInParty(actor, "custom", slug) && !f?.dead)
+			.sort(([, a], [, b]) => (Number(a?.order) || 0) - (Number(b?.order) || 0))) {
 			rows.push(this._followerRow(f));
 		}
 		return rows;
+	}
+
+	// An animal companion's, an initiate's or a beast's load row, off its follower record: the ✓ gear
+	// checklist and the face on its detail flags, where the Followers tab's card reads them, and a
+	// custom follower's are counted the same way.
+	_builtInFollowerRow(fol) {
+		const d = fol.details ?? {};
+		const marks = (Array.isArray(d.gear) ? d.gear : []).filter(g => g?.checked).length;
+		return this._makeFollowerRow(fol.name, marks, BUILT_IN_LOAD_TAGS[fol.ftype], d);
 	}
 
 	// The Marshal's crew, if this PC has one. Its ◇ load is the sum of filled gear pips

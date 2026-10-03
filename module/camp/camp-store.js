@@ -1,7 +1,10 @@
 import { SYSTEM_ID } from "../system-id.js";
 import { autoOpenUserId, ownerUsers } from "../hooks/DeathsDoorPrompt.js";
 import { THRALL_MARK, hasThrallMark, isOutOfPlay, isUnliving, slowToHeal } from "../actors/character/deaths-door-actor.js";
-import { customGroupPresent } from "../utils/crew.js";
+import { crewExists } from "../utils/crew.js";
+import { readableFlags } from "../actors/character/StonetopFlags.js";
+import { followerInPartyFlags, followerMouths, partyFollowers, partyMouths } from "../actors/character/follower-party.js";
+import { partyFollowersOf } from "../actors/character/follower-roster.js";
 import { deletionTarget } from "../utils/foundry-compat.js";
 import { postMoveToChat, rolledTotalCard } from "../utils/chat.js";
 import { capitalizeFirst } from "../utils/strings.js";
@@ -14,6 +17,7 @@ import { ownsLearnedMoveNamed } from "../actors/character/owns-move.js";
 import { walkItOffChoice } from "../actors/character/walk-it-off.js";
 import { CLEARS_ON, markedTracks, snapshotTracksClearedBy } from "../actors/character/background-tracks.js";
 import { campSummaryRows, hadAllAlongRows } from "./camp-view.js";
+import { campFollowerShare } from "./camp-followers.js";
 
 /**
  * THE CAMP'S DOCUMENTS: who is sitting at the fire, the choices they make there, and the moment
@@ -244,12 +248,21 @@ export async function campVitalsFor(actor) {
  * travelling with the party, a group follower counting as its members still with it (a member
  * marked fallen eats nothing; one who is only down still eats). Only where the count starts; the
  * player changes it at the fire.
+ *
+ * Every kind of follower counts (follower-party.js): `followers` are the character's party followers
+ * (follower-roster.js#partyFollowersOf), which reads which built-in followers a character
+ * HAS. Without them (no sheet to read) the flags alone can still answer for custom followers and a
+ * crew; the companion, initiates and beasts need the playbook to be known at all.
  */
-export function partyFollowerMouths(actor) {
-	const followers = actor?.getFlag?.(SYSTEM_ID, "customFollowers") ?? {};
-	return Object.values(followers)
-		.filter(f => f?.party && !f?.dead)
-		.reduce((sum, f) => sum + (f.isGroup ? customGroupPresent(f).length : 1), 0);
+export function partyFollowerMouths(actor, followers = null) {
+	const flags = readableFlags(actor ?? {});
+	if (Array.isArray(followers)) return partyMouths(flags, partyFollowers(followers));
+	const custom = Object.entries(flags?.customFollowers ?? {})
+		.filter(([slug, f]) => followerInPartyFlags(flags, "custom", slug) && !f?.dead)
+		.reduce((sum, [slug]) => sum + followerMouths(flags, { ftype: "custom", slug }), 0);
+	const crew = crewExists(flags?.crew) && followerInPartyFlags(flags, "crew")
+		? followerMouths(flags, { ftype: "crew", slug: "" }) : 0;
+	return custom + crew;
 }
 
 /**
@@ -276,7 +289,9 @@ function unpaidPart({ id, plan }) {
 
 /** Sit a character down at a camp: one write of a whole fresh record. */
 async function sitDown(actor, { campId, hostId }) {
-	const vitals = await campVitalsFor(actor);
+	// Every follower travelling with them, built-in or custom (follower-roster.js); read
+	// alongside the vitals, as neither waits on the other.
+	const [vitals, party] = await Promise.all([campVitalsFor(actor), partyFollowersOf(actor)]);
 	// A host walking away from their own unsettled camp breaks it up, and this write replaces the record
 	// that said so. The new one names it, along with every camp the old one named, so their cards and
 	// windows go on saying they broke up (campState) however many fires this character moves between.
@@ -290,7 +305,7 @@ async function sitDown(actor, { campId, hostId }) {
 		actorId:            actor.id,
 		now:                Date.now(),
 		vitals,
-		followers:          partyFollowerMouths(actor),
+		followers:          partyFollowerMouths(actor, party),
 		hpValue:            actor.system?.attributes?.hp?.value,
 		activeDebilityKeys: markedDebilities(actor, vitals).map(d => d.key),
 		unliving:           isUnliving(actor),
@@ -523,7 +538,17 @@ async function payShare(actor, entry, campId) {
 			advantageData: source => character.heldAdvantageData(source),
 			disadvantageData: source => character.heldDisadvantageData(source),
 		});
-		await actor.update(update, { stonetopMove: "Make Camp" });
+		// The followers the meal fed regain half their max HP in the same write (camp-followers.js). A
+		// card that can't be read costs them the heal, never the character's own share.
+		// Read only when the meal fed any of them: it looks up the playbook.
+		const party = entry?.followersFed > 0 ? await partyFollowersOf(actor) : null;
+		const followers = await campFollowerShare(actor, entry, { partyMouths: partyFollowerMouths(actor, party), followers: party })
+			.catch(err => {
+				console.warn(`Stonetop | Make Camp: could not read ${actor.name}'s followers`, err);
+				return { update: {}, rows: [] };
+			});
+		await actor.update({ ...update, ...followers.update }, { stonetopMove: "Make Camp" });
+		if (followers.rows.length) postMoveToChat(actor, "Make Camp", followers.rows);
 		if (shortfall > 0) {
 			ui.notifications?.warn?.(`By the time the camp was settled, ${actor.name}'s pack held ${shortfall} ${shortfall === 1 ? "use" : "uses"} less than was shared from it.`);
 		}

@@ -641,6 +641,8 @@ export function freezeCampPlan(ledger, { bedrolls = {}, breads = {} } = {}) {
 			slowToHeal: slow,
 			hpAfter:  recoveredHpTo(hpBefore, healed, slow),
 			...(dying ? { dying: true } : {}),
+			// The mouths beside their own the meal fed, whose HP the night restores (camp-followers.js).
+			followersFed: ledger.short === 0 ? count(m.record.followers) : 0,
 			peaceful: rests && m.record.peaceful,
 			// Whose Quicksilver Dreams trouble this member's night, as names; held disadvantage when any.
 			nightmares: nightmaresFor(m, ledger),

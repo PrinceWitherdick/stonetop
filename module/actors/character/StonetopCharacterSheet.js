@@ -60,6 +60,7 @@ import {withSheetSizeMemory} from "../../utils/sheet-size.js";
 import { personalSymbolAction, displayPersonalSymbol } from "./personal-symbol.js";
 import { crewExists, crewBackgroundTag, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, customGroupPresent, groupFollowerMembers, groupFollowerStanding, CREW_SIZE_MAX } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
+import { FOLLOWER_FLAGS as _FOLLOWER_FLAGS, fillFollowerSlug as _fillSlug, followerDetailBase as _followerDetailBase, clampFollowerHp as _clampHp, intOverrideOrNull as _intOverrideOrNull, companionBase, crewMemberHpMax, followerHpMaxOverride, ownedBeastSlugs, orderedCustomFollowers } from "./follower-roster.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
 import {rollStat, sign, classifyResult} from "../../utils/roll-engine.js";
 import {defendReadinessHold} from "../../combat/defend-readiness.js";
@@ -105,9 +106,10 @@ import {withSectionEditing} from "../../utils/section-editing.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {annotateInvocationEffects, splitEmpoweredEffect} from "./invocation-effects.js";
 import {CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS, showHolyLight} from "./holy-light.js";
-import {ownedMoveNames, ownedMove, ownedLearnedMove, ownsLearnedMoveNamed, ownsMoveNamed, isPlayerAuthoredMove, moveLearnedIn} from "./owns-move.js";
+import {ownedMoveNames, ownedMove, ownedLearnedMove, ownsLearnedMoveNamed, isPlayerAuthoredMove, moveLearnedIn} from "./owns-move.js";
 import { crewIsExceptional, companionIsExceptional, EXCEPTIONAL_FROM_MOVE } from "./follower-masters.js";
-import { ANIMAL_COMPANION_MOVE, COMPANION_TRAIT_PICKS_PER_SPECIMEN, MAGNIFICENT_SPECIMEN_MOVE, canonicalCompanionTraits, companionPaidTraits, companionStats, companionTraitAllowance } from "./animal-companion.js";
+import { followerInPartyFlags, followerPartyPath } from "./follower-party.js";
+import { ANIMAL_COMPANION_MOVE, COMPANION_TRAIT_PICKS_PER_SPECIMEN, MAGNIFICENT_SPECIMEN_MOVE, companionPaidTraits, companionTraitAllowance } from "./animal-companion.js";
 import { LOYAL_TO_THE_END, beastBondActions, companionConditions, lendStrength, loyalToTheEndTierActions, removeCompanionCondition } from "./companion-bond.js";
 import { CompanionSetupDialog, companionSetupUpdate } from "./dialogs/CompanionSetupDialog.js";
 import {CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG, TEN_PLUS_FLAG, debilityPayments, invokeTenPlusCardBody, payDebility} from "./invoke-consequences.js";
@@ -148,7 +150,7 @@ import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
 import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
-import {BEAST_CATALOG, BEAST_ORDER} from "../../data/beasts.js";
+import {BEAST_CATALOG} from "../../data/beasts.js";
 import {parseFollowerArmor, buildCustomFollower, readinessCap, READINESS_SHIELD_BONUS, READINESS_SHIELD_WALL_BONUS, SHIELD_WALL_MOVE, wireFightingInNumbers, groupFightCardSummaries, nextFollowerOrder, crewGearCarried, crewGearArmor, applyTagEdits, editTagLayer, editTagList} from "../../data/follower-build.js";
 import {LOAD_LEVEL_LIMITS} from "../../utils/load.js";
 import {arcanaSummonFollowers, summonAsks, summonChoiceGroups, summonPickTicks, summonPicksComplete, resolveSummonChoices} from "../../data/arcana-summons.js";
@@ -822,41 +824,8 @@ function _followerExtras(d = {}) {
 	};
 }
 
-// Per-follower-type flag layout — the single source of truth both the read side
-// (_buildFollowersData) and the write side (activateListeners) resolve paths
-// through, so the two can't drift and a new follower type is one row:
-//   detailBase  – `.details` namespace for hand-edited extras (moves / notes /
-//                 gear) and the Damage / Instinct / Cost overrides. The `.details`
-//                 sub-key on the singular types keeps these clear of the
-//                 structural flags (name, loyalty, the crew's gear-pip inventory
-//                 at `crew.gear`, tags…). `{slug}` is filled per instance for the
-//                 repeatable types.
-//   loyalty     – the (older) Loyalty store: scalar for the singular animal
-//                 companion / crew, per-slug for initiates / beasts.
-//   structural  – type-root fields the player edits directly. name / pronoun,
-//                 plus instinct / cost on the types that carry them from
-//                 onboarding. Editing one writes here, NOT to the override layer,
-//                 so it can be cleared — an empty override would otherwise fall
-//                 back to the onboarding value (see withStatOverrides).
-const _FOLLOWER_FLAGS = {
-	"animal-companion": { detailBase: "animalCompanion.details", loyalty: "animalCompanion.loyalty", readiness: "animalCompanion.readiness", ammo: "animalCompanion.ammo",
-		structural: { name: "animalCompanion.name", pronoun: "animalCompanion.pronoun", instinct: "animalCompanion.instinct", cost: "animalCompanion.cost" } },
-	"crew":             { detailBase: "crew.details",            loyalty: "crew.loyalty",            readiness: "crew.readiness",            ammo: "crew.ammo",
-		structural: { name: "crew.name", instinct: "crew.instinct", cost: "crew.cost" } },
-	"initiate":         { detailBase: "initiateDetails.{slug}",  loyalty: "initiatesLoyalty.{slug}", readiness: "initiatesReadiness.{slug}", ammo: "initiatesAmmo.{slug}", structural: {} },
-	"beast":            { detailBase: "beastDetails.{slug}",     loyalty: "beastLoyalty.{slug}",     readiness: "beastReadiness.{slug}",     ammo: "beastAmmo.{slug}",     structural: {} },
-	// Custom followers (the walkthrough / monster conversion) store everything —
-	// structural stats, the hand-edited overrides, Loyalty and current HP — in one
-	// object keyed by the follower's id. detailBase points at that whole object, so
-	// the shared override (damage/instinct/cost) and extras (moves/notes/gear)
-	// handlers read and write it directly; name/pronoun fall through to it too
-	// (structural is empty, so the name-field change handler uses the detail path).
-	"custom":           { detailBase: "customFollowers.{slug}",  loyalty: "customFollowers.{slug}.loyalty", readiness: "customFollowers.{slug}.readiness", ammo: "customFollowers.{slug}.ammo", structural: {} },
-};
-const _fillSlug = (tpl, slug) => tpl == null ? null : tpl.replaceAll("{slug}", slug ?? "");
-
-// `.details` namespace for a follower's hand-edited extras + stat overrides, or null.
-function _followerDetailBase(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.detailBase, slug); }
+// The per-follower-type flag layout (_FOLLOWER_FLAGS) lives in follower-roster.js, beside the
+// readers the camp and the expedition use, so the cards and those readers resolve the same paths.
 
 // Who a follower already IS, and what making them an actor means, both live in
 // actors/character/follower-actors.js — one place, because the sweep that makes them and the
@@ -946,25 +915,6 @@ function _followerReadinessPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[
 // Flag path for a follower's ammo track (0 = full, 1 = low ammo, 2 = all out) — the
 // ◇ low ammo / ◇ all out marks a ranged follower carries (Moves & Gear).
 function _followerAmmoPath(ftype, slug) { return _fillSlug(_FOLLOWER_FLAGS[ftype]?.ammo, slug); }
-
-// Current HP against a max, with the shared "unset → full" default: a missing or
-// non-numeric stored value means the follower is at full HP.
-function _clampHp(raw, max) {
-	const n = Number(raw);
-	return raw != null && Number.isFinite(n) ? Math.min(Math.max(0, n), max) : max;
-}
-
-// A hand-edited stat override (follower armor / max HP, or a crew's per-member
-// stats): a non-negative integer, or null when blank/non-numeric so callers can
-// fall back to the rules-derived value.
-function _intOverrideOrNull(value) {
-	// Treat blank/empty/null as "no override" → null. (Number("") and Number(null)
-	// are both 0, so without this guard a cleared field would read as an explicit 0,
-	// zeroing crew armor or collapsing per-member HP instead of reverting to derived.)
-	if (value == null || String(value).trim() === "") return null;
-	const n = Number(value);
-	return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : null;
-}
 
 // Pull the rollable die and parenthetical "form" (e.g. "forceful") out of a
 // free-text damage string like "d8 (forceful)". `band`→`hand` repairs a common
@@ -2331,7 +2281,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// shared stat-override layer reads) wins, so the player can adjust the
 			// crew as it grows (Updating followers, p.480).
 			const _crewOverride = (field) => _intOverrideOrNull(sf.crew?.details?.[field]);
-			const crewMaxHp = (_crewOverride("hpMax") ?? crewStats.memberHp ?? 6) || 1;
+			const crewMaxHp = crewMemberHpMax(sf, crewStats);
 			// Stash the per-member HP max for the roster handlers. It is also the whole
 			// abstracted group-fight pool (ONE member's HP, whatever the crew's size), so
 			// it is the ceiling clampStoredGroupHp pulls a stored pool back under.
@@ -2435,8 +2385,8 @@ export function createStonetopCharacterSheetClass(Base) {
 					if (a !== null) card.armor = a;
 				}
 				if (has(d.hpMax)) {
-					const m = _intOverrideOrNull(d.hpMax);
-					if (m !== null && m > 0) {
+					const m = followerHpMaxOverride(d);
+					if (m !== null) {
 						card.hpMax = m;
 						if (typeof card.hpCurrent === "number") card.hpCurrent = Math.min(card.hpCurrent, m);
 						// Crew shows its per-member HP in the static octagon slot.
@@ -2467,25 +2417,21 @@ export function createStonetopCharacterSheetClass(Base) {
 			// -- Animal Companion (Ranger) ------------------------------
 			let animalCompanion = null;
 			const acSlug = sf.animalCompanion?.type;
-			if (acSlug && companionDef && ownsMoveNamed(this.actor, ANIMAL_COMPANION_MOVE)) {
-				const typeData = (companionDef.types ?? []).find(t => t.slug === acSlug);
-				// Stored picks under the labels the type prints now (a renamed option's old
-				// spelling is read through the type's `aliases`, animal-companion.js).
-				const traits = canonicalCompanionTraits(typeData, sf.animalCompanion?.traits ?? []);
+			// Which companion, its options and its stats (the type's line, each held option's effects,
+			// Beast of Legend's bonuses): follower-roster.js, the reading the camp and the expedition share.
+			const acBase = companionBase(this.actor, sf, companionDef, companionBonuses);
+			if (acBase) {
+				const { typeData, traits, stats } = acBase;
 				// The type's mandatory trait (Bird/Critter "tiny", etc.) is auto-included
 				// and free; it's stat-neutral, so it doesn't affect derived stats, but it
 				// must still show as a locked chip and never count toward the pick budget.
 				const mandatoryTrait = typeData?.mandatoryTrait ?? null;
 				const displayTraits  = (mandatoryTrait && !traits.includes(mandatoryTrait))
 					? [mandatoryTrait, ...traits] : traits;
-				// The type's base line, each held option's effects (the type's `effects` map, never
-				// the label's wording), then Beast of Legend's marked "+4 HP / +1 armor"
-				// (companionBonuses): animal-companion.js#companionStats.
-				const stats = typeData ? companionStats(typeData, traits, companionBonuses) : null;
 				const kind = sf.animalCompanion?.kind ?? "";
 				const typeLabel = typeData?.label ?? acSlug;
 				const loyaltyVal = sf.animalCompanion?.loyalty ?? 0;
-				const hpMax = stats?.hp ?? 0;
+				const hpMax = acBase.hpMax;
 				const acArmor = stats?.armor ?? "—";
 				const hpRaw = sf.animalCompanion?.hpCurrent;
 				const showTraitHover = getHoverDescriptionSetting("hoverDescriptionsTraits");
@@ -2922,12 +2868,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// (the Add Special Item picker). HP and Loyalty track per-slug, mirroring
 			// the initiate flags. Follower beasts (dog/mule/horse) earn Loyalty and
 			// pay a Cost; the rest are livestock (butcher note, no Loyalty).
-			const ownedSlugs      = sf.inventory?.addedSpecial ?? [];
 			const beastHpFlags      = sf.beastHp      ?? {};
 			const beastLoyaltyFlags = sf.beastLoyalty ?? {};
 			const beastDetailFlags  = sf.beastDetails ?? {};
-			const beasts = BEAST_ORDER
-				.filter(slug => ownedSlugs.includes(slug))
+			const beasts = ownedBeastSlugs(sf)
 				.map(slug => {
 					const b     = BEAST_CATALOG[slug];
 					const hpMax = Number(b.hp) || 0;
@@ -2975,8 +2919,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// pool of Loyalty with the Ring itself"), so a Servant batch's Loyalty pips + Spend
 			// button act on the Ring's track, not its own.
 			const { id: ringId, loyalty: ringLoyaltyVal } = findRingFollower(customMap);
-			const customFollowers = Object.entries(customMap)
-				.sort((a, b) => (Number(a[1]?.order) || 0) - (Number(b[1]?.order) || 0))
+			const customFollowers = orderedCustomFollowers(sf)
 				.map(([id, c]) => {
 					const hpMax  = Number(c?.hpMax) || 0;
 					const damage = String(c?.damage ?? "");
@@ -3289,7 +3232,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				return card;
 			};
-			const finalize = (card) => withFolds(withOrderData(withExceptional(withTagEdits(withSectionEdits(withBarkskin(withGroupFight(withStatOverrides(card))))))));
+			// Whether the follower travels with the party (follower-party.js, the one reading of the
+			// toggle every card carries): it eats at Make Camp and heals there (p.79, p.248), packs on
+			// the expedition, and starts in a Struggle as One. Unset, the companion and the crew are in.
+			const withParty = (card) => {
+				if (card?.ftype) card.party = followerInPartyFlags(sf, card.ftype, card.slug ?? "");
+				return card;
+			};
+			const finalize = (card) => withParty(withFolds(withOrderData(withExceptional(withTagEdits(withSectionEdits(withBarkskin(withGroupFight(withStatOverrides(card)))))))));
 			// Playbook possession-followers (the Would-be Hero's dog, the Ranger's Hounds,
 			// the Blessed's Mastiffs) ship as gear text; offer to materialize any the PC
 			// holds but hasn't added yet as a follower card (deduped by sourceUuid, like
@@ -5068,12 +5018,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			// Party-wide follower toggle (advisory): any PC may pay its cost / spend its
 			// Loyalty (p.464). The data still lives on this PC — it's a shared-table note.
-			html.find(".stonetop-follower-party-check").on("change", async ev => {
-				const slug = ev.currentTarget.dataset.slug;
-				if (!slug) return;
-				await this.actor.update({ [`flags.stonetop-pwd.customFollowers.${slug}.party`]: ev.currentTarget.checked });
-				this.render(false);
-			});
+			html.find(".stonetop-follower-party-check").on("change", ev => this._onFollowerPartyToggle(ev));
 
 			// -- Followers tab: crew interactions --------------------------
 			// Loyalty pips (all follower types). The pip's data-loyalty carries its
@@ -11428,6 +11373,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			const { crewStats, companionBonuses } = await this._stonetopCharacter.followerCardBonuses(playbookDoc, crewDef);
 			const groups = this._buildFollowersData(playbookDoc, null, crewStats, companionBonuses, crewDef, companionDef);
 			return [groups.animalCompanion, groups.crew, ...(groups.initiates ?? []), ...groups.beasts, ...groups.custom];
+		}
+
+		/**
+		 * The "in the party" toggle on any follower card (follower-party.js): stored as an explicit
+		 * boolean beside that kind's other flags, so a companion ticked OUT stays out though its kind
+		 * defaults in. Quiet in the ledger, as the custom toggle always was (CharacterLedger.js).
+		 */
+		async _onFollowerPartyToggle(ev) {
+			const el = ev.currentTarget;
+			const path = followerPartyPath(el.dataset.ftype || "custom", el.dataset.slug ?? "");
+			if (!path) return;
+			await this.actor.update({ [`flags.${STONETOP_SCOPE}.${path}`]: !!el.checked });
+			this.render(false);
 		}
 
 		// ── Damage die ─────────────────────────────────────────────────────────────
