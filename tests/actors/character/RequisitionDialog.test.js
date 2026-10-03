@@ -41,7 +41,7 @@ describe("RequisitionDialog", () => {
 			".stonetop-requisition-asset-select": { value: "1" },
 		});
 
-		expect(dialog._getChosenAsset(root)).toEqual({ index: 1, name: "Wagon" });
+		expect(dialog._getChosenAsset(root)).toMatchObject({ index: 1, name: "Wagon" });
 	});
 
 	it("resolves a trimmed custom requisition entry", () => {
@@ -62,7 +62,18 @@ describe("RequisitionDialog", () => {
 			".stonetop-requisition-asset-select": { value: "0" },
 		});
 
-		expect(dialog._getChosenAsset(root)).toEqual({ index: 0, name: STEADING_DEFAULTS.assets[0].name });
+		expect(dialog._getChosenAsset(root)).toMatchObject({ index: 0, name: STEADING_DEFAULTS.assets[0].name });
+	});
+
+	it("gives a seeded asset stored without a beast field its default's back, by name", () => {
+		// A world seeded before rows carried `beast`: the plows must not read as horses.
+		const stored = STEADING_DEFAULTS.assets.filter(a => a.name).map(({ name, checked }) => ({ name, checked }));
+		const dialog = makeDialog(stored);
+		const pick = value => dialog._getChosenAsset(makeRoot({ ".stonetop-requisition-asset-select": { value } })).asset;
+		expect(pick("0").beast).toEqual({ slug: "horse", count: 2, traits: ["hardy"] });
+		expect(pick("1").beast).toBeNull();
+		const custom = makeDialog([{ name: "Two old ponies", checked: true }]);
+		expect(custom._getChosenAsset(makeRoot({ ".stonetop-requisition-asset-select": { value: "0" } })).asset.beast).toBeUndefined();
 	});
 
 	// The Marshal's Logistics: "when you Requisition, you have advantage".
@@ -78,5 +89,47 @@ describe("RequisitionDialog", () => {
 		const dialog = makeDialog([]);
 		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: true } }))).toEqual({ herdShare: false, logistics: true });
 		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: false } }))).toEqual({ herdShare: false, logistics: false });
+	});
+
+	// The steading playbook's "A pair of hardy draft horses, followers (large, powerful,
+	// keen-nosed, hardy)": the requisitioned follower is a hardy horse, with no choice left open.
+	// "A pair" is two horses: one card each, numbered, in one write, in tab order.
+	it("adds the steading's pair of draft horses as two hardy horse followers", async () => {
+		let n = 0;
+		const info = vi.fn();
+		vi.stubGlobal("foundry", { utils: { randomID: () => `id${++n}` } });
+		vi.stubGlobal("ui", { notifications: { info } });
+		try {
+			const dialog = makeDialog([]);
+			const assetName = STEADING_DEFAULTS.assets.find(a => /draft horses/.test(a.name)).name;
+			const match = (await import("../../../module/data/beasts.js")).beastFollowerForAsset(assetName);
+			await dialog._addRequisitionedFollower(match, assetName);
+			expect(dialog._characterActor.update).toHaveBeenCalledTimes(1);
+			const written = Object.values(dialog._characterActor.update.mock.calls[0][0]);
+			expect(written.map(f => f.name)).toEqual(["Horse 1", "Horse 2"]);
+			expect(written[1].order).toBe(written[0].order + 1);
+			for (const f of written) {
+				expect(f.tags).toContain("hardy");
+				// The seeded asset line trails a dashed stat block; the note names the asset only.
+				expect(f.notes).toBe("Requisitioned from A pair of hardy draft horses.");
+			}
+			expect(info).toHaveBeenCalledWith("Horse 1 & Horse 2 added to your followers.");
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("adds a lone animal as one follower under its plain name", async () => {
+		vi.stubGlobal("foundry", { utils: { randomID: () => "abc" } });
+		vi.stubGlobal("ui", { notifications: { info: vi.fn() } });
+		try {
+			const dialog = makeDialog([]);
+			const match = (await import("../../../module/data/beasts.js")).beastFollowerForAsset("A sturdy mule");
+			await dialog._addRequisitionedFollower(match, "A sturdy mule");
+			const written = Object.values(dialog._characterActor.update.mock.calls[0][0]);
+			expect(written.map(f => f.name)).toEqual(["Mule"]);
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });

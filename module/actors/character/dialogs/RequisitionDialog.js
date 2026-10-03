@@ -1,10 +1,10 @@
 import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { rollStat, sign } from "../../../utils/roll-engine.js";
 import { StonetopSteading } from "../../steading/StonetopSteading.js";
-import { beastFollowerForAsset, followerInputFromBeast } from "../../../data/beasts.js";
+import { assetLabel, beastFollowerForAsset, followerInputFromBeast } from "../../../data/beasts.js";
 import { buildCustomFollower, nextFollowerOrder } from "../../../data/follower-build.js";
 import { bringDialogToFront } from "../../../utils/front-on-open.js";
-import { escHtml } from "../../../utils/strings.js";
+import { escHtml, joinNames } from "../../../utils/strings.js";
 import { CUSTOM_ASSET_VALUE, assetTakenLabel, wireCustomAssetSelect } from "../../../utils/requisition-asset.js";
 import { SYSTEM_ID } from "../../../system-id.js";
 import { promptRoll } from "../../../dialogs/RollDialog.js";
@@ -128,7 +128,7 @@ export class RequisitionDialog extends StonetopDialog {
 				takeButton.disabled = false;
 				return;
 			}
-			this._maybeOfferAsFollower(choice.name);
+			this._maybeOfferAsFollower(choice.asset ?? choice.name);
 
 			if (Number.isInteger(choice.index)) {
 				try {
@@ -175,22 +175,27 @@ export class RequisitionDialog extends StonetopDialog {
 		// (getAvailableAssets, which falls back to STEADING_DEFAULTS.assets), not raw
 		// _flags.assets — otherwise a default on-hand asset on an un-edited steading has
 		// no _flags.assets entry and resolves to "" (headline take path silently no-ops).
-		const name = this._steading.getAvailableAssets().find(a => a.index === index)?.name?.trim() ?? "";
-		return { index, name };
+		const asset = this._steading.getAvailableAssets().find(a => a.index === index);
+		return { index, name: asset?.name?.trim() ?? "", asset };
 	}
 
 	// If a just-requisitioned asset names a follower-capable animal, offer to add it
 	// to the character's Followers tab with the handout's stats (Book I p.474). A pure
 	// convenience; declining just leaves it as the plain inventory item already added.
-	_maybeOfferAsFollower(assetName) {
-		const match = beastFollowerForAsset(assetName);
+	// Takes the steading's asset row (whose `beast` field, when it has one, says exactly what
+	// it is) or a typed custom asset's name.
+	_maybeOfferAsFollower(asset) {
+		const match = beastFollowerForAsset(asset);
+		const assetName = typeof asset === "object" && asset ? asset.name : asset;
 		if (!match) return;
 		const beast = match.beast;
+		const count = match.count ?? 1;
+		const what  = count > 1 ? `them to your <strong>Followers</strong> tab as ${count} followers` : `it to your <strong>Followers</strong> tab as a follower`;
 		new Dialog({
-			title:   "Add as a follower?",
-			content: `<p>You requisitioned <strong>${escHtml(assetName)}</strong>. Also add ${beast.follower ? "it" : "them"} to your <strong>Followers</strong> tab as a follower (<em>${escHtml(beast.name)}</em> - HP ${beast.hp}, Cost ${escHtml(beast.cost)})?</p>`,
+			title:   count > 1 ? "Add as followers?" : "Add as a follower?",
+			content: `<p>You requisitioned <strong>${escHtml(assetName)}</strong>. Also add ${what} (<em>${escHtml(beast.name)}</em> - HP ${beast.hp}${count > 1 ? " each" : ""}, Cost ${escHtml(beast.cost)})?</p>`,
 			buttons: {
-				yes: { icon: '<i class="fas fa-dog"></i>', label: "Add as follower",
+				yes: { icon: '<i class="fas fa-dog"></i>', label: count > 1 ? `Add ${count} followers` : "Add as follower",
 					callback: () => this._addRequisitionedFollower(match, assetName) },
 				no:  { label: "No, just the item" },
 			},
@@ -201,17 +206,27 @@ export class RequisitionDialog extends StonetopDialog {
 	}
 
 	async _addRequisitionedFollower(match, assetName) {
-		const input = followerInputFromBeast(match.beast, { name: match.beast.name });
+		const input = followerInputFromBeast(match.beast, { name: match.beast.name, chosenTraits: match.chosenTraits });
 		if (!input) return;
 		const existing = this._characterActor.getFlag(SYSTEM_ID, "customFollowers") ?? {};
-		const id = foundry.utils.randomID(16);
-		await this._characterActor.update({
-			[`flags.stonetop-pwd.customFollowers.${id}`]: {
-				...buildCustomFollower({ ...input, notes: `Requisitioned from ${assetName}.` }),
-				order: nextFollowerOrder(existing),
-			},
+		// Keep the beast's own note (a tag choice still open) beside where it came from.
+		// Name the asset only: the seeded line trails a stat block after a dash ("A pair of
+		// hardy draft horses - HP 10 each; ...") that the follower card already shows.
+		const notes = [`Requisitioned from ${assetLabel(assetName)}.`, input.notes].filter(Boolean).join(" ");
+		// One card per animal ("a pair" is two horses), numbered so they can be told apart,
+		// all in one write and in order after the followers already on the tab.
+		const count = match.count ?? 1;
+		const order = nextFollowerOrder(existing);
+		const names  = Array.from({ length: count }, (_, i) => count > 1 ? `${input.name} ${i + 1}` : input.name);
+		const update = {};
+		names.forEach((name, i) => {
+			update[`flags.stonetop-pwd.customFollowers.${foundry.utils.randomID(16)}`] = {
+				...buildCustomFollower({ ...input, name, notes }),
+				order: order + i,
+			};
 		});
-		ui.notifications?.info?.(`${input.name} added to your followers.`);
+		await this._characterActor.update(update);
+		ui.notifications?.info?.(`${joinNames(names)} added to your followers.`);
 		this._onChange?.();
 	}
 }

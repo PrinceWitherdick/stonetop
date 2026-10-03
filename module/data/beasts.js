@@ -5,8 +5,8 @@
 // and the SPECIAL_ITEM_CATALOG "Livestock & Other Beasts" category in
 // special-items.js (which only carries traits/Value for the picker).
 //
-// Stats are copied verbatim from the Setting Overview "Livestock & Other Beasts"
-// table. `follower: true` marks the beasts the rules treat as proper followers —
+// Stats are copied verbatim from the Moves & Gear handout's "Livestock & Other Beasts"
+// table (also printed in Book I, p. 98). `follower: true` marks the beasts the rules treat as proper followers:
 // they have a Cost and earn Loyalty (dog, mule, horse). The rest are livestock:
 // no Loyalty, and most can be butchered for Provisions.
 //
@@ -109,40 +109,94 @@ export const BEAST_SLUGS = new Set(BEAST_ORDER);
 // Keywords that mark a requisitionable steading asset as a follower-capable animal
 // (Book I: "a PC might Requisition one of the town's horses"). Only the beasts the
 // rules treat as proper followers (dog / mule / horse) are offered — livestock like
-// goats aren't followers. Matched on the asset's free-text name.
+// goats aren't followers. Matched on the asset's free-text name, for a row with no
+// structured `beast` field (a GM's own asset, or a custom requisition). "Horse" used as a
+// modifier names gear, not an animal: "horse-drawn plows", "horse harness".
 const REQUISITION_MOUNT_KEYWORDS = [
-	{ re: /\b(draft\s+)?horses?\b|\bmares?\b|\bstallions?\b|\bsteeds?\b|\bponies?\b|\bpony\b/i, slug: "horse" },
+	{ re: /\b(draft\s+)?horses?\b(?!-|\s+(?:harness|tack|shoes?|feed|blankets?)\b)|\bmares?\b|\bstallions?\b|\bsteeds?\b|\bponies?\b|\bpony\b/i, slug: "horse" },
 	{ re: /\bmules?\b/i, slug: "mule" },
 	{ re: /\bdogs?\b|\bhounds?\b|\bmastiffs?\b/i, slug: "dog-follower" },
 ];
 
 /**
- * If a requisitioned asset's name names a follower-capable animal, return the beast
- * catalog entry to build a follower from (else null). Used by the Requisition flow
- * to offer "add as a follower" when a PC requisitions the town's horses/mules/dogs.
+ * If a requisitioned asset is a follower-capable animal, return the beast catalog entry to
+ * build a follower from (else null). Used by the Requisition flow to offer "add as a
+ * follower" when a PC requisitions the town's horses/mules/dogs.
+ *
+ * Takes the asset row or just its name. A row with a `beast` field says exactly what it is
+ * (`{slug, count, traits}`, or `null` for "not an animal, whatever its name says"), as the
+ * steading's seeded assets do: see STEADING_DEFAULTS.assets. Anything else is read from
+ * the name.
  */
-export function beastFollowerForAsset(name) {
-	const n = String(name ?? "");
+export function beastFollowerForAsset(asset) {
+	const row = typeof asset === "object" && asset !== null ? asset : { name: asset };
+	if (row.beast !== undefined) return _structuredBeast(row.beast);
+	const n = assetLabel(row.name);
 	const hit = REQUISITION_MOUNT_KEYWORDS.find(k => k.re.test(n));
 	if (!hit) return null;
 	const b = BEAST_CATALOG[hit.slug];
-	return b ? { slug: hit.slug, beast: b } : null;
+	if (!b) return null;
+	// An asset that names its own pick settles the beast's either/or: "A pair of hardy
+	// draft horses" are horses that took hardy, not swift.
+	const chosenTraits = _traitChoices(b).filter(t => new RegExp(`\\b${t}\\b`, "i").test(n));
+	return { slug: hit.slug, beast: b, chosenTraits, count: _assetCount(n) };
 }
 
-/** buildCustomFollower input for a beast catalog entry (a requisitioned mount, etc.). */
-export function followerInputFromBeast(beast, { name } = {}) {
+function _structuredBeast(spec) {
+	const b = spec?.slug ? BEAST_CATALOG[spec.slug] : null;
+	if (!b) return null;
+	const count = Math.min(Math.max(Number(spec.count) || 1, 1), MAX_ASSET_COUNT);
+	return { slug: spec.slug, beast: b, chosenTraits: [...(spec.traits ?? [])], count };
+}
+
+/** An asset line's name without the stat block a seeded line trails after a dash or a
+ *  semicolon: "A pair of hardy draft horses - HP 10 each; ..." is "A pair of hardy draft horses". */
+export function assetLabel(name) {
+	return String(name ?? "").split(/\s+\p{Pd}\s+|;/u)[0].trim();
+}
+
+// How many animals an asset line names: "A pair of hardy draft horses" is two followers, not
+// one. Only a count that LEADS the name is read ("Three ponies", "4 mules"); a number later
+// on is something else ("Mule, 4 years old", "A horse named Six-Toes"), and "a pack of
+// hounds" says no number, so each of those stays one.
+const ASSET_COUNT_WORDS = { pair: 2, brace: 2, two: 2, three: 3, four: 4, five: 5, six: 6 };
+const MAX_ASSET_COUNT   = 6;
+
+function _assetCount(label) {
+	const m = String(label ?? "").match(/^\s*(?:an?\s+)?(pair|brace|two|three|four|five|six|[2-9])\b/i);
+	if (!m) return 1;
+	const n = ASSET_COUNT_WORDS[m[1].toLowerCase()] ?? Number(m[1]);
+	return Math.min(Math.max(n, 1), MAX_ASSET_COUNT);
+}
+
+/** The tags a beast's note offers as an either/or ("swift or hardy"), else []. A note that
+ *  is not a choice between named tags ("pick 2 more") offers none. */
+function _traitChoices(beast) {
+	const note = String(beast?.traitsNote ?? "");
+	return /\bor\b/i.test(note) ? note.split(/\s+or\s+/i).map(s => s.trim()).filter(Boolean) : [];
+}
+
+/**
+ * buildCustomFollower input for a beast catalog entry (a requisitioned mount, etc.).
+ * `chosenTraits` are tags the beast's note left open that are already settled (see
+ * beastFollowerForAsset); a choice still open is written into `notes`, so the follower
+ * card says what is left to pick rather than dropping the handout's instruction.
+ */
+export function followerInputFromBeast(beast, { name, chosenTraits = [] } = {}) {
 	if (!beast) return null;
+	const chosen = (chosenTraits ?? []).filter(Boolean);
 	return {
 		name:         name || beast.name,
 		typeLabel:    beast.follower ? "beast follower" : "livestock",
 		// Per-beast icon (a dog looks like a dog, not a horse); fall back to the same
 		// follower/livestock split the sheet's beast cards use for any beast lacking one.
 		portraitIcon: beast.portraitIcon || (beast.follower ? "fas fa-dog" : "fas fa-wheat-awn"),
-		tags:         beast.traits ?? [],
+		tags:         [...(beast.traits ?? []), ...chosen],
 		hp:           beast.hp,
 		armor:        beast.armor,
 		damage:       beast.damage + (beast.damageForm ? ` (${beast.damageForm})` : ""),
 		instinct:     beast.instinct,
 		cost:         beast.cost,
+		notes:        beast.traitsNote && !chosen.length ? `Tags still to choose: ${beast.traitsNote}.` : "",
 	};
 }

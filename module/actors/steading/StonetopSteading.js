@@ -645,11 +645,16 @@ export const STEADING_DEFAULTS = {
 		{ name: "", checked: false },
 		{ name: "", checked: false },
 	],
+	// `beast` says what Requisition offers as followers (see beastFollowerForAsset in
+	// data/beasts.js): the catalog slug, how many, and the either/or tags already picked.
+	// `null` = not an animal, so "horse-drawn" and "horse harness" never read as horses.
+	// A row stored before this field existed gets it back by name: see getNamedAssets.
 	assets: [
-		{ name: "A pair of hardy draft horses — HP 10 each; d6+3 dmg (hand, close, forceful); Instinct: to panic; Cost: care & grooming", checked: true },
-		{ name: "A pair of horse-drawn plows, iron", checked: true },
-		{ name: "A pair of carts (plus horse harness)", checked: true },
-		{ name: "A wagon (plus horse harness)", checked: true },
+		{ name: "A pair of hardy draft horses — HP 10 each; d6+3 dmg (hand, close, forceful); Instinct: to panic; Cost: care & grooming", checked: true,
+			beast: { slug: "horse", count: 2, traits: ["hardy"] } },
+		{ name: "A pair of horse-drawn plows, iron", checked: true, beast: null },
+		{ name: "A pair of carts (plus horse harness)", checked: true, beast: null },
+		{ name: "A wagon (plus horse harness)", checked: true, beast: null },
 		{ name: "", checked: false },
 		{ name: "", checked: false },
 		{ name: "", checked: false },
@@ -2003,11 +2008,19 @@ export class StonetopSteading {
 		return parts;
 	}
 
-	/** Every named asset, on hand or out, each carrying its index in the stored list. */
+	/** Every named asset, on hand or out, each carrying its index in the stored list. A
+	 *  seeded asset stored before rows carried a `beast` field gets its default's back. */
 	getNamedAssets() {
 		const assets = this._flags.assets ?? STEADING_DEFAULTS.assets;
 		return assets
-			.map((asset, index) => ({ ...asset, index }))
+			.map((asset, index) => {
+				const row = { ...asset, index };
+				if (row.beast === undefined) {
+					const seeded = STEADING_DEFAULTS.assets.find(d => d.name && d.name === row.name);
+					if (seeded && seeded.beast !== undefined) row.beast = seeded.beast;
+				}
+				return row;
+			})
 			.filter(asset => asset.name);
 	}
 
