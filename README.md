@@ -139,6 +139,7 @@ This does not apply to anyone installing for the first time.
 The attack effects are one world setting, **Attack Effects on the Map**, on by default. Without these modules it does nothing. Anyone whose computer asks for reduced motion still hears the sounds but sees no animation.
 
 - **[FXMaster](https://foundryvtt.com/packages/fxmaster)** puts the season's weather on the scene your players are on: rain when the Weather roll says rain, snow drifting in winter, cloud racing across a storm sky. Without it the weather is still rolled and posted to chat; it just stays there. Pause it from the Weather window, or turn it off under the **Weather on the Scene** setting.
+- **[Tokenizer](https://foundryvtt.com/packages/vtta-tokenizer)** makes map tokens from portraits. With it installed, a small **Open Tokenizer** button sits beside the crop button on every portrait: character and NPC sheets, follower cards, and the people of the steading. The crop button frames the face the sheets show; Tokenizer makes the round token for the map. A token you make in Tokenizer is never overwritten when the portrait changes.
 
 ## Development
 
