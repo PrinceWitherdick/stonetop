@@ -8,8 +8,8 @@
 // mounted frameless, exactly as the relationship map's panel is its window.
 //
 // Either shape can be laid DOWN the page or ACROSS it, per reader (the toolbar's Vertical/Horizontal
-// pair), and each reader chooses which KINDS of row they see (the toolbar's Filter menu). Both are
-// client settings: they change how this reader reads the record, never the record.
+// pair), and each reader chooses which KINDS of row they see, and on the aggregate which THREADS
+// (the toolbar's Filter menu). All are client settings: they change how this reader reads the record, never the record.
 //
 // WHAT THIS FILE IS CAREFUL ABOUT:
 //
@@ -36,25 +36,30 @@ import { promptForTimelineEntry } from "./TimelineEntryDialog.js";
 import { pickContentOption } from "./content-picker.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
 import { escHtml } from "../utils/strings.js";
-import { GUTTER_X_VAR, GUTTER_Y_VAR, wireDragScroll } from "../utils/drag-scroll.js";
+import { GUTTER_LEFT_VAR, GUTTER_TOP_VAR, GUTTER_X_VAR, GUTTER_Y_VAR, wireDragScroll } from "../utils/drag-scroll.js";
+import { wireColumnSnap } from "../timeline/timeline-column-snap.js";
 import { clampScale, wireWheelZoom } from "../utils/wheel-zoom-scroll.js";
 import {
 	TIMELINE_JOURNAL_NAME, allTracks, findTimelineJournal, mutateTrack, readTrack, trackDisplayName,
 	trackForActor,
 } from "../timeline/timeline-store.js";
 import {
-	TIMELINE_SOURCES, addEntry, moveEntry, patchEntry, removeEntry, trackIdFromKey,
+	TIMELINE_CARD_SOURCES, addEntry, moveEntry, patchEntry, removeEntry, trackIdFromKey,
 } from "../timeline/timeline-core.js";
 import { SYSTEM_ID } from "../system-id.js";
 import {
-	getTimelineHiddenSources, getTimelineOrientation, setTimelineHiddenSources, setTimelineOrientation,
+	getTimelineHiddenSources, getTimelineHiddenTracks, getTimelineOrientation, getTimelineThreadsChosen,
+	setTimelineHiddenSources, setTimelineHiddenTracks, setTimelineOrientation, setTimelineThreadsChosen,
 } from "../settings.js";
-import { buildAggregateVM, buildTrackVM, enrichTrackVM, kindMenu } from "../timeline/timeline-view.js";
+import {
+	buildAggregateVM, buildTrackVM, defaultHiddenTracks, enrichTrackVM, kindMenu, threadMenu,
+} from "../timeline/timeline-view.js";
 import { timelineNow } from "../timeline/timeline-record.js";
 import { worldCustomTags } from "../timeline/timeline-tag-store.js";
 import { openTimelineColours } from "./TimelineColoursDialog.js";
 import { TIMELINE_TAGS_FLAG } from "../timeline/timeline-tags.js";
 import { FINE_ZOOM_STEP } from "../utils/image-zoom.js";
+import { scrubTicks, wireYearScrubber, yearStops } from "../timeline/timeline-scrub.js";
 
 /**
  * How far past each edge the timeline can be dragged, as a share of the column it is seen in: three
@@ -62,6 +67,14 @@ import { FINE_ZOOM_STEP } from "../utils/image-zoom.js";
  * timeline in it to grab and bring back.
  */
 const TIMELINE_DRAG_GUTTER = 0.75;
+
+/**
+ * The aggregate's two shapes, whose sticky header row keeps the top edge and whose sticky left
+ * column keeps the left edge, with no drag gutter above or left of them: the board's thread names
+ * and season cells, the swimlanes' season heads and thread names (user, 2026-10-03: "you can't
+ * scroll past the left most season header").
+ */
+const TIMELINE_PINNED = ".stonetop-timeline-canvas > :is(.stonetop-timeline-board, .stonetop-timeline-swim)";
 
 /**
  * What one wheel notch multiplies the timeline's zoom by: the relationship map's own gentle step,
@@ -106,10 +119,15 @@ export class TimelineWindow extends StonetopDialog {
 		this._syncHooks = [];
 		// Takes the grab-and-throw back off the scroll column a repaint is about to replace.
 		this._unwireDragScroll = null;
+		// Settles a column caught under the pinned head once the board stops (timeline-column-snap.js).
+		this._unwireColumnSnap = null;
 		// The wheel's zoom, kept on the instance so a repaint (anyone's write at the table) leaves the
 		// reader at the size they chose. Every open starts at 1, as the map's board starts fitted.
 		this._zoom = 1;
 		this._unwireWheelZoom = null;
+		// The year scrubber along the bottom (timeline/timeline-scrub.js), and the stops getData found.
+		this._unwireScrubber = null;
+		this._scrubStops = [];
 		this._unwireShowMenuDismiss = null;
 		// Whether this reader left the Filter menu open. Kept on the instance because every tick in it
 		// re-renders the window, and a menu that shut itself after each tick would be a menu you
@@ -198,7 +216,11 @@ export class TimelineWindow extends StonetopDialog {
 	/** The drag gutter as drag-scroll.js last sized it onto the column. */
 	_gutterOf(scroll) {
 		const px = (name) => Number.parseFloat(scroll.style?.getPropertyValue?.(name)) || 0;
-		return { x: px(GUTTER_X_VAR), y: px(GUTTER_Y_VAR) };
+		// The room ABOVE and to the LEFT is what the offset is counted past, and is 0 under a pinned
+		// header row or name column.
+		const top = scroll.style?.getPropertyValue?.(GUTTER_TOP_VAR);
+		const left = scroll.style?.getPropertyValue?.(GUTTER_LEFT_VAR);
+		return { x: left ? px(GUTTER_LEFT_VAR) : px(GUTTER_X_VAR), y: top ? px(GUTTER_TOP_VAR) : px(GUTTER_Y_VAR) };
 	}
 
 	/**
@@ -282,22 +304,28 @@ export class TimelineWindow extends StonetopDialog {
 		// the count like an unknown kind.
 		const tags = worldCustomTags();
 		const hidden = getTimelineHiddenSources()
-			.filter(source => TIMELINE_SOURCES.includes(source) || tags.some(tag => tag.id === source));
+			.filter(source => TIMELINE_CARD_SOURCES.includes(source) || tags.some(tag => tag.id === source));
 		const horizontal = getTimelineOrientation() === "horizontal";
+		const single = this.isSingleTrack;
+		const hiddenTracks = this._hiddenTracks(tracks);
 
 		// The reader's filter is applied INSIDE the builders, before periods are formed, so a season
 		// holding nothing but hidden rows leaves no empty block or column behind. Totals (kills,
 		// counts) are of everything, hidden or not.
-		const single = this.isSingleTrack;
 		const vm = single
 			? buildTrackVM(tracks[0], { canEdit: this._canEdit(this._trackId), hidden, tags })
-			: buildAggregateVM(tracks, { canEdit: (id) => this._canEdit(id), hidden, tags });
+			: buildAggregateVM(tracks, { canEdit: (id) => this._canEdit(id), hidden, hiddenTracks, tags });
+		const hiddenCount = hidden.length + hiddenTracks.length;
 
 		// Enriched after the model is built rather than inside it, and by the shared walker rather
 		// than here: the view model is pure so the three hosts can share it, and enrichment is async
 		// and Foundry-only. Every shape is walked the same way because the cards are the same
 		// objects either way.
 		await enrichTrackVM(vm);
+
+		// The year scrubber's stops, kept for `activateListeners` to wire against; none under two.
+		this._scrubStops = yearStops(vm.periods);
+		const stops = this._scrubStops;
 
 		return {
 			single,
@@ -314,10 +342,14 @@ export class TimelineWindow extends StonetopDialog {
 			// Only a GM can write the world's colours, so only a GM is offered the window.
 			isGM: !!game.user?.isGM,
 			kinds: kindMenu(hidden, tags),
-			hiddenCount: hidden.length,
-			hiddenCountLabel: format("stonetop.timeline.show.hiddenCount", { count: hidden.length }),
+			// The aggregate's threads, to hide whole lanes by. Only worth offering with two or more.
+			threads: !single && tracks.length > 1 ? threadMenu(tracks, hiddenTracks) : [],
+			hiddenCount,
+			hiddenCountLabel: format("stonetop.timeline.show.hiddenCount", { count: hiddenCount }),
 			showMenuOpen: this._showMenuOpen,
-			killTotalLabel: format("stonetop.timeline.kills.total", { count: vm.killTotal ?? 0 }),
+			scrub: stops.length > 1
+				? { max: stops.length - 1, first: stops[0].label, last: stops.at(-1).label, ticks: scrubTicks(stops) }
+				: null,
 			scrollLabel: single
 				? format("stonetop.timeline.trackTitle", { name: this._trackName })
 				: localize("stonetop.timeline.windowTitle"),
@@ -469,7 +501,7 @@ export class TimelineWindow extends StonetopDialog {
 
 	/** Lay the timeline down the page or across it. Client-scoped; the re-render is the work. */
 	async _onOrientation(orientation) {
-		const next = orientation === "horizontal" ? "horizontal" : "vertical";
+		const next = orientation === "vertical" ? "vertical" : "horizontal";
 		if (next === getTimelineOrientation()) return;
 		await setTimelineOrientation(next);
 		this.render(false);
@@ -484,8 +516,44 @@ export class TimelineWindow extends StonetopDialog {
 		this.render(false);
 	}
 
+	/**
+	 * The threads this reader has off the aggregate.
+	 *
+	 * A single thread is never hidden from its own tab. A PLAYER who has not yet chosen sees only
+	 * their own characters' threads (timeline-view.js#defaultHiddenTracks), worked out from the board
+	 * as it stands; once they tick anything, their own list is what counts. An id whose thread has
+	 * since gone is dropped from the count like an unknown kind.
+	 */
+	_hiddenTracks(tracks) {
+		if (this.isSingleTrack) return [];
+		if (!game.user?.isGM && !getTimelineThreadsChosen()) {
+			return defaultHiddenTracks(tracks, track => !!track.actor?.isOwner);
+		}
+		return getTimelineHiddenTracks().filter(id => tracks.some(track => track.trackId === id));
+	}
+
+	/**
+	 * Show or hide one thread on the aggregate. Client-scoped, like the kinds.
+	 *
+	 * Starts from what the reader is LOOKING AT, the default included, so a player's first tick
+	 * changes that one thread and does not throw every other back on. Then the default is spent.
+	 */
+	async _onShowThread(trackId, shown) {
+		const hidden = new Set(this._hiddenTracks(this._tracks()));
+		if (shown) hidden.delete(trackId);
+		else hidden.add(trackId);
+		await setTimelineHiddenTracks([...hidden]);
+		await setTimelineThreadsChosen(true);
+		this.render(false);
+	}
+
+	/** Everything back: every kind, and on the aggregate every thread (a choice, so the default is spent). */
 	async _onShowAll() {
 		await setTimelineHiddenSources([]);
+		if (!this.isSingleTrack) {
+			await setTimelineHiddenTracks([]);
+			await setTimelineThreadsChosen(true);
+		}
 		this.render(false);
 	}
 
@@ -527,7 +595,9 @@ export class TimelineWindow extends StonetopDialog {
 
 		root.addEventListener("change", ev => {
 			const box = ev.target?.closest?.("[data-timeline-source]");
-			if (box) this._onShowKind(box.dataset.timelineSource, !!box.checked);
+			if (box) return this._onShowKind(box.dataset.timelineSource, !!box.checked);
+			const thread = ev.target?.closest?.("[data-timeline-thread]");
+			if (thread) this._onShowThread(thread.dataset.timelineThread, !!thread.checked);
 		});
 
 		// `toggle` does not bubble, so it is caught on the way DOWN (capture). Remembered so the
@@ -541,9 +611,22 @@ export class TimelineWindow extends StonetopDialog {
 		// A fresh column every repaint, so the old one's wiring (and any glide still running on it) goes.
 		// The gutter is empty room past every edge to drag the timeline off into, as the map's board
 		// goes off any side; `.stonetop-timeline-canvas` is what spends it.
+		// When it stops, a column left half under the pinned season (or thread) head is eased out
+		// whole (timeline/timeline-column-snap.js); the drag says when it has let go.
+		this._unwireColumnSnap?.();
+		const columnSnap = wireColumnSnap(root.querySelector(".stonetop-timeline-scroll"));
+		this._unwireColumnSnap = columnSnap.unwire;
 		this._unwireDragScroll?.();
+		// The aggregate's two grids pin a header row to the top (the thread names read down, the season
+		// heads read across) and a column to the left (the board's season cells, the swimlanes' thread
+		// names), so they get no room above or left of them to scroll into. The stylesheet drops the
+		// same shapes' top inset and left pad to match (Down drops every left pad, the swimlanes' own
+		// rule covers Across).
 		this._unwireDragScroll = wireDragScroll(root.querySelector(".stonetop-timeline-scroll"), {
 			gutter: TIMELINE_DRAG_GUTTER,
+			pinTop: !!root.querySelector(TIMELINE_PINNED),
+			pinLeft: !!root.querySelector(TIMELINE_PINNED),
+			onRest: columnSnap.rest,
 		});
 		// And the wheel zooms it about the cursor, as the map's wheel zooms the board
 		// (utils/wheel-zoom-scroll.js). The canvas's one child is the picture; the stylesheet spends
@@ -557,6 +640,21 @@ export class TimelineWindow extends StonetopDialog {
 			min: TIMELINE_ZOOM_MIN,
 			max: TIMELINE_ZOOM_MAX,
 		});
+		// The year scrubber: slide to a year and the column centres on it, both ways; move the
+		// column any other way and the thumb follows to the year in the middle of the view.
+		this._unwireScrubber?.();
+		this._unwireScrubber = wireYearScrubber(
+			root.querySelector(".stonetop-timeline-scroll"),
+			root.querySelector(".stonetop-timeline-scrub"),
+			{
+				stops: this._scrubStops,
+				horizontal: getTimelineOrientation() === "horizontal",
+				picture: ".stonetop-timeline-canvas > *",
+				// The first child's own top inset (`.stonetop-timeline-scroll > :first-child`), and the
+				// column's 12px left padding, kept when a year or a wide board is laid against an edge.
+				inset: 12,
+			},
+		);
 
 		this._wireSync();
 	}
@@ -636,8 +734,12 @@ export class TimelineWindow extends StonetopDialog {
 		this._unwireSync();
 		this._unwireDragScroll?.();
 		this._unwireDragScroll = null;
+		this._unwireColumnSnap?.();
+		this._unwireColumnSnap = null;
 		this._unwireWheelZoom?.();
 		this._unwireWheelZoom = null;
+		this._unwireScrubber?.();
+		this._unwireScrubber = null;
 		this._unwireShowMenuDismiss?.();
 		return super.close(options);
 	}

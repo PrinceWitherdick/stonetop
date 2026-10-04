@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { buildAggregateVM, buildTrackVM, seasonGlyphClass } from "../../module/timeline/timeline-view.js";
+import {
+	buildAggregateVM, buildTrackVM, defaultHiddenTracks, kindMenu, seasonGlyphClass, threadMenu,
+} from "../../module/timeline/timeline-view.js";
 import { periodLabel } from "../../module/seasons/current-season.js";
 
 // The shape a template is handed. One view model serves the tab, the aggregate window and the
@@ -57,7 +59,7 @@ describe("buildTrackVM", () => {
 	it("marks a row the system wrote for itself as auto", () => {
 		const vm = buildTrackVM({ trackId: "s", name: "Stonetop", entries: [
 			entry({ id: "a", source: "hand" }),
-			entry({ id: "b", source: "season" }),
+			entry({ id: "b", source: "levelup" }),
 		] });
 		const [typed, auto] = vm.periods[0].entries;
 		expect(typed.isAuto).toBe(false);
@@ -147,6 +149,95 @@ describe("the reader's Filter menu", () => {
 		expect(vm.allHidden).toBe(true);
 		expect(vm.periods).toEqual([]);
 	});
+
+	// A Seasons Change prints in its season's heading, so it is no kind of card to hide.
+	it("offers no line for the season's own row", () => {
+		expect(kindMenu().map(k => k.source)).not.toContain("season");
+		expect(kindMenu().map(k => k.source)).toContain("levelup");
+	});
+});
+
+describe("a Seasons Change on the aggregate", () => {
+	const tracks = [
+		{ trackId: "steading", trackKind: "steading", name: "Stonetop", entries: [
+			entry({ id: "s1", source: "season", title: "Spring", body: "<p>Surplus: +1</p>" }),
+			entry({ id: "s2", title: "The thaw" }),
+		] },
+		{ trackId: "pc-ellis", trackKind: "character", name: "Ellis", entries: [entry({ id: "e1" })] },
+	];
+
+	// The heading spans the board, and the season's news is whose it is: Stonetop's.
+	it("goes in the season's heading, carrying its thread, and out of the lane", () => {
+		const vm = buildAggregateVM(tracks, { canEdit: id => id === "steading" });
+		const [spring] = vm.periods;
+		expect(spring.seasonNotes).toEqual([
+			{ id: "s1", trackId: "steading", title: "", body: "<p>Surplus: +1</p>", canEdit: true },
+		]);
+		expect(spring.lanes[0].entries.map(e => e.id)).toEqual(["s2"]);
+	});
+
+	it("is hidden with its thread", () => {
+		const vm = buildAggregateVM(tracks, { hiddenTracks: ["steading"] });
+		expect(vm.periods[0].seasonNotes).toEqual([]);
+	});
+
+	it("is not hidden by an old Seasons Change tick in the reader's filter", () => {
+		const vm = buildAggregateVM(tracks, { hidden: ["season"] });
+		expect(vm.periods[0].seasonNotes.map(n => n.id)).toEqual(["s1"]);
+	});
+});
+
+describe("hiding threads off the aggregate", () => {
+	const tracks = [
+		{ trackId: "steading", trackKind: "steading", name: "Stonetop", entries: [entry({ id: "s1", title: "The thaw" })] },
+		{ trackId: "pc-ellis", trackKind: "character", name: "Ellis", entries: [entry({ id: "e1", year: 2, season: "summer" })] },
+		{ trackId: "pc-kefta", trackKind: "character", name: "Kefta", entries: [] },
+	];
+
+	// Dropped whole: no head, no lane in any season, in either shape of the board.
+	it("drops a hidden thread's head and lanes", () => {
+		const vm = buildAggregateVM(tracks, { hiddenTracks: ["pc-kefta"] });
+		expect(vm.tracks.map(t => t.trackId)).toEqual(["steading", "pc-ellis"]);
+		for (const period of vm.periods) expect(period.lanes.map(l => l.trackId)).toEqual(["steading", "pc-ellis"]);
+		expect(vm.swimlanes.map(s => s.trackId)).toEqual(["steading", "pc-ellis"]);
+	});
+
+	// A season only the hidden thread wrote in goes with it, as a hidden kind's season does.
+	it("drops a season only the hidden thread had anything in", () => {
+		const vm = buildAggregateVM(tracks, { hiddenTracks: ["pc-ellis"] });
+		expect(vm.periods.map(p => p.key)).toEqual(["1:spring"]);
+	});
+
+	// Hiding every thread that wrote anything reads as filtered, with the way back, not as unwritten.
+	it("reads as filtered, not empty, when every written thread is hidden", () => {
+		const vm = buildAggregateVM(tracks, { hiddenTracks: ["steading", "pc-ellis"] });
+		expect(vm.isEmpty).toBe(false);
+		expect(vm.allHidden).toBe(true);
+	});
+
+	// User, 2026-10-03: a player's full timeline opens on their own story; the rest is a tick away.
+	it("hides every thread but a player's own characters' by default", () => {
+		expect(defaultHiddenTracks(tracks, t => t.trackId === "pc-ellis")).toEqual(["steading", "pc-kefta"]);
+	});
+
+	// A player may own the steading too; it is the town's thread, not theirs.
+	it("never counts Stonetop's thread as a player's own", () => {
+		expect(defaultHiddenTracks(tracks, t => t.trackId !== "pc-kefta")).toEqual(["steading", "pc-kefta"]);
+	});
+
+	// A board of nothing but a filter reads as broken.
+	it("hides nothing from a reader with no character of their own", () => {
+		expect(defaultHiddenTracks(tracks, () => false)).toEqual([]);
+		expect(defaultHiddenTracks(tracks, t => t.trackKind === "steading")).toEqual([]);
+	});
+
+	it("offers every thread in the board's order, marked shown or hidden", () => {
+		expect(threadMenu(tracks, ["pc-ellis"])).toEqual([
+			{ trackId: "steading", icon: "fa-house-chimney", label: "Stonetop", shown: true },
+			{ trackId: "pc-ellis", icon: "fa-user", label: "Ellis", shown: false },
+			{ trackId: "pc-kefta", icon: "fa-user", label: "Kefta", shown: true },
+		]);
+	});
 });
 
 describe("years and sides", () => {
@@ -198,13 +289,51 @@ describe("the aggregate laid across the page", () => {
 		expect(vm.swimlanes[1].cells[1]).toBe(vm.periods[1].lanes[1]);
 	});
 
-	// The Seasons Change row IS stored, so a GM can rewrite or delete it like any other entry, even
-	// though it renders as quietly as a derived one.
-	it("leaves a season row editable, unlike a derived one", () => {
+	// User, 2026-10-03: what a Seasons Change recorded prints INSIDE its season's heading, not as a
+	// card under it that only said the season's name again. It is still a stored row, so the GM can
+	// rewrite or remove it from there.
+	it("prints a season's own row in its heading, not as a card", () => {
 		const vm = buildTrackVM({ trackId: "s", name: "Stonetop", entries: [
-			entry({ id: "a", source: "season" }),
+			entry({ id: "a", source: "season", title: "Spring", body: "<p>Surplus: +1</p>" }),
+			entry({ id: "b", source: "hand" }),
 		] }, { canEdit: true });
-		expect(vm.periods[0].entries[0]).toMatchObject({ isAuto: true, canEdit: true });
+		const [spring] = vm.periods;
+		expect(spring.entries.map(e => e.id)).toEqual(["b"]);
+		expect(spring.seasonNotes).toEqual([
+			{ id: "a", trackId: "s", title: "", body: "<p>Surplus: +1</p>", canEdit: true },
+		]);
+	});
+
+	it("keeps a season row's title only where a GM changed it from the season's name", () => {
+		const vm = buildTrackVM({ trackId: "s", name: "Stonetop", entries: [
+			entry({ id: "a", source: "season", title: "The hungry spring", body: "" }),
+		] });
+		expect(vm.periods[0].seasonNotes[0].title).toBe("The hungry spring");
+	});
+
+	it("opens a season for its own row alone, and none for one with nothing to say", () => {
+		const said = buildTrackVM({ trackId: "s", name: "Stonetop", entries: [
+			entry({ id: "a", source: "season", title: "Spring", body: "<p>Gains</p>" }),
+		] });
+		expect(said.periods).toHaveLength(1);
+		const blank = buildTrackVM({ trackId: "s", name: "Stonetop", entries: [
+			entry({ id: "a", source: "season", title: "Spring", body: "" }),
+		] });
+		expect(blank.periods).toHaveLength(0);
+		// A writer still gets the heading's Edit, to write in it.
+		const writable = buildTrackVM({ trackId: "s", name: "Stonetop", entries: [
+			entry({ id: "a", source: "season", title: "Spring", body: "" }),
+		] }, { canEdit: true });
+		expect(writable.periods[0].seasonNotes).toHaveLength(1);
+	});
+
+	// It has no Filter line any more, so a reader who hid "Seasons Change" before it moved must not
+	// lose it with no way back.
+	it("never filters a season's own row", () => {
+		const vm = buildTrackVM({ trackId: "s", name: "Stonetop", entries: [
+			entry({ id: "a", source: "season", body: "<p>Gains</p>" }),
+		] }, { hidden: ["season"] });
+		expect(vm.periods[0].seasonNotes.map(n => n.id)).toEqual(["a"]);
 	});
 
 	it("carries the body through raw, for the host to enrich", () => {

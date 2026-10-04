@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	GUTTER_X_VAR, GUTTER_Y_VAR, LIFT_PX, PANNABLE_CLASS, PANNING_CLASS, gutterFor, wireDragScroll,
+	GLIDING_CLASS, GUTTER_LEFT_VAR, GUTTER_TOP_VAR, GUTTER_X_VAR, GUTTER_Y_VAR, LIFT_PX, PANNABLE_CLASS, PANNING_CLASS, gutterFor, wireDragScroll,
 } from "../../module/utils/drag-scroll.js";
 
 // GRAB-AND-THROW ON A REAL SCROLL BOX (the timeline's column). The throw arithmetic is
@@ -181,6 +181,54 @@ describe("wireDragScroll", () => {
 		expect(frames.length).toBe(0);
 	});
 
+	it("says the box is at rest when an unthrown drag is let go, and not for a click", () => {
+		off();
+		const onRest = vi.fn();
+		off = wireDragScroll(box, { onRest });
+		box.emit("pointerdown", { clientX: 100, clientY: 100, target: child() });
+		box.emit("pointerup", { clientX: 100, clientY: 100 });
+		expect(onRest).not.toHaveBeenCalled();
+		box.emit("pointerdown", { clientX: 100, clientY: 100, target: child() });
+		box.emit("pointermove", { clientX: 160, clientY: 100 });
+		expect(onRest).not.toHaveBeenCalled();
+		box.emit("pointerup", { clientX: 160, clientY: 100 });
+		expect(onRest).toHaveBeenCalledTimes(1);
+	});
+
+	it("wears the gliding class while a throw slides, and says at rest only when it dies away", () => {
+		off();
+		const onRest = vi.fn();
+		off = wireDragScroll(box, { onRest });
+		vi.restoreAllMocks();
+		let t = 0;
+		vi.spyOn(globalThis.performance, "now").mockImplementation(() => t);
+		box.emit("pointerdown", { clientX: 300, clientY: 100, target: child() });
+		t = 10; box.emit("pointermove", { clientX: 280, clientY: 100 });
+		t = 20; box.emit("pointermove", { clientX: 260, clientY: 100 });
+		t = 30; box.emit("pointerup", { clientX: 240, clientY: 100 });
+		expect(box.classList.contains(GLIDING_CLASS)).toBe(true);
+		expect(onRest).not.toHaveBeenCalled();
+		for (let i = 0; i < 400 && frames.length; i++) { t += 16; frames.splice(0)[0]?.(); }
+		expect(box.classList.contains(GLIDING_CLASS)).toBe(false);
+		expect(onRest).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not say at rest when a hand catches the sliding box", () => {
+		off();
+		const onRest = vi.fn();
+		off = wireDragScroll(box, { onRest });
+		vi.restoreAllMocks();
+		let t = 0;
+		vi.spyOn(globalThis.performance, "now").mockImplementation(() => t);
+		box.emit("pointerdown", { clientX: 300, clientY: 100, target: child() });
+		t = 10; box.emit("pointermove", { clientX: 280, clientY: 100 });
+		t = 20; box.emit("pointermove", { clientX: 260, clientY: 100 });
+		t = 30; box.emit("pointerup", { clientX: 240, clientY: 100 });
+		box.emit("pointerdown", { clientX: 10, clientY: 10, target: child() });
+		expect(box.classList.contains(GLIDING_CLASS)).toBe(false);
+		expect(onRest).not.toHaveBeenCalled();
+	});
+
 	it("shows the grab hand only when there is somewhere to go", () => {
 		box.emit("pointerenter");
 		expect(box.classList.contains(PANNABLE_CLASS)).toBe(true);
@@ -217,8 +265,8 @@ describe("the gutter to drag off into", () => {
 		const box = fakeBox({ w, h });
 		// `contentSized`: the box still grows with what it holds, so it has no room to scroll at all.
 		const range = () => (box.contentSized ? { x: 0, y: 0 } : {
-			x: cw + 2 * (parseInt(vars[GUTTER_X_VAR]) || 0) - box.clientWidth,
-			y: ch + 2 * (parseInt(vars[GUTTER_Y_VAR]) || 0) - box.clientHeight,
+			x: cw + (parseInt(vars[GUTTER_LEFT_VAR]) || 0) + (parseInt(vars[GUTTER_X_VAR]) || 0) - box.clientWidth,
+			y: ch + (parseInt(vars[GUTTER_TOP_VAR]) || 0) + (parseInt(vars[GUTTER_Y_VAR]) || 0) - box.clientHeight,
 		});
 		let left = 0;
 		let top = 0;
@@ -300,6 +348,47 @@ describe("the gutter to drag off into", () => {
 		observers[0].fn();
 		expect(box.scrollLeft).toBe(250);
 		expect(box.scrollTop).toBe(375);
+		off();
+	});
+
+	// A host whose top row is a sticky header (the aggregate timeline's names) has nothing above it to
+	// scroll into, so the row stays on the top edge; the other three sides keep their room.
+	it("leaves no room above the content when the top is pinned", () => {
+		const box = gutteredBox();
+		const off = wireDragScroll(box, { gutter: 0.75, pinTop: true });
+		expect(box.vars[GUTTER_TOP_VAR]).toBe("0px");
+		expect(box.vars[GUTTER_Y_VAR]).toBe("225px");
+		expect(box.scrollLeft).toBe(300);
+		expect(box.scrollTop).toBe(0);
+		box.scrollTop = -50;
+		expect(box.scrollTop).toBe(0);
+		// A resize grows the room below, and still moves nothing down.
+		box.scrollTop = 400;
+		box.clientHeight = 500;
+		observers[0].fn();
+		expect(box.vars[GUTTER_Y_VAR]).toBe("375px");
+		expect(box.vars[GUTTER_TOP_VAR]).toBe("0px");
+		expect(box.scrollTop).toBe(400);
+		off();
+	});
+
+	// The swimlanes' thread names are a sticky column at the left: nothing left of them to scroll into.
+	it("leaves no room left of the content when the left is pinned", () => {
+		const box = gutteredBox();
+		const off = wireDragScroll(box, { gutter: 0.75, pinLeft: true });
+		expect(box.vars[GUTTER_LEFT_VAR]).toBe("0px");
+		expect(box.vars[GUTTER_X_VAR]).toBe("300px");
+		expect(box.scrollLeft).toBe(0);
+		expect(box.scrollTop).toBe(225);
+		box.scrollLeft = -50;
+		expect(box.scrollLeft).toBe(0);
+		// A resize grows the room to the right, and still moves nothing across.
+		box.scrollLeft = 200;
+		box.clientWidth = 600;
+		observers[0].fn();
+		expect(box.vars[GUTTER_X_VAR]).toBe("450px");
+		expect(box.vars[GUTTER_LEFT_VAR]).toBe("0px");
+		expect(box.scrollLeft).toBe(200);
 		off();
 	});
 

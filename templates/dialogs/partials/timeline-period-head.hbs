@@ -12,6 +12,13 @@
 
       The undated block has no season and no year, so it prints its own label and no chip.
 
+      WHAT THE SEASONS CHANGE RECORDED prints under the name (`seasonNotes`, timeline-view.js): the
+      gains, the Surplus and any notes, IN the heading rather than as a card filed under it, which
+      only repeated the season's name (user's call, 2026-10-03). Each note is still a stored row, so
+      it carries the row's id and thread for the window's Edit and Remove; a host that cannot write
+      (the journal page) hands `canEdit` false and gets the words alone. A host with notes wears
+      `stonetop-timeline-head--notes`, which turns a pill-shaped heading into a box they fit in.
+
       Context: one period view-model (timeline-view.js#periodVM). --}}
 <h3 class="stonetop-timeline-period-title{{#if glyphClass}} stonetop-season-entry {{glyphClass}}{{/if}}">
 	{{#if undated}}{{label}}{{else}}{{seasonLabel}}{{/if}}
@@ -19,3 +26,29 @@
 {{#unless undated}}
 <span class="stonetop-year-chip">{{yearLabel}}</span>
 {{/unless}}
+{{#if seasonNotes.length}}
+<div class="stonetop-timeline-season-notes">
+	{{#each seasonNotes}}
+	<div class="stonetop-timeline-season-note" data-entry-id="{{id}}" data-track-id="{{trackId}}">
+		{{#if title}}
+		<p class="stonetop-timeline-season-note-title">{{title}}</p>
+		{{/if}}
+		{{#if enrichedBody}}
+		<div class="stonetop-timeline-season-note-body">{{{enrichedBody}}}</div>
+		{{/if}}
+		{{#if canEdit}}
+		<div class="stonetop-timeline-card-actions stonetop-timeline-season-note-actions">
+			<button type="button" class="stonetop-timeline-edit" data-entry-id="{{id}}"
+			        aria-label="{{localize "stonetop.timeline.editSeasonNote"}}"
+			        data-tooltip="{{localize "stonetop.timeline.editSeasonNote"}}"
+			        data-tooltip-direction="UP"><i class="fas fa-pen"></i></button>
+			<button type="button" class="stonetop-timeline-remove" data-entry-id="{{id}}"
+			        aria-label="{{localize "stonetop.timeline.removeSeasonNote"}}"
+			        data-tooltip="{{localize "stonetop.timeline.removeSeasonNote"}}"
+			        data-tooltip-direction="UP"><i class="fas fa-xmark"></i></button>
+		</div>
+		{{/if}}
+	</div>
+	{{/each}}
+</div>
+{{/if}}

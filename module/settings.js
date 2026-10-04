@@ -1578,15 +1578,15 @@ export function registerSettings() {
 		default: false,
 	});
 
-	// HOW THIS READER LAYS THE TIMELINE OUT: down the page ("vertical", the default) or across it
-	// ("horizontal", one axis with the seasons strung along it). Per client, because it is a way of
+	// HOW THIS READER LAYS THE TIMELINE OUT: across the page ("horizontal", one axis with the seasons
+	// strung along it; the default since 2026-10-03) or down it ("vertical"). Per client, because it is a way of
 	// READING the record, not a fact about it. `config: false` because the switch sits in the
 	// timeline's own toolbar, and a second one in the settings window would be a disagreeing copy.
 	game.settings.register(SYSTEM_ID, "timelineOrientation", {
 		scope: "client",
 		config: false,
 		type: String,
-		default: "vertical",
+		default: "horizontal",
 	});
 
 	// WHICH KINDS OF ROW THIS READER HAS HIDDEN (kills, level-ups, ...): the sources they unticked in
@@ -1598,6 +1598,27 @@ export function registerSettings() {
 		config: false,
 		type: Array,
 		default: [],
+	});
+
+	// WHICH THREADS THIS READER HAS HIDDEN off the aggregate timeline, as track ids, from the Filter
+	// menu's Threads section. Hidden rather than shown for the reason above: a character made later
+	// joins the board for everybody. Per client, `config: false`.
+	game.settings.register(SYSTEM_ID, "timelineHiddenTracks", {
+		scope: "client",
+		config: false,
+		type: Array,
+		default: [],
+	});
+
+	// HAS THIS READER CHOSEN THEIR THREADS YET? Until a PLAYER ticks a thread or presses Show
+	// everything, the aggregate opens on their own characters' threads alone (user, 2026-10-03),
+	// worked out fresh each render so a character joining later stays off it too; the list above
+	// is only read once this is true. A GM is never defaulted. Per client, `config: false`.
+	game.settings.register(SYSTEM_ID, "timelineThreadsChosen", {
+		scope: "client",
+		config: false,
+		type: Boolean,
+		default: false,
 	});
 
 	// THE COLOURS A GM REPAINTED THE TIMELINE'S KINDS IN, keyed by kind, `#rrggbb` each; a kind not
@@ -2284,15 +2305,15 @@ export function isAttackFxOn() {
 	return getBooleanSetting("attackFx", true);
 }
 
-/** This reader's timeline layout: "vertical" (the default) or "horizontal". */
+/** This reader's timeline layout: "horizontal" (the default) or "vertical". */
 export function getTimelineOrientation() {
 	const value = globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineOrientation");
-	return value === "horizontal" ? "horizontal" : "vertical";
+	return value === "vertical" ? "vertical" : "horizontal";
 }
 
 /** Remember this reader's layout. Client-scoped, so it never reaches anybody else at the table. */
 export function setTimelineOrientation(orientation) {
-	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineOrientation", orientation === "horizontal" ? "horizontal" : "vertical");
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineOrientation", orientation === "vertical" ? "vertical" : "horizontal");
 }
 
 /** The kinds of timeline row this reader has hidden, as source names. */
@@ -2304,6 +2325,27 @@ export function getTimelineHiddenSources() {
 export function setTimelineHiddenSources(sources) {
 	const clean = [...new Set((Array.isArray(sources) ? sources : []).filter(s => typeof s === "string" && s))];
 	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineHiddenSources", clean);
+}
+
+/** The threads this reader has hidden off the aggregate timeline, as track ids. */
+export function getTimelineHiddenTracks() {
+	return getArraySetting("timelineHiddenTracks").filter(s => typeof s === "string" && s);
+}
+
+/** Remember which threads this reader has hidden. */
+export function setTimelineHiddenTracks(trackIds) {
+	const clean = [...new Set((Array.isArray(trackIds) ? trackIds : []).filter(s => typeof s === "string" && s))];
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineHiddenTracks", clean);
+}
+
+/** Has this reader picked their own threads, or is the aggregate still on its default? */
+export function getTimelineThreadsChosen() {
+	return globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineThreadsChosen") === true;
+}
+
+/** Remember that this reader has picked their threads; the default never applies again. */
+export function setTimelineThreadsChosen(chosen) {
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineThreadsChosen", !!chosen);
 }
 
 /** The kinds the GM has repainted for this world, cleaned: `{kind: "#rrggbb"}`. */

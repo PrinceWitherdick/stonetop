@@ -17,6 +17,7 @@ const TEMPLATES = [
 	"templates/dialogs/timeline-entry.hbs",
 	"templates/dialogs/partials/timeline-card.hbs",
 	"templates/dialogs/partials/timeline-period.hbs",
+	"templates/dialogs/partials/timeline-period-head.hbs",
 	"templates/dialogs/partials/timeline-hperiod.hbs",
 	"templates/dialogs/partials/timeline-lane-head.hbs",
 	"templates/dialogs/partials/timeline-entry-tag.hbs",
@@ -90,5 +91,46 @@ describe("the aggregate's markup and its stylesheet agree", () => {
 	it("stamps every lane with the thread it belongs to", () => {
 		expect(readRepo("templates/dialogs/timeline.hbs"))
 			.toMatch(/stonetop-timeline-lane[^"]*"\s*\n?\s*data-track-id=/);
+	});
+});
+
+describe("a Seasons Change inside its season's heading", () => {
+	// User, 2026-10-03: what the season recorded prints in the heading, not as a card under it.
+	const render = (period) => {
+		const hb = Handlebars.create();
+		hb.registerHelper("localize", key => key);
+		return hb.compile(readRepo("templates/dialogs/partials/timeline-period-head.hbs"))(period);
+	};
+	const period = (notes) => ({ seasonLabel: "Spring", yearLabel: "Year One", glyphClass: "", seasonNotes: notes });
+
+	// On the aggregate the heading sits in no lane, so the note carries its own thread for the
+	// window's listener, and its own row id for Edit and Remove.
+	it("prints each note with its row and thread, and the writer's Edit and Remove", () => {
+		const html = render(period([{ id: "s1", trackId: "steading", title: "", enrichedBody: "<p>Surplus: +1</p>", canEdit: true }]));
+		expect(html).toMatch(/class="stonetop-timeline-season-note" data-entry-id="s1" data-track-id="steading"/);
+		expect(html).toContain("<p>Surplus: +1</p>");
+		expect(html).toContain('class="stonetop-timeline-edit" data-entry-id="s1"');
+		expect(html).toContain('class="stonetop-timeline-remove" data-entry-id="s1"');
+	});
+
+	it("gives a reader who cannot write the words alone", () => {
+		const html = render(period([{ id: "s1", trackId: "steading", title: "", enrichedBody: "<p>Gains</p>", canEdit: false }]));
+		expect(html).toContain("<p>Gains</p>");
+		expect(html).not.toContain("stonetop-timeline-edit");
+	});
+
+	it("prints nothing extra for a season with no notes", () => {
+		expect(render(period([]))).not.toContain("stonetop-timeline-season-notes");
+	});
+
+	// A pill-shaped heading has to become a box the notes fit in, so every host says it holds some.
+	it("marks every host of the heading that holds notes", () => {
+		const hosts = readRepo("templates/dialogs/timeline.hbs")
+			+ readRepo("templates/dialogs/partials/timeline-period.hbs")
+			+ readRepo("templates/dialogs/partials/timeline-hperiod.hbs");
+		const tags = hosts.match(/<[^>]*\{\{seasonClass\}\}[^>]*>/g) ?? [];
+		expect(tags).toHaveLength(4);
+		for (const tag of tags) expect(tag).toContain("{{#if seasonNotes.length}} stonetop-timeline-head--notes{{/if}}");
+		expect(readCss()).toContain(".stonetop-timeline-head--notes");
 	});
 });

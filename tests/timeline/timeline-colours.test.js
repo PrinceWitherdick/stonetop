@@ -4,7 +4,7 @@ import {
 	TIMELINE_KIND_PALETTE, applyTimelineKindColours, currentColourMode, kindColourSet, kindColoursCss,
 	normalizeKindColours, readableKindColour,
 } from "../../module/timeline/timeline-colours.js";
-import { TIMELINE_SOURCES } from "../../module/timeline/timeline-core.js";
+import { TIMELINE_CARD_SOURCES } from "../../module/timeline/timeline-core.js";
 import { declared, ownRule, readCss } from "../fakes/css.js";
 
 // THE KINDS' COLOURS. The stylesheet carries the shipped palette as tokens, one value per skin, and
@@ -23,8 +23,17 @@ const SKIN_SELECTOR = {
 
 describe("the kinds", () => {
 	// Restated rather than imported (the module's header says why), so held together here.
-	it("are every source the system records, in the Filter menu's order", () => {
-		expect([...TIMELINE_COLOUR_KINDS]).toEqual(TIMELINE_SOURCES.filter(source => source !== "hand"));
+	it("are every source the system records as a card, in the Filter menu's order", () => {
+		expect([...TIMELINE_COLOUR_KINDS]).toEqual(TIMELINE_CARD_SOURCES.filter(source => source !== "hand"));
+	});
+
+	// A Seasons Change prints inside its season's heading (user, 2026-10-03), which wears the
+	// season's own colour; a kind colour for it would paint nothing.
+	it("leave the season out", () => {
+		expect(TIMELINE_COLOUR_KINDS).not.toContain("season");
+		expect(TIMELINE_KIND_PALETTE).not.toHaveProperty("season");
+		expect(css).not.toContain("--st-timeline-kind-season");
+		expect(css).not.toContain(".stonetop-timeline-kind--season");
 	});
 });
 

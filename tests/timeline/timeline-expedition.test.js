@@ -20,7 +20,7 @@ describe("the row a trip writes", () => {
 	it("is one row per trip, keyed by the trip", () => {
 		const row = expeditionMilestone(base);
 		expect(row).toEqual(expect.objectContaining({
-			source: "expedition", key: "expedition:t1", title: "Expedition: The Ford", place: "Marshedge",
+			source: "expedition", key: "expedition:t1", title: "The Ford", place: "Marshedge",
 		}));
 	});
 

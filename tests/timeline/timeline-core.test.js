@@ -44,6 +44,13 @@ describe("normalizeEntry", () => {
 		expect(normalizeEntry({ season: "autumn" }).season).toBe("autumn");
 	});
 
+	// The old "Expedition: " prefix is taken off once, by migration/expedition-title-prefix.js: a
+	// read never rewrites a title, so one a GM typed that way stays as typed.
+	it("reads every title as stored, whatever its source", () => {
+		expect(normalizeEntry({ source: "expedition", title: "Expedition: The Ford" }).title).toBe("Expedition: The Ford");
+		expect(normalizeEntry({ source: "hand", title: "Expedition: The Ford" }).title).toBe("Expedition: The Ford");
+	});
+
 	// Ids reach dotted update paths and getProperty elsewhere in this system; one carrying a dot
 	// addresses a nested object instead of a key.
 	it("strips dots out of an id", () => {

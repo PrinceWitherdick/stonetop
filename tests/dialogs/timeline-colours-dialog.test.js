@@ -91,7 +91,7 @@ describe("the rows", () => {
 
 	it("render, one per kind", async () => {
 		const html = await renderTemplate("systems/stonetop-pwd/templates/dialogs/timeline-colours.hbs", makeDialog().getData());
-		expect(html.match(/class="stonetop-timeline-colours-row/g)).toHaveLength(9);
+		expect(html.match(/class="stonetop-timeline-colours-row/g)).toHaveLength(8);
 		expect(html).toContain('data-kind="arcana" style="--tl-kind: ');
 		expect(html).toContain('type="color" class="stonetop-timeline-colours-pick"');
 	});
@@ -110,9 +110,9 @@ describe("picking and putting back", () => {
 
 	// Kept, it would be walked into the three other skins and replace their own tuned colours.
 	it("treats a pick landing on this skin's shipped colour as the default", () => {
-		const dialog = makeDialog({ season: "#123456" });
-		dialog._onPick("season", TIMELINE_KIND_PALETTE.season.light.toUpperCase());
-		expect(dialog._chosen).not.toHaveProperty("season");
+		const dialog = makeDialog({ levelup: "#123456" });
+		dialog._onPick("levelup", TIMELINE_KIND_PALETTE.levelup.light.toUpperCase());
+		expect(dialog._chosen).not.toHaveProperty("levelup");
 	});
 
 	it("puts a kind back to default, picker and all", () => {

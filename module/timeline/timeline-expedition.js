@@ -63,7 +63,8 @@ export function expeditionMilestone({ tripId, label, place = "", setOut = null, 
 	return {
 		source: "expedition",
 		key:    `expedition:${tripId}`,
-		title:  format("stonetop.timeline.milestone.expedition", { label }),
+		// Just the trip's name: the card's Expedition chip already says what kind of row it is.
+		title:  String(label ?? ""),
 		place:  String(place ?? ""),
 		body:   lines.map(line => `<p>${escHtml(line)}</p>`).join(""),
 		// The words may change after the row is written (a triumph, a renamed destination); the

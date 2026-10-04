@@ -21,13 +21,15 @@
 import { contrast, deepenInk, normalizeHex, parseColour } from "../relmap/relmap-ink.js";
 
 /**
- * The kinds that wear a colour: every source the system records for itself. `hand` (a typed row)
- * is left out on purpose -- it wears no chip, and a colour would be a tag nobody gave it.
+ * The kinds that wear a colour: every source the system records for itself as a CARD. `hand` (a
+ * typed row) is left out on purpose -- it wears no chip, and a colour would be a tag nobody gave it.
+ * So is `season`: a Seasons Change prints inside its season's heading, which wears the season's own
+ * colour, and is no card (timeline-core.js#TIMELINE_SEASON_SOURCE).
  *
- * ⚠ ORDER IS THE DIALOG'S ORDER, which is the Show menu's (TIMELINE_SOURCES, minus `hand`).
+ * ⚠ ORDER IS THE DIALOG'S ORDER, which is the Show menu's (TIMELINE_CARD_SOURCES, minus `hand`).
  */
 export const TIMELINE_COLOUR_KINDS = Object.freeze([
-	"season", "levelup", "kills", "expedition", "site", "death", "wound", "arcana", "follower",
+	"levelup", "kills", "expedition", "site", "death", "wound", "arcana", "follower",
 ]);
 
 /** The four skins a colour has to read on, in the order the generated CSS writes them. */
@@ -39,7 +41,6 @@ export const TIMELINE_COLOUR_MODES = Object.freeze(["light", "dark", "lightHigh"
  * lightness, is written once, beside the light tokens in styles/stonetop.css.
  */
 export const TIMELINE_KIND_PALETTE = Object.freeze({
-	season:     Object.freeze({ light: "#265218", dark: "#79bd63", lightHigh: "#254e17", darkHigh: "#6cb654" }),
 	levelup:    Object.freeze({ light: "#705409", dark: "#d8a71f", lightHigh: "#6b5109", darkHigh: "#cc9d1d" }),
 	kills:      Object.freeze({ light: "#6a1219", dark: "#fa918b", lightHigh: "#a51d28", darkHigh: "#f1848d" }),
 	expedition: Object.freeze({ light: "#0a625a", dark: "#40bfba", lightHigh: "#0d5e5b", darkHigh: "#3cb5b1" }),

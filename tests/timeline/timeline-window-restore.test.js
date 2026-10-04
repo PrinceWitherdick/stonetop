@@ -58,6 +58,28 @@ describe("the timeline window across a reload", () => {
 		expect(app.restoreView).toEqual({ zoom: 1.5, left: 450, top: 30 });
 	});
 
+	// Under a pinned header row there is no room above, so nothing is taken off the top.
+	it("counts down from the top edge when the header row is pinned", () => {
+		const app = new TimelineWindow();
+		app._zoom = 1;
+		const scroll = fakeScroll({ gutterX: 200, gutterY: 100, left: 650, top: 130 });
+		const vars = { "--drag-scroll-gutter-x": "200px", "--drag-scroll-gutter-y": "100px", "--drag-scroll-gutter-top": "0px" };
+		scroll.style = { getPropertyValue: (name) => vars[name] ?? "" };
+		app.element = [fakeRoot(scroll)];
+		expect(app.restoreView).toEqual({ zoom: 1, left: 450, top: 130 });
+	});
+
+	// Beside the swimlanes' pinned thread names there is no room to the left, so nothing is taken off.
+	it("counts across from the left edge when the name column is pinned", () => {
+		const app = new TimelineWindow();
+		app._zoom = 1;
+		const scroll = fakeScroll({ gutterX: 200, gutterY: 100, left: 650, top: 130 });
+		const vars = { "--drag-scroll-gutter-x": "200px", "--drag-scroll-gutter-y": "100px", "--drag-scroll-gutter-top": "0px", "--drag-scroll-gutter-left": "0px" };
+		scroll.style = { getPropertyValue: (name) => vars[name] ?? "" };
+		app.element = [fakeRoot(scroll)];
+		expect(app.restoreView).toEqual({ zoom: 1, left: 650, top: 130 });
+	});
+
 	// A minimized window's column is hidden and reads 0 down and across: less the gutter, the corner.
 	it("saves where it was when it went down, not what a minimized column reads", async () => {
 		const base = Object.getPrototypeOf(TimelineWindow.prototype);

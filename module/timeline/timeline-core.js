@@ -41,8 +41,8 @@ export const UNDATED_PERIOD_KEY = "undated";
  * edited or deleted like a typed one. The source is what the reader's "Filter" menu and the card's
  * kind chip read.
  *
- * ⚠ ORDER IS THE FILTER MENU'S ORDER. And a new source must be added HERE, or `normalizeEntry`
- * files every row it writes as hand-typed.
+ * ⚠ ORDER IS THE FILTER MENU'S ORDER (less `season`, which is no card; see TIMELINE_SEASON_SOURCE).
+ * And a new source must be added HERE, or `normalizeEntry` files every row it writes as hand-typed.
  */
 export const TIMELINE_SOURCES = [
 	"hand", "season", "levelup", "kills", "expedition", "site", "death", "wound", "arcana", "follower",
@@ -50,6 +50,18 @@ export const TIMELINE_SOURCES = [
 
 /** The source of the one row per season that collects a character's kills. See `addKills`. */
 export const TIMELINE_KILLS_SOURCE = "kills";
+
+/**
+ * The source of the one row per season a Seasons Change writes (timeline-season-entry.js).
+ *
+ * ⚠ NOT A CARD. Its gains and Surplus print INSIDE that season's heading (user's call, 2026-10-03:
+ * a card repeating the season it was filed under said nothing the heading did not), so it is in no
+ * Filter menu, wears no kind colour and cannot be borrowed as a tag. See `TIMELINE_CARD_SOURCES`.
+ */
+export const TIMELINE_SEASON_SOURCE = "season";
+
+/** The sources that print as CARDS: every one but the season's, which prints in its heading. */
+export const TIMELINE_CARD_SOURCES = TIMELINE_SOURCES.filter(source => source !== TIMELINE_SEASON_SOURCE);
 
 /**
  * The `chronicleKey` a track's page is found by.

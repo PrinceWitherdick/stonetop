@@ -21,8 +21,8 @@ import { periodLabel } from "../seasons/current-season.js";
 import { localize, format } from "../utils/i18n.js";
 import { enrichHTML } from "../utils/foundry-compat.js";
 import {
-	TIMELINE_KILLS_SOURCE, TIMELINE_SOURCES, UNDATED_PERIOD_KEY, foeLines, groupByPeriod, killTotal,
-	periodFacts, periodKey, readEntries, sortEntries,
+	TIMELINE_CARD_SOURCES, TIMELINE_KILLS_SOURCE, TIMELINE_SEASON_SOURCE, UNDATED_PERIOD_KEY, foeLines,
+	groupByPeriod, killTotal, periodFacts, periodKey, readEntries, sortEntries,
 } from "./timeline-core.js";
 import { customTagStyle, filterKey, indexCustomTags, isKindTag, liveTag } from "./timeline-tags.js";
 
@@ -31,12 +31,11 @@ import { customTagStyle, filterKey, indexCustomTags, isKindTag, liveTag } from "
  * "Filter" menu. A kind is ALWAYS named in words beside its glyph: an icon alone is a guess for a
  * reader on a magnifier, and the chip is the one thing that says a row was written by the system.
  *
- * ⚠ NO SEASON-NAMED KEYS OR CLASSES. The Seasons Change row is one kind among ten, marked by the
- * leaf like the rest; the season itself is named by the period it sits in.
+ * ⚠ NO SEASON-NAMED KEYS OR CLASSES. The Seasons Change row is not a card at all: it prints inside
+ * its season's heading (`seasonNotes`, below), so it has no chip, no colour and no Filter line.
  */
 export const KIND_META = {
 	hand:       { icon: "fa-feather-pointed" },
-	season:     { icon: "fa-leaf" },
 	levelup:    { icon: "fa-angles-up" },
 	kills:      { icon: "fa-skull" },
 	expedition: { icon: "fa-person-hiking" },
@@ -73,7 +72,7 @@ export function tagChip(entry, tagIndex) {
 }
 
 /**
- * Every kind the "Filter" menu offers, in TIMELINE_SOURCES order, each marked shown or hidden for
+ * Every kind the "Filter" menu offers, in TIMELINE_CARD_SOURCES order, each marked shown or hidden for
  * this reader, and then the world's custom tags by name. A custom tag's line hides the typed rows
  * wearing it; `source` is its id, which is what the reader's hidden list stores.
  *
@@ -82,7 +81,7 @@ export function tagChip(entry, tagIndex) {
  */
 export function kindMenu(hidden = [], tags = []) {
 	const off = new Set(hidden);
-	const kinds = TIMELINE_SOURCES.map(source => ({
+	const kinds = TIMELINE_CARD_SOURCES.map(source => ({
 		source,
 		kind:  source,
 		icon:  KIND_META[source]?.icon ?? KIND_META.hand.icon,
@@ -96,6 +95,43 @@ export function kindMenu(hidden = [], tags = []) {
 		shown:  !off.has(tag.id),
 	}));
 	return [...kinds, ...custom];
+}
+
+/**
+ * The aggregate's threads, as the "Filter" menu's second section offers them: every track, in the
+ * board's own order, each marked shown or hidden for this reader. A steading's thread wears the
+ * house, a character's the figure, so the two read apart before the name is read.
+ *
+ * @param {Array<{trackId, trackKind?, name}>} tracks  Every track, hidden or not.
+ * @param {string[]} [hiddenTracks]  The track ids this reader unticked.
+ */
+export function threadMenu(tracks = [], hiddenTracks = []) {
+	const off = new Set(hiddenTracks);
+	return tracks.map(track => ({
+		trackId: track.trackId,
+		icon:    track.trackKind === "steading" ? "fa-house-chimney" : "fa-user",
+		label:   track.name,
+		shown:   !off.has(track.trackId),
+	}));
+}
+
+/**
+ * The threads a PLAYER'S aggregate hides before they have chosen any (user, 2026-10-03): every one
+ * but their own characters', so the full timeline opens on their own story and the Filter menu's
+ * count says the rest is there to tick back on. Stonetop's thread is never "theirs", even for a
+ * player who owns the steading. A reader with no character of their own hides nothing: a board of
+ * nothing but a filter would read as a broken one.
+ *
+ * @param {Array<{trackId, trackKind?}>} tracks  Every track on the board.
+ * @param {(track) => boolean} ownsTrack  Is this thread one of the reader's characters?
+ * @returns {string[]} The track ids to hide.
+ */
+export function defaultHiddenTracks(tracks = [], ownsTrack = () => false) {
+	const mine = new Set(tracks
+		.filter(track => track.trackKind !== "steading" && ownsTrack(track))
+		.map(track => track.trackId));
+	if (!mine.size) return [];
+	return tracks.map(track => track.trackId).filter(id => !mine.has(id));
 }
 
 /**
@@ -159,8 +195,37 @@ function cardVM(entry, { canEdit = false, tags = null } = {}) {
 	};
 }
 
+/** Is this the row a Seasons Change wrote, which prints in its season's heading rather than as a card? */
+export function isSeasonRow(entry) {
+	return entry?.source === TIMELINE_SEASON_SOURCE;
+}
+
+/**
+ * A Seasons Change row, as its season's HEADING prints it: the gains, the Surplus and any notes
+ * (the body timeline-season-entry.js wrote, or whatever a GM rewrote it to), under the season's name.
+ *
+ * The title is printed only where a GM changed it: as written it IS the season's name, which the
+ * heading has just said. `trackId` rides along because a heading on the aggregate sits in no lane,
+ * and the window's delegated listener reads the thread a click belongs to off the nearest one.
+ */
+function seasonNoteVM(entry, { canEdit = false, trackId = "" } = {}) {
+	const title = String(entry.title ?? "").trim();
+	return {
+		id:      entry.id,
+		trackId,
+		title:   title && entry.season && title !== seasonLabel(entry.season) ? title : "",
+		body:    entry.body,
+		canEdit,
+	};
+}
+
+/** A note with nothing to print and no way to write in it would be an empty box in the heading. */
+function noteHasRoom(note) {
+	return !!(note.title || note.body || note.canEdit);
+}
+
 /** One period block, with whatever it holds. `startsYear` and `above` are set by the builders. */
-function periodVM(period, entries, opts) {
+function periodVM(period, entries, opts, seasonNotes = []) {
 	return {
 		key:         period.key,
 		label:       periodLabel(period),
@@ -173,6 +238,8 @@ function periodVM(period, entries, opts) {
 		startsYear:  false,
 		above:       true,
 		entries:     entries.map(e => cardVM(e, opts)),
+		// What the Seasons Change recorded, printed inside the heading (timeline-period-head.hbs).
+		seasonNotes,
 	};
 }
 
@@ -200,7 +267,8 @@ function markYearsAndSides(periods) {
  *
  * `count` and `killTotal` are of the WHOLE track, before the reader's filter: hiding kills must not
  * make a character read as never having killed anything, and an empty track is told apart from a
- * fully filtered one (`isEmpty` against `allHidden`).
+ * fully filtered one (`isEmpty` against `allHidden`). Nothing prints `killTotal` at present (the
+ * toolbar's "N slain" chip came off at the user's request, 2026-10-03); it is kept for when it returns.
  *
  * @param {{trackId, name, entries, actor?}} track
  * @param {{canEdit?: boolean, hidden?: string[], tags?: Array}} [opts]  `tags` = the world's custom
@@ -210,7 +278,13 @@ export function buildTrackVM(track, opts = {}) {
 	const all = readEntries(track?.entries ?? []);
 	const off = new Set(opts.hidden ?? []);
 	const tags = indexCustomTags(opts.tags);
-	const shown = all.filter(e => !off.has(filterKey(e, tags)));
+	// A season's own row is never filtered: it is no card, and it has no line in the Filter menu to
+	// bring it back by (a reader who hid "Seasons Change" before it moved keeps that in their setting).
+	// One with nothing to print is dropped instead, so it opens no empty season.
+	const noteOpts = { canEdit: !!opts.canEdit, trackId: track?.trackId ?? "" };
+	const shown = all.filter(e => isSeasonRow(e)
+		? noteHasRoom(seasonNoteVM(e, noteOpts))
+		: !off.has(filterKey(e, tags)));
 	const periods = groupByPeriod(shown);
 	const cardOpts = { ...opts, tags };
 	return {
@@ -221,7 +295,12 @@ export function buildTrackVM(track, opts = {}) {
 		allHidden: all.length > 0 && !shown.length,
 		count:     all.length,
 		killTotal: killTotal(all),
-		periods:   markYearsAndSides(periods.map(p => periodVM(p, p.entries, cardOpts))),
+		periods:   markYearsAndSides(periods.map(p => periodVM(
+			p,
+			p.entries.filter(e => !isSeasonRow(e)),
+			cardOpts,
+			p.entries.filter(isSeasonRow).map(e => seasonNoteVM(e, noteOpts)),
+		))),
 	};
 }
 
@@ -241,13 +320,30 @@ export function buildTrackVM(track, opts = {}) {
  * index one by the other, so the transposition happens here -- and the cells are the SAME objects in
  * both, so enriching one shape enriches the other.
  *
+ * A Seasons Change row goes to its season's HEADING, not its thread's lane: the heading spans the
+ * whole board, and what Stonetop put its season into is the season's news. It still belongs to its
+ * thread, so hiding Stonetop's thread hides it with the rest of that thread.
+ *
+ * A thread the reader unticked in the Filter menu (`hiddenTracks`) is dropped whole: no head, no
+ * lane, and a season only it had anything in goes with it. Its rows still count towards `isEmpty`,
+ * so a board whose every written thread is hidden reads as filtered (`allHidden`), not as unwritten.
+ *
  * @param {Array<{trackId, name, entries, actor?}>} tracks
- * @param {{canEdit?: (trackId: string) => boolean, hidden?: string[], tags?: Array}} [opts]
+ * @param {{canEdit?: (trackId: string) => boolean, hidden?: string[], hiddenTracks?: string[],
+ *          tags?: Array}} [opts]
  */
-export function buildAggregateVM(tracks = [], opts = {}) {
+export function buildAggregateVM(allTracks = [], opts = {}) {
 	const canEdit = opts.canEdit ?? (() => false);
 	const off = new Set(opts.hidden ?? []);
+	const offTracks = new Set(opts.hiddenTracks ?? []);
 	const tags = indexCustomTags(opts.tags);
+	const tracks = allTracks.filter(track => !offTracks.has(track?.trackId));
+	// Every thread's rows, hidden or not: what tells "nothing written" from "all of it filtered".
+	// The shown threads add theirs in the pass below; a hidden thread is only counted.
+	let total = 0;
+	for (const track of allTracks) {
+		if (offTracks.has(track?.trackId)) total += readEntries(track?.entries ?? []).length;
+	}
 
 	// One pass over every track: the periods in play, keyed so a season shared by three tracks is
 	// one row, and at the same time each track's entries bucketed under that same key.
@@ -258,7 +354,7 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 	const byKey = new Map();
 	const laneBuckets = new Map();
 	const laneFacts = new Map();
-	let total = 0;
+	const notesByKey = new Map();
 	for (const track of tracks) {
 		const all = sortEntries(track?.entries ?? []);
 		total += all.length;
@@ -266,16 +362,24 @@ export function buildAggregateVM(tracks = [], opts = {}) {
 		laneBuckets.set(track.trackId, buckets);
 		laneFacts.set(track.trackId, { count: all.length });
 		for (const entry of all) {
-			if (off.has(filterKey(entry, tags))) continue;
+			const note = isSeasonRow(entry)
+				? seasonNoteVM(entry, { canEdit: canEdit(track.trackId), trackId: track.trackId })
+				: null;
+			if (note ? !noteHasRoom(note) : off.has(filterKey(entry, tags))) continue;
 			const key = periodKey(entry);
 			if (!byKey.has(key)) byKey.set(key, periodFacts(entry));
+			if (note) {
+				if (!notesByKey.has(key)) notesByKey.set(key, []);
+				notesByKey.get(key).push(note);
+				continue;
+			}
 			if (!buckets.has(key)) buckets.set(key, []);
 			buckets.get(key).push(entry);
 		}
 	}
 
 	const periods = markYearsAndSides([...byKey.values()].sort((a, b) => a.rank - b.rank).map(period => ({
-		...periodVM(period, [], {}),
+		...periodVM(period, [], {}, notesByKey.get(period.key) ?? []),
 		// The lane, not the block, holds the cards here: a row of this table is one season across
 		// every thread, and each cell is what that thread did in it.
 		lanes: tracks.map(track => {
@@ -324,6 +428,8 @@ export async function enrichTrackVM(vm) {
 	for (const period of vm?.periods ?? []) {
 		for (const card of period.entries ?? []) cards.push(card);
 		for (const lane of period.lanes ?? []) cards.push(...lane.entries);
+		// A season's notes in its heading carry a body like a card's, and are enriched the same way.
+		cards.push(...(period.seasonNotes ?? []));
 	}
 	await Promise.all(cards.map(async (card) => {
 		card.enrichedBody = card.body ? await enrichHTML(card.body, {}) : "";

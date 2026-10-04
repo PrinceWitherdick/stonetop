@@ -52,7 +52,8 @@
 //             GM drew by hand, holding two of the village's communal assets — which are struck
 //             through on the steading sheet and tagged with the trip that took them.
 //             Lays a THREE-YEAR history on the Timeline (Spring, Year One to Spring, Year
-//             Three): Seasons Changes and typed rows on Stonetop's own thread, and level-ups,
+//             Three): a Seasons Change for every season (gains, Surplus and notes, printed in
+//             the season's heading) and typed rows on Stonetop's own thread, and level-ups,
 //             kills, the trip home, a site visit, a follower and the Graveyard's deaths on each
 //             character's, and moves the steading's clock on to Year Three to match (its season
 //             kept, and a clock already past Year Three left alone).
@@ -1212,19 +1213,35 @@
     year:   1 + Math.floor(p / TEST_TIMELINE_SEASONS.length),
   });
 
-  // Stonetop's own thread. `turned` is each Seasons Change from the first summer on (the campaign
-  // OPENS in spring, at session zero, so nothing turned into it), worded by the system's own
-  // seasonEntryBody; `rows` are what the table would have typed there.
+  // Stonetop's own thread. `turned` is every Seasons Change, worded by the system's own
+  // seasonEntryBody, which the timeline prints in that season's HEADING rather than as a card. The
+  // first is session zero's Let Spring Burst Forth, which records Spring of Year One the same way
+  // (gains, and the GM's hook as its note). `gains` are SEASONAL_GAINS names
+  // (dialogs/spring-burst-data.js) and agree with the story: none in the raid autumn, two in the
+  // best harvest, and a bounty's Surplus counted in its season's change. So the headings differ:
+  // no gains, one, two; Surplus up, down and unmoved; and one `title` a GM rewrote, which is the
+  // one case where the heading prints a title under the season's name.
+  // `rows` are what the table would have typed there.
   const TEST_TIMELINE_STEADING = {
     turned: [
-      { p: 1, surplus:  1, notes: "The barley came up thick and the herds fattened on the high pasture." },
-      { p: 2, surplus: -1, notes: "Half the harvest was in before the raid. The rest was trampled." },
-      { p: 3, surplus: -1, notes: "A hungry winter. The well froze to the bottom, and nobody starved." },
-      { p: 4, surplus:  1, notes: "Seed corn traded up from Marshedge, and the fields went in on time." },
-      { p: 5, surplus:  1, notes: "A Steplands trader with word of standing stones at Blackwater Lake." },
-      { p: 6, surplus:  2, notes: "The best harvest anyone remembers, and the expedition home before the frosts." },
-      { p: 7, surplus:  0, notes: "Hafgan the Elder died in the deep of it." },
-      { p: 8, surplus:  1, notes: "The thaw, and singing from out on the Flats." },
+      { p: 0, surplus:  0, gains: ["Interesting news"],
+        notes: "A hawk took a crow over the standing stones at the thaw. Someone has half a map to the old barrow." },
+      { p: 1, surplus:  1, gains: ["Tor's blessing"],
+        notes: "The barley came up thick and the herds fattened on the high pasture." },
+      { p: 2, surplus: -1, gains: [],
+        notes: "Half the harvest was in before the raid. The rest was trampled." },
+      { p: 3, surplus: -1, gains: ["Valuable insight"],
+        notes: "A hungry winter. The well froze to the bottom, and nobody starved.\nThe raider we kept talked, come midwinter: they came for the barrow, not the barley." },
+      { p: 4, surplus:  1, gains: ["Trade opportunity"],
+        notes: "Seed corn traded up from Marshedge, and the fields went in on time." },
+      { p: 5, surplus:  1, gains: ["Interesting news", "Unexpected bounty"],
+        notes: "A Steplands trader with word of standing stones at Blackwater Lake, and salt to pay for his keep." },
+      { p: 6, surplus:  2, gains: ["Tor's blessing", "Unexpected bounty"],
+        notes: "The best harvest anyone remembers, and the expedition home before the frosts." },
+      { p: 7, surplus:  0, gains: [], title: "The Elder's winter",
+        notes: "Hafgan the Elder died in the deep of it." },
+      { p: 8, surplus:  1, gains: ["Population boom"],
+        notes: "The thaw, and singing from out on the Flats. Two Hillfolk families came down to settle by the mill." },
     ],
     rows: [
       { p: 0, title: "The first spring", place: "Stonetop",
@@ -1415,8 +1432,8 @@
     if (steadingTrack) {
       const rows = [
         ...TEST_TIMELINE_STEADING.turned.map(t => at(t.p, {
-          source: "season", key: `test:season:${t.p}`, title: tl.seasonLabel(timelinePeriod(t.p).season),
-          body: tl.seasonEntryBody({ surplusChange: t.surplus, notes: t.notes }),
+          source: "season", key: `test:season:${t.p}`, title: t.title ?? tl.seasonLabel(timelinePeriod(t.p).season),
+          body: tl.seasonEntryBody({ gainNames: t.gains, surplusChange: t.surplus, notes: t.notes }),
         })),
         ...TEST_TIMELINE_STEADING.rows.map((r, n) => typed(r.p, r, `test:steading:${n}`)),
         ...(tripRow ? [tripRow] : []),

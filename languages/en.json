@@ -2723,6 +2723,8 @@
       "openFullTooltip": "Every thread on one timeline: Stonetop and each character",
       "editEntry": "Edit this entry",
       "removeEntry": "Remove this entry",
+      "editSeasonNote": "Edit what this season recorded",
+      "removeSeasonNote": "Remove what this season recorded",
       "moveEarlier": "Move earlier in the season",
       "moveLater": "Move later in the season",
       "entryCount": "{count} entries",
@@ -2784,7 +2786,6 @@
       },
       "kind": {
         "hand": "Written",
-        "season": "Season",
         "levelup": "Level up",
         "kills": "Kills",
         "expedition": "Expedition",
@@ -2798,8 +2799,9 @@
         "label": "Filter",
         "all": "Show everything",
         "hiddenCount": "{count} hidden",
+        "threads": "Subject",
+        "kinds": "Entries",
         "hand": "Written entries",
-        "season": "Seasons Change",
         "levelup": "Level-ups",
         "kills": "Kills",
         "expedition": "Expeditions",
@@ -2817,6 +2819,10 @@
         "horizontal": "Horizontal",
         "horizontalTooltip": "Lay the timeline across the page along one line, like a slide"
       },
+      "scrub": {
+        "label": "Jump to year",
+        "tooltip": "Slide to a year to bring it to the middle of the timeline"
+      },
       "colours": {
         "open": "Colours",
         "openTooltip": "Choose the colour each kind of entry wears, for everyone in this world",
@@ -2830,8 +2836,7 @@
         "cancel": "Cancel"
       },
       "kills": {
-        "title": "Slew {count}",
-        "total": "{count} slain"
+        "title": "Slew {count}"
       },
       "milestone": {
         "levelup": "Reached level {level}",
@@ -2847,11 +2852,10 @@
         "woundMark": "Marked at Death's Door",
         "arcanaFound": "Found {name}",
         "arcanaIdentified": "Identified {name}",
-        "arcanaMajor": "Took up a major arcanum: {name}",
+        "arcanaMajor": "Sought the secrets of {name}",
         "followerGained": "{name} joined",
         "followerDied": "{name} died",
         "followerFree": "{name} broke free",
-        "expedition": "Expedition: {label}",
         "expeditionSetOut": "Set out in {when}.",
         "expeditionTriumphant": "Returned triumphant.",
         "expeditionParty": "With {names}.",

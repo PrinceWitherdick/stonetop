@@ -17,6 +17,7 @@ import { posterMapScenePlan, createPosterMapScenes } from "../book2-art/poster-m
 import { seedRelationshipMapOnce } from "../relmap/relmap-make.js";
 import { syncTrackPages } from "../timeline/timeline-store.js";
 import { backfillLevelUpsOnce } from "../timeline/timeline-backfill.js";
+import { stripExpeditionTitlePrefixesOnce } from "../migration/expedition-title-prefix.js";
 
 // The GM's first load of a world, narrated.
 //
@@ -292,6 +293,9 @@ async function runFinishingTouches(dialog) {
 		// watching, read back out of their ledgers. After the pages exist, so it has somewhere to
 		// write. See timeline/timeline-backfill.js.
 		await backfillLevelUpsOnce();
+		// And, once per world, the "Expedition: " older trip rows were titled with
+		// (migration/expedition-title-prefix.js).
+		await stripExpeditionTitlePrefixesOnce();
 	} catch (err) {
 		// Best-effort like its neighbours: a world that cannot mint these pages should still finish
 		// setting up, and the tab says so for itself when it finds no page.

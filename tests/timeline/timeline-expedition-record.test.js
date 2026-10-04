@@ -62,7 +62,7 @@ describe("writing the row", () => {
 		// Cora stayed home; Dov is past the Door.
 		expect(targets.map(t => t.id)).toEqual(["a", "steading"]);
 		expect(milestone).toEqual(expect.objectContaining({
-			key: "expedition:t1", title: "Expedition: The Ford", place: "the Maw",
+			key: "expedition:t1", title: "The Ford", place: "the Maw",
 		}));
 		expect(milestone.body).toContain("Bram");
 	});
@@ -146,7 +146,7 @@ describe("a log with no trip in it", () => {
 		const store = memoryStore({ currentId: null, list: [] }, { mints: true });
 		expect(await recordTrip({ store })).toBe(true);
 		expect(store.log.currentId).toBe("minted");
-		expect(fakes.recordOnTracks.mock.calls[0][1].title).toBe("Expedition: Expedition 1");
+		expect(fakes.recordOnTracks.mock.calls[0][1].title).toBe("Expedition 1");
 	});
 });
 
