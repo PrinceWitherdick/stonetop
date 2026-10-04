@@ -1823,6 +1823,16 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return this._rawLore[parseInt(m[1], 10)] ?? null;
 	}
 
+	// The pages before the current one the player Skipped past unfinished, for the last page's
+	// list (a flag, never a block). "Unfinished" is the resume check, which falls back to the
+	// page's own Next gate, so an optional lore page (nothing to pick) never shows up here.
+	_skippedRequiredSteps() {
+		return this._steps
+			.map((stepType, index) => ({ stepType, index }))
+			.filter(({ stepType, index }) => index < this._step && !this._isStepAnsweredForResume(stepType))
+			.map(({ stepType, index }) => ({ index, label: this._stepDiagnosticLabel(stepType) }));
+	}
+
 	_stepDiagnosticLabel(stepType) {
 		const section = this._resolveLoreSection(stepType);
 		if (section !== undefined) {
@@ -1832,7 +1842,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			background: "Background",
 			instinct: "Instinct",
 			appearance: "Appearance",
-			origin: "Origin",
+			origin: "Origin & Name",
+			stats: "Stats",
+			possession: "Special Possessions",
+			moves: "Starting Moves",
+			invocations: "Invocations",
 			initiates: "Initiates",
 			crew: "Crew",
 			animalCompanion: "Animal Companion",
@@ -2557,6 +2571,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			isSeekerArcana:      stepType === "seekerArcana",
 			isSeekerArcanaMinor: stepType === "seekerArcanaMinor",
 			progressDots,
+			// Only the last page lists what was skipped: earlier, the player is still on the way.
+			skippedSteps:      isLast ? this._skippedRequiredSteps() : [],
 			backgrounds, instincts, appearanceLines, origins,
 			selectedInstinct:  this._selections.instinctValue,
 			customInstinctWord:        customInstinct.word,
@@ -2590,6 +2606,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		html.find(".stonetop-onboarding-back").on("click", () => this._navigate(-1));
 		html.find(".stonetop-onboarding-skip").on("click", () => this._skip());
 		html.find(".stonetop-onboarding-next").on("click", () => this._navigate(1));
+		html.find(".stonetop-onboarding-skipped-jump").on("click", ev => this._jumpToStep(Number(ev.currentTarget.dataset.stepIndex)));
 		html.find(".stonetop-onboarding-confirm").on("click", () => this._confirm());
 
 		// Persist what's typed/picked on the current page shortly after the player
@@ -3736,6 +3753,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			return;
 		}
 		this._step = next;
+		this.render(false);
+	}
+
+	// Back to a page the last page listed as skipped. No completion gate: going back is
+	// always allowed, exactly as Back is.
+	_jumpToStep(index) {
+		if (!Number.isInteger(index) || index < 0 || index >= this._steps.length) return;
+		this._clearPopups();
+		this._step = index;
 		this.render(false);
 	}
 
