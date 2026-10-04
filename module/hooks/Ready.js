@@ -25,7 +25,7 @@ import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getTimelineKindColours, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isFightTabEnabled, getArraySetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, watchFoundryTheme, applySheetTexture, applyNoItalics, getTimelineKindColours, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isFightTabEnabled, getArraySetting } from "../settings.js";
 import { applyTimelineKindColours } from "../timeline/timeline-colours.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -189,6 +189,8 @@ export async function onReady() {
 	// stored "high" last session would otherwise load every sheet in the palette it could not
 	// read, until it touched the control again.
 	applySheetContrast(getSetting("sheetContrast"));
+	// "Follow Foundry" re-resolves whenever Foundry's own theme, or the OS's, changes.
+	watchFoundryTheme();
 	applySheetTexture(getSetting("sheetTexture"));
 	applyNoItalics(getSetting("noItalics"));
 	// The GM's timeline colours, for the same reason: `onChange` repaints only on a change.

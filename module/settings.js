@@ -1252,10 +1252,14 @@ export function registerSettings() {
 		// Configure Settings and the Preferences tab on the character sheet and the GM Toolkit all
 		// read these choices off the registration.
 		choices: {
-			"normal":    "stonetop.settings.sheetContrast.normal",
-			"high":      "stonetop.settings.sheetContrast.high",
-			"dark":      "stonetop.settings.sheetContrast.dark",
-			"dark-high": "stonetop.settings.sheetContrast.darkHigh",
+			"normal":     "stonetop.settings.sheetContrast.normal",
+			"high":       "stonetop.settings.sheetContrast.high",
+			"dark":       "stonetop.settings.sheetContrast.dark",
+			"dark-high":  "stonetop.settings.sheetContrast.darkHigh",
+			"slate":      "stonetop.settings.sheetContrast.slate",
+			"slate-high": "stonetop.settings.sheetContrast.slateHigh",
+			"auto":       "stonetop.settings.sheetContrast.auto",
+			"auto-high":  "stonetop.settings.sheetContrast.autoHigh",
 		},
 		default: "normal",
 		// NO re-render, unlike most of the settings below it: the palette is tokens on the document
@@ -2141,13 +2145,52 @@ export function applyReduceMotion(value) {
  * hairlines) comes along for free. The stylesheet's `:root.stonetop-dark.stonetop-high-contrast`
  * block then re-pitches the colours for the dark page.
  *
+ * Slate is a third class, `.stonetop-slate`, worn WITH `.stonetop-dark`: the same dark mode with
+ * the warm tokens re-pointed cool, so everything the dark palette does still applies to it.
+ *
+ * "auto" and "auto-high" are not palettes of their own. They resolve, here and on every change of
+ * Foundry's theme (see watchFoundryTheme), to the dark pair or the paper pair.
+ *
  * Compared as strings against the values that mean "on", so an unreadable or retired setting
  * lands on the normal palette rather than on a half-applied one.
  */
 export function applySheetContrast(value) {
-	const palette = String(value ?? "");
-	document.documentElement.classList.toggle("stonetop-high-contrast", palette === "high" || palette === "dark-high");
-	document.documentElement.classList.toggle("stonetop-dark", palette === "dark" || palette === "dark-high");
+	let palette = String(value ?? "");
+	if (palette === "auto" || palette === "auto-high") {
+		const dark = foundryAppsAreDark();
+		palette = palette === "auto" ? (dark ? "dark" : "normal") : (dark ? "dark-high" : "high");
+	}
+	document.documentElement.classList.toggle("stonetop-high-contrast", ["high", "dark-high", "slate-high"].includes(palette));
+	document.documentElement.classList.toggle("stonetop-dark", ["dark", "dark-high", "slate", "slate-high"].includes(palette));
+	document.documentElement.classList.toggle("stonetop-slate", palette === "slate" || palette === "slate-high");
+}
+
+/**
+ * Whether Foundry is drawing its applications dark: core's own "Applications" colour scheme
+ * (Configure Settings → Core → User Interface), and, when that is left at its blank "browser
+ * default", the operating system's preference, resolved the way core resolves it. What "auto"
+ * follows. Reads as light before core's setting is registered.
+ */
+export function foundryAppsAreDark() {
+	let scheme = "";
+	try { scheme = game.settings.get("core", "uiConfig")?.colorScheme?.applications ?? ""; }
+	catch { /* not registered yet, or no game at all */ }
+	if (scheme) return scheme === "dark";
+	return !!globalThis.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
+}
+
+/**
+ * Re-resolve "auto" when Foundry's theme changes under it: core's setting, which fires
+ * `clientSettingChanged` as "core.uiConfig", or the OS's, which core itself also listens to. Called
+ * once, from Ready. A reader on any other value is left alone.
+ */
+export function watchFoundryTheme(hooks = globalThis.Hooks) {
+	const reapply = () => {
+		const value = String(getSetting("sheetContrast") ?? "");
+		if (value === "auto" || value === "auto-high") applySheetContrast(value);
+	};
+	hooks?.on("clientSettingChanged", key => { if (key === "core.uiConfig") reapply(); });
+	globalThis.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", reapply);
 }
 
 /**

@@ -104,6 +104,9 @@ describe("the class names the stylesheet is waiting for", () => {
 			expect(CSS, `${name} is set but nothing in the stylesheet answers to it`)
 				.toContain(`:root.${name}`);
 		}
+		// Slate is only ever worn beside the dark class, so that is the selector that answers to it.
+		expect(SETTINGS_SRC).toContain(`classList.toggle("stonetop-slate"`);
+		expect(CSS).toContain(":root.stonetop-dark.stonetop-slate {");
 	});
 });
 

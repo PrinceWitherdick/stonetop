@@ -1197,7 +1197,7 @@ figure.stonetop-map img {
 	max-width: 100%;
 	height: auto;
 	margin: 0 auto;
-	border: 1px solid rgba(0, 0, 0, 0.3);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.3);
 	border-radius: 3px;
 }
 figure.stonetop-map figcaption {
@@ -1522,7 +1522,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 	font-family: var(--font-stonetop);
 	color: var(--st-text);
 	background: rgb(var(--st-paper-rgb) / 0.7);
-	border: 1px solid #999;
+	border: 1px solid var(--st-on-dark-rule, #999);
 }
 :is(.application, .window-app).stonetop-themed .window-content
 	:is(input:not([type=checkbox], [type=radio], [type=range], [type=color]), select, textarea):focus {
@@ -1836,7 +1836,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 	flex: 1;
 	min-width: 0;
 	text-align: center;
-	border: 1px solid #aaa;
+	border: 1px solid var(--st-on-dark-rule, #aaa);
 	border-radius: var(--st-radius-sm);
 	background: transparent;
 	font-size: calc(1rem * var(--stonetop-font-scale, 1));
@@ -1878,7 +1878,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 .sheet-attributes-top .cell--Resource .cell__resource input {
 	width: 100%;
 	text-align: center;
-	border: 1px solid #aaa;
+	border: 1px solid var(--st-on-dark-rule, #aaa);
 	border-radius: var(--st-radius-sm);
 	background: transparent;
 	font-size: calc(1rem * var(--stonetop-font-scale, 1));
@@ -1984,7 +1984,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 .sheet-attributes-top .cell--Number .cell__number > input {
 	width: 100%;
 	text-align: center;
-	border: 1px solid #aaa;
+	border: 1px solid var(--st-on-dark-rule, #aaa);
 	border-radius: var(--st-radius-sm);
 	background: transparent;
 	font-size: calc(1rem * var(--stonetop-font-scale, 1));
@@ -2056,8 +2056,8 @@ body :is(.app, .window-app).stonetop-height-resized {
 }
 
 input.stonetop-name-field {
-	border: 1px solid rgba(0, 0, 0, 0.2);
-	background: rgba(255, 255, 255, 0.5);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.2);
+	background: rgb(var(--st-paper-rgb) / 0.5);
 }
 
 /* The name plate and the playbook's carried state beside it — the Lightbearer's holy light,
@@ -2200,7 +2200,7 @@ input.stonetop-name-field {
 	height: 44px !important;
 	min-width: 44px !important;
 	border-radius: var(--st-radius) !important;
-	border: 2px solid #555 !important;
+	border: 2px solid var(--st-on-dark-rule, #555) !important;
 	text-align: center;
 	padding: 0 !important;
 	background: transparent !important;
@@ -2352,7 +2352,7 @@ input.stonetop-name-field {
 	display: block;
 	align-self: stretch;
 	height: 8px;
-	border: 1.5px solid #888;
+	border: 1.5px solid var(--st-on-dark-rule, #888);
 	border-top: none;
 	border-radius: 0 0 6px 6px;
 	margin: 0 6px 4px;
@@ -2377,7 +2377,7 @@ input.stonetop-name-field {
 	height: 20px !important;
 	flex-shrink: 0;
 	border-radius: 100% !important;
-	border: 1.5px solid #555 !important;
+	border: 1.5px solid var(--st-on-dark-rule, #555) !important;
 	background: transparent !important;
 	cursor: pointer;
 }
@@ -2447,8 +2447,8 @@ input.stonetop-name-field {
 	color: var(--color-text-dark-secondary);
 }
 
-.stonetop-wound--problematic .stonetop-wound-glyph { color: #a8544c; }
-.stonetop-wound--permanent .stonetop-wound-glyph  { color: #6a4a3a; }
+.stonetop-wound--problematic .stonetop-wound-glyph { color: var(--st-on-dark-danger, #a8544c); }
+.stonetop-wound--permanent .stonetop-wound-glyph  { color: var(--st-on-dark-umber, #6a4a3a); }
 
 .stonetop-wound-text {
 	white-space: nowrap;
@@ -2461,7 +2461,7 @@ input.stonetop-name-field {
 	color: var(--color-text-dark-secondary);
 }
 
-.stonetop-wound-dd { color: #6b6b6b; }
+.stonetop-wound-dd { color: var(--st-on-dark-muted, #6b6b6b); }
 .stonetop-wound-empty { color: var(--color-text-dark-secondary); }
 
 .stonetop-wound-actions {
@@ -2494,7 +2494,7 @@ input.stonetop-name-field {
 	cursor: pointer;
 }
 
-.stonetop-wound-actions button:hover { color: #a8544c; }
+.stonetop-wound-actions button:hover { color: var(--st-on-dark-danger, #a8544c); }
 
 .stonetop-wound-scars { margin-top: 5px; }
 
@@ -2580,7 +2580,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-wound-tend-target .fa-droplet {
-	color: #a8544c;
+	color: var(--st-on-dark-danger, #a8544c);
 }
 
 .stonetop-convalesce-wounds,
@@ -2621,7 +2621,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-convalesce-permanent-text .fa-lock {
-	color: #6a4a3a;
+	color: var(--st-on-dark-umber, #6a4a3a);
 }
 
 /* ── Wound editor (Add / Edit Wound) ──────────────────────────────────────────
@@ -2667,7 +2667,7 @@ input.stonetop-name-field {
 
 .stonetop .wound-dialog .wd-summary-glyph {
 	font-size: 0.78rem;
-	color: #a8544c;
+	color: var(--st-on-dark-danger, #a8544c);
 }
 
 .stonetop .wound-dialog .wd-summary-name {
@@ -2748,7 +2748,7 @@ input.stonetop-name-field {
 	align-items: flex-start;
 	gap: 0.5rem;
 	padding: 0.5rem 0.65rem;
-	border: 1px solid rgba(0, 0, 0, 0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: 6px;
 	background: rgba(0, 0, 0, 0.035);
 	font-size: 0.8rem;
@@ -2840,7 +2840,7 @@ input.stonetop-name-field {
 	cursor: pointer;
 }
 
-.stonetop .wound-dialog .wd-req-remove:hover { color: #7f342c; }
+.stonetop .wound-dialog .wd-req-remove:hover { color: var(--st-on-dark-danger, #7f342c); }
 
 /* Matches the dashed-slate "Add" affordance used by the threat editor's list rows
    (.threat-list-add) so add-a-row buttons read as one style across dialogs. */
@@ -3320,7 +3320,7 @@ input.stonetop-name-field {
 }
 
 .stonetop-sheet-layout:not(.stonetop-sheet-layout--own-seam):has(> .sheet-body.is-scrolled) {
-	border-top-color: rgba(0, 0, 0, 0.25);
+	border-top-color: rgb(var(--st-ink-rgb) / 0.25);
 }
 
 .stonetop-sheet-layout .sheet-body.is-scrolled::before {
@@ -3888,7 +3888,7 @@ input.stonetop-name-field {
 	height: calc(13px * var(--stonetop-font-scale, 1));
 	border: 1.5px solid slategrey;
 	border-radius: 50%;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	cursor: pointer;
 	box-shadow: none;
 	margin: 0;
@@ -5130,7 +5130,7 @@ select[name="sheetFont"]:has(option[value="signika"]:checked) {
 	width: 1.4em;
 	height: 1.4em;
 	padding: 0;
-	border: 1px solid rgba(0,0,0,0.2);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.2);
 	border-radius: 50%;
 	background: rgba(0,0,0,0.06);
 	color: var(--st-text-secondary);
@@ -5181,7 +5181,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	font-size: var(--font-size-13);
 	color: var(--st-text-body);
 	padding: 6px 8px;
-	border-bottom: 1px solid rgba(0,0,0,0.08);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 }
 
 /* On the journal roll-table card the description IS the result body and the last
@@ -5417,9 +5417,9 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 .stonetop-fate-legend-row.is-active .stonetop-fate-legend-range { opacity: 1; }
 
 /* Band colours */
-.stonetop-fate--bad   { color: #b3261e; }
-.stonetop-fate--mixed { color: #9a7400; }
-.stonetop-fate--good  { color: #2e7d32; }
+.stonetop-fate--bad   { color: var(--st-on-dark-danger, #b3261e); }
+.stonetop-fate--mixed { color: var(--st-on-dark-caution, #9a7400); }
+.stonetop-fate--good  { color: var(--st-on-dark-ok, #2e7d32); }
 .stonetop-fate-result.stonetop-fate--bad,
 .stonetop-fate-legend-row.is-active.stonetop-fate--bad   { background: rgba(179, 38, 30, 0.10); }
 .stonetop-fate-result.stonetop-fate--mixed,
@@ -5560,7 +5560,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	min-height: 0;
 	text-align: left;
 	padding: 5px 10px;
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.02);
 	color: inherit;
@@ -6121,27 +6121,27 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result.failure .result-label {
-	background: #f5dada;
-	border-color: #8b1a1a;
-	color: #6e0000;
+	background: var(--st-on-dark-failure-bg, #f5dada);
+	border-color: var(--st-on-dark-danger, #8b1a1a);
+	color: var(--st-tier-failure-text);
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result.partial .result-label {
-	background: #f5edd8;
-	border-color: #9f7640;
-	color: #6b4400;
+	background: var(--st-on-dark-partial-bg, #f5edd8);
+	border-color: var(--st-on-dark-caution, #9f7640);
+	color: var(--st-tier-partial-text);
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result.success .result-label,
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result.critical .result-label {
-	background: #d0dbc8;
-	border-color: #2d6a2d;
-	color: #1a4a1a;
+	background: var(--st-on-dark-success-bg, #d0dbc8);
+	border-color: var(--st-on-dark-ok, #2d6a2d);
+	color: var(--st-tier-success-text);
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message.whisper .pbta-chat-card .result-label {
-	background: #d8dff0;
-	border-color: #5566aa;
+	background: var(--st-on-dark-whisper-bg, #d8dff0);
+	border-color: var(--st-on-dark-whisper-border, #5566aa);
 }
 
 :is(#chat, #chat-notifications, #chat-popout) .message .pbta-chat-card .result-details,
@@ -6365,11 +6365,11 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	margin: 6px 0;
 	padding: 0;
 }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-damage-target.is-friendly { color: #6b4400; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-damage-target.is-friendly { color: var(--st-on-dark-caution, #6b4400); }
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-damage-mitigated { opacity: 0.7; font-size: 0.85em; }
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-warn {
 	font-size: var(--font-size-11);
-	color: #6b4400;
+	color: var(--st-on-dark-caution, #6b4400);
 	margin: 4px 0;
 	display: flex;
 	gap: 6px;
@@ -6391,18 +6391,18 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 /* One ink per tag, so a blow carrying three of them is three distinguishable lines rather than a
    paragraph. The icon runs a shade brighter than its text, as the messy pair always did. */
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-messy { color: #7a1f14; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-messy .fa-burst { color: #a3341f; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-forceful { color: #4a3a12; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-forceful .fa-hand-fist { color: #7a5e1f; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-grabby { color: #1f4436; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-grabby .fa-link { color: #2f6b54; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-crude { color: #4a3b31; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-crude .fa-hammer { color: #75604f; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-reload { color: #2c3f57; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-reload .fa-hourglass-half { color: #45658c; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-dangerous { color: #6b3a10; }
-:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-dangerous .fa-triangle-exclamation { color: #9c5715; }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-messy { color: var(--st-on-dark-attack-messy, #7a1f14); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-messy .fa-burst { color: var(--st-on-dark-attack-messy, #a3341f); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-forceful { color: var(--st-on-dark-attack-forceful, #4a3a12); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-forceful .fa-hand-fist { color: var(--st-on-dark-attack-forceful, #7a5e1f); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-grabby { color: var(--st-on-dark-attack-grabby, #1f4436); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-grabby .fa-link { color: var(--st-on-dark-attack-grabby, #2f6b54); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-crude { color: var(--st-on-dark-attack-crude, #4a3b31); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-crude .fa-hammer { color: var(--st-on-dark-attack-crude, #75604f); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-reload { color: var(--st-on-dark-attack-reload, #2c3f57); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-reload .fa-hourglass-half { color: var(--st-on-dark-attack-reload, #45658c); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-dangerous { color: var(--st-on-dark-attack-dangerous, #6b3a10); }
+:is(#chat, #chat-notifications, #chat-popout) .message .stonetop-attack-dangerous .fa-triangle-exclamation { color: var(--st-on-dark-attack-dangerous, #9c5715); }
 /* Dotted underline signals the hover description for "problematic wound". */
 :is(#chat, #chat-notifications, #chat-popout) .message .stonetop-problematic-wound {
 	text-decoration: underline dotted;
@@ -7370,7 +7370,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 
 .stonetop-move-ref:hover {
-	background: rgba(255, 247, 214, 0.5);
+	background: var(--st-on-dark-highlight, rgba(255, 247, 214, 0.5));
 }
 
 .stonetop-move-note {
@@ -8187,7 +8187,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	min-height: 150px;
 	border: 1px solid var(--color-border-light, #c9c0ad);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.5);
+	background: rgb(var(--st-paper-rgb) / 0.5);
 	padding: 2px 4px;
 }
 
@@ -8356,7 +8356,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	padding: 8px 12px 10px;
 	border: 1px solid var(--color-border-light-2, rgba(0, 0, 0, 0.15));
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.35);
+	background: rgb(var(--st-paper-rgb) / 0.35);
 	color: var(--st-text-body);
 }
 
@@ -8762,7 +8762,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
    disabled box. Its inset shadow is put out on the field itself (see the roster notes), since core's
    `:focus` rule sets one straight back. */
 .stonetop-struggle-window :is(input[type="text"], select, textarea) {
-	border: 1px solid #999;
+	border: 1px solid var(--st-on-dark-rule, #999);
 	border-radius: var(--st-radius-sm);
 	background: rgb(var(--st-paper-rgb) / 0.7);
 	box-shadow: none;
@@ -9063,7 +9063,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-requisition-trigger { font-style: italic; color: var(--color-text-dark-secondary); margin: 0 0 10px; }
 .stonetop-requisition-roll {
 	background: rgba(0, 0, 0, 0.04);
-	border: 1px solid rgba(0, 0, 0, 0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	margin-bottom: 12px;
@@ -9120,7 +9120,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-requisition-subheading {
 	font-family: var(--font-stonetop);
 	margin: 10px 0 6px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 	padding-bottom: 2px;
 }
 .stonetop-requisition-subheading { font-size: var(--st-fs-base); color: var(--color-text-dark-secondary); }
@@ -9148,7 +9148,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	align-items: center;
 	gap: 8px;
 	padding: 4px 2px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 }
 .stonetop-requisition-item-name { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
 .stonetop-requisition-take { flex: 0 0 auto; width: auto; cursor: pointer; white-space: nowrap; }
@@ -9223,7 +9223,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	border: 1px solid rgba(0, 0, 0, 0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	background: rgba(0, 0, 0, 0.03);
@@ -9254,7 +9254,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 }
 .stonetop-custom-move-cancel {
 	background: transparent;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	color: var(--color-text-dark-primary);
 }
 .stonetop-custom-move-cancel:hover { background: rgba(0, 0, 0, 0.06); }
@@ -9296,7 +9296,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	background: transparent;
 	transition: background 0.15s;
 }
-.stonetop-add-custom-move:hover { background: hsl(210 10% 92%); }
+.stonetop-add-custom-move:hover { background: var(--st-on-dark-raised, hsl(210 10% 92%)); }
 
 /* Shared field rows (custom move's resource/bonus panels, the Add Item dialog) */
 .stonetop-custom-move-row { display: flex; gap: 8px; align-items: flex-end; }
@@ -9378,7 +9378,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	flex-direction: column;
 	gap: 6px;
 	padding: 8px 10px;
-	border: 1px solid rgba(0, 0, 0, 0.18);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.18);
 	border-radius: var(--st-radius-sm, 4px);
 	background: rgba(0, 0, 0, 0.03);
 }
@@ -9510,7 +9510,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
    should not read as one more field being filled in alongside Name. */
 .stonetop-improvement-builder-startfrom {
 	padding-bottom: 10px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 }
 
 /* The automatic effects, fenced off from the prose above them: what the sheet does
@@ -9543,7 +9543,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-improvement-preview-grants {
 	margin: 8px 0 0;
 	padding-top: 6px;
-	border-top: 1px dashed rgba(0, 0, 0, 0.15);
+	border-top: 1px dashed rgb(var(--st-ink-rgb) / 0.15);
 	font-size: var(--st-fs-xs);
 	color: var(--st-text-secondary);
 }
@@ -9569,13 +9569,13 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-size: var(--st-fs-xs);
 	line-height: 1.5;
 	cursor: pointer;
-	border: 1px solid rgba(0, 0, 0, 0.2);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.2);
 	border-radius: var(--st-radius-pill, 999px);
 	background: rgba(0, 0, 0, 0.04);
 	color: var(--color-text-dark-primary);
 	transition: background 0.12s, border-color 0.12s;
 }
-.stonetop-add-item-chip:hover { background: rgba(0, 0, 0, 0.1); border-color: rgba(0, 0, 0, 0.35); }
+.stonetop-add-item-chip:hover { background: rgba(0, 0, 0, 0.1); border-color: rgb(var(--st-ink-rgb) / 0.35); }
 /* Selected chip = its term is in the note field; reads as a pressed toggle so the
    player can see (and click to remove) what's already been added. */
 .stonetop-add-item-chip.is-selected {
@@ -9626,7 +9626,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	height: 280px;
 	border: 1px solid var(--color-border-light, #c9c0ad);
 	border-radius: var(--st-radius-sm, 4px);
-	background: rgba(255, 255, 255, 0.5);
+	background: rgb(var(--st-paper-rgb) / 0.5);
 	padding: 2px 4px;
 }
 
@@ -10512,7 +10512,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	background: transparent;
 	transition: background 0.15s;
 }
-.stonetop-arcana-add-btn:hover { background: hsl(210 10% 92%); }
+.stonetop-arcana-add-btn:hover { background: var(--st-on-dark-raised, hsl(210 10% 92%)); }
 
 /* Arcana card layout. A both-sides "spread" card (front | back) spans the full width;
    the narrower front-only cards pack two-up. JS (see StonetopCharacterSheet) walks the
@@ -10790,7 +10790,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	flex-direction: column;
 	border: 1px solid var(--color-border-dark);
 	border-radius: var(--st-radius-sm);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	min-height: 260px;
 	position: relative;
 }
@@ -11207,11 +11207,11 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-size: var(--st-fs-xs);
 	padding: 2px 8px;
 	flex: 1;
-	color: #9b1c1c;
+	color: var(--st-on-dark-danger, #9b1c1c);
 }
 
 .stonetop-arcanum-delete:hover {
-	color: #7f1616;
+	color: var(--st-on-dark-danger, #7f1616);
 }
 
 .stonetop-arcanum-unidentified-body,
@@ -11600,13 +11600,13 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	padding: 6px 10px;
 	border: 1px solid var(--color-border-dark);
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.75);
+	background: rgb(var(--st-paper-rgb) / 0.75);
 	color: var(--color-text-dark-primary);
 	font-weight: 700;
 }
 
 .stonetop-answer-character-questions-btn:hover {
-	background: hsl(210 10% 92%);
+	background: var(--st-on-dark-raised, hsl(210 10% 92%));
 }
 
 /* Moves tab: "you owe move picks for your level" warning notice (reuses the
@@ -11842,7 +11842,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-size: var(--st-fs-base);
 	font-style: italic;
 	padding-left: 6px;
-	border-left: 2px solid rgba(0,0,0,0.12);
+	border-left: 2px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 .stonetop-lore-readonly-value {
@@ -13284,7 +13284,7 @@ button.stonetop-held-disadvantage:hover { color: var(--st-text-body); }
 	padding: 6px 8px;
 	border: 1px solid var(--color-border-light-tertiary, #ddd);
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.35);
+	background: rgb(var(--st-paper-rgb) / 0.35);
 }
 
 /* The clipping box, so a framed portrait's several-hundred-percent image cannot paint across
@@ -13711,7 +13711,7 @@ span.stonetop-mark-loyalty-pip {
 	display: inline-flex;
 	align-items: center;
 	margin-left: 0.6em;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
 	overflow: hidden;
 	white-space: nowrap;
@@ -14168,7 +14168,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 
 .stonetop-pdi-remove--danger {
 	background: #a02020;
-	border-color: #7a1010;
+	border-color: var(--st-on-dark-danger, #7a1010);
 	color: #fff;
 }
 .stonetop-pdi-remove--danger:hover {
@@ -14197,7 +14197,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 
 .stonetop-inventory-reset-btn:hover {
 	color: #a02020;
-	border-color: #a02020;
+	border-color: var(--st-on-dark-danger, #a02020);
 	background: rgba(160, 32, 32, 0.06);
 }
 
@@ -14334,19 +14334,19 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	padding: 2px 6px;
 	border: 1px solid var(--color-border-light-primary, #ccc);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255,255,255,0.8);
+	background: rgb(var(--st-paper-rgb) / 0.8);
 	transition: border-color 0.1s;
 }
 
 .asm-input:hover {
 	border-color: rgba(100,150,255,0.35);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 }
 
 .asm-input:focus {
 	border-color: rgba(100,150,255,0.5);
 	outline: none;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 }
 
 .asm-field-actions {
@@ -14368,7 +14368,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	cursor: pointer;
 	font-size: var(--st-fs-base);
 	line-height: 1;
-	background: rgba(255,255,255,0.8);
+	background: rgb(var(--st-paper-rgb) / 0.8);
 	color: var(--color-text-dark-secondary);
 	transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
@@ -14433,7 +14433,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	border-radius: var(--st-radius-sm);
 	cursor: pointer;
 	font-size: var(--st-fs-base);
-	background: rgba(255,255,255,0.8);
+	background: rgb(var(--st-paper-rgb) / 0.8);
 	transition: background 0.1s, border-color 0.1s;
 }
 
@@ -18549,7 +18549,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	color: var(--color-light-1, #f0f0e0);
 	padding-bottom: 3px;
 	margin-bottom: 4px;
-	border-bottom: 1px solid rgba(255,255,255,0.25);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 #tooltip.stonetop-hold-tip .stonetop-hold-tip-text {
@@ -18879,7 +18879,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	   over is better than a sheet whose tabs are gone. */
 	box-sizing: border-box;
 	/* Load-bearing, and NOT redundant with the max-height below. pbta ships
-	       .pbta.sheet .tabs { border-bottom: 2px solid #000; height: 37px; padding: 0 20px }
+	       .pbta.sheet .tabs { border-bottom: 2px solid rgb(var(--st-ink-rgb)); height: 37px; padding: 0 20px }
 	   for its own HORIZONTAL tab strip, and our rail is a `nav.sheet-tabs.tabs` sitting on a
 	   frame that carries `.pbta.sheet` (the character and steading sheets both do). That
 	   selector is three classes, exactly the weight of this rule, so it is only source order
@@ -19468,7 +19468,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
    tests/actors/steading/steading-section-placement.test.js matching it). */
 .steading-sheet-wrapper > .steading-stats-bar {
 	padding: 8px 12px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 /* Six slim columns (Surplus, Fortunes, Population, Defenses, Prosperity,
@@ -19484,7 +19484,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	display: flex;
 	flex-direction: column;
 	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	gap: 0;
@@ -19524,7 +19524,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 }
 
 .steading-statsbar-combo > .steading-combo-cell + .steading-combo-cell {
-	border-left: 1px solid rgba(0,0,0,0.12);
+	border-left: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 /* Left half's pencil moves to the card's outer (left) corner so the two halves'
@@ -19582,7 +19582,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	--st-card-wash: 0.035;
 	--st-surface: color-mix(in srgb, #000 calc(var(--st-card-wash) * 100%), var(--st-page));
 	background: rgb(0 0 0 / var(--st-card-wash));
-	border: 1px solid rgba(0,0,0,0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius-lg);
 	padding: 10px 14px 12px;
 }
@@ -19618,7 +19618,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 
 .steading-stat-block {
 	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 }
@@ -19725,7 +19725,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 
 .steading-surplus-block {
 	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius-lg);
 	padding: 8px 12px;
 	display: flex;
@@ -19743,7 +19743,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	font-weight: bold;
 	border: 2px solid slategrey;
 	border-radius: var(--st-radius);
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 }
 
 .steading-surplus-value {
@@ -19757,7 +19757,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	font-weight: bold;
 	border: 2px solid slategrey;
 	border-radius: var(--st-radius);
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 	color: var(--st-text);
 }
 
@@ -19795,7 +19795,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	top: 0;
 	border: 1.5px solid slategrey;
 	border-radius: 50%;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	cursor: pointer;
 }
 
@@ -19953,7 +19953,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 
 .steading-list-section {
 	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 }
@@ -19964,7 +19964,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	margin: 0 0 6px 0;
-	border-bottom: 1px solid rgba(0,0,0,0.12);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	padding-bottom: 4px;
 }
 
@@ -20062,11 +20062,11 @@ button.stonetop-mark-sign-btn.is-active:hover {
 /* Always show delete in red when in edit mode */
 :not(.stonetop-readonly) .steading-list-item .steading-list-delete {
 	opacity: 1;
-	color: #c00;
+	color: var(--st-on-dark-danger, #c00);
 }
 
 .steading-list-delete:hover {
-	color: #900;
+	color: var(--st-on-dark-danger, #900);
 }
 
 /* The shared full-width dashed "add a row" entry point — same rule the inventory
@@ -20092,7 +20092,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 }
 
 .steading-list-add:hover {
-	background: hsl(210 10% 92%);
+	background: var(--st-on-dark-raised, hsl(210 10% 92%));
 	color: var(--st-text-body);
 }
 
@@ -20221,7 +20221,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 }
 
 .steading-residents-table {
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius-lg);
 	overflow: hidden;
 	background: rgba(0,0,0,0.02);
@@ -20232,7 +20232,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 32px;
 	gap: 0;
 	background: rgba(0,0,0,0.08);
-	border-bottom: 2px solid rgba(0,0,0,0.12);
+	border-bottom: 2px solid rgb(var(--st-ink-rgb) / 0.12);
 	padding: 0;
 	font-weight: 700;
 	font-size: var(--st-fs-sm);
@@ -20332,8 +20332,8 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	align-items: center;
 	padding: 0;
 	margin: 0;
-	border-bottom: 1px solid rgba(0,0,0,0.06);
-	background: rgba(255,255,255,0.5);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.06);
+	background: rgb(var(--st-paper-rgb) / 0.5);
 	min-height: 32px;
 }
 
@@ -20379,7 +20379,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 }
 
 .steading-resident-input:not(:disabled):focus {
-	background: rgba(255,255,255,0.8);
+	background: rgb(var(--st-paper-rgb) / 0.8);
 	border-color: rgba(100,150,255,0.4);
 	outline: none;
 }
@@ -20407,13 +20407,13 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	padding: 4px;
 	font-size: var(--st-fs-base);
 	opacity: 0.6;
-	color: #c00;
+	color: var(--st-on-dark-danger, #c00);
 	transition: opacity 0.1s;
 }
 
 .steading-residents-col-actions .steading-list-delete:hover {
 	opacity: 1;
-	color: #900;
+	color: var(--st-on-dark-danger, #900);
 }
 
 .steading-players-section {
@@ -20538,9 +20538,9 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	display: block;
 	position: relative;
 	overflow: hidden;
-	border: 1px solid rgba(0,0,0,0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: 50%;
-	background: rgba(255,255,255,0.55);
+	background: rgb(var(--st-paper-rgb) / 0.55);
 	cursor: zoom-in;
 }
 
@@ -20577,9 +20577,9 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	padding: 8px;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius);
-	background: #fffdf7;
+	background: var(--st-on-dark-raised, #fffdf7);
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-	color: #111827;
+	color: var(--st-on-dark-ink, #111827);
 	font-family: var(--font-stonetop);
 	pointer-events: none;
 	transform-origin: center top;
@@ -20612,7 +20612,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	object-fit: contain;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255,255,255,0.55);
+	background: rgb(var(--st-paper-rgb) / 0.55);
 }
 
 /* Tracks the image's fitted width (the custom property is set per-popup in JS), with a
@@ -20641,7 +20641,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	text-align: center;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	color: rgba(0, 0, 0, 0.6);
+	color: var(--st-on-dark-muted, rgba(0, 0, 0, 0.6));
 	font-size: var(--st-fs-xs);
 	font-style: italic;
 }
@@ -20697,20 +20697,20 @@ a.steading-player-open:hover {
 	display: block;
 	position: relative;
 	overflow: hidden;
-	border: 1px solid rgba(0,0,0,0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	/* Circular for the same reason as .steading-member-avatar directly above: the PC table
 	   sits immediately over the residents in this tab, so a square here beside a circle
 	   there would read as an accident. Already 24px, which is the tallest a portrait can be
 	   in this row, so unlike the residents' it needs no size bump to carry the mask. */
 	border-radius: 50%;
-	background: rgba(255,255,255,0.55);
+	background: rgb(var(--st-paper-rgb) / 0.55);
 }
 
 .steading-player-portrait--empty {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	color: rgba(0,0,0,0.55);
+	color: var(--st-on-dark-muted, rgba(0, 0, 0, 0.55));
 }
 
 /* An actual portrait enlarges on hover, like the residents' faces below it. The art-less
@@ -20740,7 +20740,7 @@ a.steading-player-open:hover {
 
 .steading-player-empty {
 	margin: 4px 0 0;
-	color: rgba(0,0,0,0.58);
+	color: var(--st-on-dark-muted, rgba(0, 0, 0, 0.58));
 	font-size: var(--st-fs-sm);
 	font-style: italic;
 }
@@ -20779,7 +20779,7 @@ a.steading-player-open:hover {
 	gap: 0px;
 	margin-top: 10px;
 	padding-top: 10px;
-	border-top: 1px solid rgba(0,0,0,0.1);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 }
 
 /* The treasury is nested inside the Assets card, which carries its own
@@ -20926,7 +20926,7 @@ a.steading-player-open:hover {
 	font-size: var(--st-fs-xs);
 	border: none !important;
 	background: transparent !important;
-	border-bottom: 1px solid rgba(0,0,0,0.18) !important;
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.18) !important;
 	padding: 1px 2px;
 }
 
@@ -21123,7 +21123,7 @@ a.steading-player-open:hover {
 	border-radius: var(--st-radius-sm);
 	flex-shrink: 0;
 	cursor: pointer;
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 }
 
 .steading-improvement.is-complete .steading-improvement-complete {
@@ -21220,7 +21220,7 @@ a.steading-player-open:hover {
 }
 
 .steading-improvement-remove {
-	color: #8a3a3a;
+	color: var(--st-on-dark-danger, #8a3a3a);
 }
 
 .steading-improvement-remove:hover {
@@ -21259,7 +21259,10 @@ a.steading-player-open:hover {
 	background: transparent;
 	transition: background 0.15s;
 }
-.stonetop-prep-add-btn:hover { background: hsl(210 10% 92%); }
+/* Through the raised-panel lift: the bare light grey stayed light in dark mode under the bone
+   label, which all but vanished (~1.1:1). Same lift on the eight other dashed "add" bars and
+   quiet buttons that shared the literal. */
+.stonetop-prep-add-btn:hover { background: var(--st-on-dark-raised, hsl(210 10% 92%)); }
 
 /* Drop the leading "+" a pixel so it sits on the button's centre line.
    `align-items: center` above already centres the <i>'s BOX exactly, but Font
@@ -21293,7 +21296,7 @@ a.steading-player-open:hover {
 	display: none;
 	padding-top: 8px;
 	margin-top: 8px;
-	border-top: 1px solid rgba(0,0,0,0.12);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 .steading-improvement.is-open .steading-improvement-body {
@@ -21330,7 +21333,7 @@ a.steading-player-open:hover {
 .steading-req-or::after {
 	content: "";
 	flex: 1 1 auto;
-	border-top: 1px solid rgba(0,0,0,0.14);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.14);
 }
 
 .steading-req-list {
@@ -21361,7 +21364,7 @@ a.steading-player-open:hover {
 	flex-shrink: 0;
 	margin-top: 1px;
 	cursor: pointer;
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 }
 
 .steading-improvement-req:checked {
@@ -21452,7 +21455,7 @@ a.steading-player-open:hover {
 	width: 20px;
 	height: 20px;
 	padding: 0;
-	border: 1px solid rgba(0,0,0,0.2);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.2);
 	border-radius: var(--st-radius-sm);
 	background: rgba(0,0,0,0.04);
 	color: var(--st-text-body);
@@ -21488,9 +21491,9 @@ a.steading-player-open:hover {
 	text-align: center;
 	font-size: var(--st-fs-xs);
 	padding: 1px 2px;
-	border: 1px solid rgba(0,0,0,0.2);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.2);
 	border-radius: var(--st-radius-sm);
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 }
 
 .steading-herd-hint,
@@ -21514,7 +21517,7 @@ a.steading-player-open:hover {
 	gap: 6px;
 	margin-top: 8px;
 	padding: 8px 10px;
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 }
@@ -21975,7 +21978,7 @@ a.steading-player-open:hover {
 	gap: 8px;
 	margin: 0;
 	padding: 10px 16px 12px;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 }
 
 /* Back / Next: the Welcome guide's parchment step buttons, content-sized at the right end.
@@ -22039,7 +22042,7 @@ a.steading-player-open:hover {
 	font-style: italic;
 	font-size: var(--st-fs-base);
 	color: var(--st-text-muted);
-	border-top: 1px solid rgba(0,0,0,0.08);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 	padding-top: 6px;
 }
 
@@ -22146,7 +22149,7 @@ a.steading-player-open:hover {
 .stonetop-season-divider {
 	margin: 10px 0;
 	border: none;
-	border-top: 1px solid rgba(0,0,0,0.15);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 }
 
 /* A later half of a step, on screen but locked (winter's +Fortunes roll until the toll is
@@ -22168,7 +22171,7 @@ a.steading-player-open:hover {
 .stonetop-season-gains {
 	margin: 12px 0;
 	font-size: var(--st-fs-sm);
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius);
 	padding: 8px 10px;
 	background: rgba(0,0,0,0.02);
@@ -22227,7 +22230,7 @@ a.steading-player-open:hover {
 .stonetop-season-yields .stonetop-season-yield {
 	margin: 0;
 	padding: 8px 10px;
-	border: 1px solid rgba(0, 0, 0, 0.15);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.03);
 }
@@ -22326,7 +22329,7 @@ a.steading-player-open:hover {
 	flex-direction: column;
 	gap: 2px;
 	padding: 8px 10px;
-	border: 1px solid rgba(0,0,0,0.15);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 	border-radius: var(--st-radius);
 	cursor: pointer;
 	background: rgba(0,0,0,0.03);
@@ -22431,7 +22434,7 @@ a.steading-player-open:hover {
 	gap: 3px;
 	margin: 0 0 10px;
 	padding: 8px 10px;
-	border: 1px solid rgba(0,0,0,0.15);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 }
@@ -22513,7 +22516,7 @@ a.steading-player-open:hover {
 
 .stonetop-homestead-trigger {
 	margin: 0;
-	color: #3f3f3f;
+	color: var(--st-on-dark-ink, #3f3f3f);
 }
 
 .stonetop-homestead-fields {
@@ -22549,15 +22552,15 @@ a.steading-player-open:hover {
 .stonetop-homestead-field input,
 .stonetop-homestead-field textarea {
 	width: 100%;
-	border: 1px solid rgba(0,0,0,0.2);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.2);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.65);
+	background: rgb(var(--st-paper-rgb) / 0.65);
 	padding: 5px 7px;
 	font: inherit;
 }
 
 .stonetop-homestead-reference {
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 	padding: 7px 10px;
@@ -22735,7 +22738,7 @@ a.steading-player-open:hover {
 	align-items: center;
 	gap: 8px;
 	padding: 16px 8px 12px;
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 	border: 2px solid transparent;
 	border-radius: var(--st-radius-lg);
 	cursor: pointer;
@@ -22884,7 +22887,7 @@ a.steading-player-open:hover {
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
-	background: #ccc;
+	background: var(--st-on-dark-rule-soft, #ccc);
 	transition: background 0.2s;
 }
 
@@ -22926,8 +22929,8 @@ a.steading-player-open:hover {
 .stonetop-onboarding-card {
 	display: block;
 	padding: 8px 10px;
-	background: white;
-	border: 2px solid #ddd;
+	background: rgb(var(--st-paper-rgb));
+	border: 2px solid var(--st-on-dark-rule-soft, #ddd);
 	border-radius: var(--st-radius);
 	cursor: pointer;
 	transition: border-color 0.15s;
@@ -23014,7 +23017,7 @@ a.steading-player-open:hover {
 	flex: 1;
 	font-size: var(--st-fs-base);
 	padding: 3px 7px;
-	border: 1px solid #ccc;
+	border: 1px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: var(--st-radius-sm);
 }
 
@@ -23034,7 +23037,7 @@ a.steading-player-open:hover {
 	flex-wrap: wrap;
 	gap: 6px;
 	padding: 6px 0;
-	border-bottom: 1px solid #e5e5e5;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #e5e5e5);
 }
 
 .stonetop-onboarding-appearance-row:last-child { border-bottom: none; }
@@ -23058,8 +23061,8 @@ a.steading-player-open:hover {
 	align-items: center;
 	gap: 4px;
 	padding: 3px 10px;
-	background: white;
-	border: 1.5px solid #ccc;
+	background: rgb(var(--st-paper-rgb));
+	border: 1.5px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: 20px;
 	cursor: pointer;
 	font-size: var(--st-fs-sm);
@@ -23125,8 +23128,8 @@ a.steading-player-open:hover {
 	display: inline-block;
 	text-box: trim-both cap alphabetic;
 	padding: calc(4px + var(--st-trim-top)) 12px calc(4px + var(--st-trim-bottom));
-	background: white;
-	border: 1.5px solid #ccc;
+	background: rgb(var(--st-paper-rgb));
+	border: 1.5px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: 20px;
 	cursor: pointer;
 	font-size: var(--st-fs-base);
@@ -23162,7 +23165,7 @@ a.steading-player-open:hover {
 	flex: 1;
 	font-size: 1em;
 	padding: 5px 10px;
-	border: 1.5px solid #ccc;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: var(--st-radius);
 }
 
@@ -23218,8 +23221,8 @@ a.steading-player-open:hover {
 	width: auto;
 	padding: calc(3px + var(--st-trim-top)) 11px calc(3px + var(--st-trim-bottom));
 	font-size: var(--st-fs-base);
-	background: white;
-	border: 1px solid #ccc;
+	background: rgb(var(--st-paper-rgb));
+	border: 1px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: 20px;
 	cursor: pointer;
 	transition: border-color 0.12s, background 0.12s;
@@ -23295,7 +23298,7 @@ a.steading-player-open:hover {
 }
 
 .stonetop-onboarding-back:hover,
-.stonetop-onboarding-back-to-picker:hover { background: hsl(210 10% 92%); }
+.stonetop-onboarding-back-to-picker:hover { background: var(--st-on-dark-raised, hsl(210 10% 92%)); }
 
 /* Foundry core sizes buttons to display:flex / width:100% (block, full-width). These
    footer pills must be content-sized inline-flex or they stack full-width and the
@@ -23386,7 +23389,7 @@ a.steading-player-open:hover {
 	line-height: 1.4;
 	border: 1px solid rgba(100,116,139,0.35);
 	border-radius: var(--st-radius);
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 	color: var(--st-text-secondary);
 }
 
@@ -23430,7 +23433,7 @@ a.steading-player-open:hover {
 	padding: 8px 6px 6px;
 	border: 2px solid rgba(100,116,139,0.2);
 	border-radius: var(--st-radius-lg);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -23493,8 +23496,8 @@ a.steading-player-open:hover {
 	gap: 6px;
 	margin: 0 0 8px;
 	padding: 4px 9px;
-	background: white;
-	border: 1px solid #ccc;
+	background: rgb(var(--st-paper-rgb));
+	border: 1px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: var(--st-radius-sm);
 }
 
@@ -23550,8 +23553,8 @@ a.steading-player-open:hover {
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	color: var(--st-quiet-ink);
-	background: white;
-	border: 1px solid #ccc;
+	background: rgb(var(--st-paper-rgb));
+	border: 1px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: 999px;
 	cursor: pointer;
 	transition: border-color 0.12s, background 0.12s, color 0.12s;
@@ -23600,7 +23603,7 @@ a.steading-player-open:hover {
 	display: none;
 	margin-top: 8px;
 	padding-top: 8px;
-	border-top: 1px solid #eee;
+	border-top: 1px solid var(--st-on-dark-rule-soft, #eee);
 }
 
 .stonetop-onboarding-card--stat-move.is-selected .stonetop-onboarding-move-stat-picker {
@@ -23695,7 +23698,7 @@ a.steading-player-open:hover {
 	padding: 4px 8px;
 	border: 1px solid rgba(100,116,139,0.35);
 	border-radius: var(--st-radius-sm);
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 	font: inherit;
 	color: inherit;
 	box-shadow: none;
@@ -23959,7 +23962,7 @@ a.steading-player-open:hover {
 	display: none;
 	margin-top: 8px;
 	padding-top: 8px;
-	border-top: 1px solid #eee;
+	border-top: 1px solid var(--st-on-dark-rule-soft, #eee);
 }
 
 .stonetop-onboarding-card--initiate.is-selected .stonetop-onboarding-initiate-choices {
@@ -24046,7 +24049,7 @@ a.steading-player-open:hover {
 	cursor: pointer;
 	user-select: none;
 	transition: border-color 0.12s, background 0.12s;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 }
 
 .stonetop-onboarding-tag-option input[type="checkbox"],
@@ -24168,7 +24171,7 @@ a.steading-player-open:hover {
 
 .stonetop-onboarding-lore-context-label {
 	margin-bottom: 3px;
-	color: #64748b;
+	color: var(--st-on-dark-muted, #64748b);
 	font-size: var(--st-fs-xs);
 	font-weight: 700;
 	text-transform: uppercase;
@@ -24199,7 +24202,7 @@ a.steading-player-open:hover {
 	margin: 0 0 6px;
 	font-size: var(--st-fs-sm);
 	font-weight: 700;
-	color: #1f2937;
+	color: var(--st-on-dark-ink, #1f2937);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -24227,7 +24230,7 @@ a.steading-player-open:hover {
 	margin: 0 0 5px;
 	font-size: var(--st-fs-2xs);
 	font-weight: 700;
-	color: #64748b;
+	color: var(--st-on-dark-muted, #64748b);
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 }
@@ -24286,9 +24289,9 @@ a.steading-player-open:hover {
 	align-items: center;
 	gap: 5px;
 	padding: 5px 8px;
-	border: 1.5px solid #e0e0e0;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #e0e0e0);
 	border-radius: var(--st-radius);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	cursor: pointer;
 	font-size: var(--st-fs-sm);
 	line-height: 1.25;
@@ -24314,7 +24317,7 @@ a.steading-player-open:hover {
 	height: 13px;
 	margin: 0;
 	border: 1.5px solid slategrey;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	cursor: pointer;
 	box-shadow: none;
 }
@@ -24348,9 +24351,9 @@ a.steading-player-open:hover {
 	min-height: 54px;
 	resize: vertical;
 	padding: 6px 8px;
-	border: 1.5px solid #e0e0e0;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #e0e0e0);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.86);
+	background: rgb(var(--st-paper-rgb) / 0.86);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
 	line-height: 1.35;
@@ -24368,12 +24371,12 @@ a.steading-player-open:hover {
 .stonetop-onboarding-background-neighbor-name {
 	font-size: var(--st-fs-sm);
 	line-height: 1.25;
-	color: #334155;
+	color: var(--st-on-dark-ink, #334155);
 }
 
 .stonetop-onboarding-background-neighbor-name span,
 .stonetop-onboarding-background-neighbor-option em {
-	color: #64748b;
+	color: var(--st-on-dark-muted, #64748b);
 	font-style: normal;
 }
 
@@ -24382,9 +24385,9 @@ a.steading-player-open:hover {
 	min-width: 0;
 	height: 28px;
 	padding: 4px 7px;
-	border: 1.5px solid #e0e0e0;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #e0e0e0);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.86);
+	background: rgb(var(--st-paper-rgb) / 0.86);
 	font-size: var(--st-fs-sm);
 }
 
@@ -24398,9 +24401,9 @@ a.steading-player-open:hover {
 	align-items: center;
 	justify-content: center;
 	padding: 0;
-	border: 1.5px solid #e0e0e0;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #e0e0e0);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.86);
+	background: rgb(var(--st-paper-rgb) / 0.86);
 	color: var(--color-text-dark-secondary);
 	font-size: var(--st-fs-sm);
 	line-height: 1;
@@ -24444,13 +24447,13 @@ a.steading-player-open:hover {
 	margin: 0;
 	padding: 4px;
 	list-style: none;
-	background: #fffdf7;
-	border: 1px solid #9ca3af;
+	background: var(--st-on-dark-raised, #fffdf7);
+	border: 1px solid var(--st-on-dark-rule, #9ca3af);
 	border-radius: var(--st-radius);
 	box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
-	color: #1f2937;
+	color: var(--st-on-dark-ink, #1f2937);
 }
 
 /* A row is the value and, optionally, a dimmed hint pushed to the right edge — where an NPC
@@ -24497,12 +24500,12 @@ a.steading-player-open:hover {
 	width: fit-content;
 	margin: 0;
 	padding: 5px 8px;
-	border: 1.5px solid #e0e0e0;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #e0e0e0);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.7);
+	background: rgb(var(--st-paper-rgb) / 0.7);
 	font-size: var(--st-fs-sm);
 	line-height: 1.25;
-	color: #334155;
+	color: var(--st-on-dark-ink, #334155);
 }
 
 /* Well Versed topic. The label carries the "known by most in Stonetop" summary as
@@ -24539,9 +24542,9 @@ a.steading-player-open:hover {
 	gap: 7px;
 	min-height: 34px;
 	padding: 5px 8px;
-	border: 1.5px solid #e0e0e0;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #e0e0e0);
 	border-radius: var(--st-radius);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	cursor: pointer;
 	font-size: var(--st-fs-sm);
 	line-height: 1.25;
@@ -24614,9 +24617,9 @@ a.steading-player-open:hover {
 	padding: 10px 12px;
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius);
-	background: #fffdf7;
+	background: var(--st-on-dark-raised, #fffdf7);
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-	color: #1f2937;
+	color: var(--st-on-dark-ink, #1f2937);
 	font-family: var(--font-stonetop);
 	line-height: 1.4;
 	pointer-events: none;
@@ -24634,7 +24637,7 @@ a.steading-player-open:hover {
 }
 
 .stonetop-arcana-preview-popup strong {
-	color: #111827;
+	color: var(--st-on-dark-ink, #111827);
 	font-size: var(--st-fs-base);
 	text-align: center;
 }
@@ -24707,7 +24710,7 @@ a.steading-player-open:hover {
 	padding: 3px 6px;
 	border: 1px solid rgba(100,116,139,0.35);
 	border-radius: var(--st-radius);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	color: inherit;
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
@@ -24745,7 +24748,7 @@ a.steading-player-open:hover {
 	align-items: flex-start;
 	gap: 8px;
 	padding: 6px 10px;
-	border: 1.5px solid #e0e0e0;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #e0e0e0);
 	border-radius: var(--st-radius);
 	cursor: pointer;
 	font-size: var(--st-fs-base);
@@ -24798,19 +24801,19 @@ a.steading-player-open:hover {
 	box-sizing: border-box;
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
-	border: 1.5px solid #ddd;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #ddd);
 	border-radius: var(--st-radius);
 	padding: 5px 8px;
 	resize: vertical;
 	line-height: 1.4;
 	color: var(--st-text);
-	background: #fafafa;
+	background: var(--st-on-dark-raised, #fafafa);
 }
 
 .onboard-lore-text:focus {
 	outline: none;
 	border-color: slategrey;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 }
 
 /* ── Seeker: "begin to unlock the mysteries" marks ──────────────────────────────
@@ -24829,10 +24832,10 @@ a.steading-player-open:hover {
 	flex-direction: column;
 	gap: 8px;
 	padding: 10px 12px;
-	border: 1.5px solid #ddd;
+	border: 1.5px solid var(--st-on-dark-rule-soft, #ddd);
 	border-left: 3px solid slategrey;
 	border-radius: var(--st-radius);
-	background: #fafafa;
+	background: var(--st-on-dark-raised, #fafafa);
 }
 
 .stonetop-onboarding-arcana-unlock-hint {
@@ -24847,7 +24850,7 @@ a.steading-player-open:hover {
 .stonetop-onboarding-arcana-front-card {
 	border: 1.5px solid var(--color-border-dark, #b7b2a8);
 	border-radius: var(--st-radius);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 	overflow: hidden;
 }
@@ -24858,7 +24861,7 @@ a.steading-player-open:hover {
 	gap: 8px;
 	padding: 6px 8px;
 	border-bottom: 1px solid var(--color-border-dark, #b7b2a8);
-	background: #f4f1ea;
+	background: var(--st-on-dark-raised, #f4f1ea);
 }
 
 .stonetop-onboarding-arcana-front-thumb {
@@ -24892,14 +24895,14 @@ a.steading-player-open:hover {
 }
 
 .stonetop-onboarding-lookup {
-	color: #1f2937;
+	color: var(--st-on-dark-ink, #1f2937);
 	cursor: help;
 	font-weight: bold;
 }
 
 .stonetop-onboarding-lookup:hover {
-	color: #111827;
-	background: #fff7d6;
+	color: var(--st-on-dark-ink, #111827);
+	background: var(--st-on-dark-highlight, #fff7d6);
 }
 
 /* In the step heading the word is already bold + uppercase + slategrey; let the
@@ -24916,12 +24919,12 @@ a.steading-player-open:hover {
 	position: fixed;
 	z-index: 10000;
 	max-width: 300px;
-	background: #fffdf7;
-	border: 1px solid #9ca3af;
+	background: var(--st-on-dark-raised, #fffdf7);
+	border: 1px solid var(--st-on-dark-rule, #9ca3af);
 	border-radius: var(--st-radius-lg);
 	padding: 10px 14px;
 	box-shadow: 0 4px 18px rgba(0,0,0,0.18);
-	color: #1f2937;
+	color: var(--st-on-dark-ink, #1f2937);
 	font-size: var(--st-fs-sm);
 	line-height: 1.5;
 	pointer-events: none;
@@ -24930,20 +24933,20 @@ a.steading-player-open:hover {
 .stonetop-word-tooltip-name {
 	margin: 0 0 6px;
 	padding-bottom: 5px;
-	border-bottom: 1px solid #eee;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #eee);
 	font-weight: 700;
 	font-size: var(--st-fs-base);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	color: #111827;
+	color: var(--st-on-dark-ink, #111827);
 }
 
 .stonetop-word-tooltip-desc {
-	color: #1f2937;
+	color: var(--st-on-dark-ink, #1f2937);
 }
 
 .stonetop-word-tooltip-desc strong {
-	color: #111827;
+	color: var(--st-on-dark-ink, #111827);
 }
 
 .stonetop-word-tooltip-desc p { margin: 2px 0; }
@@ -24997,12 +25000,12 @@ a.steading-player-open:hover {
 	width: min(360px, 90vw);
 	max-height: min(60vh, 460px);
 	overflow-y: auto;
-	background: #fffdf7;
-	border: 1px solid #9ca3af;
+	background: var(--st-on-dark-raised, #fffdf7);
+	border: 1px solid var(--st-on-dark-rule, #9ca3af);
 	border-radius: var(--st-radius-lg);
 	padding: 10px 14px;
 	box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
-	color: #1f2937;
+	color: var(--st-on-dark-ink, #1f2937);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
 	line-height: 1.5;
@@ -25012,12 +25015,12 @@ a.steading-player-open:hover {
 .stonetop-onboarding-faq-popup-title {
 	margin: 0 0 6px;
 	padding-bottom: 5px;
-	border-bottom: 1px solid #eee;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #eee);
 	font-weight: 700;
 	font-size: var(--st-fs-base);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	color: #111827;
+	color: var(--st-on-dark-ink, #111827);
 }
 
 .stonetop-onboarding-faq-popup-body p {
@@ -25029,13 +25032,13 @@ a.steading-player-open:hover {
 }
 
 .stonetop-onboarding-faq-popup-body strong {
-	color: #111827;
+	color: var(--st-on-dark-ink, #111827);
 }
 
 .stonetop-onboarding-faq-popup-more {
 	margin: 8px 0 0;
 	padding-top: 6px;
-	border-top: 1px solid #eee;
+	border-top: 1px solid var(--st-on-dark-rule-soft, #eee);
 	font-size: var(--st-fs-xs);
 	font-style: italic;
 	color: var(--st-text-faint);
@@ -25080,7 +25083,7 @@ a.steading-player-open:hover {
 .stonetop-invocations-rules {
 	font-size: var(--st-fs-sm);
 	color: var(--st-text-secondary);
-	border-bottom: 1px solid #ddd;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #ddd);
 	padding-bottom: 8px;
 }
 
@@ -25386,6 +25389,13 @@ a.steading-player-open:hover {
 	outline: none;
 	box-shadow: none;
 }
+/* ...but the keyboard still needs to see where it is. The ring goes on the PILL, whose own
+   overflow:hidden would clip one drawn on the button or the input inside it: a solid 2px ring
+   in the tab controls' focus token whenever either part has keyboard focus. */
+.stonetop-tab-search:has(:focus-visible) {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: 1px;
+}
 .stonetop-tab-search.is-open {
 	/* Open = an actively-used field, so grow to a comfortable search-box height. The extra
 	   height over the collapsed pill (26 − 18 = 8px) is absorbed by a negative top margin,
@@ -25394,7 +25404,7 @@ a.steading-player-open:hover {
 	   instead of pushing the separator down. */
 	height: calc(26px * var(--stonetop-font-scale, 1));
 	margin-top: calc(-8px * var(--stonetop-font-scale, 1));
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	border-color: var(--color-border-dark, #7a7971);
 }
 .stonetop-tab-search.is-open .stonetop-tab-search-input {
@@ -25429,7 +25439,7 @@ a.steading-player-open:hover {
 	height: calc(26px * var(--stonetop-font-scale, 1));
 	margin-top: 0;
 	padding-left: 6px;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	border-color: var(--color-border-dark, #7a7971);
 }
 
@@ -25616,10 +25626,10 @@ a.steading-player-open:hover {
 
 .stonetop-follower-card {
 	position: relative; /* anchor for the card-level edit pencil */
-	border: 1px solid #ddd;
+	border: 1px solid var(--st-on-dark-rule-soft, #ddd);
 	border-radius: var(--st-radius-lg);
 	overflow: hidden;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	/* The grid track sizes the card — no max-width, so the card fills its column and the
 	   two columns stretch to fill the tab on a wide sheet. min-width:0 lets the card
 	   narrow with its track on a cramped sheet (a fixed min would overflow the track
@@ -25698,7 +25708,7 @@ a.steading-player-open:hover {
 	cursor: pointer;
 	transition: background 0.15s;
 }
-.stonetop-follower-add-btn:hover { background: hsl(210 10% 92%); }
+.stonetop-follower-add-btn:hover { background: var(--st-on-dark-raised, hsl(210 10% 92%)); }
 .stonetop-follower-add-hint {
 	flex: 1 1 14em;
 	min-width: 0;
@@ -26261,7 +26271,7 @@ a.steading-player-open:hover {
 	border: 1px solid var(--st-blue-border);
 	border-radius: 999px;
 	font-size: var(--st-fs-xs);
-	background: rgba(255, 255, 255, 0.35);
+	background: rgb(var(--st-paper-rgb) / 0.35);
 }
 .stonetop-call-up-dialog .stonetop-cu-preview-tag.is-exceptional { border-color: goldenrod; }
 .stonetop-call-up-dialog .stonetop-cu-preview-stats { display: flex; flex-wrap: wrap; gap: 12px; font-size: var(--st-fs-sm); }
@@ -26334,7 +26344,7 @@ a.steading-player-open:hover {
 	gap: 8px;
 	padding: 10px 12px 8px;
 	background: hsl(210 12% 94%);
-	border-bottom: 1px solid #ddd;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #ddd);
 }
 
 /* Top hstack: portrait icon + the Name/type vstack + octagonal HP box. Tags
@@ -26414,7 +26424,7 @@ a.steading-player-open:hover {
 	font-weight: 700;
 	font-size: 1em;
 	border: none;
-	border-bottom: 1px solid rgba(0,0,0,0.25);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	background: transparent;
 	color: inherit;
 	padding: 0 2px;
@@ -26442,9 +26452,9 @@ a.steading-player-open:hover {
 .stonetop-follower-hp-input {
 	width: 36px;
 	text-align: center;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 	font-size: inherit;
 	padding: 1px 2px;
 	line-height: 1;
@@ -26518,9 +26528,9 @@ a.steading-player-open:hover {
 	width: 72px;
 	font-size: var(--st-fs-sm);
 	padding: 1px 4px;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 	color: var(--st-text-muted);
 	margin-left: 4px;
 }
@@ -26596,7 +26606,7 @@ a.steading-player-open:hover {
 /* Crew sections (inventory, individuals, rules) */
 .stonetop-follower-section {
 	padding: 8px 12px;
-	border-top: 1px solid #eee;
+	border-top: 1px solid var(--st-on-dark-rule-soft, #eee);
 }
 
 .stonetop-follower-section-heading {
@@ -26954,7 +26964,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	gap: 4px;
 	padding: 6px 8px;
 	background: rgba(0,0,0,0.03);
-	border: 1px solid #e8e8e8;
+	border: 1px solid var(--st-on-dark-rule-soft, #e8e8e8);
 	border-radius: var(--st-radius);
 	font-size: var(--st-fs-sm);
 }
@@ -27024,9 +27034,9 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	padding: 2px 4px;
 	text-align: center;
 	font-size: var(--st-fs-base);
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 }
 
 /* Square mini stepper buttons for the crew-size / group-size +/- controls. */
@@ -27056,7 +27066,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	gap: 6px;
 	padding: 4px 8px;
 	background: rgba(0, 0, 0, 0.02);
-	border: 1px solid #eee;
+	border: 1px solid var(--st-on-dark-rule-soft, #eee);
 	border-radius: var(--st-radius);
 	font-size: var(--st-fs-sm);
 	/* The row carries a lot for its width — a face, a name, an HP track, and in edit mode a crop
@@ -27148,8 +27158,8 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	position: relative;
 	overflow: hidden;
 	border-radius: 50%;
-	border: 1px solid rgba(0, 0, 0, 0.22);
-	background: rgba(255, 255, 255, 0.55);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
+	background: rgb(var(--st-paper-rgb) / 0.55);
 }
 
 /* A real portrait fills the disc edge to edge, so the pale plate behind it would only ever show
@@ -27203,7 +27213,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	   they are name-row bullets, not avatars. */
 	border-radius: var(--st-radius);
 	border: 1.5px solid var(--st-text-body);
-	background: rgba(255, 255, 255, 0.5);
+	background: rgb(var(--st-paper-rgb) / 0.5);
 	display: grid;
 	place-items: center;
 	/* Black, matching the relationship card's placeholder head. The type glyph (a paw, a
@@ -27211,7 +27221,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	   portrait, so it is the card's identity at a glance — secondary-text grey on the pale
 	   fill read as a smudge rather than a symbol. The RING stays --st-text-body: it is
 	   chrome around the glyph, not part of it. */
-	color: #000;
+	color: rgb(var(--st-ink-rgb));
 	/* Scaled with the box, not taken from the type ramp: the glyph is a picture filling a
 	   75px box, and the largest heading step (1.3em) leaves it adrift in the middle of it. */
 	font-size: 2.2em;
@@ -27416,7 +27426,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 .stonetop-follower-fill-line {
 	flex: 1 1 auto;
 	align-self: stretch;
-	border-bottom: 1px dotted rgba(0, 0, 0, 0.25);
+	border-bottom: 1px dotted rgb(var(--st-ink-rgb) / 0.25);
 	margin-bottom: 3px;
 }
 
@@ -27447,7 +27457,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	position: absolute;
 	inset: 2px;
 	clip-path: inherit;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	z-index: 0;
 }
 
@@ -27478,9 +27488,9 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 .stonetop-follower-hp-octagon-max-input {
 	width: 30px;
 	text-align: center;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
 	color: var(--st-text-body);
@@ -27515,7 +27525,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 }
 
 .stonetop-follower-field-row > .stonetop-follower-field-value {
-	border-bottom: 1px dotted rgba(0, 0, 0, 0.18);
+	border-bottom: 1px dotted rgb(var(--st-ink-rgb) / 0.18);
 }
 
 /* Inline editable stat fields (Damage / Instinct / Cost under the stat-block
@@ -27524,7 +27534,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	flex: 1 1 auto;
 	min-width: 0;
 	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	background: transparent;
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-base);
@@ -27538,9 +27548,9 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	flex: 0 0 auto;
 	width: 3em;
 	text-align: center;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 }
 
 /* Armor edit row: the numeric field with the free-text "where from" source input
@@ -27587,7 +27597,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 }
 
 .stonetop-follower-statline .stonetop-follower-field-value {
-	border-bottom: 1px dotted rgba(0, 0, 0, 0.18);
+	border-bottom: 1px dotted rgb(var(--st-ink-rgb) / 0.18);
 }
 
 /* Crew option pickers (edit mode): the playbook's tag list as toggle chips, and
@@ -27684,9 +27694,9 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	min-width: 0;
 	width: auto;
 	box-sizing: border-box;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-base);
 	line-height: 1.35;
@@ -27764,7 +27774,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	align-items: baseline;
 	gap: 6px;
 	font-size: var(--st-fs-base);
-	border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
+	border-bottom: 1px dotted rgb(var(--st-ink-rgb) / 0.15);
 	padding-bottom: 1px;
 	cursor: pointer; /* tap a move to post it to chat (see activateListeners) */
 }
@@ -27797,7 +27807,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	align-items: baseline;
 	gap: 6px;
 	font-size: var(--st-fs-base);
-	border-bottom: 1px dotted rgba(0, 0, 0, 0.15);
+	border-bottom: 1px dotted rgb(var(--st-ink-rgb) / 0.15);
 	padding-bottom: 1px;
 }
 
@@ -27849,14 +27859,14 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 .stonetop-follower-gear-name {
 	flex: 1 1 auto;
 	min-width: 0;
-	border-bottom: 1px dotted rgba(0, 0, 0, 0.18);
+	border-bottom: 1px dotted rgb(var(--st-ink-rgb) / 0.18);
 }
 
 .stonetop-follower-gear-label {
 	flex: 1 1 auto;
 	min-width: 0;
 	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	background: transparent;
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-base);
@@ -27896,9 +27906,9 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 .stonetop-follower-text {
 	width: 100%;
 	box-sizing: border-box;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-base);
 	line-height: 1.35;
@@ -27974,7 +27984,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	font-family: var(--font-stonetop);
 }
 
-.stonetop-inline-btn:hover { background: hsl(210 10% 92%); }
+.stonetop-inline-btn:hover { background: var(--st-on-dark-raised, hsl(210 10% 92%)); }
 
 .stonetop-inline-btn--danger { border-color: var(--st-red-border); color: var(--st-red-text); }
 .stonetop-inline-btn--danger:hover { background: var(--st-red-bg); }
@@ -27987,7 +27997,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	gap: 8px;
 	padding: 10px 12px 8px;
 	background: hsl(210 12% 94%);
-	border-bottom: 1px solid #ddd;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #ddd);
 }
 
 .stonetop-follower-rules-title {
@@ -28014,9 +28024,9 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 	width: 1.7em;
 	height: 1.7em;
 	padding: 0;
-	border: 1px solid #ccc;
+	border: 1px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: var(--st-radius);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	color: var(--st-text-body);
 	line-height: 1;
 	cursor: pointer;
@@ -28024,7 +28034,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 
 .stonetop-follower-rules-toggle:hover {
 	background: hsl(210 12% 88%);
-	border-color: #bbb;
+	border-color: var(--st-on-dark-rule, #bbb);
 }
 
 .stonetop-follower-rules-toggle i {
@@ -28050,7 +28060,7 @@ details.stonetop-follower-details-fold.stonetop-crew-collapsible {
 }
 
 .stonetop-follower-rule {
-	border: 1px solid #eee;
+	border: 1px solid var(--st-on-dark-rule-soft, #eee);
 	border-radius: var(--st-radius);
 	overflow: hidden;
 }
@@ -28501,7 +28511,7 @@ li.question-bullet::before {
 	max-height: 340px;
 	overflow-y: auto;
 	padding: 4px;
-	border: 1px solid #eee;
+	border: 1px solid var(--st-on-dark-rule-soft, #eee);
 	border-radius: var(--st-radius);
 }
 
@@ -28651,9 +28661,9 @@ li.question-bullet::before {
 	padding: 2px 4px;
 	text-align: center;
 	font-size: var(--st-fs-base);
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 }
 
 .stonetop-outnumber-vs {
@@ -28857,7 +28867,7 @@ li.question-bullet::before {
 
 .stonetop-outnumber-result {
 	font-style: italic;
-	color: #5a7a3a;
+	color: var(--st-on-dark-ok, #5a7a3a);
 	font-weight: 600;
 }
 
@@ -28901,7 +28911,7 @@ li.question-bullet::before {
 /* The move that earned this extra stat, quoted under the question — the book's own
    wording, which carries the fictional trigger the system doesn't enforce. */
 .stonetop-stat-picker-dialog .stonetop-stat-picker-why {
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 	padding: 7px 10px;
@@ -28954,7 +28964,7 @@ li.question-bullet::before {
 .stonetop-stat-picker-dialog .stonetop-stat-picker-weapon {
 	margin-top: 7px;
 	padding-top: 6px;
-	border-top: 1px solid rgba(0,0,0,0.12);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 .stonetop-stat-picker-dialog .stonetop-stat-picker-weapon i {
@@ -28986,7 +28996,7 @@ li.question-bullet::before {
 	align-items: center;
 	gap: 4px;
 	padding: 2px 8px;
-	border: 1px solid #ccc;
+	border: 1px solid var(--st-on-dark-rule-soft, #ccc);
 	border-radius: 999px;
 	font-size: var(--st-fs-sm);
 	cursor: pointer;
@@ -29031,7 +29041,7 @@ li.question-bullet::before {
 	padding: 1px 5px;
 	border: 1px solid slategrey;
 	border-radius: var(--st-radius-sm);
-	background: white;
+	background: rgb(var(--st-paper-rgb));
 	line-height: 1.4;
 }
 
@@ -29060,7 +29070,7 @@ li.question-bullet::before {
 	width: 180px;
 	min-width: 180px;
 	background: hsl(210 12% 96%);
-	border-right: 1px solid #ddd;
+	border-right: 1px solid var(--st-on-dark-rule-soft, #ddd);
 	display: flex;
 	flex-direction: column;
 	overflow-y: auto;
@@ -29074,7 +29084,7 @@ li.question-bullet::before {
 	letter-spacing: 0.07em;
 	text-transform: uppercase;
 	color: var(--st-text-faint);
-	border-bottom: 1px solid #e0e0e0;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #e0e0e0);
 	flex-shrink: 0;
 }
 
@@ -29088,7 +29098,7 @@ li.question-bullet::before {
 	color: var(--st-text-secondary);
 	background: transparent;
 	border: none;
-	border-bottom: 1px solid #ebebeb;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #ebebeb);
 	cursor: pointer;
 	transition: background 0.12s, color 0.12s;
 }
@@ -29109,7 +29119,7 @@ li.question-bullet::before {
 	color: var(--st-quiet-ink);
 	margin: 0 0 14px;
 	padding-bottom: 8px;
-	border-bottom: 1px solid #ddd;
+	border-bottom: 1px solid var(--st-on-dark-rule-soft, #ddd);
 }
 
 .stonetop-so-entry-body {
@@ -29194,7 +29204,7 @@ li.question-bullet::before {
 
 .stonetop-so-entry-body th,
 .stonetop-so-entry-body td {
-	border: 1px solid #ddd;
+	border: 1px solid var(--st-on-dark-rule-soft, #ddd);
 	padding: 3px 7px;
 	text-align: left;
 	vertical-align: top;
@@ -29576,7 +29586,7 @@ li.question-bullet::before {
 	width: 100%;
 	padding: 0 2px;
 	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: 0;
 	background: transparent;
 	font-size: calc(0.7rem * var(--stonetop-font-scale, 1));
@@ -29689,7 +29699,7 @@ li.question-bullet::before {
 	height: 1.5em;
 	padding: 0 3px;
 	border: none;
-	border-bottom: 1px solid rgba(0,0,0,0.25);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: 0;
 	background: transparent;
 	font-size: inherit;
@@ -29836,8 +29846,8 @@ li.question-bullet::before {
 	font-family: var(--font-stonetop);
 	font-size: inherit;
 	line-height: 1.45;
-	background: rgba(255,255,255,0.28);
-	border: 1px solid rgba(0,0,0,0.22);
+	background: rgb(var(--st-paper-rgb) / 0.28);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
 	color: var(--color-text-dark-primary);
 }
@@ -29918,7 +29928,7 @@ li.question-bullet::before {
 .stonetop-monster-readonly-text {
 	min-height: 1.4em;
 	padding: 6px 0;
-	border-bottom: 1px solid rgba(0,0,0,0.12);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	line-height: 1.45;
 	white-space: pre-wrap;
 	overflow: visible;
@@ -29992,9 +30002,9 @@ li.question-bullet::before {
 	min-height: 48px;
 	margin-bottom: 8px;
 	resize: vertical;
-	border: 1px solid rgba(0,0,0,0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255,255,255,0.32);
+	background: rgb(var(--st-paper-rgb) / 0.32);
 	line-height: 1.4;
 }
 
@@ -30057,7 +30067,7 @@ li.question-bullet::before {
 }
 
 .stonetop-monster-line .stonetop-entry-remove-line:hover {
-	color: #a33;
+	color: var(--st-on-dark-danger, #a33);
 }
 
 .stonetop-monster-line--empty {
@@ -30265,7 +30275,7 @@ li.question-bullet::before {
 	height: 1.6em;
 	padding: 0 3px;
 	border: none;
-	border-bottom: 1px solid rgba(0,0,0,0.25);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: 0;
 	background: transparent;
 	font-family: var(--font-stonetop);
@@ -30337,7 +30347,7 @@ li.question-bullet::before {
 	border-radius: 999px;
 	background: transparent;
 	color: #000;
-	border: 1px solid #000;
+	border: 1px solid rgb(var(--st-ink-rgb));
 	font-size: var(--st-fs-xs);
 }
 
@@ -30412,7 +30422,7 @@ li.question-bullet::before {
 	justify-content: space-between;
 	gap: 8px;
 	padding-bottom: 4px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.18);
 }
 .stonetop-bestiary-page .stonetop-section-head .stonetop-move-group-title {
 	flex: 1 1 auto;
@@ -30927,10 +30937,10 @@ li.question-bullet::before {
 	font-weight: bold;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: rgba(0, 0, 0, 0.55);
+	color: var(--st-on-dark-muted, rgba(0, 0, 0, 0.55));
 	margin: 22px 0 2px;
 	padding-bottom: 3px;
-	border-bottom: 2px solid rgba(0, 0, 0, 0.28);
+	border-bottom: 2px solid rgb(var(--st-ink-rgb) / 0.28);
 }
 .stonetop-section-group:first-child { margin-top: 0; }
 .theme-dark .stonetop-section-group {
@@ -30998,7 +31008,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-entry-qa-row {
-	border-bottom: 1px solid rgba(0,0,0,0.12);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	padding-bottom: 8px;
 }
 
@@ -31052,7 +31062,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	white-space: pre-wrap;
 	font-style: italic;
 	padding-left: 6px;
-	border-left: 2px solid rgba(0,0,0,0.12);
+	border-left: 2px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 .stonetop-entry-qa-edit {
@@ -31065,9 +31075,9 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 .stonetop-entry-qa-prompt {
 	grid-column: 1 / 2;
 	width: 100%;
-	border: 1px solid rgba(0,0,0,0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.28);
+	background: rgb(var(--st-paper-rgb) / 0.28);
 	font-weight: normal;
 }
 
@@ -31076,9 +31086,9 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	width: 100%;
 	min-height: 48px;
 	resize: vertical;
-	border: 1px solid rgba(0,0,0,0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.28);
+	background: rgb(var(--st-paper-rgb) / 0.28);
 	font-family: var(--font-stonetop);
 }
 
@@ -31091,7 +31101,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-entry-remove-qa:hover {
-	color: #a33;
+	color: var(--st-on-dark-danger, #a33);
 }
 
 .stonetop-entry-add-qa,
@@ -31129,7 +31139,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	gap: 6px;
 	align-items: start;
 	padding-bottom: 14px;
-	border-bottom: 1px dashed rgba(0, 0, 0, 0.18);
+	border-bottom: 1px dashed rgb(var(--st-ink-rgb) / 0.18);
 }
 .stonetop-entry-group-row:last-child {
 	padding-bottom: 0;
@@ -31138,9 +31148,9 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 .stonetop-entry-group-heading {
 	grid-column: 1 / 2;
 	width: 100%;
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.28);
+	background: rgb(var(--st-paper-rgb) / 0.28);
 	font-family: var(--font-stonetop);
 	font-weight: bold;
 }
@@ -31160,7 +31170,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	cursor: pointer;
 }
 .stonetop-entry-remove-group:hover {
-	color: #a33;
+	color: var(--st-on-dark-danger, #a33);
 }
 
 /* Discoveries — sub-headed groups (heading + body + bullet list) */
@@ -31190,7 +31200,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 	align-items: start;
 	margin-bottom: 12px;
 	padding-bottom: 12px;
-	border-bottom: 1px solid rgba(0,0,0,0.12);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 .stonetop-discovery-heading-input,
@@ -31198,9 +31208,9 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 .stonetop-discovery-items-input {
 	grid-column: 1 / 2;
 	width: 100%;
-	border: 1px solid rgba(0,0,0,0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
-	background: rgba(255,255,255,0.28);
+	background: rgb(var(--st-paper-rgb) / 0.28);
 	font-family: var(--font-stonetop);
 }
 
@@ -31227,7 +31237,7 @@ body.game .sheet.app.stonetop-bestiary-page .stonetop-bestiary-page-edit .editor
 }
 
 .stonetop-discovery-remove-group:hover {
-	color: #a33;
+	color: var(--st-on-dark-danger, #a33);
 }
 
 /* === Journal drag-cell idiom ================================================
@@ -31682,7 +31692,7 @@ th:has(> .stonetop-roll-table-btn) {
 	gap: 12px;
 	padding: 10px 14px;
 	background: rgba(0, 0, 0, 0.04);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 }
 
@@ -31775,7 +31785,7 @@ th:has(> .stonetop-roll-table-btn) {
 	/* Let the nav shrink with the window (V13 flex child) so a truncating centre
 	   label can absorb the slack instead of pushing the buttons off-edge. */
 	min-width: 0;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 }
 
 /* Right-align the buttons when there's no centre label (Share's Cancel / Save). */
@@ -31971,7 +31981,7 @@ th:has(> .stonetop-roll-table-btn) {
 	color: #1a5c2e;
 }
 
-.stonetop-intros-notice--ok > i { color: #2a8a46; }
+.stonetop-intros-notice--ok > i { color: var(--st-on-dark-ok, #2a8a46); }
 
 .stonetop-intros-ok-body { flex: 1; min-width: 0; }
 
@@ -31987,7 +31997,7 @@ th:has(> .stonetop-roll-table-btn) {
 	cursor: pointer;
 	border: 1px solid var(--st-green-border);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.55);
+	background: rgb(var(--st-paper-rgb) / 0.55);
 	color: var(--st-green-text);
 	transition: background 0.15s;
 }
@@ -32029,7 +32039,7 @@ th:has(> .stonetop-roll-table-btn) {
 	cursor: pointer;
 	border: 1px solid var(--st-green-border);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.55);
+	background: rgb(var(--st-paper-rgb) / 0.55);
 	color: var(--st-green-text);
 	transition: background 0.15s;
 }
@@ -32075,7 +32085,7 @@ th:has(> .stonetop-roll-table-btn) {
 
 .stonetop-intros-questions-wrap {
 	background: rgba(0, 0, 0, 0.03);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 	padding: 10px 14px;
 }
@@ -32233,9 +32243,9 @@ th:has(> .stonetop-roll-table-btn) {
 	min-height: 60px;
 	resize: vertical;
 	padding: 5px 7px;
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.4);
 	font-family: var(--font-stonetop);
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 	line-height: 1.45;
@@ -32270,9 +32280,9 @@ th:has(> .stonetop-roll-table-btn) {
 	min-width: 0;
 	height: auto;
 	padding: 2px 6px;
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.4);
 	font-family: var(--font-stonetop);
 	font-size: calc(0.85rem * var(--stonetop-font-scale, 1));
 	color: inherit;
@@ -32301,7 +32311,7 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-intros-recorded {
 	padding: 8px 12px;
 	background: rgba(0, 0, 0, 0.03);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 }
 
@@ -32326,7 +32336,7 @@ th:has(> .stonetop-roll-table-btn) {
    the compose field so the table sees progress toward passing/exhausting the step. */
 .stonetop-intros-recorded-list {
 	background: rgba(0, 0, 0, 0.03);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 	padding: 8px 14px;
 }
@@ -32406,7 +32416,7 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 8px 12px;
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.04);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
 }
 
@@ -32780,7 +32790,7 @@ th:has(> .stonetop-roll-table-btn) {
 	gap: 10px;
 	padding: 6px 10px;
 	background: rgba(0, 0, 0, 0.03);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 }
 
@@ -32801,7 +32811,7 @@ th:has(> .stonetop-roll-table-btn) {
 	height: 30px;
 	object-fit: cover;
 	border-radius: var(--st-radius-sm);
-	border: 1px solid rgba(0, 0, 0, 0.15);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 }
 
 .stonetop-welcome-player-info {
@@ -32845,7 +32855,7 @@ th:has(> .stonetop-roll-table-btn) {
 	display: inline-block;
 	margin-left: 5px;
 	padding: 0 6px;
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius-sm);
 	background: rgba(0, 0, 0, 0.05);
 	/* inherit, not a token: tokens are em, so nesting one inside the already-em
@@ -32902,7 +32912,7 @@ th:has(> .stonetop-roll-table-btn) {
 	margin: 16px 0 4px;
 	padding: 10px 14px;
 	background: rgba(0, 0, 0, 0.03);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 	line-height: 1.5;
 	font-size: calc(0.875rem * var(--stonetop-font-scale, 1));
@@ -33188,7 +33198,7 @@ th:has(> .stonetop-roll-table-btn) {
 	margin-top: 16px;
 	padding: 10px 14px;
 	background: rgba(0, 0, 0, 0.03);
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 }
 
@@ -33328,7 +33338,7 @@ th:has(> .stonetop-roll-table-btn) {
 	width: 168px;
 	overflow-y: auto;
 	padding: 12px 8px 16px;
-	border-right: 1px solid rgba(0, 0, 0, 0.1);
+	border-right: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	background: rgba(0, 0, 0, 0.03);
 }
 
@@ -33390,7 +33400,7 @@ th:has(> .stonetop-roll-table-btn) {
 /* Active page: subtle fill + accent text/icon (green = active accent per tokens). */
 .stonetop-guide-toc-item.is-active .stonetop-guide-toc-btn {
 	background: rgba(0, 0, 0, 0.06);
-	border-color: rgba(0, 0, 0, 0.15);
+	border-color: rgb(var(--st-ink-rgb) / 0.15);
 	font-weight: 700;
 	color: var(--st-green-text);
 }
@@ -33422,7 +33432,7 @@ th:has(> .stonetop-roll-table-btn) {
 }
 :is(.application, .window-app).stonetop-themed .window-content .stonetop-guide-toc-item.is-active .stonetop-guide-toc-btn {
 	background: rgba(0, 0, 0, 0.06);
-	border-color: rgba(0, 0, 0, 0.15);
+	border-color: rgb(var(--st-ink-rgb) / 0.15);
 	font-weight: 700;
 	color: var(--st-green-text);
 }
@@ -33451,7 +33461,7 @@ th:has(> .stonetop-roll-table-btn) {
 	   seam invisible; and it carries no background at all, which on a sheet is right
 	   (the tab body beside it is already tinted) and here left the rail floating in the
 	   step column. These two literals are the ones the TOC rail above already uses. */
-	border-left: 1px solid rgba(0, 0, 0, 0.1);
+	border-left: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	background: rgba(0, 0, 0, 0.03);
 }
 
@@ -33849,7 +33859,7 @@ th:has(> .stonetop-roll-table-btn) {
 	align-items: baseline;
 	gap: 10px;
 	padding: 8px 12px;
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.02);
 	opacity: 0.65;
@@ -33985,9 +33995,9 @@ th:has(> .stonetop-roll-table-btn) {
 	min-height: 44px;
 	resize: vertical;
 	padding: 4px 6px;
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.4);
 	font-family: var(--font-stonetop);
 	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
 	line-height: 1.45;
@@ -34048,9 +34058,9 @@ th:has(> .stonetop-roll-table-btn) {
 	height: 26px;
 	font-family: var(--font-stonetop);
 	font-size: calc(0.95rem * var(--stonetop-font-scale, 1));
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
-	background: rgba(255, 255, 255, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.4);
 	color: inherit;
 }
 
@@ -34285,7 +34295,7 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-exp-triumph-body {
 	align-self: stretch;
 	padding-top: 12px;
-	border-top: 1px solid rgba(0, 0, 0, 0.08);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 }
 .stonetop-exp-triumph-note {
 	margin: 0;
@@ -34333,7 +34343,7 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: 8px 12px;
 	gap: 3px;
 	list-style: none;
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.02);
 	font-size: calc(0.92rem * var(--stonetop-font-scale, 1));
@@ -34405,7 +34415,7 @@ th:has(> .stonetop-roll-table-btn) {
 	font-size: var(--st-fs-base);
 	font-weight: 400;
 	color: var(--st-text-body);
-	border: 1px solid #999;
+	border: 1px solid var(--st-on-dark-rule, #999);
 	border-radius: var(--st-radius-sm);
 	background: rgb(var(--st-paper-rgb) / 0.7);
 }
@@ -34454,7 +34464,7 @@ th:has(> .stonetop-roll-table-btn) {
 	align-items: center;
 	gap: 8px;
 	padding: 3px 8px;
-	border: 1px solid rgba(0, 0, 0, 0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius-sm);
 	background: rgba(0, 0, 0, 0.02);
 	cursor: pointer;
@@ -34922,7 +34932,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	align-items: flex-start;
 	gap: 10px;
 	padding: 8px 12px;
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.1);
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.02);
 	cursor: pointer;
@@ -35007,7 +35017,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border: 1px solid var(--color-border-light, #c9c0ad);
 	border-radius: var(--st-radius-lg);
 	padding: 8px 10px 10px;
-	background: rgba(255, 255, 255, 0.35);
+	background: rgb(var(--st-paper-rgb) / 0.35);
 }
 /* Only the active section shows; the rail toggles `hidden` on the others (an explicit
    display:none survives V13's cascade layers). */
@@ -35102,7 +35112,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	max-height: 55vh;
 	border: 1px solid var(--color-border-light, #c9c0ad);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.5);
+	background: rgb(var(--st-paper-rgb) / 0.5);
 	padding: 2px 4px;
 	/* A description is the longest thing on the card and was being written through a slot, so
 	   utils/growable-fields.js sizes this host to its content between the two heights above,
@@ -35499,7 +35509,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-back:hover,
-.stonetop-arcana-inspire-dialog .stonetop-inspire-next:hover { background: hsl(210 10% 92%); }
+.stonetop-arcana-inspire-dialog .stonetop-inspire-next:hover { background: var(--st-on-dark-raised, hsl(210 10% 92%)); }
 
 .stonetop-arcana-inspire-dialog .stonetop-inspire-footer .stonetop-inspire-cancel {
 	border-color: var(--st-red-border);
@@ -35535,7 +35545,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	height: 40px;
 	border: 1px solid var(--color-border-light, #c9c0ad);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255, 255, 255, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.4);
 	overflow: hidden;
 	display: inline-flex;
 	align-items: center;
@@ -35597,7 +35607,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border: 1px solid var(--color-border-light, #c9c0ad);
 	border-radius: var(--st-radius-sm);
 	padding: 6px 8px;
-	background: rgba(255, 255, 255, 0.35);
+	background: rgb(var(--st-paper-rgb) / 0.35);
 }
 
 .stonetop-arcanum-edit .stonetop-arc-foll-grid {
@@ -36009,7 +36019,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	font-size: 1.02rem;
 	color: var(--tc-ink);
 }
-.stonetop .hazard-damage--certain strong { color: #6e3b3b; }
+.stonetop .hazard-damage--certain strong { color: var(--st-on-dark-danger, #6e3b3b); }
 .stonetop .hazard-advance {
 	margin: 0.45rem 0 0.15rem;
 	font-family: "IM Fell English", var(--font-stonetop);
@@ -36513,8 +36523,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	line-height: 1;
 	border-radius: 4px;
 	border: 1px solid var(--tc-rule-hard, #8f7f63);
-	background: rgba(246, 241, 230, 0.9);
-	color: #4a4034;
+	background: var(--st-on-dark-raised, rgba(246, 241, 230, 0.9));
+	color: var(--st-on-dark-ink, #4a4034);
 	cursor: pointer;
 }
 /* The trash goes red under the pointer, on every prep card. Written as a `[class$="-remove"]`
@@ -36524,7 +36534,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    on something a new kind cannot fall off. The tools bar holds the two buttons the shared
    partial emits (a site's card a third, Mark visited), and the pencil's class ends in
    `-edit-open`. */
-.stonetop .threat-card-tools button[class$="-remove"]:hover { color: #b23; border-color: #b23; }
+.stonetop .threat-card-tools button[class$="-remove"]:hover { color: var(--st-on-dark-danger, #b23); border-color: var(--st-on-dark-danger, #b23); }
 
 /* --- the page sheet (view + editor) --------------------------------------- */
 .stonetop-threat-page { padding: 0.4rem; }
@@ -36594,7 +36604,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	display: inline-flex; align-items: center; justify-content: center;
 	padding: 0; border: 0; background: transparent; color: #9a8f7d; cursor: pointer;
 }
-.stonetop .threat-list-remove:hover { color: #b23; }
+.stonetop .threat-list-remove:hover { color: var(--st-on-dark-danger, #b23); }
 .stonetop .threat-list-add {
 	align-self: flex-start;
 	display: inline-flex; align-items: center; gap: 0.35rem;
@@ -37136,7 +37146,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load,
 .stonetop-expedition-dialog .stonetop-exp-assets {
 	margin-top: 12px;
-	border: 1px solid rgba(0,0,0,0.14);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.14);
 	border-radius: var(--st-radius-lg);
 	background: rgba(0,0,0,0.03);
 	overflow: hidden;
@@ -37156,7 +37166,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	/* 0.10, not --st-gold-bg's 0.12: the same wash the load-bonus note carries. See the
 	   --st-gold-* block. */
 	background: rgba(201,162,39,0.10);
-	border-bottom: 1px solid rgba(0,0,0,0.08);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-title,
 .stonetop-expedition-dialog .stonetop-exp-assets-title {
@@ -37180,7 +37190,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    single line reads as even. The extra 4px is under the chips only. */
 .stonetop-expedition-dialog .stonetop-exp-load-pick {
 	display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-	padding: 8px 12px 12px; border-bottom: 1px solid rgba(0,0,0,0.08);
+	padding: 8px 12px 12px; border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-picklab {
 	font-size: var(--st-fs-2xs); color: var(--st-text-muted); font-style: italic;
@@ -37189,8 +37199,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	display: inline-flex; align-items: center; gap: 5px; min-height: 0; min-width: 0;
 	width: auto; flex: 0 0 auto;
 	font-family: var(--font-stonetop); font-size: var(--st-fs-xs);
-	padding: 2px 9px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.2);
-	background: rgba(255,255,255,0.5); color: var(--st-text-body); cursor: pointer;
+	padding: 2px 9px; border-radius: 999px; border: 1px solid rgb(var(--st-ink-rgb) / 0.2);
+	background: rgb(var(--st-paper-rgb) / 0.5); color: var(--st-text-body); cursor: pointer;
 }
 .stonetop-expedition-dialog .stonetop-exp-load-chip .tick {
 	color: var(--st-green-border); font-weight: 700; font-size: var(--st-fs-2xs);
@@ -37204,7 +37214,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* at-a-glance summary */
 .stonetop-expedition-dialog .stonetop-exp-load-glance {
 	display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
-	padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.08);
+	padding: 8px 12px; border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.08);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-glance .g-head {
 	font-family: var(--font-stonetop);
@@ -37225,7 +37235,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* rows */
 .stonetop-expedition-dialog .stonetop-exp-load-row {
 	display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
-	padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.06);
+	padding: 8px 12px; border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.06);
 	/* The token, not the literal: the high-contrast skin re-points it, and the row's avatar and
 	   pips already follow it there. */
 	border-left: 3px solid var(--st-accent-fill);
@@ -37292,7 +37302,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load-fol {
 	font-family: var(--font-stonetop); font-size: var(--st-fs-2xs);
 	text-transform: uppercase; letter-spacing: 0.04em; color: var(--st-text-secondary);
-	border: 1px solid rgba(0,0,0,0.2); border-radius: var(--st-radius-sm); padding: 0 4px;
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.2); border-radius: var(--st-radius-sm); padding: 0 4px;
 }
 
 /* diamond track */
@@ -37373,7 +37383,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-radius: 999px; border: 1px solid transparent; white-space: nowrap;
 }
 .stonetop-expedition-dialog .stonetop-exp-load-pill.light  { color: var(--st-green-text); background: var(--st-green-bg); border-color: var(--st-green-border); }
-.stonetop-expedition-dialog .stonetop-exp-load-pill.normal { color: var(--st-text-body); border-color: rgba(0,0,0,0.2); }
+.stonetop-expedition-dialog .stonetop-exp-load-pill.normal { color: var(--st-text-body); border-color: rgb(var(--st-ink-rgb) / 0.2); }
 /* OUTLINED where "Overloaded" below is filled. Both pills are red now, and two red pills of
    the same weight two rows apart would be one state said twice; the fill is what makes the
    second one the louder of the pair. */
@@ -37391,7 +37401,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load-move {
 	display: inline-flex; align-items: center; gap: 5px;
 	font-family: var(--font-stonetop); font-size: var(--st-fs-2xs);
-	padding: 1px 8px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.18);
+	padding: 1px 8px; border-radius: 999px; border: 1px solid rgb(var(--st-ink-rgb) / 0.18);
 }
 .stonetop-expedition-dialog .stonetop-exp-load-move .ic { font-weight: 700; font-size: var(--st-fs-2xs); }
 .stonetop-expedition-dialog .stonetop-exp-load-move .rq { color: var(--st-text-secondary); font-size: var(--st-fs-2xs); }
@@ -37456,13 +37466,13 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-expedition-dialog .stonetop-exp-load-chip.is-undead {
 	--st-past-death-ink: hsl(0 0% 45%);
 	border-color: color-mix(in srgb, var(--st-past-death-ink) 60%, transparent);
-	background: color-mix(in srgb, var(--st-past-death-ink) 12%, rgba(255,255,255,0.5));
+	background: color-mix(in srgb, var(--st-past-death-ink) 12%, rgb(var(--st-paper-rgb) / 0.5));
 }
 .stonetop-expedition-dialog .stonetop-exp-load-chip.is-undead--revenant { --st-past-death-ink: hsl(210 40% 55%); }
 .stonetop-expedition-dialog .stonetop-exp-load-chip.is-undead--thrall   { --st-past-death-ink: hsl(96 30% 52%); }
 .stonetop-expedition-dialog .stonetop-exp-load-chip.is-undead--ghost    { --st-past-death-ink: hsl(283 34% 58%); }
 .stonetop-expedition-dialog .stonetop-exp-load-chip.is-undead:hover {
-	background: color-mix(in srgb, var(--st-past-death-ink) 24%, rgba(255,255,255,0.5));
+	background: color-mix(in srgb, var(--st-past-death-ink) 24%, rgb(var(--st-paper-rgb) / 0.5));
 }
 
 /* ── Run an Expedition · Requisition step · the steading's assets ──────────────
@@ -37482,8 +37492,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	margin: 0; padding: 8px 12px;
 	font-size: var(--st-fs-2xs); color: var(--st-text-muted); font-style: italic;
 }
-.stonetop-expedition-dialog .stonetop-exp-assets-hint { border-bottom: 1px solid rgba(0,0,0,0.08); }
-.stonetop-expedition-dialog .stonetop-exp-assets-foot { border-top: 1px solid rgba(0,0,0,0.08); }
+.stonetop-expedition-dialog .stonetop-exp-assets-hint { border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.08); }
+.stonetop-expedition-dialog .stonetop-exp-assets-foot { border-top: 1px solid rgb(var(--st-ink-rgb) / 0.08); }
 .stonetop-expedition-dialog .stonetop-exp-assets-foot b { color: var(--st-gold-text); font-style: normal; }
 .stonetop-expedition-dialog .stonetop-exp-assets-list {
 	list-style: none; margin: 0; padding: 0;
@@ -37493,7 +37503,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding: 4px 12px;
 }
 .stonetop-expedition-dialog .stonetop-exp-asset + .stonetop-exp-asset {
-	border-top: 1px solid rgba(0,0,0,0.05);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.05);
 }
 .stonetop-expedition-dialog .stonetop-exp-asset-btn {
 	display: flex; align-items: baseline; gap: 8px; text-align: left;
@@ -37516,7 +37526,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 .stonetop-expedition-dialog .stonetop-exp-asset.is-ours { background: var(--st-gold-bg); }
 .stonetop-expedition-dialog .stonetop-exp-asset.is-ours .stonetop-exp-asset-btn {
-	border-color: var(--st-gold-border); background: rgba(255,255,255,0.45); font-weight: 600;
+	border-color: var(--st-gold-border); background: rgb(var(--st-paper-rgb) / 0.45); font-weight: 600;
 }
 .stonetop-expedition-dialog .stonetop-exp-asset.is-ours .tick { color: var(--st-green-border); }
 
@@ -38412,7 +38422,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	gap: 6px;
 	justify-items: center;
 	padding: 8px;
-	background: #fffdf7;
+	background: var(--st-on-dark-raised, #fffdf7);
 	border: 1px solid var(--color-border-dark, #7a7971);
 	border-radius: var(--st-radius);
 	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
@@ -38428,7 +38438,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	height: auto;
 	object-fit: contain;
 	border-radius: var(--st-radius-sm);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 }
 .stonetop-people-preview span {
 	max-width: min(320px, 42vw);
@@ -38603,7 +38613,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	min-width: 160px;
 	aspect-ratio: 3 / 4;
 	border-radius: var(--st-radius);
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 }
 /* A portrait whose square face has been cut shows THAT, at its own 1:1 — still "what you pick
    is what you get", now literally: this is the same file the sheets will use. The two shapes
@@ -38647,7 +38657,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding: 6px 14px;
 	font-size: var(--st-fs-base);
 	line-height: 1.2;
-	background: rgba(255, 255, 255, 0.8);
+	background: rgb(var(--st-paper-rgb) / 0.8);
 	border: 1px solid var(--color-border-light-primary, #ccc);
 	border-radius: var(--st-radius-sm);
 	color: var(--st-text-body);
@@ -38882,8 +38892,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-npc-rich-editor .editor-content {
 	min-height: inherit;
 	padding: 4px 6px;
-	background: rgba(255, 255, 255, 0.28);
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	background: rgb(var(--st-paper-rgb) / 0.28);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
 }
 
@@ -38899,8 +38909,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-npc-rich-editor:hover .editor-content,
 .stonetop-npc-rich-editor:focus-within .editor-content {
-	background: rgba(255, 255, 255, 0.5);
-	border-color: rgba(0, 0, 0, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.5);
+	border-color: rgb(var(--st-ink-rgb) / 0.4);
 }
 
 /* Cross-links in the NPC's prose (Connections, Motivations, move descriptions on Stats,
@@ -38973,7 +38983,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	align-items: center;
 	justify-content: center;
 	background: var(--stonetop-bg, #f0ece3);
-	border: 1px solid rgba(0, 0, 0, 0.2);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.2);
 	color: var(--color-text-dark-secondary, #4b4a44);
 }
 .stonetop-npc-portrait-placeholder i {
@@ -39164,7 +39174,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-npc-move-name-input,
 .stonetop-npc-move-formula-input {
 	border: none;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: 0;
 	background: transparent;
 }
@@ -39426,7 +39436,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-npc-move-item {
 	padding-bottom: 6px;
-	border-bottom: 1px dashed rgba(0, 0, 0, 0.12);
+	border-bottom: 1px dashed rgb(var(--st-ink-rgb) / 0.12);
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr);
 	gap: var(--stonetop-spiral-gap, 8px);
@@ -39603,8 +39613,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 .stonetop-rel-note-input:hover:not(:disabled),
 .stonetop-rel-note-input:focus {
-	border-color: rgba(0, 0, 0, 0.2);
-	background: rgba(255, 255, 255, 0.6);
+	border-color: rgb(var(--st-ink-rgb) / 0.2);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 }
 .stonetop-rel-note-input:disabled {
 	pointer-events: none;
@@ -39633,7 +39643,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	overflow: hidden;
 	border-radius: 50%;
 	background: var(--stonetop-bg, #f0ece3);
-	border: 1px solid rgba(0, 0, 0, 0.15);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 }
 /* Black, undimmed. The placeholder head sits on the pale portrait well, and core's
    secondary text colour at half opacity washed out to a grey barely darker than the well
@@ -39643,7 +39653,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #000;
+	color: rgb(var(--st-ink-rgb));
 }
 .stonetop-rel-portrait--empty i {
 	font-size: 14px;
@@ -39903,16 +39913,16 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop .character-notes-editor .editor-content,
 .stonetop .steading-notes-editor .editor-content {
 	padding: 4px 6px;
-	background: rgba(255, 255, 255, 0.28);
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	background: rgb(var(--st-paper-rgb) / 0.28);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
 }
 .stonetop .character-notes-editor:hover .editor-content,
 .stonetop .character-notes-editor:focus-within .editor-content,
 .stonetop .steading-notes-editor:hover .editor-content,
 .stonetop .steading-notes-editor:focus-within .editor-content {
-	background: rgba(255, 255, 255, 0.5);
-	border-color: rgba(0, 0, 0, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.5);
+	border-color: rgb(var(--st-ink-rgb) / 0.4);
 }
 
 /* System-ID migration assistant --------------------------------------------
@@ -40171,7 +40181,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* A map that already has a Scene is offered unticked and reads as secondary —
    it is there so the GM can deliberately refresh it, not as a suggestion. */
 .stonetop-poster-maps-dialog .stonetop-poster-map.has-scene {
-	border-color: rgba(0, 0, 0, 0.18);
+	border-color: rgb(var(--st-ink-rgb) / 0.18);
 	background: rgba(0, 0, 0, 0.05);
 }
 
@@ -40624,7 +40634,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   parchment behind it. */
 	border-top: 3px solid var(--st-lane-accent, #777);
 	border-radius: 4px;
-	background: rgba(255, 255, 255, 0.35);
+	background: rgb(var(--st-paper-rgb) / 0.35);
 }
 
 /* Cool to warm, left to right (the lane ORDER lives in REL_LANES; these are keyed by class,
@@ -40680,7 +40690,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	padding: 6px;
 	border: 1px solid rgba(100, 116, 139, 0.25);
 	border-radius: 4px;
-	background: rgba(255, 255, 255, 0.72);
+	background: rgb(var(--st-paper-rgb) / 0.72);
 }
 
 .stonetop-rel-card:focus-visible {
@@ -40692,7 +40702,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    entry reads as 3. Dimming it keeps the handful of DELIBERATE neutrals legible in a
    lane that would otherwise hold the whole roster. */
 .stonetop-rel-card--unrated {
-	background: rgba(255, 255, 255, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.4);
 	border-style: dashed;
 }
 
@@ -41022,7 +41032,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 	   Ink comes from the shared text ramp rather than a raw #000, matching the card name
 	   directly above it. */
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 	font-size: var(--st-fs-xs, 0.75rem);
 	line-height: 1.6;
 	color: var(--st-text-body);
@@ -41062,7 +41072,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Hover, for the Neutral segment: the well brightens toward opaque white. The old value here
    was a flat #e7ebef, from when the base was solid #fff and had nowhere lighter to go. */
 .stonetop-rel-lane-picker .stonetop-rel-lane-btn:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.9);
+	background: rgb(var(--st-paper-rgb) / 0.9);
 }
 
 /* Hover, for the arrows: the SAME slate, deeper — the gesture the lane itself makes when a
@@ -41245,7 +41255,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-rel-lane.is-drop-target {
 	outline: 2px dashed var(--st-lane-accent, #777);
 	outline-offset: -3px;
-	background: rgba(255, 255, 255, 0.6);
+	background: rgb(var(--st-paper-rgb) / 0.6);
 }
 
 /* Cards are lifted by a compositor transform, so a lane needs no scroll container of its
@@ -41344,7 +41354,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   needs to make a choice. By this point the card they care about is already in their
 	   hand and under the cursor; what they need to see is WHICH VALUE they are about to
 	   write, so the labels win the contrast contest. */
-	background: rgba(252, 250, 245, 0.96);
+	background: var(--st-on-dark-raised, rgba(252, 250, 245, 0.96));
 	text-align: center;
 }
 
@@ -41353,7 +41363,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-rel-board.is-dragging .stonetop-rel-zone.is-drop-target {
 	border-style: solid;
 	border-width: 2px;
-	background: #fff;
+	background: rgb(var(--st-paper-rgb));
 	box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--st-lane-accent, #777) 18%, transparent);
 }
 
@@ -41456,7 +41466,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   grew, rather than 30% more. */
 	padding-right: 8.5em;
 	padding-bottom: 4px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	/* Out-specifies .stonetop-details-heading-row's `margin-bottom: 0`, which was right when
 	   the rule sat flush under the text. The Details tab's 8px sibling gap collapses over
 	   this, so it sets the floor, not the total. */
@@ -41525,7 +41535,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex: 0 0 auto;
 	overflow: hidden;
 	background: var(--stonetop-bg, #f0ece3);
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.25);
 	border-radius: var(--st-radius-lg, 6px);
 	cursor: crosshair;
 	user-select: none;
@@ -41606,7 +41616,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	gap: 6px;
 	margin: 0;
 	padding-top: 8px;
-	border-top: 1px solid rgba(0, 0, 0, 0.12);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	font-size: 0.8em;
 	line-height: 1.35;
 	color: var(--st-text-muted, rgba(0, 0, 0, 0.65));
@@ -41632,7 +41642,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border-radius: 50%;
 	flex: 0 0 auto;
 	background: var(--stonetop-bg, #f0ece3);
-	border: 1px solid rgba(0, 0, 0, 0.15);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 }
 
 .stonetop-portrait-frame-dialog .stonetop-frame-preview img {
@@ -41887,7 +41897,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	flex: 0 0 auto;
 	align-items: stretch;
 	gap: 2px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 /* Undo core's block-level button rules (`body.game .app button` is display:flex,
@@ -41957,7 +41967,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	   tabs and their rule, and a filter bar hugging that rule reads as part of the tab strip. */
 	padding-top: 4px;
 	padding-bottom: 4px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+	border-bottom: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 }
 
 /* The collapsible search is shared with the character and steading sheets, where it opens by
@@ -42122,7 +42132,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	align-items: flex-start;
 	gap: 8px;
 	padding: 6px 8px;
-	border: 1px solid rgba(0, 0, 0, 0.10);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.10);
 	border-radius: var(--st-radius);
 	background: rgba(0, 0, 0, 0.02);
 	cursor: pointer;
@@ -42272,7 +42282,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	align-items: center;
 	gap: 3px;
 	padding: 0 6px;
-	border: 1px solid rgba(0, 0, 0, 0.14);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.14);
 	border-radius: 999px;
 	color: var(--st-text-secondary);
 	font-size: calc(0.72rem * var(--stonetop-font-scale, 1));
@@ -42392,7 +42402,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 .stonetop-catalog-badge--mild {
-	border-color: rgba(0, 0, 0, 0.16);
+	border-color: rgb(var(--st-ink-rgb) / 0.16);
 	background: rgba(0, 0, 0, 0.05);
 	color: var(--st-text-secondary);
 }
@@ -44603,15 +44613,15 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-gm-encounter-notes {
 	padding: 4px 6px;
 	padding-right: calc(var(--form-field-height, 26px) + 6px);
-	background: rgba(255, 255, 255, 0.28);
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	background: rgb(var(--st-paper-rgb) / 0.28);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius);
 }
 
 .stonetop-gm-encounter-notes-block:hover .stonetop-gm-encounter-notes,
 .stonetop-gm-encounter-notes-block:focus-within .stonetop-gm-encounter-notes {
-	background: rgba(255, 255, 255, 0.5);
-	border-color: rgba(0, 0, 0, 0.4);
+	background: rgb(var(--st-paper-rgb) / 0.5);
+	border-color: rgb(var(--st-ink-rgb) / 0.4);
 }
 
 /* The pencil, parked where core parks `<prose-mirror toggled>`'s own toggle: the box's top-right
@@ -44634,7 +44644,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	height: var(--form-field-height, 26px);
 	margin: 0;
 	padding: 0;
-	background: rgba(255, 255, 240, 0.8);
+	background: var(--st-on-dark-raised, rgba(255, 255, 240, 0.8));
 	border: 1px solid var(--color-border-light-primary, rgba(0, 0, 0, 0.22));
 	border-radius: var(--st-radius-sm);
 	box-shadow: none;
@@ -44653,8 +44663,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 }
 
 .stonetop-gm-encounter-notes-edit:hover {
-	background: rgba(255, 255, 240, 0.95);
-	border-color: rgba(0, 0, 0, 0.4);
+	background: var(--st-on-dark-raised, rgba(255, 255, 240, 0.95));
+	border-color: rgb(var(--st-ink-rgb) / 0.4);
 	box-shadow: none;
 	color: var(--st-text-body);
 }
@@ -44952,7 +44962,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Danu's Grasp: "spend 1 Stock and roll +WIS". The price and the purse sit above the results, so
    the cost is read before the button rather than discovered after it. */
 .stonetop-move-cost {
-	border: 1px solid rgba(0,0,0,0.12);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.12);
 	border-radius: var(--st-radius);
 	background: rgba(0,0,0,0.03);
 	padding: 7px 10px;
@@ -45173,7 +45183,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* A book this world has not been pointed at yet is offered as an empty slot rather than as a
    suggestion, the same way an already-imported poster map is: still actionable, not shouting. */
 .stonetop-rulebooks-dialog .stonetop-rulebook--unset {
-	border-color: rgba(0, 0, 0, 0.18);
+	border-color: rgb(var(--st-ink-rgb) / 0.18);
 	background: rgba(0, 0, 0, 0.05);
 }
 
@@ -46847,7 +46857,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	height: 72px;
 	padding: 0;
 	margin: 0;
-	border: 3px solid rgba(0, 0, 0, 0.35);
+	border: 3px solid rgb(var(--st-ink-rgb) / 0.35);
 	border-radius: 50%;
 	background: var(--stonetop-bg);
 	overflow: hidden;
@@ -48489,9 +48499,9 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	overflow: hidden;
 	display: grid;
 	place-items: center;
-	border: 1px solid rgba(0, 0, 0, 0.22);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.55);
+	background: rgb(var(--st-paper-rgb) / 0.55);
 	color: var(--st-quiet-ink);
 	/* ⚠ A WHOLE PIXEL, AND THE SAME 14px THE CHARACTER SHEET'S EMPTY FACE USES
 	   (.stonetop-rel-portrait--empty i), NOT --st-fs-xs. Two reasons, and the second is the one
@@ -49888,7 +49898,16 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	/* The warm tint screened over the inverted grain. Screen(t, i) = 1 - (1-t)(1-i): with the
 	   grain's inverted mean at rgb(4, 5, 5), this lands the painted page on --st-page. */
 	--st-paper-tint: #191511;
-	scrollbar-color: #6b5f50 #1d1915;
+	scrollbar-color: var(--st-rule-dark) var(--st-page);
+	/* What core's colour names and the title bar read (see the window-root rule below), so a palette
+	   that re-points the ramp re-points them too. */
+	--st-text-emphatic: #f1eadc;
+	--st-link-ink:      #e0a86a;
+	--st-rule-dark:     #6b5f50;
+	--st-rule-light-1:  #4a4038;
+	--st-rule-light-2:  #3f372f;
+	--st-rule-light-3:  #453c33;
+	--st-window-header-bg: #14110e;
 
 	/* The ink ramp, bone. Measured on the panel, the lighter of the two grounds. */
 	--st-text:           #ebe4d6;   /* 12.5:1 */
@@ -49903,16 +49922,47 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--st-danger-ink:  #ec8c82;
 	--st-heading-ink: #ebe4d6;
 
+	/* THE LIFTS. Inks written as hued literals for white paper read `var(--st-on-dark-x, #literal)`.
+	   These are declared ONLY here, never on the light :root, so on paper the fallback (the old
+	   literal itself) is what paints, pixel for pixel; one name per family turns them all over here.
+	   Each clears 4.5:1 on the panel. */
+	--st-on-dark-danger:  #ec8c82;
+	--st-on-dark-caution: #e2b25e;
+	--st-on-dark-ok:      #8fc99b;
+	--st-on-dark-umber:   #b49a86;
+	--st-on-dark-ink:     var(--st-text);
+	--st-on-dark-muted:   var(--st-text-muted);
+	/* Fills, the same way. `raised` is the off-white popups, tooltips and wells: a step above the
+	   panel that still holds the faintest ink at 4.5:1. `highlight` is the pale hover gold. The
+	   result labels on a roll card are OPAQUE, so a label reads the same on any card behind it. */
+	--st-on-dark-raised:    #2d2721;
+	--st-on-dark-highlight: rgba(226, 178, 94, 0.16);
+	--st-on-dark-failure-bg: #4a2420;
+	--st-on-dark-partial-bg: #45361c;
+	--st-on-dark-success-bg: #233a29;
+	--st-on-dark-whisper-bg: #252d42;
+	--st-on-dark-whisper-border: hsl(228 35% 62%);
+	/* Rules drawn in grey literals: the pale ones (#ddd, #eee) a whisper of bone, the mid and dark
+	   ones (#999, #555) the warm rule at 3:1, so a box drawn in them still has an edge. */
+	--st-on-dark-rule-soft: rgba(235, 228, 214, 0.16);
+	--st-on-dark-rule:      #8a7a62;
+	/* The chat card's attack tags keep a hue each, ink and glyph alike. */
+	--st-on-dark-attack-messy:     #de7d73;
+	--st-on-dark-attack-forceful:  #b59a44;
+	--st-on-dark-attack-grabby:    #52ab8c;
+	--st-on-dark-attack-crude:     #b49a86;
+	--st-on-dark-attack-reload:    #77a2d2;
+	--st-on-dark-attack-dangerous: #dc8540;
+
 	/* Cards lift off the page by a whisper of LIGHT here, as on the black papers. */
 	--st-card-fill: rgba(235, 228, 214, 0.035);
 	--st-card-rule: rgba(235, 228, 214, 0.16);
 	--st-warm-hover-bg: rgba(235, 228, 214, 0.08);
 
 	/* The timeline's kinds, lifted for the dark page (see their note in the first :root): the
-	   same nine hues, each walked up to 4.5:1 or past on the panel, a card and its chip's tint.
+	   same eight hues, each walked up to 4.5:1 or past on the panel, a card and its chip's tint.
 	   Death goes to ASH here, not the near-white its light-paper charcoal would invert to, which
 	   was the bone of the ink ramp and read as a row with no colour at all. */
-	--st-timeline-kind-season:     #79bd63;
 	--st-timeline-kind-levelup:    #d8a71f;
 	--st-timeline-kind-kills:      #fa918b;
 	--st-timeline-kind-expedition: #40bfba;
@@ -50018,27 +50068,36 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 
 /* Core's own colour names, where core declares them: on the window roots, and on the chat cards
    this system paints (only those: a plain chat message keeps core's parchment, and light ink on
-   it would vanish). `color-scheme: dark` brings native selects, checkboxes and scrollbars over. */
+   it would vanish). `color-scheme: dark` brings native selects, checkboxes and scrollbars over.
+   Every value reads a token, so each palette re-points these by re-pointing those. The window
+   roots are listed twice: high contrast's own roots rule ties with the first line, (0,4,0), and
+   comes later in the file, so in "dark-high" and "slate-high" its black would win; the second line
+   is (0,5,0). */
 :root.stonetop-dark :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed),
+:root.stonetop-dark.stonetop-high-contrast :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed),
 :root.stonetop-dark :is(#chat, #chat-notifications, #chat-popout)
 	.message:is(:has(.stonetop-roll-card), :has(.stonetop-startup-card), :has(.stonetop-chat-move),
 		:has(.stonetop-dying-card)) {
 	color-scheme: dark;
-	--color-text-dark-primary:   #ebe4d6;
-	--color-text-dark-secondary: #c2b9a8;
-	--color-text-dark-inactive:  #978e7f;
-	--color-text-primary:        #ebe4d6;
-	--color-text-emphatic:       #f1eadc;
-	--color-text-secondary:      #c2b9a8;
-	--color-text-subtle:         #a39a8a;
-	--color-text-hyperlink:      #e0a86a;
-	--color-form-hint:           #a39a8a;
-	--color-form-label:          #c2b9a8;
-	--color-select-option-bg:    #27221d;
-	--color-border-dark:            #6b5f50;
-	--color-border-light-primary:   #4a4038;
-	--color-border-light-secondary: #3f372f;
-	--color-border-light-tertiary:  #453c33;
+	--color-text-dark-primary:   var(--st-text);
+	--color-text-dark-secondary: var(--st-text-secondary);
+	--color-text-dark-inactive:  var(--st-text-faint);
+	--color-text-primary:        var(--st-text);
+	--color-text-emphatic:       var(--st-text-emphatic);
+	--color-text-secondary:      var(--st-text-secondary);
+	--color-text-subtle:         var(--st-text-muted);
+	--color-text-hyperlink:      var(--st-link-ink);
+	--color-form-hint:           var(--st-text-muted);
+	--color-form-label:          var(--st-text-secondary);
+	--color-select-option-bg:    var(--stonetop-bg);
+	--color-border-dark:            var(--st-rule-dark);
+	--color-border-light-primary:   var(--st-rule-light-1);
+	--color-border-light-secondary: var(--st-rule-light-2);
+	--color-border-light-tertiary:  var(--st-rule-light-3);
+	/* Not one of core's names: core has only the suffixed ones above, so every rule written as
+	   `var(--color-border-light, #ccc)` (the arcana card's dividers among them) painted its
+	   white-paper fallback in dark. Declared here only, so light mode still paints the fallback. */
+	--color-border-light:           var(--st-rule-light-1);
 }
 
 /* The lamplit paper, on the four surfaces that paint the grain. Each selector is the rule it
@@ -50062,9 +50121,27 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	background-blend-mode: normal, screen, difference;
 }
 
+/* CORE'S CREAM BUTTONS. Core's compatibility layer, the last it declares, paints every button in
+   an AppV1 window `rgba(255, 255, 240, 0.8)` (`body.game .app button`), and our windows are pinned
+   to core's light theme, so a button that paints no fill of its own stood cream on the dark page
+   with the palette's bone ink on it: 1.5:1, and about 1:1 for an `a.button`. This is that rule for
+   the dark page. All of it inside `:where()`, so it weighs nothing and every button of ours that
+   sets its own fill or ink keeps it; the editor's toolbar buttons, which core draws bare, are left
+   out. Disabled buttons keep their step down, which this rule's ink would otherwise cover. */
+:where(:root.stonetop-dark :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed) .window-content)
+	:where(button, a.button):where(:not(menu *)) {
+	background: var(--st-on-dark-raised);
+	border-color: var(--st-rule-dark);
+	color: var(--st-text);
+}
+:where(:root.stonetop-dark :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed) .window-content)
+	:where(button, a.button):where(:not(menu *)):where(:disabled, .disabled) {
+	color: var(--st-text-faint);
+}
+
 /* The title bar: the paper's slate band becomes a warm near-black one, a shade under the page. */
 :where(:root.stonetop-dark) .vtt .stonetop .window-header {
-	background-color: #14110e;
+	background-color: var(--st-window-header-bg);
 }
 
 /* The dead, darker AND colder. Their own block (the sheet of someone past the Last Door) already
@@ -50149,10 +50226,33 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--st-red-text:     hsl(6 70% 78%);
 	--st-danger-ink:   hsl(6 70% 78%);
 	--st-heading-ink:  #f0ebe0;
+	/* Core's colour names on the window roots read these (see the dark block). */
+	--st-text-emphatic: #f6f1e6;
+	--st-link-ink:      #f0b878;
+	--st-rule-dark:     rgba(240, 235, 224, 0.75);
+	--st-rule-light-1:  rgba(240, 235, 224, 0.55);
+	--st-rule-light-2:  rgba(240, 235, 224, 0.45);
+	--st-rule-light-3:  rgba(240, 235, 224, 0.48);
+	--st-on-dark-danger:  hsl(6 70% 78%);
+	--st-on-dark-caution: #e6c56a;
+	--st-on-dark-ok:      hsl(140 45% 72%);
+	--st-on-dark-umber:   #c4b0a2;
+	--st-on-dark-raised:  #28231e;
+	--st-on-dark-rule-soft: rgba(240, 235, 224, 0.4);
+	--st-on-dark-rule:      #a39a8a;
+	/* The hit tiers at 7:1, on the page and on a roll card's opaque result labels alike. */
+	--st-tier-failure-text: #f3afa8;
+	--st-tier-partial-text: #eac988;
+	--st-tier-success-text: #96d7a6;
+	--st-on-dark-attack-messy:     #e8a199;
+	--st-on-dark-attack-forceful:  #ccb466;
+	--st-on-dark-attack-grabby:    #72c2a6;
+	--st-on-dark-attack-crude:     #c4b0a2;
+	--st-on-dark-attack-reload:    #95b6db;
+	--st-on-dark-attack-dangerous: #e6a473;
 	--st-gold-border:  #d9b44a;
 	--st-gold-text:    #e6c56a;
 	/* The timeline's kinds at 7:1 on the darker page, and unwashed like the light skin's. */
-	--st-timeline-kind-season:     #6cb654;
 	--st-timeline-kind-levelup:    #cc9d1d;
 	--st-timeline-kind-kills:      #f1848d;
 	--st-timeline-kind-expedition: #3cb5b1;
@@ -50196,26 +50296,11 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--st-relmap-ink-crimson:hsl(350deg 62% 78%);
 	--st-relmap-ink-slate:  hsl(215deg 16% 74%);
 }
-:root.stonetop-dark.stonetop-high-contrast :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed),
-:root.stonetop-dark.stonetop-high-contrast :is(#chat, #chat-notifications, #chat-popout)
-	.message:is(:has(.stonetop-roll-card), :has(.stonetop-startup-card), :has(.stonetop-chat-move),
-		:has(.stonetop-dying-card)) {
-	--color-text-dark-primary:   #f0ebe0;
-	--color-text-dark-secondary: #dcd5c8;
-	--color-text-dark-inactive:  #c2b9a8;
-	--color-text-primary:        #f0ebe0;
-	--color-text-emphatic:       #f6f1e6;
-	--color-text-hyperlink:      #f0b878;
-	--color-border-dark:            rgba(240, 235, 224, 0.75);
-	--color-border-light-primary:   rgba(240, 235, 224, 0.55);
-	--color-border-light-secondary: rgba(240, 235, 224, 0.45);
-	--color-border-light-tertiary:  rgba(240, 235, 224, 0.48);
-}
 /* High contrast's focus ring is a navy pitched for white paper (under 2:1 here). Same selector
    with the dark class added, so it outweighs that one wherever it sits. */
 :root.stonetop-dark.stonetop-high-contrast body :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed)
 	:is(input, textarea, select, button, a, summary, [tabindex]):focus-visible {
-	outline-color: #f0b878;
+	outline-color: var(--st-link-ink);
 }
 :root.stonetop-dark.stonetop-high-contrast .tab.moves .stonetop-item.stonetop-love-letter,
 :root.stonetop-dark.stonetop-high-contrast .stonetop-love-letter-read-dialog,
@@ -50223,6 +50308,82 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--tc-rule:      #8f7c5f;
 	--tc-rule-hard: #b3a07f;
 	--tc-ink-soft:  #e0d6c2;
+}
+
+/* ── Slate ───────────────────────────────────────────────────────────────────────────────────
+   The same dark mode in cool blue-grey charcoal, for the reader who finds the lamplit brown too
+   sepia. The setting's "slate" values add `.stonetop-slate` beside `.stonetop-dark`, so every rule
+   above still applies and this re-points only the tokens that carry the warmth: the page and
+   panel, the tint screened over the grain, the ink ramp and its channels, the rules, the title bar
+   and the buttons. The hues (reds, golds, greens, the timeline's kinds) were pitched for a dark
+   page, not a brown one, and stand as they are. Love letters and threat cards keep their warm
+   parchment: they are paper handed across the table. The dead keep their neutral black, a step
+   below this page as below the lamplit one.
+
+   (0,3,0) ties with dark + high contrast and wins by coming after it, so in "slate-high" every
+   token both of them set is restated in the block after this one, at (0,4,0). */
+:root.stonetop-dark.stonetop-slate {
+	--st-page:       #1a1d21;
+	--stonetop-bg:   #23272c;
+	--st-paper-tint: #16181d;
+	--st-text:           #e6e9ee;   /* 12.3:1 on the panel */
+	--st-text-body:      #d6dae0;   /* 10.7:1 */
+	--st-text-secondary: #bac0c9;   /*  8.2:1 */
+	--st-text-muted:     #9da4ae;   /*  6.0:1 */
+	--st-text-faint:     #8f96a1;   /*  5.0:1 */
+	--st-text-emphatic:  #f0f2f5;
+	--st-heading-ink:    #e6e9ee;
+	--st-ink-rgb:   230 233 238;
+	--st-paper-rgb: 35 39 44;
+	--st-card-fill: rgba(230, 233, 238, 0.035);
+	--st-card-rule: rgba(230, 233, 238, 0.16);
+	--st-warm-hover-bg: rgba(230, 233, 238, 0.08);
+	--st-rule-dark:    #5c6570;
+	--st-rule-light-1: #3d434b;
+	--st-rule-light-2: #353a41;
+	--st-rule-light-3: #3a4047;
+	--st-window-header-bg: #121417;
+	--st-btn-primary-bg:           #101215;
+	--st-btn-primary-bg-hover:     #1f2328;
+	--st-btn-primary-border:       #6e7b8a;
+	--st-btn-primary-border-hover: #8c98a6;
+	--st-btn-primary-text:         #e6e9ee;
+	--st-slate-hover-bg:     rgba(230, 233, 238, 0.08);
+	--st-slate-hover-border: #6e7b8a;
+	--st-tabstrip-bg:  #343a42;
+	--st-tabstrip-ink: #e6e9ee;
+	--st-on-dark-raised:    #292e34;
+	--st-on-dark-rule-soft: rgba(230, 233, 238, 0.16);
+	--st-on-dark-rule:      #77828f;
+}
+
+/* Slate + high contrast: every token Slate and dark + high contrast both set, at 7:1. */
+:root.stonetop-dark.stonetop-slate.stonetop-high-contrast {
+	--st-page:       #111315;
+	--stonetop-bg:   #181b1f;
+	--st-paper-tint: #0d0e10;
+	--st-text:           #eef0f3;
+	--st-text-body:      #e6e9ed;
+	--st-text-secondary: #dce0e5;
+	--st-text-muted:     #cfd4da;
+	--st-text-faint:     #c2c8cf;
+	--st-text-emphatic:  #f4f6f8;
+	--st-heading-ink:    #eef0f3;
+	--st-card-fill: transparent;
+	--st-card-rule: rgba(238, 240, 243, 0.5);
+	--st-rule-dark:    rgba(238, 240, 243, 0.75);
+	--st-rule-light-1: rgba(238, 240, 243, 0.55);
+	--st-rule-light-2: rgba(238, 240, 243, 0.45);
+	--st-rule-light-3: rgba(238, 240, 243, 0.48);
+	--st-btn-primary-bg:       #08090a;
+	--st-btn-primary-bg-hover: #181b1f;
+	--st-btn-primary-border:   #d0d5dc;
+	--st-slate-hover-bg:       rgba(238, 240, 243, 0.12);
+	--st-slate-hover-border:   #d0d5dc;
+	--st-tabstrip-bg: #262a30;
+	--st-on-dark-raised:    #20242a;
+	--st-on-dark-rule-soft: rgba(238, 240, 243, 0.4);
+	--st-on-dark-rule:      #9aa3ae;
 }
 
 /* ══ ACCESSIBILITY: the paper, and the two switches a reader can turn ══════════════════════
@@ -50547,7 +50708,7 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
    reader has not made yet -- and re-stating the whole shorthand here would paint it solid again
    for the one reader least able to spare the distinction. */
 :root.stonetop-high-contrast .stonetop-relmap-face {
-	border-color: rgba(0, 0, 0, 0.75);
+	border-color: rgb(var(--st-ink-rgb) / 0.75);
 }
 
 /* CORE'S OWN COLOUR NAMES, RE-DECLARED WHERE THEY CAN BE SEEN.

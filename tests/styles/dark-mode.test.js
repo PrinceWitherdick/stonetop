@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { readCss, readRepo, repoFileExists, ownRule } from "../fakes/css.js";
 import { fakeEl } from "../fakes/dom.js";
 import { contrastRatio, parseColor, ratioText } from "../fakes/contrast.js";
-import { applySheetContrast } from "../../module/settings.js";
+import { applySheetContrast, watchFoundryTheme } from "../../module/settings.js";
 
 /**
  * The dark ("Lamplit") palette, checked against the arithmetic it claims.
@@ -26,6 +26,8 @@ const DARK = ":root.stonetop-dark";
 const DARK_HC = ":root.stonetop-dark.stonetop-high-contrast";
 const HIGH = ":root.stonetop-high-contrast";
 const FLAT = ":root.stonetop-no-texture";
+const SLATE = ":root.stonetop-dark.stonetop-slate";
+const SLATE_HC = ":root.stonetop-dark.stonetop-slate.stonetop-high-contrast";
 
 /** Every `--custom-property: value` a rule body declares, as a Map. */
 function customProperties(body) {
@@ -38,6 +40,8 @@ function customProperties(body) {
 const D = customProperties(ownRule(CSS, DARK));
 const DH = customProperties(ownRule(CSS, DARK_HC));
 const HC = customProperties(ownRule(CSS, HIGH));
+const S = customProperties(ownRule(CSS, SLATE));
+const SH = customProperties(ownRule(CSS, SLATE_HC));
 
 /** The dark section: from its first rule to the accessibility block's no-texture rule. */
 const SECTION = CSS.slice(CSS.indexOf(`${DARK} {`), CSS.indexOf(FLAT));
@@ -350,8 +354,21 @@ describe("dark + high contrast", () => {
 	});
 
 	it("outweighs both single-class palettes on the window roots and the letters", () => {
-		const roots = RULES.find(([sel, body]) => sel.startsWith(DARK_HC) && /--color-text-dark-primary/.test(body));
-		expect(roots, "core's names are left at high contrast's black on the dark page").toBeTruthy();
+		// Core's names on the roots read the palette's tokens, so this block re-points them by
+		// re-pointing those; a literal left on the roots rule would pin one palette's value.
+		const roots = RULES.find(([sel, body]) => sel.startsWith(DARK) && !sel.startsWith(DARK_HC)
+			&& /--color-text-dark-primary/.test(body) && /#chat/.test(sel));
+		expect(roots, "the dark palette does not reach core's names on the roots").toBeTruthy();
+		// High contrast's own roots rule ties with the plain dark line and comes later; without a
+		// heavier line here, "dark-high" reads black ink on its dark page (1.1:1).
+		expect(roots[0], "dark + high contrast leaves core's names at high contrast's black")
+			.toContain(`${DARK_HC} :is(.app, .application, .window-app):is(.stonetop, .stonetop-themed)`);
+		for (const [, value] of customProperties(roots[1])) {
+			expect(value, "core's names on the roots pin a literal").toMatch(/^var\(--/);
+		}
+		for (const name of ["--st-text", "--st-text-emphatic", "--st-link-ink", "--st-rule-dark"]) {
+			expect(DH.has(name), `${name} keeps the plain dark value in dark + high contrast`).toBe(true);
+		}
 		const letters = RULES.find(([sel]) => sel.startsWith(DARK_HC) && /threat-card/.test(sel));
 		expect(letters, "the letters keep high contrast's paper-dark rules").toBeTruthy();
 		for (const name of ["--tc-rule", "--tc-rule-hard", "--tc-ink-soft"]) expect(letters[1]).toContain(name);
@@ -388,21 +405,221 @@ describe("the ledger window", () => {
 	});
 });
 
+// The ~180 colours written for white paper that the palette could not reach when it shipped: near-
+// black inks on the dark page (1.2:1 at worst), bone ink on white wells (1.26:1 on a solid one), and
+// pale popups glaring off it. They read the ink and paper channels now, or a LIFT: a token declared
+// only in the dark blocks and read with the old literal as its fallback, so paper paints the literal.
+describe("the colours written for white paper", () => {
+	const RULE = /([^{}]+)\{([^{}]*)\}/g;
+	const SCOPED = /stonetop-dark|theme-dark|stonetop-high-contrast|past-death|^@|^from$|^to$|%$/;
+	// Surfaces that are light ON PURPOSE, or always dark, so the scan cannot read them: art drawn for
+	// white, a switch's thumb, the journey's chips standing on its map, and the death dialogs and
+	// drips, whose pale ink sits on their own dark wash. And the timeline's layout strip, white and
+	// slate in every palette with its own fixed slate ink.
+	const KEPT = /stonetop-gm-diagram-img|stonetop-image-zoom-view|stonetop-toggle-thumb|stonetop-journey|deathsdoor-dialog|death-drip|stonetop-timeline-orient/;
+	const stripVars = v => v.replace(/var\([^()]*(\([^()]*\))?[^()]*\)/g, "");
+	const literals = v => (stripVars(v).match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|\b(white|black)\b/gi) || [])
+		.filter(v => parseColor(v));
+	const values = (body, prop) => [...body.matchAll(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, "g"))].map(m => m[1]);
+	const paper = [...CSS.slice(0, CSS.indexOf(`${DARK} {`)).matchAll(RULE)]
+		.map(([, sel, body]) => [sel.trim().replace(/\s+/g, " "), body])
+		.filter(([sel]) => !SCOPED.test(sel) && !KEPT.test(sel));
+
+	it("scanned the file at all", () => {
+		expect(paper.length).toBeGreaterThan(3000);
+	});
+
+	it("paints no near-black ink straight onto the page", () => {
+		const offenders = paper.filter(([, body]) => !values(body, "background(?:-color)?").length
+			&& values(body, "color").some(v => literals(v).some(c => lum(c) < 0.2 && parseColor(c).alpha > 0.4)));
+		expect(offenders.map(([sel]) => sel)).toEqual([]);
+	});
+
+	it("leaves no white well under ink the palette turns to bone", () => {
+		const offenders = paper.filter(([, body]) => values(body, "background(?:-color)?")
+			.some(v => literals(v).some(c => lum(c) > 0.5 && parseColor(c).alpha > 0.2)));
+		expect(offenders.map(([sel]) => sel)).toEqual([]);
+	});
+
+	// A lift with no fallback paints nothing at all on paper.
+	it("reads every lift with the paper literal as its fallback", () => {
+		// (Inside the dark section a bare read is fine: the lift is always set there.)
+		const bare = paper.flatMap(([, body]) => [...body.matchAll(/var\((--st-on-dark-[a-z-]+)\s*\)/g)].map(m => m[0]));
+		expect(bare).toEqual([]);
+	});
+
+	it("declares the lifts in the dark blocks alone, and every one it reads", () => {
+		const read = new Set([...CSS.matchAll(/var\((--st-on-dark-[a-z-]+)\s*,/g)].map(m => m[1]));
+		expect(read.size).toBeGreaterThan(10);
+		for (const name of read) expect(D.has(name), `${name} is read but the dark palette never sets it`).toBe(true);
+		const light = [...CSS.matchAll(RULE)].filter(([, sel, body]) => !/stonetop-dark/.test(sel) && /--st-on-dark-[a-z-]+\s*:/.test(body));
+		expect(light.map(([sel]) => sel.trim()), "a lift declared on paper overrides the literal it falls back to").toEqual([]);
+	});
+
+	it("lifts every ink to 4.5:1 on the panel and on the raised well, and 7:1 in dark + high contrast", () => {
+		const isInk = name => /^--st-on-dark-(danger|caution|ok|umber|attack-)/.test(name);
+		let checked = 0;
+		for (const [name, value] of D) {
+			if (!isInk(name)) continue;
+			checked++;
+			for (const g of [D.get("--stonetop-bg"), D.get("--st-on-dark-raised")]) {
+				expect(contrastRatio(value, g), `${name} (${value}) is ${ratioText(value, g)} on ${g}`).toBeGreaterThanOrEqual(4.5);
+			}
+			const high = DH.get(name);
+			expect(high, `${name} is not restated for dark + high contrast`).toBeTruthy();
+			for (const g of grounds7()) {
+				expect(contrastRatio(high, g), `${name} (${high}) is ${ratioText(high, g)} on ${g}`).toBeGreaterThanOrEqual(7);
+			}
+		}
+		expect(checked).toBeGreaterThanOrEqual(10);
+	});
+
+	it("keeps the whole ramp readable on the raised well", () => {
+		for (const name of ["--st-text", "--st-text-muted", "--st-text-faint"]) {
+			expect(contrastRatio(D.get(name), D.get("--st-on-dark-raised"))).toBeGreaterThanOrEqual(4.5);
+			expect(contrastRatio(DH.get(name), DH.get("--st-on-dark-raised"))).toBeGreaterThanOrEqual(7);
+		}
+	});
+
+	it("keeps each roll card's result label readable on its own opaque fill", () => {
+		for (const tier of ["failure", "partial", "success"]) {
+			const fill = D.get(`--st-on-dark-${tier}-bg`);
+			expect(parseColor(fill).alpha, `the ${tier} label is see-through`).toBe(1);
+			expect(contrastRatio(D.get(`--st-tier-${tier}-text`), fill)).toBeGreaterThanOrEqual(4.5);
+			expect(contrastRatio(DH.get(`--st-tier-${tier}-text`), fill)).toBeGreaterThanOrEqual(7);
+		}
+	});
+
+	// Core's compatibility layer paints every AppV1 button cream; under bone ink that was 1.5:1.
+	// The dark rule that replaces it must weigh nothing, or it repaints every button that sets its
+	// own fill or ink (a red Delete went bone when it weighed (0,1,1)).
+	it("repaints core's cream buttons in our windows, and weighs nothing doing it", () => {
+		const fill = RULES.find(([sel, body]) => /:where\(button, a\.button\)/.test(sel) && /background:/.test(body));
+		expect(fill, "core's cream buttons stand on the dark page").toBeTruthy();
+		const outside = fill[0].replace(/:where\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)/g, "").trim();
+		expect(outside, "the cream-button rule carries weight outside :where()").toBe("");
+		expect(fill[1]).toMatch(/background:\s*var\(--st-on-dark-raised\)/);
+		expect(fill[1]).toMatch(/color:\s*var\(--st-text\)/);
+		expect(fill[0], "the rule reaches the window title bar's buttons too").toContain(".window-content");
+	});
+
+	it("gives a grey rule an edge at 3:1", () => {
+		expect(contrastRatio(D.get("--st-on-dark-rule"), D.get("--stonetop-bg"))).toBeGreaterThanOrEqual(3);
+		expect(contrastRatio(DH.get("--st-on-dark-rule"), DH.get("--stonetop-bg"))).toBeGreaterThanOrEqual(3);
+	});
+});
+
+// Slate is the dark palette re-pointed cool, worn as a third class beside `.stonetop-dark`. Every
+// bar the lamplit palette answers to, it answers to as well.
+describe("the slate palette", () => {
+	const RAMP = ["--st-text", "--st-text-body", "--st-text-secondary", "--st-text-muted", "--st-text-faint"];
+	const pick = (map, base, name) => map.get(name) ?? base.get(name);
+	const ground = (map, base) => [pick(map, base, "--st-page"), pick(map, base, "--stonetop-bg"),
+		pick(map, base, "--st-on-dark-raised"), ...Object.values(GRAIN).map(g => painted(pick(map, base, "--st-paper-tint"), g))];
+
+	it("comes after dark + high contrast, which it ties with, and its own high contrast after it", () => {
+		expect(S.size).toBeGreaterThan(20);
+		expect(SH.size).toBeGreaterThan(15);
+		expect(CSS.indexOf(`${SLATE} {`)).toBeGreaterThan(CSS.indexOf(`${DARK_HC} {`));
+		expect(CSS.indexOf(`${SLATE_HC} {`)).toBeGreaterThan(CSS.indexOf(`${SLATE} {`));
+		expect(CSS.indexOf(`${SLATE_HC} {`), "slate moved after the no-texture rule").toBeLessThan(CSS.indexOf(FLAT));
+	});
+
+	it("is cool, not warm: a page with more blue in it than red", () => {
+		for (const name of ["--st-page", "--stonetop-bg", "--st-text"]) {
+			const [r, , b] = parseColor(S.get(name)).rgb;
+			expect(b, `${name} (${S.get(name)}) is not blue-grey`).toBeGreaterThan(r);
+		}
+	});
+
+	it("keeps the panel a step lighter than the page, and the grain landing on the page", () => {
+		expect(lum(S.get("--stonetop-bg"))).toBeGreaterThan(lum(S.get("--st-page")));
+		expect(lum(S.get("--st-page"))).toBeGreaterThan(0.004);
+		const mean = painted(S.get("--st-paper-tint"), GRAIN.mean);
+		expect(contrastRatio(mean, S.get("--st-page")), `the grain paints ${mean}`).toBeLessThan(1.05);
+	});
+
+	it("gives the ramp 4.5:1 on the page, the panel, the raised well and the grain, brightest first", () => {
+		let last = Infinity;
+		for (const name of RAMP) {
+			expect(S.get(name), `${name} is left warm`).toBeTruthy();
+			for (const g of ground(S, D)) {
+				expect(contrastRatio(S.get(name), g), `${name} is ${ratioText(S.get(name), g)} on ${g}`).toBeGreaterThanOrEqual(4.5);
+			}
+			expect(lum(S.get(name))).toBeLessThan(last);
+			last = lum(S.get(name));
+		}
+	});
+
+	it("gives a rule 3:1 and the button's label 7:1 on a fill darker than the page", () => {
+		const panel = S.get("--stonetop-bg");
+		for (const name of ["--st-on-dark-rule", "--st-btn-primary-border"]) {
+			expect(contrastRatio(S.get(name), panel), `${name} is ${ratioText(S.get(name), panel)}`).toBeGreaterThanOrEqual(3);
+		}
+		expect(contrastRatio(S.get("--st-btn-primary-text"), S.get("--st-btn-primary-bg"))).toBeGreaterThanOrEqual(7);
+		expect(lum(S.get("--st-btn-primary-bg"))).toBeLessThan(lum(S.get("--st-page")));
+	});
+
+	it("keeps every lifted hue readable on its page and its raised well", () => {
+		for (const [name, value] of D) {
+			if (!/^--st-on-dark-(danger|caution|ok|umber|attack-)/.test(name)) continue;
+			for (const g of [S.get("--stonetop-bg"), S.get("--st-on-dark-raised")]) {
+				expect(contrastRatio(value, g), `${name} is ${ratioText(value, g)} on ${g}`).toBeGreaterThanOrEqual(4.5);
+			}
+		}
+	});
+
+	// In "slate-high" both this block and dark + high contrast match at (0,3,0), and slate comes
+	// later, so anything they both set must be restated at (0,4,0) or slate's 4.5:1 value wins.
+	it("restates in slate + high contrast every token slate and dark + high contrast both set", () => {
+		const missing = [...S.keys()].filter(name => DH.has(name) && !SH.has(name));
+		expect(missing, `left at plain slate's values in slate-high: ${missing.join(", ")}`).toEqual([]);
+	});
+
+	it("gives slate + high contrast 7:1 on every ground, short of white on black", () => {
+		const grounds = ground(SH, DH);
+		for (const name of RAMP) {
+			const ink = SH.get(name);
+			for (const g of grounds) {
+				expect(contrastRatio(ink, g), `${name} (${ink}) is ${ratioText(ink, g)} on ${g}`).toBeGreaterThanOrEqual(7);
+			}
+			expect(lum(ink), `${name} is effectively white`).toBeLessThan(0.9);
+		}
+		expect(lum(SH.get("--st-page")), "the page is effectively black").toBeGreaterThan(0.004);
+		expect(contrastRatio(SH.get("--st-on-dark-rule"), SH.get("--stonetop-bg"))).toBeGreaterThanOrEqual(3);
+	});
+
+	// The dead keep their neutral black; on slate that is still a step BELOW the page.
+	it("keeps a dead character's page below the slate page", () => {
+		const dead = customProperties(RULES.find(([sel]) => /stonetop-past-death/.test(sel))?.[1]);
+		expect(lum(dead.get("--st-page"))).toBeLessThan(lum(S.get("--st-page")));
+		expect(lum(dead.get("--st-page"))).toBeLessThan(lum(SH.get("--st-page")) + 0.001);
+	});
+});
+
+/** Dark + high contrast's grounds: the page, the panel and the grain at both extremes. */
+function grounds7() {
+	const tint = DH.get("--st-paper-tint");
+	return [DH.get("--st-page"), DH.get("--stonetop-bg"), ...Object.values(GRAIN).map(g => painted(tint, g))];
+}
+
 describe("the setting", () => {
 	let saved;
 	beforeEach(() => { saved = globalThis.document; globalThis.document = { documentElement: fakeEl() }; });
 	afterEach(() => { globalThis.document = saved; });
 	const classes = () => globalThis.document.documentElement.classes;
 
-	it("turns the two axes on independently for all four palettes, and neither for anything else", () => {
+	it("turns the three axes on independently for every palette, and none for anything else", () => {
 		const expected = {
-			normal: [false, false], high: [true, false], dark: [false, true], "dark-high": [true, true],
-			"": [false, false], DARK: [false, false], "dark high": [false, false],
+			normal: [false, false, false], high: [true, false, false], dark: [false, true, false], "dark-high": [true, true, false],
+			slate: [false, true, true], "slate-high": [true, true, true],
+			"": [false, false, false], DARK: [false, false, false], "dark high": [false, false, false], SLATE: [false, false, false],
 		};
-		for (const [value, [hc, dark]] of Object.entries(expected)) {
+		for (const [value, [hc, dark, slate]] of Object.entries(expected)) {
 			applySheetContrast(value);
 			expect(classes().includes("stonetop-high-contrast"), `${value}: high contrast`).toBe(hc);
 			expect(classes().includes("stonetop-dark"), `${value}: dark`).toBe(dark);
+			expect(classes().includes("stonetop-slate"), `${value}: slate`).toBe(slate);
 		}
 		for (const junk of [undefined, null, 0]) {
 			applySheetContrast(junk);
@@ -410,18 +627,84 @@ describe("the setting", () => {
 		}
 	});
 
+	describe("following Foundry", () => {
+		let savedGame, savedMatch;
+		const foundry = (applications, osDark = false) => {
+			globalThis.game = { settings: { get: (scope, key) => {
+				if (scope === "core" && key === "uiConfig") return { colorScheme: { applications, interface: "" } };
+				return scope === "stonetop-pwd" ? globalThis.__contrast : undefined;
+			} } };
+			globalThis.matchMedia = query => ({ matches: osDark && /dark/.test(query), addEventListener() {} });
+		};
+		beforeEach(() => { savedGame = globalThis.game; savedMatch = globalThis.matchMedia; });
+		afterEach(() => { globalThis.game = savedGame; globalThis.matchMedia = savedMatch; delete globalThis.__contrast; });
+		const on = () => ({ hc: classes().includes("stonetop-high-contrast"), dark: classes().includes("stonetop-dark"),
+			slate: classes().includes("stonetop-slate") });
+
+		it("is Lamplit when Foundry's applications are dark and paper when they are light", () => {
+			foundry("dark");
+			applySheetContrast("auto");
+			expect(on()).toEqual({ hc: false, dark: true, slate: false });
+			applySheetContrast("auto-high");
+			expect(on()).toEqual({ hc: true, dark: true, slate: false });
+			foundry("light");
+			applySheetContrast("auto");
+			expect(on()).toEqual({ hc: false, dark: false, slate: false });
+			applySheetContrast("auto-high");
+			expect(on()).toEqual({ hc: true, dark: false, slate: false });
+		});
+
+		// Core's blank "browser default" follows the OS, and so does this.
+		it("follows the OS when Foundry is left at its browser default", () => {
+			foundry("", true);
+			applySheetContrast("auto");
+			expect(on().dark).toBe(true);
+			foundry("", false);
+			applySheetContrast("auto");
+			expect(on().dark).toBe(false);
+		});
+
+		it("reads as paper before there is a game to ask", () => {
+			globalThis.game = undefined;
+			globalThis.matchMedia = undefined;
+			applySheetContrast("auto");
+			expect(on()).toEqual({ hc: false, dark: false, slate: false });
+		});
+
+		it("repaints when Foundry's theme changes, and only for a reader on auto", () => {
+			const handlers = [];
+			const hooks = { on: (name, fn) => handlers.push([name, fn]) };
+			foundry("light");
+			globalThis.__contrast = "auto";
+			applySheetContrast("auto");
+			watchFoundryTheme(hooks);
+			const fire = key => handlers.filter(([n]) => n === "clientSettingChanged").forEach(([, fn]) => fn(key));
+			foundry("dark");
+			fire("core.somethingElse");
+			expect(on().dark, "an unrelated setting repainted the sheet").toBe(false);
+			fire("core.uiConfig");
+			expect(on().dark).toBe(true);
+			// A reader who chose a palette keeps it, whatever Foundry does.
+			globalThis.__contrast = "slate";
+			applySheetContrast("slate");
+			foundry("light");
+			fire("core.uiConfig");
+			expect(on()).toEqual({ hc: false, dark: true, slate: true });
+		});
+	});
+
 	it("has a label for every palette, offered or not", () => {
 		const en = JSON.parse(readRepo("languages/en.json"));
 		const labels = en.stonetop?.settings?.sheetContrast ?? {};
 		// The value is "dark-high"; its label key is camelCase, like every other key in en.json.
-		for (const key of ["normal", "high", "dark", "darkHigh"]) expect(labels[key], key).toBeTruthy();
+		for (const key of ["normal", "high", "dark", "darkHigh", "slate", "slateHigh", "auto", "autoHigh"]) expect(labels[key], key).toBeTruthy();
 	});
 
 	// Offered since the sheet, the chat cards and the dialogs were migrated. The setting's label is
 	// "Dark Mode & Contrast" (key still `sheetContrast`), so a search for "dark" finds it.
-	it("offers all four palettes on the setting", () => {
+	it("offers every palette on the setting", () => {
 		const src = readRepo("module/settings.js");
 		const choices = src.match(/register\(SYSTEM_ID, "sheetContrast"[\s\S]*?choices: \{([^}]*)\}/)?.[1] ?? "";
-		for (const value of ["normal", "high", "dark", "dark-high"]) expect(choices, value).toContain(`"${value}":`);
+		for (const value of ["normal", "high", "dark", "dark-high", "slate", "slate-high", "auto", "auto-high"]) expect(choices, value).toContain(`"${value}":`);
 	});
 });

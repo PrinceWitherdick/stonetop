@@ -951,11 +951,15 @@
       },
       "sheetContrast": {
         "name": "Dark Mode & Contrast",
-        "hint": "The colours of Stonetop sheets, dialogs and chat cards. Dark (Lamplit) is the dark mode: light ink on a warm, dark page, easier on the eyes at night and for readers bothered by glare. High Contrast repaints them on plain white paper and darkens every grey and coloured text on them well past the readability guideline; Dark, High Contrast does the same for the dark page. None of these touch the paper grain, so set that below to taste. Pair any of them with a larger font size above.",
+        "hint": "The colours of Stonetop sheets, dialogs and chat cards. Dark (Lamplit) is the dark mode: light ink on a warm, dark page, easier on the eyes at night and for readers bothered by glare. Dark (Slate) is the same in a cool blue-grey. Follow Foundry uses Lamplit whenever Foundry's own theme is dark, and parchment when it is light. High Contrast repaints them on plain white paper and darkens every grey and coloured text on them well past the readability guideline; Dark, High Contrast does the same for the dark page. None of these touch the paper grain, so set that below to taste. Pair any of them with a larger font size above.",
         "normal": "Normal (Parchment)",
         "high": "High Contrast",
         "dark": "Dark (Lamplit)",
-        "darkHigh": "Dark, High Contrast"
+        "darkHigh": "Dark, High Contrast",
+        "slate": "Dark (Slate)",
+        "slateHigh": "Dark (Slate), High Contrast",
+        "auto": "Follow Foundry",
+        "autoHigh": "Follow Foundry, High Contrast"
       },
       "sheetTexture": {
         "name": "Paper Texture",
