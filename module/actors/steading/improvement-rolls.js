@@ -8,9 +8,18 @@
  * only the table knows ("when you take advantage of the stone wall", "when you specifically
  * involve the watch"), so the window asks, and asks only once the improvement is built.
  *
- * Pure: the sheet hands in `has(slug)` and the militia's trained tactics, so every rule here can be
- * tested as a rule.
+ * Pure: the sheet hands in the steading's RULES LIST (improvement-rules.js, the improvements in
+ * force with their grants) and the militia's trained tactics, so every rule here can be tested as
+ * a rule.
+ *
+ * Advantage is a GRANT now, not a slug: `rollAdvantage: {moves, ask?}` on the improvement (the
+ * Township's three moves always; the Palisade's and the Stone Wall's Deploy when "you take
+ * advantage of" the wall; Book II's Barrier Pass and Aetherium Crucible on Trade & Barter for named
+ * goods). Always-on when it has no `ask`; asked, as an unticked box carrying the `ask` text, when it
+ * does. What stays keyed by slug here is what no grant can say: the militia's tactic, the watch's
+ * +1 Defenses, the herd's half-cost and its Requisition count.
  */
+import { rulesHas } from "./improvement-rules.js";
 
 /** The steading moves these rules name, by the label their roll card carries. */
 export const STEADING_MOVE = Object.freeze({
@@ -26,8 +35,57 @@ export const STEADING_MOVE = Object.freeze({
 /** "Disadvantage to Deploy, Muster, or Pull Together" (the Diminished debility). */
 export const DIMINISHED_MOVES = new Set([STEADING_MOVE.DEPLOY, STEADING_MOVE.MUSTER, STEADING_MOVE.PULL_TOGETHER]);
 
-/** Township: "When you Muster, Pull Together, or Trade & Barter, you have advantage." */
-const TOWNSHIP_MOVES = new Set([STEADING_MOVE.MUSTER, STEADING_MOVE.PULL_TOGETHER, STEADING_MOVE.TRADE_BARTER]);
+/**
+ * The three moves Size names (Book I p. 509): a hamlet does them "with disadvantage", a town or a
+ * city "with advantage". The Township's own grant names the same three ("When you Muster, Pull
+ * Together, or Trade & Barter, you have advantage").
+ */
+const SIZE_MOVES = new Set([STEADING_MOVE.MUSTER, STEADING_MOVE.PULL_TOGETHER, STEADING_MOVE.TRADE_BARTER]);
+
+/** The window's question name for an improvement's asked advantage. */
+export function advantageQuestionName(slug) {
+	return `advantage-${slug}`;
+}
+
+/**
+ * The asked advantages a window's form answered, by question name: every `advantage-*` checkbox
+ * under `root`, ticked or not. For the windows that draw their own controls (the Requisition
+ * windows) rather than improvementQuestionHtml's.
+ */
+export function askedAdvantageAnswers(root) {
+	const out = {};
+	for (const box of root?.querySelectorAll?.('input[name^="advantage-"]') ?? []) out[box.name] = !!box.checked;
+	return out;
+}
+
+/**
+ * How many horses a window's form says come from the herd: its `herdCount` field under `root`,
+ * as a whole number, or 0 when the window does not ask. For the same Requisition windows.
+ */
+export function herdCountAnswer(root) {
+	return Math.max(0, Math.trunc(Number(root?.querySelector?.('[name="herdCount"]')?.value) || 0));
+}
+
+/** The improvements in force whose `rollAdvantage` names this move: `asked` with an `ask`, else always-on. */
+function advantagesFor(rules, moveName, { asked }) {
+	return (rules ?? []).filter(r => {
+		const adv = r.grants?.rollAdvantage;
+		return adv?.moves?.includes(moveName) && !!adv.ask === asked;
+	});
+}
+
+/**
+ * Herd of Horses: "When you Requisition half the herd or less, treat a 6- as a 7-9." Read off the
+ * NUMBER of horses being taken, which the Requisition windows ask for, against the whole herd.
+ * Nothing taken from the herd is not a herd requisition at all.
+ * @param {number|string} count  horses requisitioned from the herd
+ * @param {number} total         the herd's size, every tier
+ */
+export function herdShareMet(count, total) {
+	const n = Math.trunc(Number(count) || 0);
+	const herd = Math.trunc(Number(total) || 0);
+	return n > 0 && herd > 0 && n * 2 <= herd;
+}
 
 /**
  * The Marshal's Logistics: "When you have a steading Muster or Pull Together, or when you
@@ -60,29 +118,27 @@ function pathfinderLabel(holders) {
 	return `${PATHFINDER} (${who}): ${holders.length > 1 ? "one of them leads" : "they lead"} the people beyond sight of home, advantage`;
 }
 
-/** The wall a Deploy can take advantage of: the Stone Wall erases the Palisade when it is built. */
-function wallOf(has) {
-	if (has("stoneWall")) return "Stone Wall";
-	if (has("palisade")) return "Palisade";
-	return null;
-}
-
 /**
  * The questions a move's window asks because of what the steading has built, plus Deploy's own
  * "position of strength", which the move itself asks and Well-Trained Militia feeds.
  *
+ * Only one wall is ever asked about: the Stone Wall erases the Palisade, and an erased improvement
+ * is not in force (improvement-rules.js), so its question goes with it.
+ *
  * @param {string} moveName  STEADING_MOVE
  * @param {string} statKey   the stat the move rolls
  * @param {object} o
- * @param {(slug: string) => boolean} o.has  is this improvement built?
+ * @param {Array} o.rules  the improvements in force (improvement-rules.js#improvementRulesFrom)
  * @param {Array<{index: number, label: string}>} [o.tactics]  the militia's trained tactics
  * @param {string[]} [o.logistics]  the names of the characters with Logistics learned; any at all
  *   asks the Logistics line, ticked (`checked`), since the Marshal is usually the one behind it
  * @param {string[]} [o.pathfinder]  the names of the characters with Pathfinder learned; any at all
  *   asks the Pathfinder line, unticked, since beyond sight of home is the table's call
+ * @param {{grown: number, total: number}} [o.herd]  the tracked herd, for Requisition's count
  * @returns {Array<{name: string, type: "checkbox"|"select", label: string, checked?: boolean, options?: Array<{value: string, label: string}>}>}
  */
-export function improvementQuestions(moveName, statKey, { has = () => false, tactics = [], logistics = [], pathfinder = [] } = {}) {
+export function improvementQuestions(moveName, statKey, { rules = [], tactics = [], logistics = [], pathfinder = [], herd = null } = {}) {
+	const has = rulesHas(rules);
 	const asks = [];
 	if (moveName === STEADING_MOVE.DEPLOY) {
 		asks.push({
@@ -96,8 +152,10 @@ export function improvementQuestions(moveName, statKey, { has = () => false, tac
 				options: [{ value: "", label: "No" }, ...tactics.map(t => ({ value: String(t.index), label: t.label }))],
 			});
 		}
-		const wall = wallOf(has);
-		if (wall) asks.push({ name: "wall", type: "checkbox", label: `Taking advantage of the ${wall.toLowerCase()}: advantage` });
+	}
+	// Asked advantages, unticked: the table says whether the fiction reached for it this time.
+	for (const rule of advantagesFor(rules, moveName, { asked: true })) {
+		asks.push({ name: advantageQuestionName(rule.slug), type: "checkbox", label: `${rule.grants.rollAdvantage.ask}: advantage` });
 	}
 	if (statKey === "defenses" && has("standingWatch")) {
 		asks.push({ name: "watch", type: "checkbox", label: "The standing watch is involved: treat Defenses as 1 higher" });
@@ -106,7 +164,13 @@ export function improvementQuestions(moveName, statKey, { has = () => false, tac
 		asks.push({ name: "herd", type: "checkbox", label: "Leveraging the herd of horses: it takes half as long and costs half as much" });
 	}
 	if (moveName === STEADING_MOVE.REQUISITION && has("herdOfHorses")) {
-		asks.push({ name: "herdShare", type: "checkbox", label: "Requisitioning half the herd of horses or less: a 6- counts as a 7-9" });
+		// A NUMBER, not a tick: "half the herd or less" is arithmetic the window can do, and the
+		// same count is how many horses the take then removes from the herd. 0 = not the herd.
+		asks.push({
+			name: "herdCount", type: "number", min: 0, value: 0,
+			...(Number.isFinite(herd?.grown) ? { max: herd.grown } : {}),
+			label: `Horses from the herd (0 if none)${Number.isFinite(herd?.total) ? `, of ${herd.total}` : ""}: half the herd or less turns a 6- into a 7-9`,
+		});
 	}
 	if (LOGISTICS_MOVES.has(moveName) && logistics.length) {
 		asks.push({ name: "logistics", type: "checkbox", checked: true, label: logisticsLabel(moveName, logistics) });
@@ -127,20 +191,23 @@ export function improvementQuestions(moveName, statKey, { has = () => false, tac
  * @param {object} o
  * @param {string} o.moveName
  * @param {string} o.statKey
- * @param {(slug: string) => boolean} o.has
+ * @param {Array}   o.rules         the improvements in force (improvement-rules.js#improvementRulesFrom)
  * @param {object}  [o.answers]     the window's answers, by question name
  * @param {Array<{index: number, label: string}>} [o.tactics]
  * @param {boolean} [o.diminished]  the steading has Diminished marked
  * @param {boolean} [o.winter]      Trade & Barter's "In winter, you have disadvantage"
  * @param {string}  [o.held]        what bought a held advantage on this roll (Rites of the Land)
  * @param {boolean} [o.torsBlessing] Tor's blessing holds this season: "+1 to Pull Together"
+ * @param {string}  [o.size]        the steading's Size: hamlet, village, town or city
+ * @param {number}  [o.herdTotal]   the Herd of Horses' size, for `answers.herdCount`
  * @returns {{adv: string[], dis: string[], statBonus: number, bonus: number, notes: string[], strength: boolean, missAsPartial: string}}
  *   `bonus` is a plus to the ROLL, where `statBonus` treats the stat itself as higher.
  */
 export function rollAdjustments({
-	moveName, statKey, has = () => false, answers = {}, tactics = [], diminished = false, winter = false, held = "",
-	torsBlessing = false,
+	moveName, statKey, rules = [], answers = {}, tactics = [], diminished = false, winter = false, held = "",
+	torsBlessing = false, size = "", herdTotal = 0,
 }) {
+	const has = rulesHas(rules);
 	const adv = [];
 	const dis = [];
 	const notes = [];
@@ -151,11 +218,22 @@ export function rollAdjustments({
 		bonus += 1;
 		notes.push("Tor's blessing: +1");
 	}
-	if (TOWNSHIP_MOVES.has(moveName) && has("township")) adv.push("Township");
+	// Always-on advantage from an improvement in force (the Township's three moves), named by it.
+	const always = advantagesFor(rules, moveName, { asked: false });
+	for (const rule of always) adv.push(rule.label);
+	// One advantage source for a big steading, so the card names it once: an improvement that
+	// already gives it (the Township, which is what made the steading a town), the Size otherwise.
+	// A hamlet's disadvantage is the Size's alone, and nets against an advantage like any other pair.
+	if (SIZE_MOVES.has(moveName)) {
+		if (!always.length && size === "town") adv.push("A town");
+		else if (!always.length && size === "city") adv.push("A city");
+		if (size === "hamlet") dis.push("A hamlet");
+	}
 	if (LOGISTICS_MOVES.has(moveName) && answers.logistics) adv.push(LOGISTICS);
 	if (PATHFINDER_MOVES.has(moveName) && answers.pathfinder) adv.push(PATHFINDER);
-	const wall = wallOf(has);
-	if (moveName === STEADING_MOVE.DEPLOY && wall && answers.wall) adv.push(wall);
+	for (const rule of advantagesFor(rules, moveName, { asked: true })) {
+		if (answers[advantageQuestionName(rule.slug)]) adv.push(rule.label);
+	}
 	if (held) adv.push(held);
 	if (diminished && DIMINISHED_MOVES.has(moveName)) dis.push("Diminished");
 	if (winter && moveName === STEADING_MOVE.TRADE_BARTER) dis.push("Winter");
@@ -170,7 +248,13 @@ export function rollAdjustments({
 	if (moveName === STEADING_MOVE.PULL_TOGETHER && has("herdOfHorses") && answers.herd) {
 		notes.push("Herd of Horses: half the time, half the cost");
 	}
-	const missAsPartial = moveName === STEADING_MOVE.REQUISITION && has("herdOfHorses") && answers.herdShare
+	// The count when the window asked for one (herdShareMet); a bare tick from a caller that
+	// settled it already.
+	const herdCount = Number(answers.herdCount);
+	const herdShare = Number.isFinite(herdCount) && answers.herdCount !== "" && answers.herdCount != null
+		? herdShareMet(herdCount, herdTotal)
+		: !!answers.herdShare;
+	const missAsPartial = moveName === STEADING_MOVE.REQUISITION && has("herdOfHorses") && herdShare
 		? "Half the herd or less: a 6- counts as a 7-9"
 		: "";
 	return { adv, dis, statBonus, bonus, notes, strength, missAsPartial };

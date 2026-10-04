@@ -160,25 +160,35 @@ describe("Tor's blessing", () => {
 
 describe("Weapons of War upkeep", () => {
 	// "Each SPRING, the village must expend 1 Surplus to maintain and replace the town's
-	// weapons." Spring only, and the book names no penalty for skipping it.
-	it("appears in spring only, and only once the weapons exist", () => {
-		const at = SHEET.indexOf("const weaponsBlock =");
+	// weapons." And Book I p. 514: "If the PCs fail to pay that cost, they lose the improvement."
+	it("appears in spring only, once the weapons exist, offering to pay or to lose them", () => {
+		// Its `upkeep` grant: spring only, 1 Surplus. The window's block is the shared upkeep shape.
+		expect(STEADING).toContain(`weaponsOfWar:      { stats: { defenses: 1 }, fortifications: ["Weapons of War"], upkeep: { seasons: ["spring"], surplus: 1 } },`);
+		const at = SHEET.indexOf("const upkeepHtml = due =>");
 		expect(at).toBeGreaterThan(-1);
-		const block = SHEET.slice(at, at + 900);
-		expect(block).toContain(`seasonId === "spring"`);
-		expect(block).toContain(`this._hasImprovement("weaponsOfWar")`);
-		expect(block).toContain(`data-action="pay-weapons"`);
-		// No disband twin: what a neglected ballista costs is the GM's call.
-		expect(block).not.toContain("disband");
+		const block = SHEET.slice(at, at + 1400);
+		expect(block).toContain(`data-action="pay-upkeep"`);
+		// The watch's shape: the second answer names its outcome, and is there with no Surplus.
+		expect(block).toContain(`data-action="lose-upkeep"`);
+		const copy = SHEET.slice(SHEET.indexOf(`if (due.slug === "weaponsOfWar")`), SHEET.indexOf(`if (due.slug === "weaponsOfWar")`) + 900);
+		expect(copy).toContain("Don't pay: lose Weapons of War");
+		expect(copy).not.toContain("the GM's call");
 	});
 
-	it("settles its own once-per-season step", () => {
-		const at = SHEET.indexOf(`_wireSurplusUpkeep(root.querySelector("[data-action='pay-weapons']")`);
+	it("settles its own once-per-season step either way, losing the improvement in one write", () => {
+		const at = SHEET.indexOf("for (const due of upkeeps)");
 		expect(at).toBeGreaterThan(-1);
-		const block = SHEET.slice(at, at + 400);
+		const block = SHEET.slice(at, at + 3400);
 		// Spent and settled in the one shared write; the live Surplus re-read and the
-		// spendSurplus call live in _wireSurplusUpkeep, which all three dues go through.
-		expect(block).toContain("step: WEAPONS_SEASON_STEP, year, seasonId");
-		expect(SHEET).toContain("spendSurplus(1, { ...seasonsMove, step, year, seasonId })");
+		// spendSurplus call live in _wireSurplusUpkeep, which every due goes through.
+		expect(block).toContain("_wireSurplusUpkeep(payBtn");
+		expect(block).toContain("step: due.key, year, seasonId");
+		expect(SHEET).toContain("spendSurplus(amount, { ...seasonsMove, step, year, seasonId })");
+		// Not paying loses it, with the season's marker in that same write.
+		expect(block).toContain("loseImprovement(due.slug, {");
+		expect(block).toContain("seasonStep: { step: due.key, year, seasonId }");
+		expect(block).toContain("_disableIfSeasonStepDone(loseBtn, due.key");
+		// The weapons keep the step key they were always stamped under.
+		expect(read("module/actors/steading/improvement-rules.js")).toContain(`weaponsOfWar: "weaponsUpkeep"`);
 	});
 });

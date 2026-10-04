@@ -9078,6 +9078,11 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-size: var(--st-fs-base);
 	color: var(--st-text-body);
 }
+/* Its number box: a few digits wide, never stretched by the row (core sizes number inputs 100%). */
+.stonetop-requisition-herd-count {
+	width: 4em;
+	flex: 0 0 auto;
+}
 /* Slate primary buttons, matching the custom Application modals. (RequisitionDialog
    is a `.stonetop` Application, not a `.dialog`, so it styles its own buttons rather
    than picking up the shared `.stonetop.dialog .dialog-buttons` rule.) */
@@ -9363,6 +9368,56 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	font-style: italic;
 	color: var(--color-text-dark-secondary);
 }
+/* Placeholders that read as empty rather than as typed. Core paints them close to typed ink, so
+   the grant boxes' hint looked like an entered value and a group's written-for-you heading like
+   a heading somebody had written. Muted and italic, the house treatment for a hint in a field
+   (see .stonetop-damage-extra-dice::placeholder); --st-text-muted is set in every palette, dark
+   and high contrast included. (0,2,2): over core's, and under the `.vtt .stonetop … :focus`
+   rule (0,3,2) that clears a placeholder once the field has the keyboard. */
+.stonetop-improvement-builder .stonetop-improvement-builder-form :is(input, textarea)::placeholder {
+	color: var(--st-text-muted, #777);
+	font-style: italic;
+	font-weight: normal;
+	opacity: 1; /* Firefox dims placeholders by default, which would double the fade. */
+}
+
+/* A keyboard ring on every control. Several are bare glyph buttons (no fill, no border), which
+   without one show nothing at all when tabbed to. Bone ink in the dark palettes, slate on paper. */
+.stonetop-improvement-builder :is(button, select, input, textarea):focus-visible {
+	outline: 2px solid var(--st-on-dark-ink, var(--st-btn-primary-border, #4f5b66));
+	outline-offset: 1px;
+}
+
+/* The name field's own complaint (empty, or already taken), said beside it rather than only in
+   a notice that fades. Filled by ImprovementBuilderDialog._checkName. */
+.stonetop-improvement-builder-error {
+	margin: 2px 0 0;
+	font-size: var(--st-fs-sm);
+	font-weight: bold;
+	color: var(--st-danger-ink, #a02020);
+}
+.stonetop-improvement-builder-error[hidden],
+.stonetop-improvement-builder-preview-notes[hidden] { display: none; }
+.stonetop-improvement-builder-form input[aria-invalid="true"] {
+	border-color: var(--st-danger-ink, #a02020);
+}
+
+/* The Preview panel's soft warnings (no requirements, blank rows left out): a note, not an
+   error, since Save still goes ahead. */
+.stonetop-improvement-builder-preview-notes {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 4px 8px;
+	border-left: 3px solid var(--st-on-dark-caution, #a8741a);
+	background: rgb(var(--st-ink-rgb) / 0.04);
+}
+.stonetop-improvement-builder-preview-note {
+	margin: 0;
+	font-size: var(--st-fs-sm);
+	color: var(--st-text-body);
+}
+
 .stonetop-improvement-builder-row { display: flex; gap: 8px; align-items: flex-end; }
 .stonetop-improvement-builder-row .stonetop-improvement-builder-field { flex: 1 1 0; }
 .stonetop-improvement-builder-field--num { flex: 0 0 6em; }
@@ -9445,13 +9500,17 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	align-items: center;
 	gap: 6px;
 }
+/* A picture of the box, not a box: dashed, unfilled and faint, so it does not invite a click
+   (it reads as the card's checkbox-to-be, and nothing here can be ticked). aria-hidden in the
+   template for the same reason. */
 .stonetop-improvement-builder-req-box {
 	flex: 0 0 auto;
 	width: 12px;
 	height: 12px;
-	border: 1px solid rgba(0, 0, 0, 0.35);
+	border: 1px dashed rgb(var(--st-ink-rgb) / 0.3);
 	border-radius: 2px;
-	background: rgba(255, 255, 255, 0.4);
+	background: none;
+	pointer-events: none;
 }
 /* Both of these have to out-specify the panel's blanket `width: 100%` on form inputs,
    which is (0,2,1); they match it and sit later, the same way the group's own inline
@@ -9520,20 +9579,38 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	flex-direction: column;
 	gap: 8px;
 	padding-top: 8px;
-	border-top: 1px solid rgba(0, 0, 0, 0.15);
+	border-top: 1px solid rgb(var(--st-ink-rgb) / 0.15);
 }
 .stonetop-improvement-builder-grants-title {
 	margin: 0;
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-base);
 }
+/* The "Henceforth" rules: one fieldset per rule, its legend naming it. */
+.stonetop-improvement-builder-rules { margin-top: 12px; }
+.stonetop-improvement-builder-fieldset {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 6px 8px 8px;
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.15);
+	border-radius: var(--st-radius-sm, 4px);
+}
+.stonetop-improvement-builder-fieldset > legend {
+	padding: 0 4px;
+	font-size: var(--st-fs-sm, 0.9em);
+	font-weight: 600;
+}
+.stonetop-improvement-builder-checks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.stonetop-improvement-builder-check { display: inline-flex; align-items: center; gap: 4px; }
 
 /* The Preview panel. The card inside it carries the Improvements tab's own class names
    and is painted by that tab's own (unscoped) rules, so what is previewed is what will
    be drawn; only the frame around it and the inertness belong to this window. */
 .stonetop-improvement-builder-preview {
 	padding: 10px;
-	border: 1px dashed rgba(0, 0, 0, 0.22);
+	border: 1px dashed rgb(var(--st-ink-rgb) / 0.22);
 	border-radius: var(--st-radius-sm, 4px);
 	background: rgba(0, 0, 0, 0.02);
 }
@@ -21064,20 +21141,30 @@ a.steading-player-open:hover {
 .stonetop-readonly .steading-improvement-complete-label,
 .stonetop-readonly .steading-req-item label,
 .stonetop-readonly input[type="checkbox"].steading-improvement-complete,
-.stonetop-readonly input[type="checkbox"].steading-improvement-req {
+.stonetop-readonly input[type="checkbox"].steading-improvement-req,
+/* A built improvement's condition box is the same kind of play (its template disables it on
+   canEdit alone), and the card's open/close toggle and the Inn's name button write nothing
+   structural either. */
+.stonetop-readonly .steading-improvement-condition-label,
+.stonetop-readonly input[type="checkbox"].steading-improvement-condition,
+.stonetop-readonly .steading-improvement-toggle,
+.stonetop-readonly .steading-inn-name-btn {
 	pointer-events: auto;
 	opacity: 1;
 }
 
+/* `align-items: start` so a closed card keeps its own height rather than stretching to an open
+   neighbour's, which drew a tall empty box that read as an open card with nothing in it. */
 .steading-improvements-grid {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 10px;
+	align-items: start;
 }
 
 .steading-improvement {
 	background: rgba(0,0,0,0.04);
-	border: 1px solid rgba(0,0,0,0.14);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.14);
 	border-radius: var(--st-radius-lg);
 	padding: 8px 10px;
 	display: flex;
@@ -21106,11 +21193,18 @@ a.steading-player-open:hover {
 	user-select: none;
 }
 
+/* At least 24px square, so the box is a target a magnified pointer can land on, with the
+   negative margins giving the extra back so the 15px box sits where it always did. Relative for
+   the lock glyph a locked box carries over it. */
 .steading-improvement-complete-label {
+	position: relative;
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
-	padding-top: 1px;
+	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
+	margin: -4px -4px -4px -4px;
 	cursor: pointer;
 }
 
@@ -21131,20 +21225,48 @@ a.steading-player-open:hover {
 	border-color: #4a8c4a;
 }
 
-/* Not yet earned — requirements aren't all checked off. The checkbox stays tappable:
-   clicking it offers to mark every requirement complete and earn the improvement now
-   (see _onImprovementComplete). The dimmed look just signals it isn't earned yet. The
-   SVG skin (border/background) is locked in with !important by the shared checkbox
-   master block, so dimming is the lever we have; the read-only rule above keeps these
-   live for gameplay (opacity:1), so the locked style is scoped to win there too. */
-.steading-improvement-complete-label.is-locked .steading-improvement-complete,
-.stonetop-readonly .steading-improvement-complete-label.is-locked .steading-improvement-complete {
-	opacity: 0.5;
+/* Not yet earned: requirements aren't all checked off. The checkbox stays tappable (clicking
+   it offers to mark every requirement complete and earn the improvement now, see
+   _onImprovementComplete). It used to say "locked" by halving its opacity, which halved its
+   contrast too and said nothing to anyone who could not compare it with a neighbour; it now
+   carries a lock glyph inside the empty box at full ink, and the header's status line says
+   how far along it is in words. pointer-events none so a click lands on the box beneath. */
+.steading-improvement-lock {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	margin: 0;
+	font-size: calc(7px * var(--stonetop-font-scale, 1));
+	line-height: 1;
+	color: var(--st-text-secondary);
+	pointer-events: none;
 }
 
 .steading-improvement-summary {
 	flex: 1;
 	min-width: 0;
+}
+
+/* Where the improvement stands, in words: "Built", "Ready to mark complete", "2 of 3 ticked". */
+.steading-improvement-status {
+	margin: 2px 0 0 0;
+	font-size: var(--st-fs-xs);
+	line-height: 1.3;
+	color: var(--st-text-secondary);
+}
+.steading-improvement-status > i {
+	margin-right: 2px;
+	font-size: 0.9em;
+}
+/* Modifiers after the base, so they win the tie (see the BEM ordering note). */
+.steading-improvement-status--built {
+	color: var(--st-on-dark-ok, #2f6b2f);
+	font-weight: bold;
+}
+.steading-improvement-status--ready {
+	color: var(--st-text-body);
+	font-weight: bold;
 }
 
 .steading-improvement-title {
@@ -21163,16 +21285,62 @@ a.steading-player-open:hover {
 	margin: 2px 0 0 0;
 }
 
+/* The open/close toggle: a real button (the keyboard's way to open a card), undoing core's
+   block button (`body.game .app button` is width:100%, min-height:2em, filled) down to a 24px
+   square target around the chevron. The chevron points DOWN while the card is shut (there is
+   more below) and turns UP once it is open; muted ink, not faint, so it reads at all. */
+.steading-improvement-toggle {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: auto;
+	min-width: 24px;
+	min-height: 24px;
+	margin: -4px -4px 0 0;
+	padding: 0;
+	border: none;
+	border-radius: var(--st-radius-sm);
+	background: transparent;
+	box-shadow: none;
+	color: var(--st-text-muted);
+	cursor: pointer;
+}
+.steading-improvement-toggle:hover {
+	background: var(--st-warm-hover-bg);
+	color: var(--st-text-body);
+	border: none;
+	box-shadow: none;
+}
+
 .steading-improvement-chevron {
-	flex-shrink: 0;
-	font-size: var(--st-fs-2xs);
-	color: var(--st-text-faint);
-	padding-top: 3px;
+	margin: 0;
+	font-size: var(--st-fs-xs);
 	transition: transform 0.15s ease;
 }
 
 .steading-improvement.is-open .steading-improvement-chevron {
 	transform: rotate(180deg);
+}
+
+/* One focus ring for every control on the tab, the same ring the category chips wear: core
+   strips the outline from buttons and checkboxes, which left a keyboard user with no idea which
+   box or button they were on. The token carries its own dark and high-contrast lifts. */
+.steading-improvement-toggle:focus-visible,
+.steading-improvement-edit:focus-visible,
+.steading-improvement-remove:focus-visible,
+.steading-improvement-move-btn:focus-visible,
+.steading-inn-name-btn:focus-visible,
+.steading-inn-gathering-btn:focus-visible,
+.steading-herd-step:focus-visible,
+.steading-improvements .stonetop-prep-add-btn:focus-visible,
+input[type="checkbox"].steading-improvement-complete:focus-visible,
+input[type="checkbox"].steading-improvement-req:focus-visible,
+input[type="checkbox"].steading-improvement-condition:focus-visible,
+input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
+	outline: 2px solid var(--st-btn-primary-border, #4f5b66);
+	outline-offset: 2px;
+	box-shadow: none;
 }
 
 /* Custom (journal-sourced) improvements — dropped onto the sheet from a journal
@@ -21204,12 +21372,19 @@ a.steading-player-open:hover {
 .steading-improvement-edit,
 .steading-improvement-remove {
 	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	width: auto;
+	/* A 24px target at least (it was 29x20). */
+	min-width: 24px;
+	min-height: 24px;
+	margin: -2px 0 0 0;
 	line-height: 1;
 	padding: 2px 5px;
-	border: 1px solid rgba(0,0,0,0.18);
+	border: 1px solid rgb(var(--st-ink-rgb) / 0.18);
 	border-radius: var(--st-radius-sm);
-	background: rgba(255,255,255,0.5);
+	background: rgb(var(--st-paper-rgb) / 0.5);
 	color: var(--st-text-secondary);
 	cursor: pointer;
 }
@@ -21374,11 +21549,25 @@ a.steading-player-open:hover {
 .steading-improvement-effect {
 	margin-top: 8px;
 	padding-top: 6px;
-	border-top: 1px dashed rgba(0,0,0,0.15);
+	border-top: 1px dashed rgb(var(--st-ink-rgb) / 0.15);
 	font-size: var(--st-fs-xs);
 	color: var(--st-text-body);
 	line-height: 1.45;
 	font-style: italic;
+}
+
+/* A built improvement's condition ("As long as you trade aetherium..."): its stat follows the box. */
+.steading-improvement-condition-label {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	margin-top: 8px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-body);
+	line-height: 1.45;
+}
+.steading-improvement-condition-effect {
+	color: var(--st-text-muted, var(--st-text-body));
 }
 
 /* -- Herd of Horses tracker (on the improvement card) ---------- */
@@ -21386,7 +21575,7 @@ a.steading-player-open:hover {
 .steading-herd {
 	margin-top: 8px;
 	padding-top: 8px;
-	border-top: 1px dashed rgba(0,0,0,0.15);
+	border-top: 1px dashed rgb(var(--st-ink-rgb) / 0.15);
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
@@ -21557,6 +21746,40 @@ a.steading-player-open:hover {
 	opacity: 0.5;
 	cursor: default;
 }
+
+/* The Inn's name, and the button that names (or renames) it after the build-time window's
+   "Not yet". Outlined, not filled: naming is bookkeeping, not the card's act. */
+.steading-inn-name {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px 10px;
+	margin-top: 8px;
+	font-size: var(--st-fs-xs);
+	color: var(--st-text-body);
+}
+.steading-inn-name-text { flex: 1 1 auto; }
+.steading-inn-name-btn {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	width: auto;
+	min-height: 24px;
+	margin: 0;
+	padding: 2px 10px;
+	border: 1px solid var(--st-btn-primary-border, #4f5b66);
+	border-radius: var(--st-radius);
+	background: transparent;
+	box-shadow: none;
+	color: var(--st-text-body);
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xs);
+	cursor: pointer;
+}
+.steading-inn-name-btn > i { margin: 0; }
+.steading-inn-name-btn:hover:not(:disabled) { background: var(--st-warm-hover-bg); color: var(--st-text-body); }
+.steading-inn-name-btn:disabled { cursor: default; }
 
 /* An improvement that is a move (Aurochs Hunting, Heroic Reputation) rolls from its own card: the
    Inn gathering button's look, since it is the same kind of act from the same kind of card. */

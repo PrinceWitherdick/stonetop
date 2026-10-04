@@ -105,6 +105,20 @@ export const HOLD_DEFS = [
 		tooltip: () => "The village owes 1 Surplus this spring to maintain and replace the town's weapons of war.",
 	},
 	{
+		// Any OTHER improvement's upkeep (an `upkeep` grant: a homebrew one, or Book II's logging
+		// camp, "1 Surplus every summer or else it ceases operation"). The watch and the weapons
+		// keep their own rows above. Pay or lose, like theirs (Book I p. 514). The anvil is worn
+		// twice on purpose: it already means "maintenance owed".
+		key: "upkeep",
+		icon: "weapons-upkeep",
+		tone: "due",
+		label: "Improvement Upkeep",
+		tooltip: v => {
+			const owed = (v.items ?? []).map(i => `${i.label} wants ${i.surplus} Surplus`);
+			return `${owed.length ? owed.join("; ") : "An improvement wants its Surplus"} this season, or the steading loses it. Settle it when the Seasons Change.`;
+		},
+	},
+	{
 		key: "militiaTraining",
 		icon: "militia-drill",
 		tone: "due",
@@ -162,6 +176,7 @@ export const HOLD_DEFS = [
  * @param {boolean} [s.innGathering]                     inn built, gathering unspent AND useful
  * @param {boolean} [s.standingWatch]                    watch raised, upkeep unpaid this season
  * @param {boolean} [s.weaponsUpkeep]                    weapons raised, spring upkeep unpaid
+ * @param {{items: Array<{label: string, surplus: number}>}|null} [s.upkeep]  any other improvement's upkeep, unpaid
  * @param {boolean} [s.militiaTraining]                  militia raised, summer drills unpaid
  * @param {{needed: number, surplus: number}|null} [s.herdFeed]  herd unfed this winter
  * @param {{amount: number, surplus: number}|null} [s.winterDebt] winter's second consumption, owed

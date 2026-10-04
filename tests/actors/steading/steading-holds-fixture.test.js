@@ -67,7 +67,9 @@ describe("the test fixture's seeded tray", () => {
 	const at = season => keysFor(seededActor({ season, steadingFlags: fixtureSteadingFlags({ season }) }));
 	// Less the owed disaster: it is left behind by a pick shut unmade at Fortunes −1, a moment
 	// rather than a standing state, so the fixture does not seed one into every test world.
-	const ALL = HOLD_DEFS.map(d => d.key).filter(k => k !== "disasterOwed");
+	// And less the generic upkeep row: it is a HOMEBREW improvement's upkeep, and the fixture seeds
+	// only the book's own (the watch and the weapons keep their own rows).
+	const ALL = HOLD_DEFS.map(d => d.key).filter(k => k !== "disasterOwed" && k !== "upkeep");
 	const without = (...keys) => ALL.filter(k => !keys.includes(k));
 
 	it("lights the six spring allows, weapons included", () => {

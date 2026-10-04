@@ -237,7 +237,7 @@ function neighborEntries(oldValue, newValue) {
  * requirement labels flattened across sections, matching the running index used by
  * the tracking array `r` (see StonetopSteading.buildSnapshot).
  */
-function improvementDefs(actor) {
+function improvementDefs(actor, customOverride = null) {
 	const defs = new Map();
 	const add = def => {
 		if (!def?.slug) return;
@@ -247,9 +247,26 @@ function improvementDefs(actor) {
 		});
 	};
 	IMPROVEMENT_DEFINITIONS.forEach(add);
-	const custom = getActorProperty(actor, CUSTOM_IMPROVEMENTS_PATH);
+	const custom = customOverride ?? getActorProperty(actor, CUSTOM_IMPROVEMENTS_PATH);
 	if (Array.isArray(custom)) custom.forEach(add);
 	return defs;
+}
+
+/** The custom-improvement list this update writes, or null when it writes none. */
+function readWrittenCustomImprovements(flat) {
+	for (const [rawPath, value] of Object.entries(flat)) {
+		if (normalizeFlagPath(rawPath) === CUSTOM_IMPROVEMENTS_PATH && Array.isArray(value)) return value;
+	}
+	return null;
+}
+
+/** Steps ticked, by their TEXT, counted (two boxes can read alike). */
+function tickedByText(steps, r) {
+	const counts = new Map();
+	(steps ?? []).forEach((step, i) => {
+		if (r[i]) counts.set(step, (counts.get(step) ?? 0) + 1);
+	});
+	return counts;
 }
 
 /** An improvement this update deletes outright (the stored map keeps no record of it). */
@@ -283,11 +300,14 @@ function readChangedImprovements(flat) {
 	return result;
 }
 
-function improvementEntries(actor, oldImps, changes) {
+function improvementEntries(actor, oldImps, changes, writtenCustom = null) {
+	// Read in _preUpdate, so the actor still holds the OLD definitions. When this same update
+	// rewrites them (an edit in the builder), the ticks it writes are positions in the NEW list.
 	const defs = improvementDefs(actor);
+	const newDefs = writtenCustom ? improvementDefs(actor, writtenCustom) : defs;
 	const entries = [];
 	for (const slug of Object.keys(changes ?? {})) {
-		const def = defs.get(slug);
+		const def = newDefs.get(slug) ?? defs.get(slug);
 		const label = def?.label ?? prettifySlug(slug);
 		const before = oldImps?.[slug] ?? {};
 		if (changes[slug] === REMOVED_IMPROVEMENT) {
@@ -305,6 +325,25 @@ function improvementEntries(actor, oldImps, changes) {
 
 		const beforeR = Array.isArray(before.r) ? before.r : [];
 		const afterR = Array.isArray(after.r) ? after.r : [];
+
+		// The steps themselves changed in this write (a step inserted, moved or reworded): the old
+		// ticks index the old list and the new ticks the new one, so they are compared by the
+		// step's TEXT. Compared by position, an inserted step slid every tick one place and the
+		// ledger filed a "marked" and an "unmarked" for steps nobody touched.
+		const oldSteps = defs.get(slug)?.steps ?? [];
+		const newSteps = newDefs.get(slug)?.steps ?? [];
+		if (newDefs !== defs && (oldSteps.length !== newSteps.length || oldSteps.some((s, i) => s !== newSteps[i]))) {
+			const was = tickedByText(oldSteps, beforeR);
+			const now = tickedByText(newSteps, afterR);
+			for (const step of new Set([...was.keys(), ...now.keys()])) {
+				const delta = (now.get(step) ?? 0) - (was.get(step) ?? 0);
+				for (let k = 0; k < Math.abs(delta); k++) {
+					entries.push({ action: `Improvement step ${delta > 0 ? "marked" : "unmarked"}: ${label} · ${step}` });
+				}
+			}
+			continue;
+		}
+
 		const max = Math.max(beforeR.length, afterR.length);
 		for (let i = 0; i < max; i++) {
 			if (!!beforeR[i] === !!afterR[i]) continue;
@@ -359,7 +398,7 @@ function actorUpdateEntries(actor, changed) {
 			if (!improvementsHandled) {
 				improvementsHandled = true;
 				const oldImps = getActorProperty(actor, IMPROVEMENTS_PATH) ?? {};
-				entries.push(...improvementEntries(actor, oldImps, readChangedImprovements(flat)));
+				entries.push(...improvementEntries(actor, oldImps, readChangedImprovements(flat), readWrittenCustomImprovements(flat)));
 			}
 			continue;
 		}

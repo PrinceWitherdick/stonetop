@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { RequisitionDialog } from "../../../module/actors/character/dialogs/RequisitionDialog.js";
-import { STEADING_DEFAULTS } from "../../../module/actors/steading/StonetopSteading.js";
+import { STEADING_DEFAULTS, HERD_ASSET_NAME } from "../../../module/actors/steading/StonetopSteading.js";
+import { fakeForm, stubAsk } from "../../fakes/confirm.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -87,8 +88,72 @@ describe("RequisitionDialog", () => {
 		const hbs = fs.readFileSync(path.resolve(HERE, "../../../templates/dialogs/requisition-picker.hbs"), "utf8");
 		expect(hbs).toMatch(/name="logistics" checked>/);
 		const dialog = makeDialog([]);
-		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: true } }))).toEqual({ herdShare: false, logistics: true });
-		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: false } }))).toEqual({ herdShare: false, logistics: false });
+		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: true } }))).toEqual({ herdCount: 0, logistics: true });
+		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: false } }))).toEqual({ herdCount: 0, logistics: false });
+	});
+
+	// Book I p. 157 (Herd of Horses): "When you Requisition half the herd or less, treat a 6- as a
+	// 7-9." Asked as a COUNT, capped at the grown horses, and read back for the roll.
+	it("asks how many horses come from the herd, and reads the count back for the roll", () => {
+		const dialog = makeDialog([]);
+		dialog._steadingActor.flags["stonetop-pwd"].steading = { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 9, yearlings: 3, foals: 0 } };
+		expect(dialog.getData().herdQuestion).toMatchObject({ max: 9 });
+		expect(dialog.getData().herdQuestion.label).toMatch(/of 12/);
+		expect(dialog._rollAnswers(makeRoot({ '[name="herdCount"]': { value: "4" } }))).toEqual({ herdCount: 4, logistics: false });
+		const hbs = fs.readFileSync(path.resolve(HERE, "../../../templates/dialogs/requisition-picker.hbs"), "utf8");
+		expect(hbs).toContain(`name="herdCount"`);
+		expect(hbs).not.toContain(`name="herdShare"`);
+		expect(makeDialog([]).getData().herdQuestion).toBeNull();
+	});
+
+	// The user's ruling: "Ask, take from herd". The herd's row is not lent out whole; so many
+	// horses leave the herd, each a follower, and the row stays on hand.
+	it("takes the asked number of horses out of the herd as followers, leaving the herd's row home", async () => {
+		let n = 0;
+		const info = vi.fn();
+		vi.stubGlobal("foundry", { ...globalThis.foundry, utils: { ...globalThis.foundry.utils, randomID: () => `id${++n}` } });
+		vi.stubGlobal("ui", { notifications: { info, warn: vi.fn() } });
+		try {
+			const dialog = makeDialog([{ name: HERD_ASSET_NAME, checked: true, beast: { slug: "horse", herd: true } }]);
+			const steading = dialog._steadingActor.flags["stonetop-pwd"].steading;
+			Object.assign(steading, { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 10, yearlings: 2, foals: 1 } });
+			dialog._steadingActor.update = vi.fn(async data => {
+				steading.herd = data["flags.stonetop-pwd.steading.herd"];
+			});
+			dialog.render = vi.fn();
+			const asked = stubAsk("take", fakeForm({ horses: { value: "3" } }));
+
+			expect(await dialog._takeFromHerd(makeRoot({ '[name="herdCount"]': { value: "3" } }))).toBe(true);
+
+			// Asked first, defaulting to the count the roll was made for.
+			expect(asked.mock.calls[0][0].content).toContain(`value="3"`);
+			expect(asked.mock.calls[0][0].buttons.map(b => b.label)).toEqual(["Take them from the herd", "Take none"]);
+			expect(steading.herd).toEqual({ grown: 7, yearlings: 2, foals: 1 });
+			expect(dialog._character.addCustomInventoryItem).toHaveBeenCalledWith("3 horses from the herd", 1);
+			const written = Object.values(dialog._characterActor.update.mock.calls[0][0]);
+			expect(written.map(f => f.name)).toEqual(["Horse 1", "Horse 2", "Horse 3"]);
+			expect(written[0].notes).toMatch(/^Requisitioned from the herd of horses\./);
+			// The herd itself is never marked out.
+			expect(dialog._steadingActor.setFlag).not.toHaveBeenCalled();
+			expect(steading.assets[0].takenBy).toBeUndefined();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("defaults to two horses, and takes none when told so", async () => {
+		vi.stubGlobal("ui", { notifications: { info: vi.fn(), warn: vi.fn() } });
+		try {
+			const dialog = makeDialog([]);
+			Object.assign(dialog._steadingActor.flags["stonetop-pwd"].steading, { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 10 } });
+			dialog._steadingActor.update = vi.fn();
+			const asked = stubAsk("none");
+			expect(await dialog._takeFromHerd(makeRoot({}))).toBe(false);
+			expect(asked.mock.calls[0][0].content).toContain(`value="2"`);
+			expect(dialog._steadingActor.update).not.toHaveBeenCalled();
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 
 	// The steading playbook's "A pair of hardy draft horses, followers (large, powerful,

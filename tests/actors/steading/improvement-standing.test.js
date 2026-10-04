@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-	HERD_ASSET_NAME, IMPROVEMENT_COMPLETION_NOTES, IMPROVEMENT_MOVES, STEADING_DEFAULTS, StonetopSteading, standingGrantFor,
+	HERD_ASSET_NAME, IMPROVEMENT_GRANTS, IMPROVEMENT_MOVES, STEADING_DEFAULTS, StonetopSteading, standingGrantFor,
 } from "../../../module/actors/steading/StonetopSteading.js";
 
 /**
@@ -221,9 +221,10 @@ describe("what a built improvement puts in front of the table", () => {
 	});
 
 	it("asks for the map and the herd's size the moment each is built", () => {
+		// The note is the improvement's own `completionNote` grant now, so a homebrew one can carry one.
 		for (const slug of ["additionalHousing", "inn", "mill", "palisade", "stoneWall"]) {
-			expect(IMPROVEMENT_COMPLETION_NOTES[slug], slug).toMatch(/map/);
+			expect(IMPROVEMENT_GRANTS[slug].completionNote, slug).toMatch(/map/);
 		}
-		expect(IMPROVEMENT_COMPLETION_NOTES.herdOfHorses).toMatch(/size/);
+		expect(IMPROVEMENT_GRANTS.herdOfHorses.completionNote).toMatch(/size/);
 	});
 });

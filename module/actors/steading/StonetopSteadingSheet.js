@@ -1,6 +1,6 @@
-import { StonetopSteading, IMPROVEMENT_CATEGORIES, IMPROVEMENT_COMPLETION_NOTES, STEADING_DEFAULTS, improvementRequirementsMet, HERD_SURPLUS_PER, WEAPONS_SEASON_STEP, WATCH_SEASON_STEP, WINTER_DEBT_STEP, SURPLUS_SEASON_STEP, REMINDER_SEASON_STEP } from "./StonetopSteading.js";
+import { StonetopSteading, IMPROVEMENT_CATEGORIES, STEADING_DEFAULTS, improvementRequirementsMet, HERD_SURPLUS_PER, WINTER_DEBT_STEP, SURPLUS_SEASON_STEP, REMINDER_SEASON_STEP, INN_ROLL_SEASON_STEP } from "./StonetopSteading.js";
 import { confirmOutcome } from "../../utils/ask-with-buttons.js";
-import { improvementRequirementCount } from "../../utils/improvement-def.js";
+import { flatRequirementItems, forceCompleteTicks } from "../../utils/improvement-def.js";
 import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml, SEASONAL_GAIN_LIST} from "../../utils/roll-engine.js";
 import {SteadingLedger} from "./SteadingLedger.js";
 import {TIER_KEYS} from "../../utils/move-results.js";
@@ -9,7 +9,7 @@ import {prepareMoveHoverBody} from "../../utils/move-hover.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
-import {escHtml} from "../../utils/strings.js";
+import {escHtml, stripHtmlToText} from "../../utils/strings.js";
 import {CUSTOM_ASSET_VALUE, wireCustomAssetSelect} from "../../utils/requisition-asset.js";
 import {postMoveToChat, rolledTotalCard, stonetopChatCard} from "../../utils/chat.js";
 import {AddSteadingMemberDialog} from "../../dialogs/AddSteadingMemberDialog.js";
@@ -21,6 +21,7 @@ import {openInnGathering} from "./inn-gathering.js";
 import {openWinterDebtDialog, winterConsequencesHtml, sufferWinterShortfall, winterDebtState, winterDebtStepHtml, wireWinterDebtStep} from "./winter-debt.js";
 import {openDisasterPicker, openOwedDisasterPicker, meetWithDisaster, disasterFortunes, debilityPath} from "./steading-debilities.js";
 import {autumnHarvest, winterConsumption, surplusRollFormula, seasonalYields, militiaTactics, builtOnTheFields, MILITIA_SEASON_STEP} from "./season-effects.js";
+import {upkeepsDue, withSurplusBonus, surplusBonusNote} from "./improvement-rules.js";
 import {openPeoplePortraitPicker} from "./PeopleGalleryDialog.js";
 import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
@@ -287,6 +288,66 @@ export function improvementCheckHtml(q) {
 		<input type="checkbox" class="stonetop-check" name="${_esc(q.name)}" value="yes"${q.checked ? " checked" : ""}>
 		<span>${_esc(q.label)}</span>
 	</label>`;
+}
+
+/** The rule the Seasons Change window draws between two blocks sharing a step. */
+const UPKEEP_DIVIDER = `<hr class="stonetop-season-divider">`;
+
+/**
+ * What the Seasons Change window says about one improvement's upkeep (improvement-rules.js#upkeepsDue):
+ * its sentence, its two buttons and the notices either answer posts. The watch and the weapons keep
+ * the words they always had; any other improvement's (a homebrew one's) gets the same shape in
+ * general words. Labels go into HTML through `_esc`; the notices are plain text.
+ */
+function upkeepCopy(due) {
+	const n = due.surplus;
+	if (due.slug === "standingWatch") return {
+		icon: "fa-shield-halved", payIcon: "fa-drumstick-bite",
+		sentence: `consumes <strong>${n} Surplus</strong> at the start of the season, or it disbands.`,
+		pay: `Feed the watch (${n} Surplus)`, lose: "Disband the watch", shortNote: "",
+		shortWarning: "No Surplus left to feed the watch. It disbands unless you find one.",
+		done: left => `The watch is fed: ${n} Surplus spent (${left} left).`,
+		lost: () => "The standing watch disbands. Its warriors go back to their trades.",
+	};
+	if (due.slug === "weaponsOfWar") return {
+		icon: "fa-hammer", payIcon: "fa-hammer",
+		sentence: `want <strong>${n} Surplus</strong> this spring, to maintain and replace them, or the steading loses the improvement.`,
+		pay: `Pay the upkeep (${n} Surplus)`, lose: "Don't pay: lose Weapons of War",
+		shortNote: "No Surplus to pay with: unless some is found, the steading loses Weapons of War.",
+		shortWarning: "No Surplus left for the weapons' upkeep. The steading loses Weapons of War unless you find one.",
+		done: left => `Weapons of War maintained: ${n} Surplus spent (${left} left).`,
+		lost: summary => summary.length
+			? `The weapons go unmaintained, and the steading loses Weapons of War. Reverted: ${summary.join("; ")}.`
+			: "The weapons go unmaintained, and the steading loses Weapons of War.",
+	};
+	const name = _esc(due.label);
+	const when = due.start ? "at the start of the season" : `this ${due.seasons.length === 1 ? due.seasons[0] : "season"}`;
+	return {
+		icon: "fa-coins", payIcon: "fa-coins",
+		sentence: `wants <strong>${n} Surplus</strong> ${when}, or the steading loses the improvement.`,
+		pay: `Pay the upkeep (${n} Surplus)`, lose: `Don't pay: lose ${name}`,
+		shortNote: `Not enough Surplus to pay with: unless some is found, the steading loses ${name}.`,
+		shortWarning: `Not enough Surplus left for the upkeep of ${due.label}. The steading loses it unless you find some.`,
+		done: left => `${due.label} maintained: ${n} Surplus spent (${left} left).`,
+		lost: summary => `The upkeep of ${due.label} goes unpaid, and the steading loses it.${summary.length ? ` Reverted: ${summary.join("; ")}.` : ""}`,
+	};
+}
+
+/** Any improvement question (improvementQuestions) as its control: a tick, a pick, or a count. */
+export function improvementQuestionHtml(q) {
+	if (q.type === "select") {
+		return `<label class="stonetop-homestead-field">
+			<span>${_esc(q.label)}</span>
+			<select name="${_esc(q.name)}">${q.options.map(o => `<option value="${_esc(o.value)}">${_esc(o.label)}</option>`).join("")}</select>
+		</label>`;
+	}
+	if (q.type === "number") {
+		return `<label class="stonetop-homestead-field">
+			<span>${_esc(q.label)}</span>
+			<input type="number" name="${_esc(q.name)}" min="${Number(q.min) || 0}"${Number.isFinite(q.max) ? ` max="${q.max}"` : ""} value="${Number(q.value) || 0}">
+		</label>`;
+	}
+	return improvementCheckHtml(q);
 }
 
 // A steading move's result table is an ordered list of rows. Each row declares which PbtA
@@ -893,6 +954,9 @@ export function createStonetopSteadingSheetClass(Base) {
 			for (const imp of context.stonetop.improvements ?? []) {
 				imp.isOpen = this._openImprovements.has(imp.slug);
 				imp.filtered = this._isImprovementFiltered(imp.category);
+				// The id the card's toggle button (aria-controls) and complete box (aria-describedby)
+				// point at. Per window, since two steading sheets can be open side by side.
+				imp.domId = `${this.id}-imp-${String(imp.slug).replace(/[^\w-]/g, "_")}`;
 			}
 			context.stonetop.isGM = game.user?.isGM ?? false;
 			// The clock beside the sheet's title: the season the table is playing in and the
@@ -1177,7 +1241,9 @@ export function createStonetopSteadingSheetClass(Base) {
 			}
 
 			// Improvement card expand/collapse. The open state is mirrored into
-			// _openImprovements so it persists across re-renders (see getData).
+			// _openImprovements so it persists across re-renders (see getData). A click anywhere on
+			// the header toggles it; the keyboard's way in is the header's toggle BUTTON, whose
+			// Enter/Space arrives here as a click on it, and whose aria-expanded follows the card.
 			html[0].addEventListener("click", ev => {
 				const hdr = ev.target.closest(".steading-improvement-header");
 				if (!hdr) return;
@@ -1189,6 +1255,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				const card = hdr.closest(".steading-improvement");
 				if (!card) return;
 				const open = card.classList.toggle("is-open");
+				card.querySelector(".steading-improvement-toggle")?.setAttribute("aria-expanded", open ? "true" : "false");
 				const slug = card.dataset.slug;
 				if (slug) open ? this._openImprovements.add(slug) : this._openImprovements.delete(slug);
 			}, true);
@@ -1257,6 +1324,13 @@ export function createStonetopSteadingSheetClass(Base) {
 				ev.stopPropagation();
 				this._openMemberAvatarImage(avatar);
 			}, true);
+
+			// Drop a "Steading Improvement" card (dragged from a journal) onto the Improvements tab
+			// to add it as a tracked custom improvement. Wired above the editable guard so a
+			// player who cannot edit the steading is told why nothing happened, by the handler,
+			// rather than the card falling through to core's own drop.
+			wireCardDropZone(html[0].querySelector(".tab.improvements"),
+				STEADING_IMPROVEMENT_DRAG_TYPE, (data) => this._onDropSteadingImprovement(data.improvement));
 
 			if (!this.isEditable) return;
 
@@ -1410,6 +1484,15 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onImprovementReq(slug, parseInt(index, 10), cb.checked);
 			}, true);
 
+			// A built improvement's condition ("As long as you trade aetherium..."): its stat follows the box.
+			html[0].addEventListener("change", async ev => {
+				const cb = ev.target.closest(".steading-improvement-condition");
+				if (!cb) return;
+				ev.stopPropagation();
+				const result = await this._stonetopSteading.setImprovementCondition(cb.dataset.slug, cb.checked);
+				if (result?.summary?.length) ui.notifications.info(`${result.label}: ${result.summary.join("; ")}.`);
+			}, true);
+
 			// Herd of Horses tracker: +/- steppers and direct number entry per age tier.
 			html[0].addEventListener("click", ev => {
 				const btn = ev.target.closest(".steading-herd-step");
@@ -1491,17 +1574,21 @@ export function createStonetopSteadingSheetClass(Base) {
 				}, true);
 			}
 
-			// Drop a "Steading Improvement" card (dragged from a journal) onto the
-			// Improvements tab to add it as a tracked custom improvement.
-			wireCardDropZone(html[0].querySelector(".tab.improvements"),
-				STEADING_IMPROVEMENT_DRAG_TYPE, (data) => this._onDropSteadingImprovement(data.improvement));
-
 			// Edit or remove a custom (journal-sourced) improvement.
 			html[0].addEventListener("click", (ev) => {
 				const remove = ev.target.closest(".steading-improvement-remove");
 				if (remove) { ev.stopPropagation(); this._onRemoveCustomImprovement(remove.dataset.slug); return; }
 				const edit = ev.target.closest(".steading-improvement-edit");
 				if (edit) { ev.stopPropagation(); this._onEditCustomImprovement(edit.dataset.slug); }
+			}, true);
+
+			// Name (or rename) the built Inn from its card: the later chance the build-time
+			// window's "Not yet" promises.
+			html[0].addEventListener("click", ev => {
+				const btn = ev.target.closest(".steading-inn-name-btn");
+				if (!btn || btn.disabled) return;
+				ev.stopPropagation();
+				this._onNameInn(btn.dataset.current ?? "");
 			}, true);
 
 			// Create a custom improvement from a small form (the button counterpart to
@@ -1742,26 +1829,24 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			// What the steading has built, asked about where it could change this roll, and said
 			// where it always does (improvement-rolls.js).
-			const has = slug => this._hasImprovement(slug);
+			const rules = this._improvementRules();
 			// The Marshal's Logistics is asked (ticked) once any character has it learned, and the
 			// Ranger's Pathfinder (unticked) the same.
 			const questions = improvementQuestions(flow.label, flow.stat, {
-				has, tactics: this._militiaTactics(), logistics: worldLogisticsNames(), pathfinder: worldLearnedHolderNames(PATHFINDER),
+				rules, tactics: this._militiaTactics(), logistics: worldLogisticsNames(), pathfinder: worldLearnedHolderNames(PATHFINDER),
+				herd: this._herdForQuestions(),
 			});
-			// Tor's blessing asked here as settleSteadingRoll asks it, so the window names the +1
-			// the card will add. With no answers yet, `notes` holds nothing that waits on one.
+			// Tor's blessing and the Size asked here as settleSteadingRoll asks them, so the window
+			// names what the card will add. With no answers yet, `notes` holds nothing that waits on one.
 			const standing = rollAdjustments({
-				moveName: flow.label, statKey: flow.stat, has,
+				moveName: flow.label, statKey: flow.stat, rules,
 				torsBlessing: !!this._stonetopSteading.torsBlessingActive?.(),
+				size: this._stonetopSteading.steadingSize?.() ?? "",
 			});
-			const questionHtml = questions.map(q => (q.type === "select"
-				? `<label class="stonetop-homestead-field">
-					<span>${_esc(q.label)}</span>
-					<select name="${_esc(q.name)}">${q.options.map(o => `<option value="${_esc(o.value)}">${_esc(o.label)}</option>`).join("")}</select>
-				</label>`
-				: improvementCheckHtml(q))).join("");
+			const questionHtml = questions.map(improvementQuestionHtml).join("");
 			const improvementNotes = [
 				...standing.adv.map(source => `${source}: advantage on this roll.`),
+				...standing.dis.filter(source => source !== "Diminished").map(source => `${source}: disadvantage on this roll.`),
 				...standing.notes.map(note => `${note} on this roll.`),
 				...this._aurochsWarnings(flow),
 			];
@@ -1987,9 +2072,9 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Herd of Horses: "When you Requisition half the herd or less, treat a 6- as a 7-9."
 			// And the Marshal's Logistics, ticked, once any character has it learned.
 			const questions = improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
-				has: slug => this._hasImprovement(slug), logistics: worldLogisticsNames(),
+				rules: this._improvementRules(), logistics: worldLogisticsNames(), herd: this._herdForQuestions(),
 			});
-			const questionHtml = questions.map(improvementCheckHtml).join("");
+			const questionHtml = questions.map(improvementQuestionHtml).join("");
 
 			const dialog = new Dialog({
 				title: "Requisition",
@@ -2252,22 +2337,30 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Ten of the book's improvements end in a seasonal "Henceforth…", and the window used
 			// to know three of them. The arithmetic lives in season-effects.js, pure; what happens
 			// here is only rendering it and hanging the buttons off it.
-			const has = slug => this._hasImprovement(slug);
+			const rules = this._improvementRules();
 
-			const harvest = this._harvestRoll();
+			const harvest = this._harvestRoll(rules);
 			// Size sets winter's dice: a hamlet's 1d2, a village's 1d4, a town's 2d6 (Book I p. 518).
 			const size = this._stonetopSteading.steadingSize();
-			const winterBill = winterConsumption({ population, has, size });
+			const winterBill = winterConsumption({ population, rules, size });
 			// Winter's 7-9 asks for the same roll a second time, so its ladder line names what THIS
 			// steading would roll rather than the book's general 1d4+Population — a Township that
 			// read "1d4" there and then watched 2d6 come up would have to guess which was right.
-			const winterAgain = winterConsumption({ population, has, size, second: true });
+			const winterAgain = winterConsumption({ population, rules, size, second: true });
 			// The same roll off the Population the steading has NOW, for the buttons that roll or
 			// quote it later: a shortfall in this window may just have taken one.
 			const winterAgainNow = () => winterConsumption({
-				population: this._stonetopSteading.getStatValue("population"), has, size, second: true,
+				population: this._stonetopSteading.getStatValue("population"), rules, size, second: true,
 			});
-			const yields = seasonalYields({ seasonId, population, has });
+			// Each improvement's `seasonalYield` (season-effects.js). `surplus` is the figure the season
+			// opened with, for a yield that asks "and Stonetop has at least 1 Surplus". The Golden
+			// Sapling's "+1 whenever the steading generates Surplus" is added to each one that pays.
+			const yields = seasonalYields({ seasonId, population, surplus, rules })
+				.map(y => {
+					// `take`: what taking it gives, the bonus included.
+					const bonus = y.amount ? withSurplusBonus(y.amount, rules) : null;
+					return { ...y, bonus, take: bonus?.gain ?? y.amount };
+				});
 
 			// One line naming every improvement that rewrote a roll, under the button that rolls
 			// it. Without it the dice simply change and nothing on screen says why — which is the
@@ -2337,53 +2430,51 @@ export function createStonetopSteadingSheetClass(Base) {
 				</button>
 			</div>`;
 
-			// Standing Watch: "At the start of each season, the watch consumes 1 Surplus or it
-			// disbands." EVERY season, unlike the herd's summer/winter steps, so this block is
-			// appended to all four. Both outcomes are offered as buttons because the book makes
-			// them a genuine choice, not a failure state: a steading that would rather keep the
-			// Surplus can let the watch go. Feeding is hidden outright with no Surplus to feed it
-			// with, which leaves disbanding as the only thing the season can do.
-			// ONE shape for the three seasonal dues below. Each was written out in full — the
-			// divider, the `.stonetop-season-watch` box, the icon/name/"Surplus: N" line, then
-			// the body — so the three differed only in their sentence and their controls, and had
-			// already drifted on where the weapons' block put its `.stonetop-season-actions`.
+			// ONE shape for the seasonal dues below. Each was written out in full — the divider, the
+			// `.stonetop-season-watch` box, the icon/name/"Surplus: N" line, then the body — so they
+			// differed only in their sentence and their controls, and had already drifted on where
+			// the weapons' block put its `.stonetop-season-actions`.
 			//
-			// No divider of its own: the blocks share the "What it costs" step, and joinBlocks puts
-			// one BETWEEN them, so the first never opens on a rule.
+			// No divider of its own: the blocks share a step, and joinBlocks puts one BETWEEN them, so
+			// the first never opens on a rule.
 			const upkeepBlock = ({ icon, name, sentence, body }) => `<div class="stonetop-season-watch">
 					<p class="stonetop-season-note"><i class="fas ${icon}"></i> <strong>${name}</strong> ${sentence} Surplus: <strong>${surplus}</strong>.</p>
 					${body}
 				</div>`;
 
-			const watchBlock = this._hasImprovement("standingWatch") ? upkeepBlock({
-				icon: "fa-shield-halved",
-				name: "Standing Watch",
-				sentence: "consumes <strong>1 Surplus</strong> at the start of the season, or it disbands.",
-				body: `<div class="stonetop-season-actions">
-						${surplus >= 1 ? `<button class="stonetop-season-btn" data-action="feed-watch">
-							<i class="fas fa-drumstick-bite"></i> Feed the watch (1 Surplus)
-						</button>` : ""}
-						<button class="stonetop-season-btn stonetop-season-btn--warn" data-action="disband-watch">
-							<i class="fas fa-person-walking-arrow-right"></i> Disband the watch
+			// Every improvement's UPKEEP this season, off its own `upkeep` grant (improvement-rules.js):
+			// the Standing Watch's "At the start of each season, the watch consumes 1 Surplus or it
+			// disbands"; Weapons of War's "Each spring, the village must expend 1 Surplus"; and any
+			// homebrew one's (Book II's logging camp, "1 Surplus every summer or else it ceases
+			// operation"). The price of not paying is the book's: "If the PCs fail to pay that cost,
+			// they lose the improvement" (Book I p. 514). So every one is pay or lose, both offered as
+			// buttons because the book makes them a genuine choice: a steading that would rather keep
+			// the Surplus can let it go. Either answer settles the season. With too little Surplus to
+			// pay, losing it is the only answer left, and the window says so.
+			//
+			// One owed EVERY season is owed at the start of it (the watch's own words), so it opens
+			// the window, before the season's roll; one owed in named seasons is a cost of that season.
+			const upkeepHtml = due => {
+				const copy = upkeepCopy(due);
+				const short = surplus < due.surplus;
+				return upkeepBlock({
+					icon: copy.icon,
+					name: _esc(due.label),
+					sentence: copy.sentence,
+					body: `${short && copy.shortNote ? `<p class="stonetop-season-note"><em>${copy.shortNote}</em></p>` : ""}
+						<div class="stonetop-season-actions" data-upkeep-slug="${_esc(due.slug)}">
+						${short ? "" : `<button class="stonetop-season-btn" data-action="pay-upkeep" data-upkeep-slug="${_esc(due.slug)}">
+							<i class="fas ${copy.payIcon}"></i> ${copy.pay}
+						</button>`}
+						<button class="stonetop-season-btn stonetop-season-btn--warn" data-action="lose-upkeep" data-upkeep-slug="${_esc(due.slug)}">
+							<i class="fas fa-person-walking-arrow-right"></i> ${copy.lose}
 						</button>
 					</div>`,
-			}) : "";
-
-			// Weapons of War: "Each spring, the village must expend 1 Surplus to maintain and
-			// replace the town's weapons." SPRING only, and unlike the watch the book names no
-			// penalty for skipping it, so there is one button and no disband twin — what a
-			// neglected ballista costs is the GM's to say, not ours to automate.
-			const weaponsBlock = (seasonId === "spring" && this._hasImprovement("weaponsOfWar"))
-				? upkeepBlock({
-					icon: "fa-hammer",
-					name: "Weapons of War",
-					sentence: "want <strong>1 Surplus</strong> this spring, to maintain and replace them.",
-					body: surplus >= 1 ? `<div class="stonetop-season-actions">
-						<button class="stonetop-season-btn" data-action="pay-weapons">
-							<i class="fas fa-hammer"></i> Pay the upkeep (1 Surplus)
-						</button>
-					</div>` : `<p class="stonetop-season-note"><em>No Surplus to spend. What the neglect costs is the GM's call.</em></p>`,
-				}) : "";
+				});
+			};
+			const upkeeps = upkeepsDue(rules, seasonId);
+			const watchBlock = upkeeps.filter(u => u.start).map(upkeepHtml).join(UPKEEP_DIVIDER);
+			const upkeepCostBlocks = upkeeps.filter(u => !u.start).map(upkeepHtml);
 
 			// Well-Trained Militia: "Each summer, the militia must spend 1 Surplus and a week or so
 			// practicing or else lose its training in 1 tactic." SUMMER only, and the watch's shape
@@ -2459,17 +2550,17 @@ export function createStonetopSteadingSheetClass(Base) {
 						${yields.map(y => `<li class="stonetop-season-yield">
 							<div class="stonetop-season-yield-head">
 								<span class="stonetop-season-yield-name">${_esc(y.label)}</span>
-								<span class="stonetop-season-yield-amount">${y.blocked || !y.amount ? "&mdash;" : `+${y.amount} Surplus`}</span>
+								<span class="stonetop-season-yield-amount">${y.blocked || !y.amount ? "&mdash;" : `+${y.take} Surplus`}</span>
 							</div>
-							<p class="stonetop-season-yield-rule">${_esc(y.rule)}</p>
+							<p class="stonetop-season-yield-rule">${_esc(y.rule)}${y.bonus?.bonus ? _esc(surplusBonusNote(y.bonus)) : ""}</p>
 							${y.blocked
 								? `<p class="stonetop-season-note">${_esc(y.unmet)}</p>`
 								: !y.amount
 									? `<p class="stonetop-season-note">At this Population it generates nothing.</p>`
 									: `<div class="stonetop-season-actions">
 										<button class="stonetop-season-btn" data-action="take-yield"
-											data-yield-key="${y.key}" data-yield-amount="${y.amount}" data-yield-label="${_esc(y.label)}">
-											<i class="fas fa-wheat-awn"></i> ${y.needsHit ? `On a 7+: take ${y.amount} Surplus` : `Take ${y.amount} Surplus`}
+											data-yield-key="${_esc(y.key)}" data-yield-amount="${y.take}" data-yield-label="${_esc(y.label)}">
+											<i class="fas fa-wheat-awn"></i> ${y.needsHit ? `On a 7+: take ${y.take} Surplus` : `Take ${y.take} Surplus`}
 										</button>
 									</div>`}
 						</li>`).join("")}
@@ -2671,7 +2762,7 @@ export function createStonetopSteadingSheetClass(Base) {
 				winterEndStep,
 				step("start", "Start of the season", "fa-shield-halved", watchBlock),
 				...seasonSteps,
-				step("costs", "What it costs", "fa-coins", joinBlocks([herdFeedBlock, weaponsBlock, militiaBlock])),
+				step("costs", "What it costs", "fa-coins", joinBlocks([herdFeedBlock, ...upkeepCostBlocks, militiaBlock])),
 				step("inn", "The Inn", "fa-beer-mug-empty", innRollBlock),
 				step("chronicle", "Chronicle", "fa-feather", notesBlock),
 			].filter(s => s?.body);
@@ -2983,16 +3074,21 @@ export function createStonetopSteadingSheetClass(Base) {
 							const to = resetFortunesNow();
 							// The roll marker rides the reset's write when the roll was made elsewhere,
 							// and so does the opening Fortunes: the figure before this write is the one
-							// that roll was made off (StonetopSteading#openingFortunes).
-							const flags = {
-								...steading.openingFortunesFlags(year, seasonId),
-								...steading.seasonStepFlags("fortunesReset", year, seasonId),
-							};
-							if (!rolled) flags.seasonSteps.fortunesRoll = `${year}:${seasonId}`;
-							await steading.applyChanges({
-								system: { "stats.fortunes.value": to },
-								flags,
-							}, seasonsMove);
+							// that roll was made off (StonetopSteading#openingFortunes). Through the
+							// model's resetFortunes, which also spends every improvement's one-time
+							// "+1 Fortunes" in the same write (Book I p. 514), so a later loss takes
+							// back only what lasts.
+							await steading.resetFortunes(to, {
+								flags: () => {
+									const flags = {
+										...steading.openingFortunesFlags(year, seasonId),
+										...steading.seasonStepFlags("fortunesReset", year, seasonId),
+									};
+									if (!rolled) flags.seasonSteps.fortunesRoll = `${year}:${seasonId}`;
+									return flags;
+								},
+								options: seasonsMove,
+							});
 							if (!rolled) fortunesRollBtns.forEach(b => { b.disabled = true; });
 							this.render(false);
 							refreshUnreset();
@@ -3069,66 +3165,66 @@ export function createStonetopSteadingSheetClass(Base) {
 						} catch (err) { feedHerdBtn.disabled = false; throw err; }
 					});
 
-					// Standing Watch upkeep. Both buttons settle the SAME season step, so taking
-					// either one closes the season's question and a close+reopen can't be used to
-					// feed the watch twice (or to feed it after disbanding it).
-					const feedWatchBtn    = root.querySelector("[data-action='feed-watch']");
-					const disbandWatchBtn = root.querySelector("[data-action='disband-watch']");
-					const settleWatch = () => {
-						if (feedWatchBtn) feedWatchBtn.disabled = true;
-						if (disbandWatchBtn) disbandWatchBtn.disabled = true;
-					};
-					// Asked of the STEADING, not of whether a given button came back from the
-					// query: with no Surplus the feed button is never rendered, so keying "already
-					// settled" off its return value would read false on a season that is done.
-					this._disableIfSeasonStepDone(disbandWatchBtn, WATCH_SEASON_STEP, year, seasonId);
-					if (this._stonetopSteading.seasonStepApplied(WATCH_SEASON_STEP, year, seasonId)) settleWatch();
+					// Each improvement's upkeep (upkeepsDue, above): pay, or lose the improvement (Book I
+					// p. 514). Both buttons settle the SAME season step (improvement-rules.js#upkeepStepKey:
+					// the watch's and the weapons' keep the keys they always had), so taking either one
+					// closes the season's question, and a close+reopen can't be used to pay twice, nor to
+					// pay after losing it.
+					for (const due of upkeeps) {
+						const box = root.querySelector(`.stonetop-season-actions[data-upkeep-slug="${CSS.escape(due.slug)}"]`);
+						const payBtn  = box?.querySelector("[data-action='pay-upkeep']") ?? null;
+						const loseBtn = box?.querySelector("[data-action='lose-upkeep']") ?? null;
+						const copy = upkeepCopy(due);
+						const settle = () => {
+							if (payBtn) payBtn.disabled = true;
+							if (loseBtn) loseBtn.disabled = true;
+						};
+						const reopen = () => {
+							if (payBtn) payBtn.disabled = false;
+							if (loseBtn) loseBtn.disabled = false;
+						};
+						// Asked of the STEADING, not of whether a given button came back from the
+						// query: with too little Surplus the pay button is never rendered, so keying
+						// "already settled" off its return value would read false on a season that is done.
+						this._disableIfSeasonStepDone(loseBtn, due.key, year, seasonId);
+						if (this._stonetopSteading.seasonStepApplied(due.key, year, seasonId)) settle();
 
-					// Spends and closes the step in one write, off a LIVE Surplus read: the herd
-					// feed and the surplus roll in this same dialog may have moved it since the
-					// window was built. Could-not-afford writes nothing — so the choice reverts to
-					// disbanding, which is why the short unlock differs from the throw's.
-					this._wireSurplusUpkeep(feedWatchBtn, {
-						step: WATCH_SEASON_STEP, year, seasonId, seasonsMove,
-						lock: settleWatch,
-						shortUnlock: () => {
-							if (feedWatchBtn) feedWatchBtn.disabled = true;
-							if (disbandWatchBtn) disbandWatchBtn.disabled = false;
-						},
-						unlock: () => {
-							if (feedWatchBtn) feedWatchBtn.disabled = false;
-							if (disbandWatchBtn) disbandWatchBtn.disabled = false;
-						},
-						shortWarning: "No Surplus left to feed the watch. It disbands unless you find one.",
-						doneMessage: left => `The watch is fed: 1 Surplus spent (${left} left).`,
-					});
+						// Spends and closes the step in one write, off a LIVE Surplus read: the herd
+						// feed and the surplus roll in this same dialog may have moved it since the
+						// window was built. Could-not-afford writes nothing — so the choice reverts to
+						// losing it, which is why the short unlock differs from the throw's.
+						this._wireSurplusUpkeep(payBtn, {
+							step: due.key, year, seasonId, seasonsMove, amount: due.surplus,
+							lock: settle,
+							shortUnlock: () => {
+								if (payBtn) payBtn.disabled = true;
+								if (loseBtn) loseBtn.disabled = false;
+							},
+							unlock: reopen,
+							shortWarning: copy.shortWarning,
+							doneMessage: copy.done,
+						});
 
-					disbandWatchBtn?.addEventListener("click", async () => {
-						if (disbandWatchBtn.disabled) return;
-						settleWatch();
-						try {
-							// Un-completing runs the improvement's own revert, which is what takes
-							// "Standing Watch" back off the Fortifications list. Doing it by hand here
-							// would leave the improvement ticked and the grant record stale, so a later
-							// re-complete would refuse to re-apply the fortification.
-							await this._stonetopSteading.setImprovementCompleted("standingWatch", false);
-							await this._stonetopSteading.setSeasonStepApplied(WATCH_SEASON_STEP, year, seasonId);
-							this.render(false);
-							ui.notifications.info("The standing watch disbands. Its warriors go back to their trades.");
-						} catch (err) {
-							if (feedWatchBtn) feedWatchBtn.disabled = false;
-							if (disbandWatchBtn) disbandWatchBtn.disabled = false;
-							throw err;
-						}
-					});
-
-					// Weapons of War's spring maintenance. One button, one step key, the same
-					// live re-read as the watch's for the same reason.
-					this._wireSurplusUpkeep(root.querySelector("[data-action='pay-weapons']"), {
-						step: WEAPONS_SEASON_STEP, year, seasonId, seasonsMove,
-						shortWarning: "No Surplus left for the weapons' upkeep.",
-						doneMessage: left => `Weapons of War maintained: 1 Surplus spent (${left} left).`,
-					});
+						loseBtn?.addEventListener("click", async () => {
+							if (loseBtn.disabled) return;
+							settle();
+							try {
+								// Un-completing runs the improvement's own revert, which is what takes its
+								// entry back off the Fortifications list. Doing it by hand here would leave
+								// the improvement ticked and the grant record stale, so a later re-complete
+								// would refuse to re-apply it. The season's marker rides the SAME write: as
+								// two, a failed second left the improvement gone and both buttons live again.
+								const result = await this._stonetopSteading.loseImprovement(due.slug, {
+									seasonStep: { step: due.key, year, seasonId },
+								});
+								this.render(false);
+								ui.notifications.info(copy.lost(result?.summary ?? []));
+							} catch (err) {
+								reopen();
+								throw err;
+							}
+						});
+					}
 
 					// What the improvements bring. One button and one season marker per row, so a
 					// reopen cannot take any single one of them twice — and so a GM who took the
@@ -3163,17 +3259,34 @@ export function createStonetopSteadingSheetClass(Base) {
 						});
 					});
 
-					// The Inn's questions, handed to the table on its own ladder. No season marker:
-					// the book caps the inn's GATHERING at once per season and says nothing of the
-					// kind about this roll, and a re-post is how a lost card is recovered.
+					// The Inn's questions, handed to the table on its own ladder. "Henceforth, when the
+					// seasons change, whoever is friendliest rolls +Fortunes": a roll the move makes,
+					// once, so it is made off the Fortunes the season OPENED with (as the herd's foals
+					// are), not the reset's +1 this step sits after, and it closes its own season
+					// step. Once asked, the button posts the same card again rather than going dead,
+					// which is how a lost card is recovered.
 					const askFriendliestBtn = root.querySelector("[data-action='ask-friendliest']");
-					askFriendliestBtn?.addEventListener("click", () => {
-						postSeasonsRollPrompt({
-							alias: `The Inn: ${label}`,
-							// Live, like spring's: the steps before this one move Fortunes.
-							fortunes: this._stonetopSteading.getStatValue("fortunes"),
-							table: "inn",
-						});
+					const innAsked = () => steading.seasonStepApplied(INN_ROLL_SEASON_STEP, year, seasonId);
+					const relabelInn = () => {
+						if (askFriendliestBtn && innAsked()) {
+							askFriendliestBtn.innerHTML = `<i class="fas fa-rotate-right"></i> Post the Inn's card again (already asked this season)`;
+						}
+					};
+					relabelInn();
+					askFriendliestBtn?.addEventListener("click", async () => {
+						if (askFriendliestBtn.disabled) return;
+						askFriendliestBtn.disabled = true;
+						try {
+							await postSeasonsRollPrompt({
+								alias: `The Inn: ${label}`,
+								fortunes: steading.openingFortunes(year, seasonId) ?? steading.getStatValue("fortunes"),
+								table: "inn",
+							});
+							if (!innAsked()) await steading.setSeasonStepApplied(INN_ROLL_SEASON_STEP, year, seasonId);
+							relabelInn();
+						} finally {
+							askFriendliestBtn.disabled = false;
+						}
 					});
 
 					// The militia's summer. Both outcomes settle the SAME step, exactly as the
@@ -3214,8 +3327,10 @@ export function createStonetopSteadingSheetClass(Base) {
 							try {
 								// Through the model, which takes back the militia's +1 Defenses in the
 								// same write when this drops it below 2 tactics, and says so.
-								const result = await this._onImprovementReq("wellTrainedMilitia", Number(el.dataset.tactic), false);
-								await this._stonetopSteading.setSeasonStepApplied(MILITIA_SEASON_STEP, year, seasonId);
+								// The summer's MILITIA_SEASON_STEP rides the same write.
+								const result = await this._onImprovementReq("wellTrainedMilitia", Number(el.dataset.tactic), false, {
+									seasonStep: { step: MILITIA_SEASON_STEP, year, seasonId },
+								});
 								this.render(false);
 								if (!result?.summary?.length) ui.notifications.info("The militia forgets a tactic.");
 							} catch (err) {
@@ -3484,12 +3599,14 @@ export function createStonetopSteadingSheetClass(Base) {
 			await this._stonetopSteading.setSystemValue(path.replace(/^system\./, ""), value);
 		}
 
+		// The three list writes below go through editList, in the steading's turn with the list
+		// read inside it: copied from the cache before the turn, a tick inside a completion's
+		// round trip wrote back the list as it was and took the completion's entry off it.
 		async _onListItemCheck(list, index, checked) {
-			const f = this._stonetopSteading._flags;
-			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
-			if (!arr[index]) return;
-			arr[index].checked = checked;
-			await this._stonetopSteading.setFlags({ [list]: arr });
+			await this._stonetopSteading.editList(list, arr => {
+				if (!arr[index]) return false;
+				arr[index].checked = checked;
+			});
 		}
 
 		async _onReturnAsset(index) {
@@ -3520,10 +3637,7 @@ export function createStonetopSteadingSheetClass(Base) {
 						callback: async (html) => {
 							const name = html.find("[name=entry-name]").val()?.trim();
 							if (!name) return;
-							const f = this._stonetopSteading._flags;
-							const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
-							arr.push({ name, checked: false });
-							await this._stonetopSteading.setFlags({ [list]: arr });
+							await this._stonetopSteading.editList(list, arr => { arr.push({ name, checked: false }); });
 							this.render(false);
 						},
 					},
@@ -3535,10 +3649,10 @@ export function createStonetopSteadingSheetClass(Base) {
 		}
 
 		async _onListItemDelete(list, index) {
-			const f = this._stonetopSteading._flags;
-			const arr = foundry.utils.deepClone(f[list] ?? STEADING_DEFAULTS[list]);
-			arr.splice(index, 1);
-			await this._stonetopSteading.setFlags({ [list]: arr });
+			await this._stonetopSteading.editList(list, arr => {
+				if (!arr[index]) return false;
+				arr.splice(index, 1);
+			});
 			this.render(false);
 		}
 
@@ -3665,12 +3779,17 @@ export function createStonetopSteadingSheetClass(Base) {
 				const def = this._stonetopSteading.improvementDef(slug);
 				const stored = this._stonetopSteading._flags.improvements?.[slug] ?? {};
 				if (def && !improvementRequirementsMet(def, stored.r ?? [])) {
-					const confirmed = await this._confirmForceCompleteImprovement(def);
+					// The FEWEST ticks that meet the requirements, never every box: both sides of an
+					// either/or, or a choice with a cost of its own (Additional Housing's fields, a
+					// third militia tactic), are not something "earn it now" decides. See
+					// forceCompleteTicks.
+					const ticks = forceCompleteTicks(def, stored.r ?? []);
+					const confirmed = await this._confirmForceCompleteImprovement(def, { slug, ticks, before: stored.r ?? [] });
 					if (!confirmed) {
 						this.render(false); // revert the just-tapped checkbox
 						return;
 					}
-					forceR = Array.from({ length: improvementRequirementCount(def) }, () => true);
+					forceR = ticks;
 				}
 			}
 			// Toggling completion also auto-applies (or reverses) the improvement's
@@ -3684,29 +3803,39 @@ export function createStonetopSteadingSheetClass(Base) {
 			if (!checked) return;
 			// What the book asks of the table the moment it is built, which the sheet cannot do for
 			// them. Permanent, so it waits to be read rather than fading while they name the inn.
-			const note = IMPROVEMENT_COMPLETION_NOTES[slug];
+			const note = this._stonetopSteading.improvementCompletionNote?.(slug) ?? "";
 			if (note) ui.notifications.info(`${result?.label ?? "Improvement"} built. ${note}`, { permanent: true });
-			if (slug === "inn") {
-				const name = await this._askInnName();
-				const label = name ? await this._stonetopSteading.nameInn(name) : null;
-				if (label) ui.notifications.info(`The inn is on the Resources list as ${label}.`);
+			if (slug === "inn") await this._onNameInn();
+		}
+
+		/** Ask for the Inn's name and write it (nameInn). `current` is the name it already has, if any. */
+		async _onNameInn(current = "") {
+			const name = await this._askInnName(current);
+			const label = name ? await this._stonetopSteading.nameInn(name) : null;
+			if (label) {
+				this.render(false);
+				ui.notifications.info(`The inn is on the Resources list as ${label}.`);
 			}
 		}
 
-		/** "Name the inn": asked once, when the Inn is built. Resolves the name, or null. */
-		_askInnName() {
+		/**
+		 * "Name the inn": asked when the Inn is built, and again whenever its card's "Name the inn"
+		 * button is pressed, which is what keeps "Not yet" truthful. Resolves the name, or null.
+		 */
+		_askInnName(current = "") {
 			return new Promise(resolve => {
 				new Dialog({
-					title: "Name the inn",
+					title: current ? "Rename the inn" : "Name the inn",
 					content: `<form class="stonetop-homestead-dialog">
 						<label class="stonetop-homestead-field">
 							<span>What is the inn called?</span>
-							<input type="text" name="innName" placeholder="The Wisent's Rest">
+							<input type="text" name="innName" placeholder="The Wisent's Rest" value="${_esc(current)}">
 						</label>
+						<p class="stonetop-rites-note">${current ? "Leave it as it is" : "Not yet"} keeps ${current ? "its name" : "it unnamed"}; the Inn's card on the Improvements tab can ${current ? "rename" : "name"} it any time.</p>
 					</form>`,
 					buttons: {
-						name: { label: "Name it", callback: html => resolve(html[0].querySelector('[name="innName"]')?.value?.trim() || null) },
-						later: { label: "Not yet", callback: () => resolve(null) },
+						name: { label: current ? "Rename it" : "Name it", callback: html => resolve(html[0].querySelector('[name="innName"]')?.value?.trim() || null) },
+						later: { label: current ? "Leave it as it is" : "Not yet", callback: () => resolve(null) },
 					},
 					default: "name",
 					close: () => resolve(null),
@@ -3714,16 +3843,29 @@ export function createStonetopSteadingSheetClass(Base) {
 			});
 		}
 
-		// Confirm marking every requirement of a not-yet-earned improvement complete so
-		// it can be earned immediately. Resolves true when accepted, false/null otherwise.
-		_confirmForceCompleteImprovement(def) {
+		// Confirm marking the missing requirements of a not-yet-earned improvement done so it can
+		// be earned immediately, saying which boxes that ticks and, in the remove dialog's "What
+		// changes" shape, what completing it will apply. Resolves true when accepted.
+		_confirmForceCompleteImprovement(def, { slug = def?.slug, ticks = [], before = [] } = {}) {
+			const steps = flatRequirementItems(def);
+			const marking = steps.filter((_, i) => ticks[i] && !before[i]).map(step => stripHtmlToText(step));
+			const applies = this._stonetopSteading.improvementCompletionPreview?.(slug, { forceR: ticks }) ?? [];
 			return confirmOutcome({
 				title: "Earn this improvement?",
 				content: `<div class="stonetop-improvement-force-complete">
 					<p>Stonetop hasn't met all the requirements for <strong>${_esc(def.label)}</strong> yet.</p>
-					<p>Mark them all complete and earn this improvement?</p>
+					<p>Mark the missing ones done and earn it now?</p>
+					<div class="stonetop-muster-change">
+						<span class="stonetop-muster-change-head">What changes</span>
+						${applies.length
+							? `<span class="stonetop-muster-change-row">${_esc(applies.join("; "))}</span>
+								<span class="stonetop-muster-change-why">Completing it applies these.</span>`
+							: `<span class="stonetop-muster-change-row">Nothing else on the sheet.</span>
+								<span class="stonetop-muster-change-why">It has no effect the sheet applies by itself; its card says what it does.</span>`}
+						${marking.length ? `<span class="stonetop-muster-change-why">Marked done: ${_esc(marking.join("; "))}.</span>` : ""}
+					</div>
 				</div>`,
-				yes:     { label: "Mark them complete and earn it", icon: "fa-check-double" },
+				yes:     { label: "Mark the rest done and earn it", icon: "fa-check-double" },
 				no:      { label: "Not yet" },
 				classes: ["stonetop-improvement-force-complete-dialog"],
 			});
@@ -3791,8 +3933,8 @@ export function createStonetopSteadingSheetClass(Base) {
 		 * Tick a requirement box. On a built improvement that can move a stat (the militia's
 		 * tactics, a Market's requirements), and the notice says which and why.
 		 */
-		async _onImprovementReq(slug, index, checked) {
-			const result = await this._stonetopSteading.setImprovementRequirement(slug, index, checked);
+		async _onImprovementReq(slug, index, checked, { seasonStep } = {}) {
+			const result = await this._stonetopSteading.setImprovementRequirement(slug, index, checked, { seasonStep });
 			if (result?.summary?.length) ui.notifications.info(`${result.label}: ${result.summary.join("; ")}.`);
 			return result;
 		}
@@ -3800,6 +3942,11 @@ export function createStonetopSteadingSheetClass(Base) {
 		/** True once the named improvement is built, which is what gates its seasonal upkeep. */
 		_hasImprovement(slug) {
 			return this._stonetopSteading.improvementCompleted(slug);
+		}
+
+		/** The tracked herd for Requisition's "how many from the herd" question, or null without one. */
+		_herdForQuestions() {
+			return this._hasImprovement("herdOfHorses") ? this._stonetopSteading.getHerd() : null;
 		}
 
 		/** The militia's currently-trained tactics, as {index, label} rows the summer window can
@@ -3827,8 +3974,13 @@ export function createStonetopSteadingSheetClass(Base) {
 		 *  sheaf, winter's catch-up). Additional Housing's penalty turns on WHICH of the two ways
 		 *  it was built, which is a rule and so lives in season-effects.js beside the militia's:
 		 *  see builtOnTheFields there for why it is read off the requirement box by its text. */
-		_harvestRoll() {
-			return autumnHarvest({ has: slug => this._hasImprovement(slug), builtOnTheFields: this._builtOnTheFields() });
+		_harvestRoll(rules = this._improvementRules()) {
+			return autumnHarvest({ rules, builtOnTheFields: this._builtOnTheFields() });
+		}
+
+		/** The improvements in force and their grants (improvement-rules.js): what every rule reads. */
+		_improvementRules() {
+			return this._stonetopSteading.improvementRules();
 		}
 
 		/**
@@ -3962,13 +4114,13 @@ export function createStonetopSteadingSheetClass(Base) {
 		 * @param {string} opts.shortWarning     what to say when it could not be afforded
 		 * @param {Function} opts.doneMessage    left => what to say when it was
 		 */
-		_wireSurplusUpkeep(btn, { step, year, seasonId, seasonsMove, lock, unlock, shortUnlock, shortWarning, doneMessage }) {
+		_wireSurplusUpkeep(btn, { step, year, seasonId, seasonsMove, amount = 1, lock, unlock, shortUnlock, shortWarning, doneMessage }) {
 			this._disableIfSeasonStepDone(btn, step, year, seasonId);
 			btn?.addEventListener("click", async () => {
 				if (btn.disabled) return;
 				if (lock) lock(); else btn.disabled = true;
 				try {
-					const left = await this._stonetopSteading.spendSurplus(1, { ...seasonsMove, step, year, seasonId });
+					const left = await this._stonetopSteading.spendSurplus(amount, { ...seasonsMove, step, year, seasonId });
 					if (left === null) {
 						ui.notifications.warn(shortWarning);
 						shortUnlock?.();
@@ -4056,15 +4208,18 @@ export function createStonetopSteadingSheetClass(Base) {
 			}
 
 			const roll = await new Roll(surplusRollFormula(formula, answer)).evaluate();
-			const gain = Math.max(0, roll.total);
 			await roll.toMessage({ speaker: SEASONS_SPEAKER, flavor: rolledTotalCard(roll, [harvest ? "The Harvest" : "Surplus Generation", label], "Surplus gained") });
+			// The Golden Sapling's "when the steading generates Surplus, even just 1, it generates +1
+			// Surplus" (a `surplusBonus` grant): added once the roll has come to at least 1.
+			const bonus = withSurplusBonus(roll.total, this._improvementRules());
+			const gain = bonus.gain;
 			const total = steading.getStatValue("surplus") + gain;
 			await steading.applyChanges({
 				system: { "attributes.surplus.value": total },
 				flags: marker(),
 			}, seasonsMove);
 			this.render(false);
-			ui.notifications.info(`Generated ${gain} Surplus. New total: ${total}.`);
+			ui.notifications.info(`Generated ${gain} Surplus${surplusBonusNote(bonus)}. New total: ${total}.`);
 			return true;
 		}
 
@@ -4140,7 +4295,18 @@ export function createStonetopSteadingSheetClass(Base) {
 
 		async _onDropSteadingImprovement(improvement) {
 			if (!improvement?.name) return;
-			const result = await this._stonetopSteading.addCustomImprovement(improvement);
+			if (!this.isEditable) {
+				globalThis.ui?.notifications?.warn?.(`You can't add improvements to ${this.actor?.name ?? "this steading"}: you don't have permission to edit it.`);
+				return;
+			}
+			let result;
+			try {
+				result = await this._stonetopSteading.addCustomImprovement(improvement);
+			} catch (err) {
+				console.warn("Stonetop | Could not add a dropped steading improvement:", err);
+				globalThis.ui?.notifications?.warn?.(`Could not add ${improvement.name} to ${this.actor?.name ?? "the steading"}.`);
+				return;
+			}
 			if (result.ok) {
 				globalThis.ui?.notifications?.info?.(`Added steading improvement: ${result.label}.`);
 				this.render(false);
@@ -4214,7 +4380,8 @@ export function createStonetopSteadingSheetClass(Base) {
 				buttons: {
 					yes: {
 						icon: '<i class="fas fa-trash"></i>',
-						label: `Remove ${def.label}`,
+						// Core's Dialog renders a button label as HTML: the label is the author's.
+						label: `Remove ${escHtml(def.label)}`,
 						callback: () => this._applyRemoveCustomImprovement(slug),
 					},
 					no: {

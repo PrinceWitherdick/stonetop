@@ -101,13 +101,19 @@
         {{/if}}
       </div>
       {{/if}}
-      {{#if herdShare}}
-      <label class="stonetop-requisition-herd"><input type="checkbox" class="stonetop-check" name="herdShare"><span>{{herdShare}}</span></label>
+      {{#if reqHerdCount}}
+      {{!-- Herd of Horses: "When you Requisition half the herd or less, treat a 6- as a 7-9." A
+           count, read against the whole herd, and the default for how many the picker takes. --}}
+      <label class="stonetop-requisition-herd"><input type="number" class="stonetop-requisition-herd-count" name="herdCount" min="0" max="{{reqHerdCount.max}}" value="0"><span>{{reqHerdCount.label}}</span></label>
       {{/if}}
       {{#if reqLogistics}}
       {{!-- The Marshal's Logistics, ticked once any character has it learned. --}}
       <label class="stonetop-requisition-herd stonetop-requisition-logistics"><input type="checkbox" class="stonetop-check" name="logistics" checked><span>{{reqLogistics}}</span></label>
       {{/if}}
+      {{#each reqAdvantages}}
+      {{!-- An improvement's asked advantage on Requisition: unticked, the table's call. --}}
+      <label class="stonetop-requisition-herd stonetop-requisition-advantage"><input type="checkbox" class="stonetop-check" name="{{name}}"><span>{{label}}</span></label>
+      {{/each}}
       {{#if roll}}
       <div class="stonetop-spring-roll-result stonetop-spring--{{roll.tier}}">
         <span class="stonetop-spring-roll-result-total">{{roll.total}}</span>

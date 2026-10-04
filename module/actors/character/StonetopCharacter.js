@@ -119,6 +119,8 @@ import {healTo} from "../../camp/camp-rules.js";
 import {recoveredHpTo, slowToHeal} from "./deaths-door-actor.js";
 import {LEARNED_OPTION} from "../../timeline/timeline-milestones.js";
 import {inTurn} from "../../utils/turn-queue.js";
+import {StonetopSteading} from "../steading/StonetopSteading.js";
+import {rulesHas} from "../steading/improvement-rules.js";
 
 /**
  * The state a playbook move leaves on a character, and whether anything they hold still makes it:
@@ -2558,15 +2560,15 @@ export class StonetopCharacter {
 	}
 
 	/**
-	 * Whether the steading has earned Weapons of War: the improvement built, or "Weapons of War"
-	 * active on its Fortifications list (a GM who wrote it there by hand).
+	 * Whether the steading has earned Weapons of War: the improvement in force by the one rule every
+	 * reader asks (improvement-rules.js), so built, or "Weapons of War" ticked on its Fortifications
+	 * list (a GM who wrote it there by hand, or a homebrew improvement that adds it), and not
+	 * retired by another improvement.
 	 */
 	weaponsOfWarEarned(steading = this.getSteadingActor()) {
 		if (!steading) return false;
-		const steadingFlags = resolvedFlagProperty(steading, "steading") ?? {};
-		return !!steadingFlags.improvements?.[_WEAPONS_OF_WAR_IMPROVEMENT]?.completed
-			|| (steadingFlags.fortifications ?? []).some(f =>
-				String(f?.name ?? f) === _WEAPONS_OF_WAR_CATEGORY && f?.checked !== false);
+		const rules = (steading.typedActor ?? new StonetopSteading(steading)).improvementRules?.() ?? [];
+		return rulesHas(rules)(_WEAPONS_OF_WAR_IMPROVEMENT);
 	}
 
 	/**

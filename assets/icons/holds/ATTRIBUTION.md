@@ -32,6 +32,10 @@ name is listed for every one.
 | disaster-owed.svg | A Meet with Disaster pick at Fortunes −1, not yet made | broken-wall | Delapouite | https://delapouite.com |
 | held-disadvantage.svg | Disadvantage held over a character's next roll (Interfere) | foot-trip | Lorc | https://lorcblog.blogspot.com |
 
+`weapons-upkeep.svg` is also worn by the generic "Improvement Upkeep" row: the upkeep any other
+improvement owes (a homebrew one's `upkeep`, or Book II's logging camp). The anvil already means
+"maintenance owed", so it is not a second drawing to learn.
+
 `fortunes-advantage.svg` is worn TWICE, and deliberately by one file rather than two: the
 steading holds a promised advantage over its next +Fortunes roll, and a character holds one over
 their next roll of any kind (a peaceful Make Camp, Book I p.334). Same promise, same clover, so

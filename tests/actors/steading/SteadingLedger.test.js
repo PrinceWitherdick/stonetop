@@ -270,6 +270,29 @@ describe("SteadingLedger", () => {
 		]);
 	});
 
+	// An edit inserts a step and remaps the ticks by text in the same write. Read against the OLD
+	// definition, every tick slid one place and the ledger filed steps nobody touched.
+	it("files no step changes for ticks an edit only moved", () => {
+		const before = { slug: "custom-road", label: "Roads", sections: [{ heading: "", items: ["A surveyor", "Gravel"] }], effect: "" };
+		const after = { ...before, sections: [{ heading: "", items: ["A charter", "A surveyor", "Gravel"] }] };
+		const actor = makeActor({
+			stonetop: { steading: { customImprovements: [before], improvements: { "custom-road": { completed: false, r: [false, true] } } } },
+		});
+
+		const moved = SteadingLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop.steading.customImprovements": [after],
+			"flags.stonetop.steading.improvements": { "custom-road": { completed: false, r: [false, false, true] } },
+		});
+		expect(moved.map(e => e.action)).toEqual([]);
+
+		// A step the same write really does tick is still filed, by its text.
+		const ticked = SteadingLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop.steading.customImprovements": [after],
+			"flags.stonetop.steading.improvements": { "custom-road": { completed: false, r: [true, false, true] } },
+		});
+		expect(ticked.map(e => e.action)).toEqual(["Improvement step marked: Roads · A charter"]);
+	});
+
 	it("records herd tier changes by age, ignoring unchanged tiers", () => {
 		const actor = makeActor({
 			stonetop: { steading: { herd: { grown: 12, yearlings: 0, foals: 0 } } },

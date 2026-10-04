@@ -1,6 +1,7 @@
 import { StonetopDialog } from "../../../utils/stonetop-dialog.js";
 import { rollStat, sign } from "../../../utils/roll-engine.js";
-import { StonetopSteading } from "../../steading/StonetopSteading.js";
+import { StonetopSteading, HERD_ASSET_BEAST, HERD_ASSET_NAME, isHerdAsset } from "../../steading/StonetopSteading.js";
+import { askHorsesFromHerd, herdHorsesLabel } from "../../steading/herd-requisition.js";
 import { assetLabel, beastFollowerForAsset, followerInputFromBeast } from "../../../data/beasts.js";
 import { buildCustomFollower, nextFollowerOrder } from "../../../data/follower-build.js";
 import { bringDialogToFront } from "../../../utils/front-on-open.js";
@@ -10,6 +11,7 @@ import { SYSTEM_ID } from "../../../system-id.js";
 import { promptRoll } from "../../../dialogs/RollDialog.js";
 import { STEADING_MOVE, improvementQuestions } from "../../steading/improvement-rolls.js";
 import { settleSteadingRoll } from "../../steading/steading-roll.js";
+import { askedAdvantageAnswers, herdCountAnswer } from "../../steading/improvement-rolls.js";
 import { ownLogisticsNames } from "../logistics.js";
 
 /**
@@ -51,19 +53,26 @@ export class RequisitionDialog extends StonetopDialog {
 		const assets = this._steading._flags.assets ?? [];
 		// Worded where the steading's own Requisition words them. Logistics is asked for THIS
 		// character only, and ticked: this window knows who is Requisitioning.
+		const herdBuilt = this._steading.improvementCompleted("herdOfHorses");
 		const questions = improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
-			has: slug => this._steading.improvementCompleted(slug),
+			rules: this._steading.improvementRules(),
 			logistics: ownLogisticsNames(this._characterActor),
+			herd: herdBuilt ? this._steading.getHerd() : null,
 		});
+		const herdAsk = questions.find(q => q.name === "herdCount");
 		return {
 			steadingName: this._steadingActor.name,
 			fortunes: sign(this._steading.getStatValue("fortunes")),
 			assets: this._steading.getAvailableAssets(),
 			customAssetValue: CUSTOM_ASSET_VALUE,
-			// The Herd of Horses question.
-			herdShare: questions.find(q => q.name === "herdShare")?.label ?? "",
+			// The Herd of Horses question: how many horses, read against the herd for its "half the
+			// herd or less" and offered again as the take's default.
+			herdQuestion: herdAsk ? { label: herdAsk.label, max: herdAsk.max ?? 0 } : null,
 			// The Marshal's Logistics: advantage when you Requisition.
 			logistics: questions.find(q => q.name === "logistics")?.label ?? "",
+			// An improvement's asked advantage on Requisition (a `rollAdvantage` grant with an `ask`),
+			// unticked: the table says whether the fiction reached for it.
+			advantageAsks: questions.filter(q => q.name.startsWith("advantage-")).map(({ name, label }) => ({ name, label })),
 			// "Already out" reads through the shared wording, so an asset a GM sent out on an
 			// expedition names the trip here rather than reporting "Taken by someone".
 			takenAssets: assets
@@ -118,6 +127,16 @@ export class RequisitionDialog extends StonetopDialog {
 			}
 			takeButton.disabled = true;
 
+			// The herd is not lent out whole: so many horses leave it (askHorsesFromHerd).
+			if (choice.asset && isHerdAsset(choice.asset)) {
+				try {
+					await this._takeFromHerd(root);
+				} finally {
+					takeButton.disabled = false;
+				}
+				return;
+			}
+
 			try {
 				await this._character.addCustomInventoryItem(choice.name, 1);
 			} catch (err) {
@@ -154,12 +173,49 @@ export class RequisitionDialog extends StonetopDialog {
 		root.querySelector(".stonetop-requisition-close")?.addEventListener("click", () => this.close());
 	}
 
-	/** The window's ticked questions, as settleSteadingRoll reads them. */
+	/** The window's questions, as settleSteadingRoll reads them. */
 	_rollAnswers(root) {
 		return {
-			herdShare: !!root.querySelector('[name="herdShare"]')?.checked,
+			herdCount: herdCountAnswer(root),
 			logistics: !!root.querySelector('[name="logistics"]')?.checked,
+			...askedAdvantageAnswers(root),
 		};
+	}
+
+	/**
+	 * Requisition from the Herd of Horses: ask how many, take them out of the tracked herd, and
+	 * make each one a follower (ruling: "Ask, take from herd"). The herd's own row is never marked
+	 * out: the herd stays home. Nothing is written when the answer is none.
+	 * @returns {Promise<boolean>} whether any horses were taken
+	 */
+	async _takeFromHerd(root) {
+		const count = await askHorsesFromHerd({
+			cap: this._steading.herdRequisitionCap(),
+			preset: herdCountAnswer(root),
+			who: this._characterActor.name,
+		});
+		if (!count) return false;
+		let taken;
+		try {
+			taken = await this._steading.requisitionFromHerd(count, { stonetopMove: "Requisition" });
+		} catch (err) {
+			console.warn("Stonetop | Could not take horses from the herd:", err);
+			ui.notifications.warn(`You lack permission to update ${this._steadingActor.name}'s herd.`);
+			return false;
+		}
+		if (!taken) return false;
+		const label = herdHorsesLabel(taken);
+		try {
+			await this._character.addCustomInventoryItem(label, 1);
+		} catch (err) {
+			console.warn("Stonetop | Could not add requisitioned horses to items:", err);
+		}
+		const match = beastFollowerForAsset({ name: HERD_ASSET_NAME, beast: HERD_ASSET_BEAST });
+		if (match) await this._addRequisitionedFollower({ ...match, count: taken }, "the herd of horses");
+		ui.notifications.info(`${label} requisitioned from ${this._steadingActor.name}.`);
+		this._onChange?.();
+		this.render(false);
+		return true;
 	}
 
 	_getChosenAsset(root) {

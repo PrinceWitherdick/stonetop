@@ -123,7 +123,8 @@ describe("the first spring's gains", () => {
 	it("still apply when the clock already reads Spring of Year One", async () => {
 		const actor = steadingActor({ clock: { season: "spring", year: 1 } });
 		expect(await applySpringBurstGains(actor, { tor: true })).not.toBeNull();
-		expect(written(actor)).toHaveProperty("flags.stonetop-pwd.steading", expect.objectContaining({ torsBlessing: "1:spring" }));
+		// Written as its own key, not the whole steading rebuilt from the cache (see applyChanges).
+		expect(written(actor)["flags.stonetop-pwd.steading.torsBlessing"]).toBe("1:spring");
 	});
 
 	// Re-running the walkthrough mid-campaign: the clock is past the first spring, the same test

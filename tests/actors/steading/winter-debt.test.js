@@ -103,12 +103,15 @@ describe("StonetopSteading#winterDebt", () => {
 		const unstamped = steadingWith();
 		await unstamped.setWinterDebt(3, 1, "");
 		expect(unstamped._actor.setFlag).not.toHaveBeenCalled();
+		expect(unstamped._actor.update).not.toHaveBeenCalled();
 
+		// Only the keys it changes, each as its own path: the whole steading, rebuilt from the
+		// cached flags, put back anything another write changed inside the round trip.
 		const stamped = steadingWith();
 		await stamped.setWinterDebt(3, 1, "winter");
-		expect(stamped._actor.setFlag).toHaveBeenCalledWith(
-			STONETOP_SCOPE, "steading",
-			expect.objectContaining({ winterDebt: { stamp: "1:winter", amount: 3 } }));
+		expect(stamped._actor.update.mock.calls[0][0]).toMatchObject({
+			[`flags.${STONETOP_SCOPE}.steading.winterDebt`]: { stamp: "1:winter", amount: 3 },
+		});
 	});
 
 	// Once a winter: the roll and the marker that says it was made go out together, so a reopened
@@ -116,8 +119,8 @@ describe("StonetopSteading#winterDebt", () => {
 	it("closes the once-a-winter step in the same write", async () => {
 		const s = steadingWith();
 		await s.setWinterDebt(3, 1, "winter");
-		const written = s._actor.setFlag.mock.calls[0][2];
-		expect(written.seasonSteps[WINTER_DEBT_STEP]).toBe("1:winter");
+		const written = s._actor.update.mock.calls[0][0];
+		expect(written[`flags.${STONETOP_SCOPE}.steading.seasonSteps`][WINTER_DEBT_STEP]).toBe("1:winter");
 	});
 });
 
@@ -328,7 +331,7 @@ describe("how the debt is wired", () => {
 	it("reads Population live, not off the value the window opened with", () => {
 		const at = SHEET.indexOf("const winterAgainNow = () => winterConsumption({");
 		expect(at).toBeGreaterThan(-1);
-		expect(SHEET.slice(at, at + 300)).toContain(`population: this._stonetopSteading.getStatValue("population"), has, size, second: true`);
+		expect(SHEET.slice(at, at + 300)).toContain(`population: this._stonetopSteading.getStatValue("population"), rules, size, second: true`);
 	});
 
 	// A roll of 0 is a real outcome at Population -1, and a debt of nothing is not a debt.
