@@ -149,14 +149,14 @@ describe("a surface that frames its bounds rather than its board", () => {
 	it("keeps a fitted view where it is when the new bounds are still in sight", () => {
 		make();
 		const before = { scale: surface.scale, offset: surface.offset };
-		surface.setBounds({ left: 0, top: 0, right: 1010, bottom: 800 });
+		surface.setNaturalSize(1000, 800, { left: 0, top: 0, right: 1010, bottom: 800 });
 		expect(surface.scale).toBe(before.scale);
 		expect(surface.offset).toEqual(before.offset);
 	});
 
 	it("re-fits a fitted view when somebody lands out of sight", () => {
 		make();
-		surface.setBounds({ left: 0, top: 0, right: 2000, bottom: 800 });
+		surface.setNaturalSize(1000, 800, { left: 0, top: 0, right: 2000, bottom: 800 });
 		expect(surface.scale).toBeCloseTo(0.2, 6);
 	});
 
@@ -164,7 +164,7 @@ describe("a surface that frames its bounds rather than its board", () => {
 	it("never re-fits a view the reader has placed", () => {
 		make();
 		surface.zoomTo(1);
-		surface.setBounds({ left: 0, top: 0, right: 5000, bottom: 800 });
+		surface.setNaturalSize(1000, 800, { left: 0, top: 0, right: 5000, bottom: 800 });
 		expect(surface.scale).toBe(1);
 	});
 

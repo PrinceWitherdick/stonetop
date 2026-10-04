@@ -389,11 +389,6 @@ export function groupsInside(groups = {}) {
 	return inside;
 }
 
-/** HOW DEEP EACH GROUP SITS: how many other groups lie wholly inside it. See `groupsInside`. */
-export function groupNesting(groups = {}) {
-	return new Map([...groupsInside(groups)].map(([id, within]) => [id, within.length]));
-}
-
 /**
  * THE OUTLINE OF ONE GROUP, worked out from where its members stand, in board PIXELS.
  *

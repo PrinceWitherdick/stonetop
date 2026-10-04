@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { describeWrite, stepPatch } from "../../module/relmap/relmap-history.js";
 import {
-	RELMAP_GROUP_DASHES, RELMAP_GROUP_SHAPES, addGroupPatch, dropGroupPatch, dropNodePatch, emptyGraph, groupMemberIds,
-	groupMembersPatch, groupPatch, groupsOf, normalizeGraph, relmapPath,
+	RELMAP_GROUP_DASHES, RELMAP_GROUP_SHAPES, addGroupPatch, dropGroupPatch, dropNodePatch, emptyGraph,
+	groupMembersPatch, groupPatch, normalizeGraph, relmapPath,
 } from "../../module/relmap/relmap-store.js";
 import {
-	RELMAP_GROUP_NEST_PX, RELMAP_GROUP_PAD_PX, boardBounds, groupNesting, groupOutline, groupShapes,
+	RELMAP_GROUP_NEST_PX, RELMAP_GROUP_PAD_PX, boardBounds, groupOutline, groupShapes, groupsInside,
 } from "../../module/utils/relmap-geometry.js";
 
 // NAMED GROUPS ON THE RELATIONSHIP MAP: "The hunters", "The elders", an outline round some people.
@@ -102,16 +102,29 @@ describe("reading a stored group back", () => {
 		expect(got.groups).toEqual({});
 	});
 
-	it("says who is in a group, and which groups a person is in", () => {
+	// ⚠ A GROUP WITH NOBODY LEFT STANDING IS NOT ON THE BOARD. It has no outline to draw, so nothing
+	// could pick it or rub it out, and its colour would go on counting as worn and as already on the map.
+	it("leaves out a group whose every member has left the board", () => {
 		const got = graph({
 			groups: {
-				hunt: { members: { ordga: true, marrec: true } },
-				elders: { members: { ordga: true, pell: true } },
+				ghosts: { ink: "rose", members: { gone: true } },
+				bare: { ink: "plum", members: {} },
+				hunt: { members: { ordga: true } },
 			},
 		});
-		expect(groupMemberIds(got, "hunt")).toEqual(["marrec", "ordga"]);
-		expect(groupsOf(got, "ordga")).toEqual(["elders", "hunt"]);
-		expect(groupsOf(got, "sela")).toEqual([]);
+		expect(Object.keys(got.groups)).toEqual(["hunt"]);
+	});
+
+	// LEFT OUT ON THE READ AND NOT RUBBED OUT: the undo that puts its last member back puts it back.
+	it("brings a group back with its last member when taking them off is undone", () => {
+		const before = graph({ groups: { solo: { name: "Alone", ink: "rose", members: { sela: true } } } });
+		const patch = dropNodePatch(before, "sela");
+		const change = describeWrite(before, patch);
+		const raw = landRaw(before, patch);
+		const after = normalizeGraph(raw);
+		expect(after.groups.solo).toBeUndefined();
+		const back = normalizeGraph(landRaw(raw, stepPatch(after, change.back)));
+		expect(back.groups.solo).toMatchObject({ name: "Alone", ink: "rose", members: { sela: true } });
 	});
 });
 
@@ -298,18 +311,18 @@ describe("the outline round a group", () => {
 		expect(RELMAP_GROUP_PAD_PX).toBeGreaterThan(0);
 	});
 
-	it("counts how many groups lie wholly inside each one, and breaks a tie of the same people by id", () => {
-		const depth = groupNesting({
+	it("finds which groups lie wholly inside each one, and breaks a tie of the same people by id", () => {
+		const inside = groupsInside({
 			council: { members: { a: true, b: true, c: true } },
 			elders: { members: { a: true, b: true } },
 			twin: { members: { a: true, b: true } },
 			other: { members: { c: true, d: true } },
 		});
-		expect(depth.get("council")).toBe(2);
+		expect([...inside.get("council")].sort()).toEqual(["elders", "twin"]);
 		// "elders" and "twin" hold the same two people; the later id is the outer one.
-		expect(depth.get("twin")).toBe(1);
-		expect(depth.get("elders")).toBe(0);
-		expect(depth.get("other")).toBe(0);
+		expect(inside.get("twin")).toEqual(["elders"]);
+		expect(inside.get("elders")).toEqual([]);
+		expect(inside.get("other")).toEqual([]);
 	});
 
 	// ⚠ FOUND IN A REAL BROWSER: an oval reaches past its own box, so a fixed step of padding left an

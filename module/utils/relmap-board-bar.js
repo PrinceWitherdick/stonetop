@@ -289,9 +289,17 @@ export class RelmapBoardBar {
 		this.close();
 	}
 
-	/** Let go and put the focus back where the reader came from. */
+	/**
+	 * Let go and put the focus back where the reader came from.
+	 *
+	 * `returnTo` may be a FUNCTION that finds the element, asked only now. The board is repainted
+	 * wholesale under an open bar, and the element the reader came from is replaced each time: a group
+	 * just drawn is named in a bar raised by the repaint that drew it, and an element remembered before
+	 * that paint is no longer on the page to take the focus. Left on `<body>`, the next key went to
+	 * Foundry -- Delete removing the GM's selected tokens, the arrows panning the scene.
+	 */
 	dismiss() {
-		const back = this._returnTo;
+		const back = typeof this._returnTo === "function" ? this._returnTo() : this._returnTo;
 		this.close();
 		back?.focus?.();
 	}

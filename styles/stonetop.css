@@ -51432,6 +51432,16 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	stroke-dasharray: 10 6;
 }
 
+/* ⚠ AND THE GROUP BEING HELD OR RESTED ON STILL SAYS SO. The ordinary rule (heavier, and whole) is
+   no heavier than the two above, and they come later, so under this skin -- the one that most needs
+   the mark -- a picked outline did not change at all. Said again here, after both and heavier than
+   this skin's own 3.5px. */
+:root.stonetop-high-contrast .stonetop-relmap-group.is-picked .stonetop-relmap-group-line,
+:root.stonetop-high-contrast .stonetop-relmap-group.is-lit .stonetop-relmap-group-line {
+	stroke-width: 5px;
+	stroke-dasharray: none;
+}
+
 /* AND A COLOUR NOBODY NAMED IS TAKEN DOWN WITH THE REST, as far as it can be.
 
    ⚠ THIS IS A BEST EFFORT AND NOT THE PROMISE THE EIGHT MAKE, and the difference matters enough to

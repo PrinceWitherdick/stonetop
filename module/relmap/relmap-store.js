@@ -541,6 +541,12 @@ export function normalizeGraph(raw) {
 			// no bookkeeping. This read is what keeps the stale key from drawing anything meanwhile.
 			if (on && isSafeId(nodeId) && graph.nodes[nodeId]) members[nodeId] = true;
 		}
+		// ⚠ AND A GROUP WITH NOBODY LEFT STANDING IS NOT ON THE BOARD AT ALL. Its last member taken off,
+		// it has no outline to draw, so nothing could select or rub it out, and its colour still counted
+		// as worn (`_makeGroup`) and as already on the map (`_inksInUse`). Skipped here, on the READ: the
+		// stored group stays, so the undo that puts its people back puts it back with them. An outline
+		// round nobody is nothing, which is also why taking the last people out rubs a group out.
+		if (!Object.keys(members).length) continue;
 		graph.groups[id] = {
 			name: str(group.name, RELMAP_LABEL_MAX),
 			shape: readGroupShape(group.shape),
@@ -550,19 +556,6 @@ export function normalizeGraph(raw) {
 		};
 	}
 	return graph;
-}
-
-/** The ids of the people in one group, in a stable order. Empty for a group nobody is left in. */
-export function groupMemberIds(graph, groupId) {
-	return Object.keys(graph?.groups?.[groupId]?.members ?? {}).sort();
-}
-
-/** Every group a person is in, by id, sorted. */
-export function groupsOf(graph, nodeId) {
-	return Object.entries(graph?.groups ?? {})
-		.filter(([, group]) => group.members?.[nodeId])
-		.map(([id]) => id)
-		.sort();
 }
 
 /**

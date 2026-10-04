@@ -478,6 +478,26 @@ describe("nudging a portrait from the keyboard", () => {
 		expect(wrote).toContain("71");
 	});
 
+	// ⚠ BUT TWO PEOPLE NUDGED ONE AFTER THE OTHER ARE TWO MOVES. Written as one, they were one step of
+	// the undo, and folded with neither one's own run of keys.
+	it("writes two people nudged one after the other as a step each", async () => {
+		const { app, entry, root } = boardWithPortrait();
+		root.children['[data-relmap-node="stefan"]'] = el({ style: {} });
+		app._nudgeNode("elena", { x: 21, y: 30 });
+		app._nudgeNode("stefan", { x: 71, y: 30 });
+		await app._writeNudge();
+		expect(entry.updates).toHaveLength(2);
+	});
+
+	// A selection walked by the arrow keys is one move of several people, and stays one write.
+	it("writes a selection nudged together in one write", async () => {
+		const { app, entry, root } = boardWithPortrait();
+		root.children['[data-relmap-node="stefan"]'] = el({ style: {} });
+		app._nudgeNodes({ elena: { x: 21, y: 30 }, stefan: { x: 71, y: 30 } });
+		await app._writeNudge();
+		expect(entry.updates).toHaveLength(1);
+	});
+
 	// The next key has to step on from where the portrait IS. Reading the document instead would
 	// take every repeat back to the spot the burst started from, so a held key would jitter between
 	// two positions instead of travelling.
@@ -5260,6 +5280,26 @@ describe("groups on the map", () => {
 		expect(page.updates).toHaveLength(1);
 	});
 
+	// ⚠ WHAT THE BAR IS HOLDING BACK IS THROWN AWAY, NOT WRITTEN, when its group goes. Written, a colour
+	// still waiting in the picker landed a moment before the group was rubbed out: two steps of the undo
+	// for one press, and one undo brought the group back without it.
+	it("lets the group's bar go without writing what it held, however the group goes", async () => {
+		for (const go of [
+			app => app._dropGroup("hunt"),
+			app => { app._selected = ["elena", "stefan"]; return app._regroup("hunt", "take"); },
+		]) {
+			forgetAllHistory();
+			const { entry, pages: [page] } = HUNTERS();
+			const { app } = windowFor(null, { entry, pageId: "p1" });
+			app._groupBar = { id: "hunt", discard: vi.fn(), close: vi.fn() };
+			await go(app);
+			expect(app._groupBar.discard).toHaveBeenCalled();
+			expect(app._groupBar.close).not.toHaveBeenCalled();
+			expect(page.updates).toHaveLength(1);
+			expect(app._history.depth).toBe(1);
+		}
+	});
+
 	it("rubs a group out leaving its people, and the undo puts it back whole", async () => {
 		const { entry, pages: [page] } = HUNTERS();
 		const { app } = windowFor(null, { entry, pageId: "p1" });
@@ -5277,9 +5317,7 @@ describe("groups on the map", () => {
 		const plan = app._plan();
 		const context = app._boardContext(plan);
 		expect(context.groups).toHaveLength(1);
-		expect(context.groups[0]).toMatchObject({
-			id: "hunt", inkKey: "rose", members: "elena stefan", name: "The hunters",
-		});
+		expect(context.groups[0]).toMatchObject({ id: "hunt", inkKey: "rose", name: "The hunters" });
 		expect(context.groups[0].tooltip).toContain("Elena");
 		expect(app._groupAt("hunt").members).toEqual(["elena", "stefan"]);
 		expect(app._groupMembersOf("hunt")).toEqual(["elena", "stefan"]);
@@ -5311,6 +5349,21 @@ describe("groups on the map", () => {
 		expect(said).toEqual(["group down", "line up"]);
 		expect(app._tieBar.open).toHaveBeenCalledWith("link1");
 		expect(app._tieBar.close).not.toHaveBeenCalled();
+	});
+
+	// ⚠ A GROUP JUST DRAWN IS NAMED IN A BAR THE REPAINT RAISES, and Enter on the name has to leave the
+	// reader on the board: with nowhere to go back to, the focus fell to the page and the next Delete
+	// went to the scene. The way back is FOUND when it is needed, since every repaint replaces it.
+	it("gives a group just drawn a way back to its own name", async () => {
+		const { app } = windowFor(TWO_PEOPLE);
+		app._groupBar = { refresh: vi.fn(), selectionChanged: vi.fn(), close: vi.fn(), open: vi.fn() };
+		app._tieBar = { refresh: vi.fn(), close: vi.fn() };
+		app._pendingGroupPick = "hunt";
+		await app._repaintBoard();
+		const [id, opts] = app._groupBar.open.mock.calls[0];
+		expect(id).toBe("hunt");
+		expect(opts.focusName).toBe(true);
+		expect(typeof opts.returnTo).toBe("function");
 	});
 
 	it("puts the tie bar down when a group is taken hold of", () => {

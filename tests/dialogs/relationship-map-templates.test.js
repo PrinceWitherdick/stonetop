@@ -1216,7 +1216,7 @@ describe("the groups on a board", () => {
 	const renderBoard = compile(BOARD);
 	const renderWindow = compile(WINDOW);
 	const group = {
-		id: "g1", inkKey: "green", inkHex: "", d: "M 10 10 H 90 Z", members: "n1 n2",
+		id: "g1", inkKey: "green", inkHex: "", d: "M 10 10 H 90 Z",
 		name: "The hunters", align: "start", nameLeft: 12, nameTop: 8,
 		tooltip: "The hunters: Elena, Stefan", ariaLabel: "The hunters: Elena, Stefan. Click to edit.",
 	};
@@ -1239,7 +1239,6 @@ describe("the groups on a board", () => {
 		expect(html).toContain('data-relmap-group-shape="g1"');
 		expect(html).toContain('data-relmap-group-hit="g1"');
 		expect(html).toMatch(/data-relmap-group="g1"[^>]*role="button"[^>]*tabindex="0"/);
-		expect(html).toContain('data-relmap-members="n1 n2"');
 		expect(html).toContain("stonetop-relmap-ink--green");
 		expect(html).toContain(">The hunters<");
 		// Three paths per outline, all drawn from the one `d`, which the drag preview rewrites.

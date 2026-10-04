@@ -73,6 +73,24 @@ describe("moving a group by its name or its outline", () => {
 		expect(handlers.onGroupDragEnd).toHaveBeenCalledWith(null);
 	});
 
+	// ⚠ A GROUP'S NAME IS NOBODY. Its drag used to borrow the first member's id and the name's element
+	// as if it were one portrait, so any lone-portrait path that forgot to ask about the group first
+	// acted on one arbitrary member. None of them is reached now, whichever way the drag ends.
+	it("never reports the drag as one person's, dropped or abandoned", () => {
+		made = setUp();
+		const { board, handlers } = made;
+		drag(board, board.outlines.g1.name, [100, 50]);
+		board.view.emit("pointerdown", board.outlines.g1.name, { clientX: 0, clientY: 0 });
+		board.view.emit("pointermove", board.outlines.g1.name, { clientX: 50, clientY: 0 });
+		board.flush();
+		board.view.emit("keydown", board.root, { key: "Escape" });
+		board.view.emit("pointercancel", board.outlines.g1.name, {});
+		expect(handlers.onMove).not.toHaveBeenCalled();
+		expect(handlers.onDragMove).not.toHaveBeenCalled();
+		expect(handlers.onDragEnd).not.toHaveBeenCalled();
+		expect(handlers.onGroupDragEnd).toHaveBeenLastCalledWith({ n1: { x: 10, y: 10 }, n2: { x: 20, y: 20 } });
+	});
+
 	it("moves nobody on a board the reader may not rearrange", () => {
 		made = setUp({ canMove: () => false });
 		drag(made.board, made.board.outlines.g1.name, [100, 50]);

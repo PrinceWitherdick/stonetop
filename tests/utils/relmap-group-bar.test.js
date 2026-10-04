@@ -138,6 +138,21 @@ describe("the name", () => {
 		expect(handlers.onField).not.toHaveBeenCalled();
 	});
 
+	// ⚠ ENTER ON A NAME LEAVES THE READER ON THE BOARD. The way back may be a function, asked then,
+	// because the element the bar was raised from has usually been repainted away by the time it is let go.
+	it("puts the focus back where it is found on Enter, when it is handed a way to find it", () => {
+		const { dom, bar } = setUp();
+		const back = { focus: vi.fn() };
+		const find = vi.fn(() => back);
+		bar.open("g1", { focusName: true, returnTo: find });
+		expect(find).not.toHaveBeenCalled();
+		dom.name.value = "The hunters";
+		dom.bar.handlers.keydown.forEach(fn => fn(key(dom.name, "Enter")));
+		expect(find).toHaveBeenCalledTimes(1);
+		expect(back.focus).toHaveBeenCalled();
+		expect(dom.bar.hidden).toBe(true);
+	});
+
 	// Space pauses the game and Delete deletes the selected tokens, if either gets past the bar; a
 	// digit runs a hotbar macro and a letter pans the scene. Every key is the bar's, as on the tie bar.
 	it("keeps every key from the scene", () => {
@@ -207,6 +222,22 @@ describe("the presses", () => {
 		bar.selectionChanged();
 		expect(measure).toHaveBeenCalledTimes(2);
 		expect(dom.bar.style.left).toBe("400px");
+	});
+
+	// ⚠ AND NOT WHEN THE SELECTION CHANGES WITHOUT EITHER ONE COMING OR GOING. A selection box calls this
+	// on every frame somebody enters or leaves it, and a measure is a forced layout over the board.
+	it("does not measure itself again for a selection that leaves both buttons as they were", () => {
+		const { dom, bar, state } = setUp({ selected: ["n3"] });
+		dom.bar.rect = { left: 0, top: 0, width: 100, height: 30 };
+		const measure = vi.spyOn(dom.bar, "getBoundingClientRect");
+		bar.open("g1");
+		bar.place();
+		state.selected = ["n3", "n4"];
+		bar.selectionChanged();
+		state.selected = ["n4"];
+		bar.selectionChanged();
+		expect(measure).toHaveBeenCalledTimes(1);
+		expect(dom.add.attrs["aria-label"]).toBe("Put the 1 selected in");
 	});
 
 	it("hands the membership presses to the window", () => {
@@ -281,6 +312,24 @@ describe("a colour of the reader's own", () => {
 		expect(handlers.onField).toHaveBeenCalledTimes(1);
 		expect(handlers.onField).toHaveBeenCalledWith("g1", { ink: "#1d5f4a" });
 		expect(dom.inks.green.attrs["aria-checked"]).toBe("false");
+	});
+
+	// ⚠ THE SAME GROUP CLICKED AGAIN INSIDE THE WAIT. Taking hold of it again used to refill the bar from
+	// the document, which threw the chosen colour and a name being typed away, unwritten.
+	it("keeps a colour and a name still waiting when the same group is taken hold of again", () => {
+		const { dom, bar, handlers } = setUp();
+		bar.open("g1");
+		press(dom.inkMore);
+		pick(dom, "#1d5f4a");
+		dom.name.value = "The trappers";
+		dom.name.handlers.input.forEach(fn => fn({}));
+		bar.open("g1");
+		expect(dom.name.value).toBe("The trappers");
+		expect(dom.inkHex.hidden).toBe(false);
+		expect(handlers.onField).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(1000);
+		expect(handlers.onField).toHaveBeenCalledWith("g1", { ink: "#1d5f4a" });
+		expect(handlers.onField).toHaveBeenCalledWith("g1", { name: "The trappers" });
 	});
 
 	it("deepens a colour too pale to follow, and says so", () => {

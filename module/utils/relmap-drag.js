@@ -380,6 +380,16 @@ export function wireRelmapDrag(root, {
 	}
 
 	/**
+	 * Whether a drag CARRIES PEOPLE: a portrait (`node`, with everybody selected beside it in `group`
+	 * when it is one of several) or a group's name (`group`, which is its members and nobody else).
+	 * The two share every frame and the drop; only a lone portrait reads `id`, `el` and `from`, and
+	 * only where `group` is not set.
+	 */
+	function carries(d) {
+		return d?.kind === "node" || d?.kind === "group";
+	}
+
+	/**
 	 * The travel `travelled` measures, held so that nobody being carried goes past reach
 	 * (`holdTravel`). Held HERE, where both the frame and the drop ask, so what the reader watches
 	 * is what gets written: a portrait that followed the pointer past the rail and was then put back
@@ -482,7 +492,7 @@ export function wireRelmapDrag(root, {
 		board.classList.remove("is-boxing");
 		// After the class is off, so anything the window does in response reads a board that is no
 		// longer busy. Only for a drag that actually started: an armed press redrew nothing.
-		if (finished.started && finished.kind === "node") {
+		if (finished.started && carries(finished)) {
 			if (finished.group) onGroupDragEnd?.(committed ? null : restoreOf(finished.group));
 			else onDragEnd?.(finished.id, committed ? null : { x: finished.from.left, y: finished.from.top });
 		}
@@ -534,7 +544,7 @@ export function wireRelmapDrag(root, {
 	function frame() {
 		frameId = 0;
 		if (!drag?.started) return;
-		if (drag.kind === "node" && drag.el) {
+		if (carries(drag) && (drag.group || drag.el)) {
 			// Where the drop would land, worked out the way the drop works it out (`heldTravel`), and
 			// only then turned back into window pixels, at the scale painted NOW, for the transform.
 			const moved = heldTravel(drag, drag.clientX, drag.clientY);
@@ -717,15 +727,16 @@ export function wireRelmapDrag(root, {
 				if (at && own) members.push({ id, el: own, from: { left: at.x, top: at.y } });
 			}
 			if (!members.length) return;
+			// A KIND OF ITS OWN, and NO `id`, `el` or `from`: those are one portrait's, and a group's
+			// name is nobody. Lent the first member's, every path that reads them without asking about
+			// `group` first would act on one arbitrary person. What it shares with a selection carried
+			// by a face is the carrying (`carries`), which only ever reads `group`.
 			drag = {
-				kind: "node",
-				id: members[0].id,
-				el: pressedGroup.el,
+				kind: "group",
 				pointerId: ev.pointerId,
 				startX: ev.clientX, startY: ev.clientY,
 				clientX: ev.clientX, clientY: ev.clientY,
 				dx: 0, dy: 0,
-				from: members[0].from,
 				grab: surface.pointToPercent?.({ clientX: ev.clientX, clientY: ev.clientY }) ?? null,
 				group: members,
 				started: false,
@@ -919,7 +930,7 @@ export function wireRelmapDrag(root, {
 			return;
 		}
 
-		if (finished.kind === "node") {
+		if (carries(finished)) {
 			// From the RELEASE position and the place on the board the press landed, as the preview is
 			// and for the reason `travelled` gives: the scale may no longer be the one it was pressed at.
 			const moved = heldTravel(finished, dropX, dropY);

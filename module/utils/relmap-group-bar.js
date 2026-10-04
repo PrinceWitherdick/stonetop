@@ -173,7 +173,8 @@ export class RelmapGroupBar extends RelmapBoardBar {
 	 *
 	 * @param {string} id
 	 * @param {object} [opts]
-	 * @param {HTMLElement} [opts.returnTo]  where the focus goes back to on Escape.
+	 * @param {HTMLElement|Function} [opts.returnTo]  where the focus goes back to on Escape or Enter:
+	 *        the element, or `() => element` to find it then (see `RelmapBoardBar#dismiss`).
 	 * @param {boolean} [opts.focusName]  put the caret in the name field. A group just drawn is
 	 *        named next, so it is; a group clicked to recolour is not, or the click would pull the
 	 *        focus off the board the reader is working on.
@@ -182,12 +183,18 @@ export class RelmapGroupBar extends RelmapBoardBar {
 		if (!this.el || !id) return false;
 		const held = this._groupAt(id);
 		if (!held) return false;
-		if (this.id && this.id !== id) this.flush();
+		// ⚠ THE GROUP ALREADY HELD, TAKEN HOLD OF AGAIN, KEEPS WHAT IS HELD BACK. A second click on the
+		// same outline inside a colour's wait used to refill the bar from the document, which forgets the
+		// colour just chosen and the name being typed: neither was ever written. Repainted instead, as a
+		// repaint underneath would be, so the bar goes on showing (and then writes) the reader's answer.
+		const again = this.isOpen && this.id === id;
+		if (this.id && !again) this.flush();
 		this.id = id;
 		this._returnTo = returnTo ?? null;
 		this._at = held.at ?? null;
 		this._box = null;
-		this._fill(held);
+		if (again) this._paint(held);
+		else this._fill(held);
 		this.el.hidden = false;
 		this._onPicked(id);
 		this.place();
@@ -229,28 +236,33 @@ export class RelmapGroupBar extends RelmapBoardBar {
 	 * Show "Add the 2 selected" and "Take the 1 selected out" only when they would DO something,
 	 * with the count in the words. A button that adds nobody is a press that looks broken.
 	 *
-	 * ⚠ AND THE BAR'S BOX IS THROWN AWAY WITH THEM. These two coming and going are the one thing
-	 * that changes this bar's width while it is up, and `place` measures it once per opening: a box
-	 * kept from before would seat a bar two buttons wider by the width it used to be.
+	 * ⚠ AND THE BAR'S BOX IS THROWN AWAY WHEN ONE OF THEM COMES OR GOES. That is the one thing that
+	 * changes this bar's width while it is up, and `place` measures it once per opening: a box kept
+	 * from before would seat a bar a button wider by the width it used to be. ONLY then, though: this
+	 * runs on every frame of a selection box that changes who is inside, and a measure is a forced
+	 * layout over the whole board -- the thing `place` is written never to do mid-gesture.
 	 */
 	_paintMembers(members) {
 		const inside = new Set(members);
 		const chosen = this._selected() ?? [];
 		const adding = chosen.filter(id => !inside.has(id)).length;
 		const taking = chosen.filter(id => inside.has(id)).length;
-		this._sayCount(this.add, adding);
-		this._sayCount(this.take, taking);
-		this._box = null;
+		const shown = this._sayCount(this.add, adding);
+		const shownToo = this._sayCount(this.take, taking);
+		if (shown || shownToo) this._box = null;
 	}
 
+	/** Say one membership button's count, and show it only with something to do. True when it came or went. */
 	_sayCount(button, count) {
-		if (!button) return;
+		if (!button) return false;
+		const was = button.hidden;
 		button.hidden = !count;
 		const said = String(button.dataset?.relmapSaid ?? "").replace("{count}", String(count));
 		button.setAttribute?.("aria-label", said);
 		button.setAttribute?.("data-tooltip", said);
 		const words = button.querySelector?.("[data-relmap-gbar-words]");
 		if (words) words.textContent = said;
+		return was !== button.hidden;
 	}
 
 	// ── A colour of the reader's own ─────────────────────────────────────────

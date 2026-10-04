@@ -1251,7 +1251,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 			const who = members.map(member => this._nameOf(graph, member)).join(", ");
 			const said = format("stonetop.relmap.groups.says", { name: named, who });
 			return {
-				id, ...inkPaint(group.ink), d: outline.d, members: members.join(" "),
+				id, ...inkPaint(group.ink), d: outline.d,
 				dashed: group.dash === "dashed",
 				name: group.name, align: outline.name.align,
 				nameLeft: outline.name.left, nameTop: outline.name.top,
@@ -1501,8 +1501,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 			// ⚠ THE GROUPS. A group is moved by carrying its members, so the drag layer asks who they
 			// are and then runs the ordinary group move; it never learns where an outline is.
 			groupMembers: id => this._groupMembersOf(id),
+			// Back to the group's name on the way out, FOUND THEN and not remembered: a repaint while
+			// the bar is up replaces the element that was pressed. See `RelmapBoardBar#dismiss`.
 			onPickGroup: (id, from, { keyboard = false } = {}) => this._pickGroup(id, {
-				returnTo: from ?? null, focusName: keyboard,
+				returnTo: from ? () => this._groupNameEl(id) : null, focusName: keyboard,
 			}),
 			onRemoveGroup: id => this._dropGroup(id),
 			drawing: () => this._drawArmed,
@@ -1865,7 +1867,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		if (this._pendingGroupPick) {
 			const pick = this._pendingGroupPick;
 			this._pendingGroupPick = "";
-			this._pickGroup(pick, { focusName: true });
+			// Back to the new group's own name when the naming is done (Enter, Escape), so the reader
+			// is still on the board. See `_groupNameEl`.
+			this._pickGroup(pick, { focusName: true, returnTo: () => this._groupNameEl(pick) });
 		}
 		this._paintChrome(plan);
 	}
@@ -3062,8 +3066,10 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 * @param {{kind: "nodes"|"edges", id?: string, ids?: string[]}} [options.onto]  the one person or
 	 *        line a leaf write is about, where it is about one, or the several (`ids`) a group move is
 	 *        about. See below.
+	 * @param {object} [options.graph]  the board as the caller has JUST read it, in the same breath
+	 *        (nothing awaited in between), so it is not normalized a second time. Read here otherwise.
 	 */
-	async _write(patch, { announce = "", label = "", coalesce = "", remember = true, onto = null } = {}) {
+	async _write(patch, { announce = "", label = "", coalesce = "", remember = true, onto = null, graph: read = null } = {}) {
 		if (!patch) return false;
 		const doc = this.boardDoc;
 		// ⚠ NO BOARD, NO WRITE, AND NOTHING SAID. A collection whose maps have all been rubbed out, or one
@@ -3074,8 +3080,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// ⚠ READ BEFORE THE WRITE. What would put a change back can only be worked out from the
 		// board as it stands now — after `applyPatch` the old values are gone. The cost is one
 		// extra normalize per edit, which is a fraction of what a repaint already does and only
-		// happens on a write the reader made by hand.
-		const graph = remember || onto ? readGraph(doc) : null;
+		// happens on a write the reader made by hand -- and none at all where the caller has just read
+		// the board itself to decide what to write (`options.graph`).
+		const graph = remember || onto ? read ?? readGraph(doc) : null;
 		// ⚠ A CHANGE TO SOMEBODY WHO IS NO LONGER THERE IS NOT WRITTEN. `onto` names the person or the line
 		// a leaf write is about, and a leaf written after another reader has taken them off makes them
 		// again out of that one field: `normalizeGraph` keeps a node that has nothing but coordinates, so a
@@ -3515,6 +3522,11 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 */
 	_nudgeNodes(moves) {
 		const spots = {};
+		// WHICH PRESS MOVED THEM, as a key: one person on their own, or the selection walked as one. Kept
+		// per person beside the spot, so `_writeNudge` can write each press's people as a step of their
+		// own. See there.
+		const batch = Object.keys(moves ?? {}).sort();
+		const key = batch.length === 1 ? `node:${batch[0]}` : `nodes:${batch.join(",")}`;
 		for (const [id, at] of Object.entries(moves ?? {})) {
 			const el = this._root?.querySelector(`[data-relmap-node="${id}"]`);
 			if (!el) continue;
@@ -3530,6 +3542,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 			el.style.top = `${spot.y}%`;
 			spots[id] = spot;
 			this._pendingNudge.set(id, spot);
+			(this._nudgeBatch ??= new Map()).set(id, key);
 		}
 		if (!Object.keys(spots).length) return;
 		this._previewMoves(spots);
@@ -3558,16 +3571,24 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// answered off the document in that breath, a reader who paused and walked on found the portrait
 		// back where the pause had started. Let go only where no later nudge has replaced it since.
 		//
-		// ⚠ AND ALL OF THEM IN ONE WRITE, which is one step of the undo. A selection walked across the
-		// board by the arrow keys is one move of several people, and taking it back one person at a
-		// time would leave the group in pieces half way through. The key is who moved, sorted, so a
-		// run of keys on the same group folds into one step as a run on one portrait always did.
+		// ⚠ ONE WRITE PER PRESS THAT MOVED THEM, which is one step of the undo each. A selection walked
+		// across the board by the arrow keys is one move of several people, and taking it back one person
+		// at a time would leave the group in pieces half way through; so they go in one write, keyed by who
+		// moved, sorted, and a run of keys on the same group folds into one step. But two people nudged one
+		// after the other inside one wait are two moves, and folded together they would be taken back
+		// together, and fold with neither one's own run: each keeps its own key (`node:<id>`), as it would
+		// have with a pause between them. `_nudgeBatch` remembers which press last moved each person.
 		const landing = this._landingNudge;
-		for (const [id, at] of pending) landing.set(id, at);
-		const moves = Object.fromEntries(pending);
-		const who = pending.map(([id]) => id).sort();
-		const coalesce = who.length === 1 ? `node:${who[0]}` : `nodes:${who.join(",")}`;
-		const write = this._moveNodes(moves, { coalesce }).finally(() => {
+		const batches = new Map();
+		for (const [id, at] of pending) {
+			landing.set(id, at);
+			const key = this._nudgeBatch?.get(id) ?? `node:${id}`;
+			this._nudgeBatch?.delete(id);
+			if (!batches.has(key)) batches.set(key, {});
+			batches.get(key)[id] = at;
+		}
+		const writes = [...batches].map(([coalesce, moves]) => this._moveNodes(moves, { coalesce }));
+		const write = Promise.all(writes).then(done => done.every(Boolean)).finally(() => {
 			for (const [id, at] of pending) if (landing.get(id) === at) landing.delete(id);
 		});
 		// A repaint that was held back while the keys were coming lands now.
@@ -3825,7 +3846,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 	 */
 	async _moveNodes(moves, { coalesce = "" } = {}) {
 		const doc = this.boardDoc;
-		const here = doc ? readGraph(doc).nodes : {};
+		const graph = doc ? readGraph(doc) : null;
+		const here = graph?.nodes ?? {};
 		let patch = null;
 		const ids = [];
 		for (const [id, at] of Object.entries(moves ?? {})) {
@@ -3846,7 +3868,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const label = ids.length === 1
 			? localize("stonetop.relmap.history.moved")
 			: format("stonetop.relmap.history.movedMany", { count: ids.length });
-		return this._write(patch, { label, coalesce, onto: { kind: "nodes", ids } });
+		return this._write(patch, { label, coalesce, onto: { kind: "nodes", ids }, graph });
 	}
 
 	async _openPerson(id) {
@@ -4081,6 +4103,16 @@ export class RelationshipMapWindow extends StonetopDialog {
 		};
 	}
 
+	/**
+	 * A group's name on the board as it is painted NOW, which is where the focus goes back to once its
+	 * bar is let go. Found by walking the board (`indexGroupParts`), never by a selector built out of a
+	 * stored id, and asked at that moment because every repaint replaces it.
+	 */
+	_groupNameEl(id) {
+		const board = this._boardEl();
+		return board ? indexGroupParts(board).get(id)?.name ?? null : null;
+	}
+
 	/** Who is in a group, off the paint, for the drag layer to carry. */
 	_groupMembersOf(id) {
 		return this._drawn?.groups?.get(id)?.members ?? [];
@@ -4152,6 +4184,7 @@ export class RelationshipMapWindow extends StonetopDialog {
 			announce: format("stonetop.relmap.groups.made", { count: members.length }),
 			label: localize("stonetop.relmap.history.grouped"),
 			onto: { kind: "nodes", ids: members },
+			graph,
 		});
 		if (!written) return;
 		// The selection has become the group, so it is let go: what the reader does next is name it.
@@ -4177,14 +4210,15 @@ export class RelationshipMapWindow extends StonetopDialog {
 				announce: format("stonetop.relmap.groups.added", { count: add.length }),
 				label: localize("stonetop.relmap.history.groupMembers"),
 				onto: { kind: "groups", id },
+				graph,
 			});
 			return;
 		}
 		const take = chosen.filter(member => group.members[member]);
 		if (!take.length) return;
 		const left = Object.keys(group.members).filter(member => !take.includes(member));
+		// Everybody out is the group rubbed out, and `_dropGroup` lets the bar go the way that needs.
 		if (!left.length) {
-			this._groupBar?.close();
 			await this._dropGroup(id);
 			return;
 		}
@@ -4192,17 +4226,28 @@ export class RelationshipMapWindow extends StonetopDialog {
 			announce: format("stonetop.relmap.groups.taken", { count: take.length }),
 			label: localize("stonetop.relmap.history.groupMembers"),
 			onto: { kind: "groups", id },
+			graph,
 		});
 	}
 
-	/** Rub one group out. Nobody in it moves or leaves the board, and the undo puts it back whole. */
+	/**
+	 * Rub one group out. Nobody in it moves or leaves the board, and the undo puts it back whole.
+	 *
+	 * ⚠ ITS BAR IS DISCARDED, NOT CLOSED. `close` writes whatever the bar is holding back -- a name
+	 * half typed, a colour still waiting in the picker -- and that write would land a moment before
+	 * the group goes: a second change recorded for one press, so one undo would bring the group back
+	 * without the rest. The bar's own trash button discards for the same reason; this is every other
+	 * way in (Delete on the name, taking everybody out).
+	 */
 	async _dropGroup(id) {
-		if (!readGraph(this.boardDoc).groups?.[id]) return;
-		if (this._groupBar?.id === id) this._groupBar.close();
+		const graph = readGraph(this.boardDoc);
+		if (!graph.groups?.[id]) return;
+		if (this._groupBar?.id === id) this._groupBar.discard();
 		if (this._litGroup === id) this._lightGroup(null);
 		await this._write(dropGroupPatch(id), {
 			announce: localize("stonetop.relmap.groups.dropped"),
 			label: localize("stonetop.relmap.history.ungrouped"),
+			graph,
 		});
 	}
 
@@ -4232,7 +4277,6 @@ export class RelationshipMapWindow extends StonetopDialog {
 		this._litGroup = shape ? id : null;
 		if (!root) return;
 		const members = new Set(shape?.members ?? []);
-		root.classList?.toggle("is-group-lit", !!shape);
 		// The members' ring is drawn in the group's own colour: a token for one of the eight, the hex
 		// itself for a colour of the table's own. See `.stonetop-relmap-node.is-in-group`.
 		const ink = shape?.group?.ink;

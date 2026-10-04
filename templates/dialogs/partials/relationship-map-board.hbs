@@ -33,7 +33,7 @@
         `is-dashed` is the stroke somebody CHOSE for it; whole is the absence of the modifier. --}}
   <g class="stonetop-relmap-group stonetop-relmap-ink--{{inkKey}} stonetop-relmap-line--{{inkKey}}{{#if dashed}} is-dashed{{/if}}"
      data-relmap-group-shape="{{id}}"
-     data-relmap-members="{{members}}" {{#if inkHex}}style="--relmap-ink-raw:{{inkHex}}"{{/if}}>
+     {{#if inkHex}}style="--relmap-ink-raw:{{inkHex}}"{{/if}}>
     <path class="stonetop-relmap-group-fill" d="{{d}}"></path>
     <path class="stonetop-relmap-group-line" d="{{d}}" vector-effect="non-scaling-stroke"></path>
     <path class="stonetop-relmap-group-hit" data-relmap-group-hit="{{id}}" d="{{d}}"
@@ -192,7 +192,7 @@
       name still has a target, which says "Unnamed group" in italics. --}}
 {{#each groups}}
 <div class="stonetop-relmap-group-name stonetop-relmap-ink--{{inkKey}} is-{{align}}{{#unless name}} is-unnamed{{/unless}}"
-     data-relmap-group="{{id}}" data-relmap-members="{{members}}" role="button" tabindex="0"
+     data-relmap-group="{{id}}" role="button" tabindex="0"
      style="left:{{nameLeft}}%;top:{{nameTop}}%{{#if inkHex}};--relmap-ink-raw:{{inkHex}}{{/if}}"
      data-tooltip-text="{{tooltip}}" aria-label="{{ariaLabel}}">
   <span class="stonetop-relmap-group-tab" aria-hidden="true"></span>
