@@ -9,6 +9,8 @@ import {CustomMoveDialog, characterMoveSaver} from "./dialogs/CustomMoveDialog.j
 import {AddInventoryItemDialog, characterInventoryItemSaver} from "./dialogs/AddInventoryItemDialog.js";
 import {LoveLetterDialog} from "../../dialogs/LoveLetterDialog.js";
 import {LoveLetterReadDialog} from "../../dialogs/LoveLetterReadDialog.js";
+import {isLoveLetter, setLoveLetterResolved} from "./love-letters.js";
+import {prefersReducedMotion} from "../../utils/reduced-motion.js";
 import {LevelUpDialog} from "./dialogs/LevelUpDialog.js";
 import {moveChoiceKey} from "./dialogs/well-versed-topics.js";
 import {PossessionChoicesDialog} from "./dialogs/PossessionChoicesDialog.js";
@@ -92,6 +94,7 @@ import {getStonetopSteadingActor} from "../../utils/world.js";
 import {openChroniclePageForActor} from "../../utils/chronicle.js";
 import {getDragEventData, deletionEntry, enrichHTML, imagePopout, renderTemplate} from "../../utils/foundry-compat.js";
 import {STEADING_DEFAULTS, StonetopSteading} from "../steading/StonetopSteading.js";
+import {settleSteadingRoll} from "../steading/steading-roll.js";
 import {readCurrentSeason, readCurrentYear} from "../../seasons/current-season.js";
 import {openRitesOfTheLand} from "./rites-of-the-land.js";
 import {HEALERS_ARTS, HEALERS_ARTS_STOCK, HEALERS_ARTS_STOCK_HP, healersArtsCarers, carerWis, recoverHeal, recoverBreakdown, canReachCarerStock, payHealersArtsStock} from "./healers-arts.js";
@@ -1150,6 +1153,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._activateTabOnRender = null;
 				this._tabs?.[0]?.activate?.(tab);
 			}
+			// The other one-shot the love-letter notice arms (love-letter-notice.js): unfold the
+			// Love Letters section if the reader had folded it, and bring it into view.
+			if (this._revealLoveLettersOnRender) {
+				this._revealLoveLettersOnRender = false;
+				this._revealLoveLetters();
+			}
 			// Offer to put right a follower summoned before its card's picks were asked for (the
 			// beautiful scroll's tulpa; summon-repair.js). Fire-and-forget: it asks through its own
 			// window, and remembers per session what it has asked, so a re-render never re-asks.
@@ -1899,6 +1908,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// Love letters are GM prep (Book I p.568): only the GM gets the edit/delete
 			// affordances on a letter's card. Players read and resolve their own letters.
 			context.stonetop.canAuthorLoveLetters = game.user.isGM;
+			// A resolved letter is hidden, not deleted: the player no longer sees it, and the
+			// GM keeps it on the card list, dimmed, with a Resend.
+			context.stonetop.loveLetters = (context.stonetop.movelist?.loveLetters ?? [])
+				.filter(letter => game.user.isGM || !letter.resolved);
 			// Creating homebrew arcana can be restricted to the GM independently of
 			// custom moves (arcanaCreationGmOnly). When restricted, players don't see
 			// the per-tier "Create arcanum" buttons, but still edit cards they own.
@@ -5669,9 +5682,9 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 
 			// Love letters (Book I p.568). "Read letter" opens the letter in a reader modal;
-			// resolving from there rolls/posts it like any move, then consumes it (single-use)
-			// — the last one takes its section with it. Edit and delete are GM-only affordances
-			// (canAuthorLoveLetters gates the markup too).
+			// resolving from there rolls/posts it like any move, then hides it from the player
+			// (single-use, but never deleted: the GM can Resend it). Edit, delete and resend are
+			// GM-only affordances (canAuthorLoveLetters gates the markup too).
 			html.find(".stonetop-love-letter-read").on("click", ev => {
 				const itemId = ev.currentTarget.dataset.itemId;
 				const item = this.actor.items.get(itemId);
@@ -5698,6 +5711,14 @@ export function createStonetopCharacterSheetClass(Base) {
 					no:      { label: game.i18n.localize("stonetop.character.moves.loveLetter.deleteNo") },
 				});
 				if (ok) await item.delete();
+			});
+			html.find(".stonetop-love-letter-resend").on("click", async ev => {
+				if (!game.user.isGM) return;
+				const item = this.actor.items.get(ev.currentTarget.dataset.itemId);
+				if (!item) return;
+				ev.currentTarget.disabled = true;
+				await setLoveLetterResolved(item, false);
+				ui.notifications.info(game.i18n.format("stonetop.character.moves.loveLetter.resent", { name: this.actor.name }));
 			});
 
 			html[0].addEventListener("click", ev => {
@@ -6413,6 +6434,12 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!item) return void ui.notifications.warn("That move is no longer on this character.");
 			if (!this.isEditable) return;
 
+			// A +Fortunes love letter rolls the steading's Fortunes, settled as every steading roll
+			// is, from the hotbar as from the reader.
+			if (isLoveLetter(item) && normalizeRollType(item.system?.rollType) === "fortunes") {
+				return (await this._rollLoveLetterFortunes(item)) ? undefined : false;
+			}
+
 			// A weapon-granting move (Purifying Flames) has no rollType of its own, so it belongs
 			// in the description branch — and it is steered there rather than merely landing there,
 			// so that a granting move which one day DOES carry a rollType still acts as the weapon
@@ -6461,28 +6488,76 @@ export function createStonetopCharacterSheetClass(Base) {
 		}
 
 		// Resolve a love letter (Book I p.568): post it like any move, then consume it.
-		// A fixed-stat letter rolls through the standard engine (same chat card, XP-on-miss);
-		// a no-roll letter posts its body as a description card. We call onRoll directly (not
-		// rollMoveById) so there's no pre-roll prompt whose cancel could leave a single-use
-		// letter half-spent — the letter is only deleted once its card has posted.
+		// A stat letter asks the standard roll prompt and rolls through the standard engine
+		// (same chat card, XP-on-miss); a +Fortunes letter rolls the steading's Fortunes the way
+		// Requisition does; a no-roll letter posts its body as a description card. The letter is
+		// marked resolved (hidden from the player, kept for the GM's Resend) only once its card
+		// has posted, so backing out of the prompt keeps it.
+		// Returns true when resolved, false when the player backed out (the reader stays open).
 		async _onResolveLoveLetter(itemId) {
 			const item = this.actor?.items?.get(itemId);
-			if (!item) return void ui.notifications.warn("That love letter is no longer on this character.");
-			if (!this.isEditable) return;
+			if (!item) { ui.notifications.warn("That love letter is no longer on this character."); return false; }
+			if (!this.isEditable) return false;
 
+			let rolled;
 			try {
-				const rollable = this._makeSyntheticRollable(item);   // null when there's no roll
-				if (rollable) await this._stonetopCharacter.onRoll({ currentTarget: rollable }, {});
-				else await item.roll({ descriptionOnly: true });
+				rolled = await this._rollLoveLetter(item);
 			} catch (err) {
 				console.error("Stonetop | Error resolving love letter:", err);
 				ui.notifications.error("Could not resolve that love letter: see the console for details.");
 				// Rethrow so the reader dialog keeps itself open and re-enables its button; the
-				// letter is left in place (delete below is skipped) so it isn't silently consumed.
+				// letter is left unresolved so it isn't silently spent.
 				throw err;
 			}
+			if (!rolled) return false;
 
-			await item.delete();   // single-use — the section vanishes with the last letter
+			await setLoveLetterResolved(item, true);   // the section vanishes with the last letter
+			return true;
+		}
+
+		// Post the letter's card. False when a prompt was backed out of, so nothing posted.
+		async _rollLoveLetter(item) {
+			const stat = normalizeRollType(item.system?.rollType);
+			if (!stat) {
+				await item.roll({ descriptionOnly: true });
+				return true;
+			}
+			if (stat === "fortunes") return this._rollLoveLetterFortunes(item);
+
+			const rollable = this._makeSyntheticRollable(item);
+			const prompted = await this._promptRollOptions({ rollable, title: item.name, moveItem: item });
+			if (!prompted) return false;
+			const handled = await this._stonetopCharacter.onRoll({ currentTarget: rollable }, prompted);
+			return !!handled && handled !== "cancel";
+		}
+
+		// +Fortunes: the PC rolls the steading's Fortunes, settled as every steading roll is (a
+		// held Rites of the Land advantage is spent here, by someone who can write the steading).
+		// Posted as the character, so the letter's own "Mark XP on a miss" applies.
+		async _rollLoveLetterFortunes(item) {
+			const steadingActor = this._stonetopCharacter.getSteadingActor();
+			if (!steadingActor) {
+				ui.notifications.warn("This letter rolls +Fortunes, but this character isn't linked to a steading.");
+				return false;
+			}
+			const prompted = await promptRoll({ title: item.name });
+			if (!prompted) return false;
+			const steading = new StonetopSteading(steadingActor);
+			const terms = await settleSteadingRoll(steading, {
+				moveName: item.name, statKey: "fortunes",
+				chosenMode: prompted.rollMode ?? steadingActor.getFlag(STONETOP_SCOPE, "rollMode"),
+				canSpend: !!steadingActor.isOwner,
+			});
+			await terms.spend();
+			await item.roll({
+				statOverride: "fortunes",
+				statValue: steading.getStatValue("fortunes"),
+				rollMode: terms.rollMode,
+				modifier: prompted.situational ?? 0,
+				...(terms.missAsPartial ? { missCountsAsPartial: terms.missAsPartial } : {}),
+				...(terms.conditionNotes.length ? { conditionNotes: terms.conditionNotes } : {}),
+			});
+			return true;
 		}
 
 		// Build a detached DOM element that stands in for a move row's rollable title,
@@ -8053,6 +8128,19 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (backHp !== null) await char.restoreHp(backHp, resolution.move, { clearsDeathsDoor: true, unhalved: true });
 			else await char.setDeathsDoorState(null);
 			this.render(false);
+		}
+
+		/**
+		 * Unfold the Moves tab's Love Letters section if the reader folded it, and scroll it into
+		 * view: where the love-letter notice's tap lands. The fold is unfolded by clicking its own
+		 * caret, so the stored preference changes the way a reader's click would change it.
+		 */
+		_revealLoveLetters() {
+			const section = this.element?.[0]?.querySelector(".tab.moves .stonetop-love-letters-section");
+			if (!section) return;
+			const caret = section.querySelector(".stonetop-section-collapse");
+			if (caret && this._isSectionCollapsed?.(caret)) caret.click();
+			section.scrollIntoView?.({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
 		}
 
 		/**

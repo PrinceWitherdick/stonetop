@@ -65,7 +65,7 @@ export const PREFERENCE_GROUPS = [
 	{
 		id: "appearance",
 		titleKey: "stonetop.sheet.preferences.appearance",
-		keys: ["sheetFont", "sheetLayout", "editPencilRevealDelay", "timeBannerShown"],
+		keys: ["sheetFont", "sheetLayout", "editPencilRevealDelay", "timeBannerShown", "loveLetterJingle"],
 	},
 	{
 		id: "rolling",

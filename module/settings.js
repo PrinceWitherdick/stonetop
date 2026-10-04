@@ -1482,6 +1482,18 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// The bells the love-letter notice rings as it drops in (actors/character/love-letter-notice.js).
+	// Per browser, and only the sound: the red notice still comes, so a player who finds the
+	// jingle too much doesn't also stop being told a letter arrived. Read each time it would ring.
+	game.settings.register(SYSTEM_ID, "loveLetterJingle", {
+		name: "stonetop.settings.loveLetterJingle.name",
+		hint: "stonetop.settings.loveLetterJingle.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	// NO "HIDE ROLLABLE ICON" SETTING. It used to sit here, between the pencil delay and the
 	// roll-mode switch, and it hid the dice icon on move rows and stat rows. Both icons are
 	// gone outright: a move is rolled by its TITLE and a stat by its whole CELL, so the switch

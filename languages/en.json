@@ -1002,6 +1002,10 @@
         "name": "Weather and Season Bar",
         "hint": "Show the weather, the season and the year at the top of the screen. This only affects your own screen."
       },
+      "loveLetterJingle": {
+        "name": "Love Letter Jingle",
+        "hint": "Ring a short jingle when a love letter arrives for you. The red notice still appears when this is off. This only affects your own screen."
+      },
       "askRollModeEachRoll": {
         "name": "Ask How to Roll Each Time",
         "hint": "Ask for Advantage / Normal / Disadvantage in a window before every move or stat roll, starting fresh at Normal each time. Ticked, the Roll Modifier selector is hidden from the character and steading sheets. Unticked, that selector is how you say it, and it stays set until you change it. Hold Shift while clicking a roll to skip the window."
@@ -1603,7 +1607,9 @@
           "descriptionPlaceholder": "Dear …",
           "rollLabel": "Dice roll",
           "rollNone": "No roll: read aloud only",
-          "rollHint": "Pick a stat to make this a 2d6+stat move. Leave on \"No roll\" for a read-aloud letter.",
+          "rollHint": "Pick a stat (or the steading's Fortunes) to make this a 2d6 move. Leave on \"No roll\" for a read-aloud letter.",
+          "fortunes": "Fortunes",
+          "fortunesOption": "Fortunes (the steading)",
           "resultsTitle": "Roll results (optional)",
           "stylePickerLabel": "Result style",
           "styleProse": "Describe outcomes",
@@ -1611,6 +1617,7 @@
           "pickLabel": "Pick",
           "pickCountLabel": "How many to pick",
           "pickCountHint": "How many the player chooses on a 10+, 7-9, and 6- (0 = none).",
+          "listTextSuffix": "(optional words with the picks)",
           "optionsLabel": "Options to choose from (one per line)",
           "optionsPlaceholder": "Owain's been calling for folks to \"do something\"…\nWini has been acting out, badly…\nCrinwin jumped one of your crew…",
           "optionsHint": "A shared list the player chooses from, one option per line.",
@@ -1628,7 +1635,15 @@
           "readAloudButton": "Read aloud",
           "pickFromList": "from the list below",
           "rollButton": "Roll",
-          "resolveButton": "Read & Resolve"
+          "resolveButton": "Read & Resolve",
+          "resolvedBadge": "Resolved",
+          "resendButton": "Resend",
+          "resendHint": "The player has resolved this letter, so they no longer see it. Resend puts it back on their Moves tab.",
+          "resent": "Love letter sent back to {name}'s Moves tab.",
+          "noticeOne": "A love letter has arrived",
+          "noticeMany": "{count} love letters have arrived",
+          "noticeFor": "{text} for {name}",
+          "noticeOpen": "Open it"
         }
       },
       "lore": {

@@ -9778,7 +9778,8 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-love-letter:hover .stonetop-love-letter-edit,
 .stonetop-love-letter:hover .stonetop-love-letter-delete { display: inline-flex; }
 .stonetop-love-letter-actions { display: flex; align-items: center; margin-top: 8px; }
-.stonetop-love-letter-read {
+.stonetop-love-letter-read,
+.stonetop-love-letter-resend {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -9793,7 +9794,21 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	color: var(--ll-seal-text);
 	transition: background 0.15s;
 }
-.stonetop-love-letter-read:hover { background: #8f4a50; }
+.stonetop-love-letter-read:hover,
+.stonetop-love-letter-resend:hover { background: #8f4a50; }
+/* A resolved letter is only on the GM's sheet: the paper fades, the actions stay crisp. */
+.tab.moves .stonetop-item.stonetop-love-letter.is-resolved .stonetop-item-name,
+.tab.moves .stonetop-item.stonetop-love-letter.is-resolved .stonetop-item-description { opacity: 0.6; }
+.stonetop-love-letter-resolved-badge {
+	margin-left: 8px;
+	padding: 0 6px;
+	border: 1px solid currentColor;
+	border-radius: 3px;
+	font-size: var(--st-fs-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--tc-ink-soft);
+}
 
 /* Reader modal (LoveLetterReadDialog): the letter's full contents, then a lone Resolve
    action. Given the same "handed-over paper letter" treatment as the Moves-tab card and the
@@ -18492,6 +18507,101 @@ button.stonetop-mark-sign-btn.is-active:hover {
 @keyframes stonetop-time-banner-turn {
 	from { translate: 0 -100%; }
 	to   { translate: 0 0; }
+}
+
+/* ── "A love letter has arrived" ───────────────────────────────────────────────────────────────
+   A player's red envelope, dropped from the top of the screen when one of their characters has a
+   love letter they haven't been told about (actors/character/love-letter-notice.js). An icon and
+   no words (the user's call). Hangs from the top edge just right of the weather/season bar, as
+   tall as the bar and rounded underneath like it, or centred at the top of the map column when
+   there is no bar. One button: a tap puts it away and opens the letter.
+
+   On <body> above the windows, like core's own notifications, rather than in `#ui-top` with the
+   bar: that column sits under every window, and a sheet dragged to the top of the screen buried
+   it. So it is `fixed`, and the script hands it the bar's end, top and height in three variables.
+
+   Self-coloured, so it reads the same in every theme: white on a letter-seal red, AAA (7:1)
+   against both ends of its gradient for the low-vision reader (love-letter-notice.test.js). */
+#stonetop-letter-notice {
+	--stonetop-letter-notice-top: #a32020;
+	--stonetop-letter-notice-bottom: #7a1414;
+	--stonetop-letter-notice-ink: #ffffff;
+	--stonetop-letter-notice-rule: #4e0b0b;
+
+	/* The bar's height, from the script; a bar-sized default when there is no bar. */
+	--stonetop-letter-notice-size: var(--stonetop-letter-notice-h, calc(2.6rem * var(--stonetop-font-scale)));
+
+	position: fixed;
+	top: var(--stonetop-letter-notice-y, 0px);
+	left: var(--stonetop-letter-notice-x, 50%);
+	z-index: var(--z-index-notification, 99999);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	/* A little wider than tall, the shape of the envelope it holds. */
+	width: calc(var(--stonetop-letter-notice-size) * 1.35);
+	height: var(--stonetop-letter-notice-size);
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--stonetop-letter-notice-rule);
+	border-top: none;
+	/* Hung from the top edge, rounded underneath, as the bar beside it is. */
+	border-radius: 0 0 10px 10px;
+	background: linear-gradient(to bottom, var(--stonetop-letter-notice-top), var(--stonetop-letter-notice-bottom));
+	box-shadow: 0 2px 10px rgb(0 0 0 / 55%);
+	color: var(--stonetop-letter-notice-ink);
+	line-height: 1;
+	/* Only the hover eases. Core's button transition would otherwise slide it in sideways from
+	   its default spot to the one the script places it at, across the bar. */
+	transition: filter 0.15s ease;
+	pointer-events: auto;
+	cursor: pointer;
+}
+
+#stonetop-letter-notice:hover {
+	filter: brightness(1.12);
+}
+
+#stonetop-letter-notice:focus-visible {
+	outline: 3px solid var(--stonetop-letter-notice-ink);
+	outline-offset: -5px;
+}
+
+.stonetop-letter-notice__icon {
+	flex: none;
+	margin: 0;
+	font-size: calc(var(--stonetop-letter-notice-size) * 0.55);
+	color: var(--stonetop-letter-notice-ink);
+	filter: drop-shadow(0 1px 1px rgb(0 0 0 / 40%));
+}
+
+/* The drop from the top edge, with a little bounce, and the envelope shaken as it lands. Only
+   for a reader who hasn't asked for less motion (the OS's setting or the system's own Reduce
+   motion); for them it simply appears. The bells ring either way: sound isn't motion. */
+@media (prefers-reduced-motion: no-preference) {
+	:root:not(.stonetop-reduce-motion) #stonetop-letter-notice.is-arriving {
+		animation: stonetop-letter-notice-drop 0.6s cubic-bezier(0.25, 1.4, 0.5, 1);
+	}
+
+	:root:not(.stonetop-reduce-motion) #stonetop-letter-notice.is-arriving .stonetop-letter-notice__icon {
+		animation: stonetop-letter-notice-shake 0.7s ease-in-out 0.45s;
+	}
+}
+
+@keyframes stonetop-letter-notice-drop {
+	from { translate: 0 -160%; opacity: 0; }
+	40%  { opacity: 1; }
+	to   { translate: 0 0; }
+}
+
+@keyframes stonetop-letter-notice-shake {
+	0%, 100% { rotate: 0deg; }
+	20%      { rotate: -14deg; }
+	40%      { rotate: 12deg; }
+	60%      { rotate: -8deg; }
+	80%      { rotate: 5deg; }
 }
 
 /* ── The hold tray ─────────────────────────────────────────────────────────────────

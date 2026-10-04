@@ -55,6 +55,7 @@ import { onUpdateSiteNote } from "./module/sites/site-scene-pins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { installMapPinNameToggle } from "./module/hooks/MapPinNameToggle.js";
 import { installTimeBanner } from "./module/seasons/time-banner.js";
+import { installLoveLetterNotice } from "./module/actors/character/love-letter-notice.js";
 import { registerExpeditionRouteHooks } from "./module/hooks/ExpeditionRouteOverlay.js";
 import { bumpEncounterNotesGeneration } from "./module/actors/gmtoolkit/gm-encounters-tab.js";
 import { gmToolkitActors } from "./module/actors/gmtoolkit/gm-toolkit-actor.js";
@@ -904,6 +905,10 @@ Hooks.once("ready", installMapPinNameToggle);
 // `ready` for the same reason as the eye: it mounts into core's own `#ui-top`. See
 // seasons/time-banner.js.
 Hooks.once("ready", installTimeBanner);
+
+// A player's red "a love letter has arrived" notice, hung under that bar; after it, so it finds
+// the bar to hang from. See actors/character/love-letter-notice.js.
+Hooks.once("ready", installLoveLetterNotice);
 
 // -- EXPEDITION ROUTE ON THE MAP -------------------------------
 // A journey put on a poster-map scene from the Run an Expedition walkthrough. The scene

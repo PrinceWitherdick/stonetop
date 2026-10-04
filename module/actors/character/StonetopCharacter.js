@@ -110,7 +110,7 @@ import {normalizeRollType} from "../../utils/roll-types.js";
 import {buildCustomMoveData, clampInt} from "../../utils/custom-move-data.js";
 import {buildInventoryItemData, readInventoryItemData, WRITEUP_EDITED_FLAG} from "../../utils/inventory-item-data.js";
 import {ARTIFACT_STATE, concealArtifactFields, isArtifactUpgrade, normalizeArtifactState} from "./artifact-identify.js";
-import {isLoveLetter} from "./love-letters.js";
+import {isLoveLetter, isResolvedLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING, ALL_IN_THE_WRIST} from "../../data/weapons.js";
@@ -407,6 +407,8 @@ const ROLL_LABELS_BY_TYPE = {
 	cha: "CHA",
 	// The Destined's Omens of Fate rolls the Omens held, not a stat (destined.js).
 	omens: "Omens",
+	// A love letter can roll the steading's Fortunes (love-letters.js).
+	fortunes: "Fortunes",
 };
 const HOMEFRONT_ROLL_LABELS_BY_NAME = {
 	"Deploy": "Defenses",
@@ -1705,8 +1707,8 @@ export class StonetopCharacter {
 			.filter(i => i.type === "move" && i.system?.moveType === "other");
 
 		// Love letters are single-use, GM-authored moves (Book I p.568). They share the
-		// "other" moveType but render in their own top-of-Moves section and get consumed on
-		// resolve — so split them off here in one pass and keep them off the "Other Moves" list.
+		// "other" moveType but render in their own top-of-Moves section and hide once
+		// resolved — so split them off here in one pass and keep them off the "Other Moves" list.
 		const loveLetterItems = [];
 		const otherMoveItems = [];
 		for (const i of otherItems) (isLoveLetter(i) ? loveLetterItems : otherMoveItems).push(i);
@@ -1721,6 +1723,7 @@ export class StonetopCharacter {
 				.withOwnedId(i._id)
 				.withRollType(normalizeRollType(i.system?.rollType))
 				.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+				.withResolved(isResolvedLoveLetter(i))
 				.build());
 
 		const other = otherMoveItems

@@ -17,24 +17,33 @@
 		{{#unless stonetop.classicLayout}}{{> "stonetop.stat-block"}}{{/unless}}
 
 		{{!-- Love letters (Book I p.568): single-use, GM-authored moves addressed to this
-		      PC. The section exists only while at least one letter is on the sheet — the
-		      last one vanishes with its section when the player resolves it. Players read
-		      and resolve; only the GM sees the edit/delete affordances. --}}
-		{{#if stonetop.movelist.loveLetters.length}}
+		      PC. The section exists only while this user has a letter to see. Resolving one
+		      hides it from the player (it is never deleted); the GM still sees it, dimmed,
+		      with Resend to hand it back. Players read and resolve; only the GM sees the
+		      edit/delete/resend affordances. --}}
+		{{#if stonetop.loveLetters.length}}
 		<div class="stonetop-move-group stonetop-love-letters-section">
 			{{> "stonetop.section-heading" title=(localize "stonetop.character.moves.loveLetter.sectionTitle") collapse="loveLetters"}}
 			<ol class="items-list">
-			{{#each stonetop.movelist.loveLetters}}
-				<li class="item stonetop-item stonetop-love-letter" data-item-id="{{ownedId}}">
+			{{#each stonetop.loveLetters}}
+				<li class="item stonetop-item stonetop-love-letter{{#if resolved}} is-resolved{{/if}}" data-item-id="{{ownedId}}">
 					<div class="stonetop-item-header">
 						<strong class="stonetop-item-name">{{name}}</strong>
+						{{#if resolved}}<span class="stonetop-love-letter-resolved-badge">{{localize "stonetop.character.moves.loveLetter.resolvedBadge"}}</span>{{/if}}
 						{{#if (and @root.stonetop.canAuthorLoveLetters rollLabel)}}<span class="stonetop-move-roll-chip">+{{rollLabel}}</span>{{/if}}
 					</div>
 					{{#if description}}<div class="stonetop-item-description">{{{moveBody description moveResults}}}</div>{{/if}}
 					<div class="stonetop-love-letter-actions">
+						{{#if resolved}}
+						<button type="button" class="stonetop-love-letter-resend" data-item-id="{{ownedId}}"
+						        title="{{localize 'stonetop.character.moves.loveLetter.resendHint'}}">
+							<i class="fas fa-paper-plane" aria-hidden="true"></i> {{localize "stonetop.character.moves.loveLetter.resendButton"}}
+						</button>
+						{{else}}
 						<button type="button" class="stonetop-love-letter-read" data-item-id="{{ownedId}}">
 							<i class="fas fa-envelope-open-text" aria-hidden="true"></i> {{localize "stonetop.character.moves.loveLetter.readButton"}}
 						</button>
+						{{/if}}
 						{{#if @root.stonetop.canAuthorLoveLetters}}
 						<a class="stonetop-love-letter-edit" data-item-id="{{ownedId}}" title="{{localize 'stonetop.character.moves.loveLetter.editMove'}}">
 							<i class="fas fa-pen"></i>
