@@ -931,6 +931,13 @@ function _parseFollowerDamage(str) {
 	};
 }
 
+// Tabs that sit at the foot of the rail whatever order a player dragged the rest into. Settings is
+// not about the character, so it stays below Notes and everything else (user's call, 2026-10-03).
+// A saved order is only a snapshot, and one saved before Settings existed would otherwise slot it
+// in after Timeline, wherever Timeline had been dragged. So the merge pins it, and it is neither
+// dragged nor dropped on.
+export const PINNED_LAST_TABS = Object.freeze(["preferences"]);
+
 export function createStonetopCharacterSheetClass(Base) {
 	// Details-tab sections (Background, Instinct, Appearance, Origin, Lore) each
 	// carry their own edit pencil via the shared section-editing mixin, tracked
@@ -6130,20 +6137,23 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			let dragSource = null;
 
-			nav.querySelectorAll(".item[data-tab]").forEach(tab => { tab.draggable = true; });
+			const pinned = tab => PINNED_LAST_TABS.includes(tab?.dataset?.tab);
+			nav.querySelectorAll(".item[data-tab]").forEach(tab => { tab.draggable = !pinned(tab); });
 
 			nav.addEventListener("dragstart", ev => {
 				dragSource = ev.target.closest(".item[data-tab]");
-				if (!dragSource) return;
+				if (!dragSource || pinned(dragSource)) { dragSource = null; return; }
 				ev.dataTransfer.setData("text/plain", dragSource.dataset.tab);
 				ev.dataTransfer.effectAllowed = "move";
 				dragSource.classList.add("stonetop-tab-dragging");
 			});
 
 			nav.addEventListener("dragover", ev => {
+				const target = ev.target.closest(".item[data-tab]");
+				// No preventDefault over a pinned tab: the browser shows it as no drop target.
+				if (pinned(target)) return;
 				ev.preventDefault();
 				ev.dataTransfer.dropEffect = "move";
-				const target = ev.target.closest(".item[data-tab]");
 				if (!target || target === dragSource) return;
 				nav.querySelectorAll(".item[data-tab]").forEach(t => t.classList.remove("stonetop-tab-drag-over"));
 				target.classList.add("stonetop-tab-drag-over");
@@ -6159,7 +6169,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.preventDefault();
 				const target = ev.target.closest(".item[data-tab]");
 				nav.querySelectorAll(".item[data-tab]").forEach(t => t.classList.remove("stonetop-tab-drag-over", "stonetop-tab-dragging"));
-				if (!target || target === dragSource || !dragSource) return;
+				if (!target || target === dragSource || !dragSource || pinned(target)) return;
 				const tabs = [...nav.querySelectorAll(".item[data-tab]")];
 				if (tabs.indexOf(dragSource) < tabs.indexOf(target)) target.after(dragSource);
 				else target.before(dragSource);
@@ -6209,15 +6219,18 @@ export function createStonetopCharacterSheetClass(Base) {
 		 * Conditional tabs (Arcana, Followers, Post-Death) drop in and out of the template
 		 * freely — a key in `savedOrder` with no tab rendered is simply skipped by the caller.
 		 *
+		 * PINNED_LAST_TABS (Settings) ignore both: whatever was saved, they go last.
+		 *
 		 * @param {string[]} savedOrder   tab keys in the order the player last dragged them
 		 * @param {string[]} templateOrder tab keys as the template rendered them, in DOM order
 		 * @returns {string[]} the merged order
 		 */
 		_mergeTabOrder(savedOrder, templateOrder) {
-			const merged = savedOrder.filter(key => templateOrder.includes(key));
+			const isPinned = key => PINNED_LAST_TABS.includes(key);
+			const merged = savedOrder.filter(key => templateOrder.includes(key) && !isPinned(key));
 			for (let i = 0; i < templateOrder.length; i++) {
 				const key = templateOrder[i];
-				if (merged.includes(key)) continue;
+				if (merged.includes(key) || isPinned(key)) continue;
 				// Nearest template sibling ABOVE this one that already has a place.
 				let at = 0;
 				for (let j = i - 1; j >= 0; j--) {
@@ -6226,7 +6239,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 				merged.splice(at, 0, key);
 			}
-			return merged;
+			return [...merged, ...templateOrder.filter(isPinned)];
 		}
 
 		_getDragEventData(ev) {

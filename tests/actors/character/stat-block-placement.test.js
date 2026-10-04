@@ -153,4 +153,15 @@ describe("tab order merge", () => {
 		const saved = ["arcana", "notes", "post-death", "moves"];
 		expect(sheet()._mergeTabOrder(saved, ["moves", "notes"])).toEqual(["notes", "moves"]);
 	});
+
+	// Settings sits below Notes ALWAYS (user's call, 2026-10-03): not where it was dragged, and not
+	// after Timeline when a pre-Settings saved order put Timeline above Notes.
+	it("pins Settings last whatever the saved order says", () => {
+		const template = ["moves", "notes", "timeline", "preferences"];
+		expect(sheet()._mergeTabOrder(["preferences", "notes", "moves", "timeline"], template))
+			.toEqual(["notes", "moves", "timeline", "preferences"]);
+		expect(sheet()._mergeTabOrder(["timeline", "moves", "notes"], template))
+			.toEqual(["timeline", "moves", "notes", "preferences"]);
+		expect(sheet()._mergeTabOrder(["notes", "moves"], ["moves", "notes"])).toEqual(["notes", "moves"]);
+	});
 });
