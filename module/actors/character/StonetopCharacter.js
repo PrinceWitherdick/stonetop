@@ -119,6 +119,7 @@ import {healTo} from "../../camp/camp-rules.js";
 import {recoveredHpTo, slowToHeal} from "./deaths-door-actor.js";
 import {LEARNED_OPTION} from "../../timeline/timeline-milestones.js";
 import {inTurn} from "../../utils/turn-queue.js";
+import {isGear} from "../../migration/superseded-values.js";
 import {StonetopSteading} from "../steading/StonetopSteading.js";
 import {rulesHas} from "../steading/improvement-rules.js";
 
@@ -3170,6 +3171,30 @@ export class StonetopCharacter {
 		if (updates.length) await this._actor.updateEmbeddedDocuments("Item", updates, { stonetopLedger: true });
 		for (const [id, max] of clamps) await this._inventory.setResource(id, max);
 		return updates.length;
+	}
+	/**
+	 * The actor.update fragment that keeps no more pips on a track than its new, smaller size, for
+	 * held items whose track the pack shrank (migration/move-refresh.js: Unstoppable's six circles
+	 * becoming the book's five). A move's track is stored by its name, a piece of gear's by its item
+	 * id. Null when nothing stored is over.
+	 *
+	 * @param {Array<{item: object, max: number}>} shrunk
+	 * @returns {object|null}
+	 */
+	heldTrackClampData(shrunk = []) {
+		const moves = this._moveResources.getMoveResources();
+		const gear = this._inventory.resources;
+		let data = null;
+		for (const { item, max } of shrunk) {
+			const gearItem = isGear(item);
+			const key = gearItem ? item._id : item?.name;
+			// A dotted name would write a nested path instead of its own key.
+			if (!key || key.includes(".")) continue;
+			const stored = Number((gearItem ? gear : moves)[key]);
+			if (!(stored > max)) continue;
+			data = { ...data, ...(gearItem ? this._inventory.resourceData(key, max) : this._moveResources.usesUpdate(key, max)) };
+		}
+		return data;
 	}
 	async setCustomPossessions(labels) { await this._possessions.setCustom(labels); }
 	async removeCustomPossession(slug) { await this._possessions.removeCustom(slug); }

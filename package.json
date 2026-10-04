@@ -10,7 +10,8 @@
     "build": "node scripts/build.js",
     "unpack": "node scripts/unpack.js",
     "gen:ai-signals": "node scripts/gen-ai-signals.js",
-    "reorganize-packs": "node scripts/reorganize-playbook-moves.js"
+    "reorganize-packs": "node scripts/reorganize-playbook-moves.js",
+    "gen:superseded": "node scripts/gen-superseded-fields.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

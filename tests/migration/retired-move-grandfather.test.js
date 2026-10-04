@@ -24,6 +24,16 @@ describe("which replacing moves predate the stamp", () => {
 		expect(unstampedReplacers([rampart])).toEqual([rampart]);
 	});
 
+	// The held-move refresh writes the copy, and the server restamps `_stats.systemVersion` on that
+	// write; the refresh keeps the version it found in `madeUnder` first (made-under.js).
+	it("reads a copy the refresh restamped by the release it kept aside", () => {
+		const refreshed = move("r", "A Mighty Rampart", { replaces: "Bulwark", version: "1.7.2", flags: { madeUnder: "1.6.0" } });
+		expect(unstampedReplacers([refreshed])).toEqual([refreshed]);
+		const blank = move("r", "A Mighty Rampart", { replaces: "Bulwark", version: "1.7.2", flags: { madeUnder: "" } });
+		expect(unstampedReplacers([blank])).toEqual([blank]);
+		expect(unstampedReplacers([move("r", "A Mighty Rampart", { replaces: "Bulwark", version: "1.7.2", flags: { madeUnder: "1.7.0" } })])).toEqual([]);
+	});
+
 	it("leaves a copy made since: the rule is live for it", () => {
 		expect(unstampedReplacers([move("r", "A Mighty Rampart", { replaces: "Bulwark", version: "1.6.6" })])).toEqual([]);
 		expect(unstampedReplacers([move("r", "A Mighty Rampart", { replaces: "Bulwark", version: "1.6.10" })])).toEqual([]);

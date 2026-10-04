@@ -37,7 +37,9 @@ Two consequences worth holding onto:
    (suggest the next increment). Wait for their answer.
 
 2. Preflight on `develop`: working tree clean and pushed, `npm test` passes, `npm run lint`
-   passes.
+   passes. `tests/migration/superseded-data-fresh.test.js` failing means the pack changed since
+   `npm run gen:superseded` last ran: run it, commit the regenerated
+   `module/migration/data/superseded-move-fields.js`, and start the preflight again.
 
 3. Bump `system.json`: set `"version"` to the new version and point `"download"` at the versioned
    zip URL `https://github.com/PrinceWitherdick/stonetop-pwd/releases/download/<VERSION>/stonetop.zip`.

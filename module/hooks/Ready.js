@@ -77,6 +77,9 @@ import { repairAllPossessionGrants } from "../migration/possession-grant-repair.
 import { repairMasteredArcanumCircles } from "../migration/mastered-arcanum-circles.js";
 import { settleAllArcanumBoxLayouts, settleOwnArcanumBoxLayouts } from "../migration/tulpa-move-boxes.js";
 import { refreshHeldMoves } from "../migration/move-refresh.js";
+import { refreshSteadingImprovements } from "../migration/improvement-refresh.js";
+import { refreshSeededMonsters } from "../migration/bestiary-refresh.js";
+import { refreshCatalogFollowers } from "../migration/follower-refresh.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
@@ -239,6 +242,29 @@ export async function onReady() {
 		// made at all now, so this is legacy repair and has a last world to run in.
 		try { await oncePerVersion("arcanumSlugs", _stampMissingArcanumSlugs); }
 		catch (err) { console.error("Stonetop | arcanum slug sweep failed", err); }
+		// Bring the moves, treasures and gear characters already hold (and the Items sidebar's) up to
+		// the pack: fill what it has gained, and correct a value it has since changed or dropped where
+		// the copy still holds exactly what an older release shipped (migration/move-refresh.js). Per
+		// VERSION, and what lets every rule read the held copy with no fallback to the pack of its own.
+		// FIRST of the move sweeps: the replacing-move stamp below reads `replaces` and the grant
+		// repair reads `grantsPossession` off the held copy. The grandfathers after it still see each
+		// copy's original release, which the refresh keeps aside (made-under.js) before it writes.
+		try { await oncePerVersion("moveRefresh", refreshHeldMoves); }
+		catch (err) { console.error("Stonetop | refreshing held moves failed", err); }
+		// The same for the Book II improvement cards a steading holds (migration/improvement-refresh.js):
+		// a dropped card is a copy, brought up to the shipped card while it is still one a release
+		// shipped. The GM is whispered which, and which were already built.
+		try { await oncePerVersion("improvementRefresh", refreshSteadingImprovements); }
+		catch (err) { console.error("Stonetop | refreshing steading improvement cards failed", err); }
+		// And the monsters seeded into the Actors sidebar (migration/bestiary-refresh.js), which Deploy
+		// and the monster browser prefer to the pack: a stat-block field or a move still holding what
+		// an older pack shipped is brought up to the pack; a GM's own edit is left.
+		try { await oncePerVersion("bestiaryRefresh", refreshSeededMonsters); }
+		catch (err) { console.error("Stonetop | refreshing seeded monsters failed", err); }
+		// And the follower cards made from the system's own lists (migration/follower-refresh.js): the
+		// good dog's herder default and two summons' notes, wherever a card still holds the old value.
+		try { await oncePerVersion("followerRefresh", refreshCatalogFollowers); }
+		catch (err) { console.error("Stonetop | refreshing catalog followers failed", err); }
 		// Keep a crossbow a character already carries on the sheet now that Weapons of War grants only
 		// the five weapons it names (migration/weapons-of-war-grandfather.js). GATED: it reads the
 		// outfit catalog and then every character's inventory flags, and it is legacy repair — the
@@ -266,11 +292,6 @@ export async function onReady() {
 		// chance for a grant to have moved, and between releases there is nothing to find.
 		try { await oncePerVersion("possessionGrantRepair", repairAllPossessionGrants); }
 		catch (err) { console.error("Stonetop | special-possession gear repair failed", err); }
-		// Fill in what the pack has gained on moves characters already hold: a track, a miss that marks
-		// no XP (migration/move-refresh.js). Per VERSION, like the grant repair above, and what lets
-		// every rule read the held copy with no fallback to the pack of its own.
-		try { await oncePerVersion("moveRefresh", refreshHeldMoves); }
-		catch (err) { console.error("Stonetop | refreshing held moves failed", err); }
 		// Tick the rest of the unlock circles on a Seeker's mastered card that the old run-count
 		// grant left at one (migration/mastered-arcanum-circles.js). GATED: legacy repair, and a
 		// world swept once has nothing left to find.
