@@ -94,7 +94,7 @@ import {CharacterArcana} from "./CharacterArcana.js";
 import {seekerArcanaState, seekerArcanaChosen, seekerCardRoles, majorMarkBoxes, withMinorRole, seekerMajorSwitchPlan, seekerMajorOwed} from "./seeker-collection.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
-import {isPostDeathMove, planLoreMoveSync} from "./post-death-moves.js";
+import {isPostDeathMove, planLoreMoveSync, postDeathMoveItemData} from "./post-death-moves.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {partitionMovesByGroup} from "./dialogs/onboarding-move-groups.js";
 import {backgroundMarkOption, hasBackgroundMarkOptions, moveChoiceKey} from "./dialogs/well-versed-topics.js";
@@ -2193,12 +2193,10 @@ export class StonetopCharacter {
 		if (slug) {
 			// The insert's own moves. A Consequence's or Mark's move (Poltergeist, Red Wrath) is the
 			// lore sync's, made below only for what the character has marked and carried over.
+			// Made whole, outcomes and track included, as a lore move is: the roll card reads its
+			// outcomes off this copy, and one made from the text alone posted Undying with none.
 			const entries = (await this._moveRepo.getPostDeathMoves(slug)).filter(m => !m.loreOption);
-			await this._actor.createEmbeddedDocuments("Item", entries.map(m => ({
-				name: m.name,
-				type: "move",
-				system: { moveType: "post-death", rollType: m.rollType ?? "", description: m.description ?? "" },
-			})));
+			await this._actor.createEmbeddedDocuments("Item", entries.map(postDeathMoveItemData));
 			await this._syncPostDeathLoreMoves();
 		}
 		return true;
