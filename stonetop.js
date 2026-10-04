@@ -116,6 +116,8 @@ import { wireSeasonsReminderResets } from "./module/seasons/seasons-change-remin
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
+import { registerUserConfigCharacterFilter } from "./module/hooks/user-config-characters.js";
+import { registerAssignToPlayer } from "./module/hooks/assign-to-player.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
 import { registerUuidRedirects } from "./module/migration/compat.js";
 import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
@@ -235,6 +237,12 @@ Hooks.once("init", () => {
 	// light theme even in a dark-mode world. Core already does this for AppV1; this
 	// covers our ApplicationV2 windows. Native Foundry windows are left alone.
 	registerStonetopLightTheme();
+
+	// User Configuration's Character dropdown lists playbook characters only, not
+	// NPCs, monsters, the steading or the GM Toolkit. A GM who means to hand a player
+	// an NPC does it from the actor's right-click menu instead (Assign to Player…).
+	registerUserConfigCharacterFilter();
+	registerAssignToPlayer();
 
 	// Track open document sheets + their geometry and reopen them at the same spot on
 	// the next reload (per-client; toggled by the "Restore Open Windows on Reload"
