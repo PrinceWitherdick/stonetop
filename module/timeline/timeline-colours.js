@@ -19,6 +19,7 @@
 // together instead.
 
 import { contrast, deepenInk, normalizeHex, parseColour } from "../relmap/relmap-ink.js";
+import { isDarkPalette } from "../utils/palette.js";
 
 /**
  * The kinds that wear a colour: every source the system records for itself as a CARD. `hand` (a
@@ -41,13 +42,13 @@ export const TIMELINE_COLOUR_MODES = Object.freeze(["light", "dark", "lightHigh"
  * lightness, is written once, beside the light tokens in styles/stonetop.css.
  */
 export const TIMELINE_KIND_PALETTE = Object.freeze({
-	levelup:    Object.freeze({ light: "#705409", dark: "#d8a71f", lightHigh: "#6b5109", darkHigh: "#cc9d1d" }),
-	kills:      Object.freeze({ light: "#6a1219", dark: "#fa918b", lightHigh: "#a51d28", darkHigh: "#f1848d" }),
-	expedition: Object.freeze({ light: "#0a625a", dark: "#40bfba", lightHigh: "#0d5e5b", darkHigh: "#3cb5b1" }),
+	levelup:    Object.freeze({ light: "#705409", dark: "#dcaa20", lightHigh: "#6b5109", darkHigh: "#d0a01e" }),
+	kills:      Object.freeze({ light: "#6a1219", dark: "#fa9690", lightHigh: "#a51d28", darkHigh: "#f28991" }),
+	expedition: Object.freeze({ light: "#0a625a", dark: "#4cc3be", lightHigh: "#0d5e5b", darkHigh: "#3db9b5" }),
 	site:       Object.freeze({ light: "#295a8c", dark: "#a8c7e6", lightHigh: "#275788", darkHigh: "#9abee2" }),
-	death:      Object.freeze({ light: "#4a4744", dark: "#b0ada8", lightHigh: "#595450", darkHigh: "#a9a39e" }),
+	death:      Object.freeze({ light: "#4a4744", dark: "#b7b5b0", lightHigh: "#595450", darkHigh: "#aba6a1" }),
 	wound:      Object.freeze({ light: "#7c300a", dark: "#f2a46e", lightHigh: "#772e0a", darkHigh: "#f2aa86" }),
-	arcana:     Object.freeze({ light: "#7b31a7", dark: "#b9a3f3", lightHigh: "#7a30a5", darkHigh: "#c590e3" }),
+	arcana:     Object.freeze({ light: "#7b31a7", dark: "#bca8f4", lightHigh: "#7a30a5", darkHigh: "#c794e4" }),
 	follower:   Object.freeze({ light: "#9a276a", dark: "#f1bcdd", lightHigh: "#972668", darkHigh: "#e6a8cc" }),
 });
 
@@ -61,12 +62,19 @@ export const TIMELINE_KIND_PALETTE = Object.freeze({
  *
  * The FLOOR is 4.5 and not the 3:1 a graphical object needs: the glyph in a chip is read at text
  * size. 7:1 under the high-contrast skins, whose whole promise is the AAA bar.
+ *
+ * ⚠ THE TWO DARK SKINS ARE TWO PAPERS EACH. Slate is the dark palette re-pointed cool and wears the
+ * same `.stonetop-dark` rules, so a colour written for "dark" is painted on Slate's page too, and
+ * `slate` holds that second set of grounds (a copy of the Slate blocks, held to them the same way).
+ * A colour is measured on both, and the darker paper decides.
  */
 export const TIMELINE_COLOUR_GROUNDS = Object.freeze({
 	light:     Object.freeze({ page: "hsl(30deg 20% 98%)", panel: "hsl(30deg 20% 94%)", card: "rgba(0, 0, 0, 0.03)", cardWash: 0.05, chipWash: 0.14, floor: 4.5 }),
-	dark:      Object.freeze({ page: "#1d1915", panel: "#27221d", card: "rgba(235, 228, 214, 0.035)", cardWash: 0.05, chipWash: 0.14, floor: 4.5 }),
+	dark:      Object.freeze({ page: "#1d1915", panel: "#27221d", card: "rgba(235, 228, 214, 0.035)", cardWash: 0.05, chipWash: 0.14, floor: 4.5,
+		slate: Object.freeze({ page: "#1a1d21", panel: "#23272c", card: "rgba(230, 233, 238, 0.035)" }) }),
 	lightHigh: Object.freeze({ page: "#fff", panel: "hsl(0deg 0% 97%)", card: "transparent", cardWash: 0, chipWash: 0, floor: 7 }),
-	darkHigh:  Object.freeze({ page: "#141210", panel: "#1c1915", card: "transparent", cardWash: 0, chipWash: 0, floor: 7 }),
+	darkHigh:  Object.freeze({ page: "#141210", panel: "#1c1915", card: "transparent", cardWash: 0, chipWash: 0, floor: 7,
+		slate: Object.freeze({ page: "#111315", panel: "#181b1f", card: "transparent" }) }),
 });
 
 /** The selector each skin's overrides are written under. Weights rise in this order on purpose. */
@@ -85,9 +93,8 @@ export const TIMELINE_COLOURS_STYLE_ID = "stonetop-timeline-kind-colours";
  * settings.js#applySheetContrast puts on the root. What the GM's colour window previews in.
  */
 export function currentColourMode(doc = globalThis.document) {
-	const classes = doc?.documentElement?.classList;
-	const dark = !!classes?.contains?.("stonetop-dark");
-	const high = !!classes?.contains?.("stonetop-high-contrast");
+	const dark = isDarkPalette(doc?.documentElement);
+	const high = !!doc?.documentElement?.classList?.contains?.("stonetop-high-contrast");
 	if (dark) return high ? "darkHigh" : "dark";
 	return high ? "lightHigh" : "light";
 }
@@ -128,16 +135,32 @@ function over(top, under, alpha) {
  */
 export function kindGrounds(mode, rgb = null) {
 	const g = TIMELINE_COLOUR_GROUNDS[mode];
-	const page = parseColour(g.page);
-	const panel = parseColour(g.panel);
-	const fill = layer(g.card);
-	const card = over(fill.rgb, panel, fill.alpha);
-	const grounds = [page, panel, card];
-	if (rgb && g.cardWash) {
-		const washed = over(rgb, card, g.cardWash);
-		grounds.push(washed, over(rgb, washed, g.chipWash));
+	const grounds = [];
+	for (const { page, panel, card } of paperGrounds(mode)) {
+		grounds.push(page, panel, card);
+		if (rgb && g.cardWash) {
+			const washed = over(rgb, card, g.cardWash);
+			grounds.push(washed, over(rgb, washed, g.chipWash));
+		}
 	}
 	return grounds;
+}
+
+/** Each paper's page, panel and card as rgb, per skin. Constant, so parsed once. */
+const PAPER_GROUNDS = new Map();
+
+function paperGrounds(mode) {
+	let papers = PAPER_GROUNDS.get(mode);
+	if (!papers) {
+		const g = TIMELINE_COLOUR_GROUNDS[mode];
+		papers = (g.slate ? [g, g.slate] : [g]).map(paper => {
+			const panel = parseColour(paper.panel);
+			const fill = layer(paper.card);
+			return { page: parseColour(paper.page), panel, card: over(fill.rgb, panel, fill.alpha) };
+		});
+		PAPER_GROUNDS.set(mode, papers);
+	}
+	return papers;
 }
 
 /** The worst contrast a colour makes on any ground of one skin. */

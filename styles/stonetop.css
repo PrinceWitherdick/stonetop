@@ -2852,7 +2852,7 @@ input.stonetop-name-field {
 	background: transparent !important;
 	box-shadow: none !important;
 	line-height: 1;
-	color: #a8544c;
+	color: var(--st-on-dark-danger, #a8544c);
 	cursor: pointer;
 }
 
@@ -4248,7 +4248,7 @@ input.stonetop-name-field {
 	padding: calc(2px + var(--st-trim-top)) 7px calc(2px + var(--st-trim-bottom));
 	border: 1px solid rgba(100,116,139,0.35);
 	border-radius: 999px;
-	background: hsl(210 12% 92%);
+	background: var(--st-on-dark-raised, hsl(210 12% 92%));
 	color: var(--st-text-body);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-xs);
@@ -5522,7 +5522,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 	transition: background 0.15s, border-color 0.15s;
 }
 
-.stonetop-weather-season:hover { background: hsl(40 25% 85%); }
+.stonetop-weather-season:hover { background: var(--st-on-dark-hover, hsl(40 25% 85%)); }
 
 .stonetop-weather-season.is-active {
 	font-weight: 600;
@@ -5683,7 +5683,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 }
 
 .stonetop-weather-reroll-btn:hover,
-.stonetop-weather-fx-btn:hover { background: hsl(40 25% 85%); }
+.stonetop-weather-fx-btn:hover { background: var(--st-on-dark-hover, hsl(40 25% 85%)); }
 
 /* The canvas control, on its own row under the footer with a rule above it (see the template).
    Quieter than either footer button: it is not part of deciding the weather, and a GM who has
@@ -7820,7 +7820,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 }
 
 .stonetop-other-move-delete:hover {
-	color: hsl(0 65% 22%);
+	color: var(--st-on-dark-danger, hsl(0 65% 22%));
 }
 
 .stonetop-item:hover .stonetop-other-move-delete {
@@ -8576,7 +8576,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 }
 
 .stonetop-camp-step:hover:not(:disabled),
-.stonetop-camp-inline-btn:hover:not(:disabled) { background: hsl(40 25% 85%); }
+.stonetop-camp-inline-btn:hover:not(:disabled) { background: var(--st-on-dark-hover, hsl(40 25% 85%)); }
 .stonetop-camp-step:disabled,
 .stonetop-camp-inline-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -8843,14 +8843,14 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	padding: 2px 10px;
 	border: 1px solid rgba(100, 116, 139, 0.3);
 	border-radius: 999px;
-	background: hsl(210 12% 92%);
+	background: var(--st-on-dark-raised, hsl(210 12% 92%));
 	cursor: pointer;
 	font-weight: 600;
 	color: var(--st-text-body);
 	transition: background 0.12s, border-color 0.12s;
 }
 
-.stonetop-struggle-chip:hover { background: hsl(210 12% 85%); }
+.stonetop-struggle-chip:hover { background: var(--st-on-dark-hover, hsl(210 12% 85%)); }
 
 .stonetop-struggle-chip:has(input:checked) {
 	border-color: var(--st-green-border);
@@ -8945,7 +8945,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 }
 
 .stonetop-edit-mode .stonetop-inv-delete:hover {
-	color: hsl(0 65% 22%);
+	color: var(--st-on-dark-danger, hsl(0 65% 22%));
 }
 
 /* Removing a write-in special possession is a delete "x" too — keep it red to
@@ -8955,7 +8955,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 }
 
 .stonetop-inv-remove-special:hover {
-	color: hsl(0 65% 22%);
+	color: var(--st-on-dark-danger, hsl(0 65% 22%));
 }
 
 /* Remove a write-in special possession (only rendered in possessions edit mode). */
@@ -9788,7 +9788,7 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 .stonetop-love-letter-edit { margin-left: auto; }
 /* The delete trash is a destructive action — red, unlike the neutral edit pen. */
 .stonetop-love-letter-delete { color: var(--st-red-text); }
-.stonetop-love-letter-delete:hover { color: hsl(0 65% 22%); }
+.stonetop-love-letter-delete:hover { color: var(--st-on-dark-danger, hsl(0 65% 22%)); }
 .stonetop-love-letter-edit + .stonetop-love-letter-delete { margin-left: 6px; }
 /* They share the Read letter row, so reveal them as flex items centred on that button. */
 .stonetop-love-letter:hover .stonetop-love-letter-edit,
@@ -14305,7 +14305,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 }
 
 .stonetop-inventory-reset-btn:hover {
-	color: #a02020;
+	color: var(--st-on-dark-danger, #a02020);
 	border-color: var(--st-on-dark-danger, #a02020);
 	background: rgba(160, 32, 32, 0.06);
 }
@@ -17475,6 +17475,13 @@ button.stonetop-mark-sign-btn.is-active:hover {
    Real buttons with their words on them, at the body size and no smaller: a low-vision player
    reads this tab through a magnifier. Every property core's app-button rule sets is declared,
    `width` above all, or `body.game .app button { width: 100% }` stretches each across the row. */
+
+/* The section ends on its last row of buttons, and `.details-section { margin: 0 }` left the next
+   heading sitting on them. The same 14px the Details tab puts between its sections. */
+.details-section.stonetop-pdi-outcomes {
+	margin-bottom: 14px;
+}
+
 .stonetop-pdi-outcome-row + .stonetop-pdi-outcome-row {
 	margin-top: 10px;
 }
@@ -18928,8 +18935,8 @@ button.stonetop-mark-sign-btn.is-active:hover {
 .stonetop-bestiary-sheet .sheet-tabs:not(.stonetop-tab-rail) .item:focus,
 .stonetop-npc-sheet .sheet-tabs:not(.stonetop-tab-rail) .item:hover,
 .stonetop-npc-sheet .sheet-tabs:not(.stonetop-tab-rail) .item:focus {
-	background: #bbb;
-	color: #000;
+	background: var(--st-on-dark-tab-hover, #bbb);
+	color: var(--st-on-dark-ink, #000);
 	text-shadow: none;
 }
 
@@ -22347,7 +22354,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 }
 
 .vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons .stonetop-season-step:hover:not(:disabled) {
-	background: hsl(40 25% 85%);
+	background: var(--st-on-dark-hover, hsl(40 25% 85%));
 }
 
 .vtt .stonetop.dialog.stonetop-season-flow-dialog .dialog-buttons .stonetop-season-step:disabled {
@@ -22371,7 +22378,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 	/* No `filter: invert(1)` here: in the modern layout Seasons Change is a move CARD —
 	   light background, dark text — so inverting these black glyphs would erase them. The
 	   classic layout reads the same description off a DARK hover panel and flips them back;
-	   see the rule below. `border: none` because core puts a 1px black border on every
+	   see the rule below (dark mode flips them on the card too, in the DARK PALETTE section). `border: none` because core puts a 1px black border on every
 	   `.app img`, and the card is inside the sheet. */
 	border: none;
 }
@@ -23289,7 +23296,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 }
 
 .stonetop-onboarding-card:hover  { border-color: slategrey; }
-.stonetop-onboarding-card.is-selected { border-color: slategrey; background: hsl(210 15% 96%); }
+.stonetop-onboarding-card.is-selected { border-color: slategrey; background: var(--st-on-dark-selected, hsl(210 15% 96%)); }
 
 .stonetop-onboarding-card-header {
 	display: flex;
@@ -23424,7 +23431,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 .stonetop-onboarding-appearance-option:hover     { border-color: slategrey; }
 .stonetop-onboarding-appearance-option.is-selected {
 	border-color: slategrey;
-	background: hsl(210 15% 92%);
+	background: var(--st-on-dark-selected, hsl(210 15% 92%));
 	font-weight: 600;
 }
 
@@ -23491,7 +23498,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 .stonetop-onboarding-origin-label:hover    { border-color: slategrey; }
 .stonetop-onboarding-origin-label.is-selected {
 	border-color: slategrey;
-	background: hsl(210 15% 92%);
+	background: var(--st-on-dark-selected, hsl(210 15% 92%));
 	font-weight: 600;
 }
 
@@ -23582,7 +23589,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 
 .onboard-name-chip:hover {
 	border-color: slategrey;
-	background: hsl(210 15% 94%);
+	background: var(--st-on-dark-hover, hsl(210 15% 94%));
 }
 
 /* ── Footer ─────────────────────────────────────────────────────── */
@@ -23819,7 +23826,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 }
 
 .stonetop-onboarding-stat-box.is-drag-over {
-	background: hsl(210 15% 94%);
+	background: var(--st-on-dark-hover, hsl(210 15% 94%));
 	border-color: slategrey;
 	box-shadow: 0 0 0 2px rgba(112,128,144,0.18);
 }
@@ -23940,7 +23947,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 .stonetop-onboarding-move-chip:hover,
 .stonetop-levelup-move-chip:hover {
 	border-color: slategrey;
-	background: hsl(210 15% 94%);
+	background: var(--st-on-dark-hover, hsl(210 15% 94%));
 }
 
 /* Kill Foundry's default button focus glow (an orange box-shadow that lingers
@@ -24541,7 +24548,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 	padding: 8px 10px;
 	border-left: 3px solid slategrey;
 	background: rgba(112,128,144,0.08);
-	color: #1f2937;
+	color: var(--st-on-dark-ink, #1f2937);
 	font-size: var(--st-fs-base);
 	line-height: 1.4;
 }
@@ -24681,7 +24688,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 
 .stonetop-onboarding-bg-option.is-selected {
 	border-color: slategrey;
-	background: hsl(210 15% 96%);
+	background: var(--st-on-dark-selected, hsl(210 15% 96%));
 }
 
 .stonetop-onboarding-bg-option input {
@@ -24869,7 +24876,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 
 .stonetop-autocomplete-option:hover,
 .stonetop-autocomplete-option.is-active {
-	background: hsl(210 15% 92%);
+	background: var(--st-on-dark-selected, hsl(210 15% 92%));
 }
 
 .stonetop-onboarding-background-choice-fixed {
@@ -24934,7 +24941,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 
 .stonetop-onboarding-arcana-option.is-selected {
 	border-color: slategrey;
-	background: hsl(210 15% 96%);
+	background: var(--st-on-dark-selected, hsl(210 15% 96%));
 }
 
 .stonetop-onboarding-arcana-option.is-disabled {
@@ -25137,7 +25144,7 @@ input[type="checkbox"].steading-hide-unearned-improvements-check:focus-visible {
 
 .stonetop-onboarding-lore-pick.is-selected {
 	border-color: slategrey;
-	background: hsl(210 15% 96%);
+	background: var(--st-on-dark-selected, hsl(210 15% 96%));
 }
 
 .stonetop-onboarding-lore-pick--disabled {
@@ -29069,7 +29076,7 @@ li.question-bullet::before {
 	white-space: nowrap;
 }
 .stonetop-follower-uses-ammo.is-checked {
-	color: var(--st-text-strong, #3a2f25);
+	color: var(--st-on-dark-ink, #3a2f25);
 	font-weight: 600;
 }
 
@@ -29090,7 +29097,7 @@ li.question-bullet::before {
 	cursor: pointer;
 }
 .stonetop-follower-ammo-check.is-checked {
-	color: var(--st-text-strong, #3a2f25);
+	color: var(--st-on-dark-ink, #3a2f25);
 	font-weight: 600;
 }
 .vtt .window-app input[type=checkbox].stonetop-follower-ammo-input {
@@ -29381,7 +29388,7 @@ li.question-bullet::before {
 
 .stonetop-individual-trait-chip:has(input:checked) {
 	border-color: slategrey;
-	background: hsl(210 12% 92%);
+	background: var(--st-on-dark-selected, hsl(210 12% 92%));
 	font-weight: 600;
 }
 
@@ -29446,7 +29453,7 @@ li.question-bullet::before {
 .stonetop-so-sidebar {
 	width: 180px;
 	min-width: 180px;
-	background: hsl(210 12% 96%);
+	background: var(--st-on-dark-raised, hsl(210 12% 96%));
 	border-right: 1px solid var(--st-on-dark-rule-soft, #ddd);
 	display: flex;
 	flex-direction: column;
@@ -29480,7 +29487,7 @@ li.question-bullet::before {
 	transition: background 0.12s, color 0.12s;
 }
 
-.stonetop-so-nav-entry:hover         { background: hsl(210 12% 91%); color: var(--st-text); }
+.stonetop-so-nav-entry:hover         { background: var(--st-on-dark-hover, hsl(210 12% 91%)); color: var(--st-text); }
 .stonetop-so-nav-entry.is-active     { background: var(--st-accent-fill); color: white; font-weight: 600; }
 .stonetop-so-nav-entry.is-active:hover { background: hsl(210 13% 47%); }
 
@@ -29588,7 +29595,7 @@ li.question-bullet::before {
 }
 
 .stonetop-so-entry-body thead th {
-	background: hsl(210 12% 95%);
+	background: var(--st-on-dark-raised, hsl(210 12% 95%));
 	font-weight: 700;
 }
 
@@ -29975,12 +29982,12 @@ li.question-bullet::before {
    goes green and the move's name replaces the source line, explaining why it is
    higher than normal. Reverts when the move is tapped again. */
 .stonetop-monster-armor--boosted .attr-value {
-	color: var(--stonetop-armor-boost, #1f7a3d);
+	color: var(--st-on-dark-ok, #1f7a3d);
 	font-weight: 700;
 }
 
 .stonetop-monster-armor-boost-note {
-	color: var(--stonetop-armor-boost, #1f7a3d);
+	color: var(--st-on-dark-ok, #1f7a3d);
 	font-weight: 600;
 	font-style: normal;
 	cursor: help;
@@ -30544,7 +30551,7 @@ li.question-bullet::before {
    in, matching the boosted Armor value in the header. */
 .stonetop-monster-move-item.is-boost-active .stonetop-monster-move-name,
 .stonetop-monster-move-item.is-boost-active .stonetop-monster-move-boost-icon {
-	color: var(--stonetop-armor-boost, #1f7a3d);
+	color: var(--st-on-dark-ok, #1f7a3d);
 }
 
 .stonetop-monster-move-description {
@@ -30723,7 +30730,7 @@ li.question-bullet::before {
 	padding: var(--st-trim-top) 7px var(--st-trim-bottom);
 	border-radius: 999px;
 	background: transparent;
-	color: #000;
+	color: rgb(var(--st-ink-rgb));
 	border: 1px solid rgb(var(--st-ink-rgb));
 	font-size: var(--st-fs-xs);
 }
@@ -32191,7 +32198,7 @@ th:has(> .stonetop-roll-table-btn) {
 	transition: background 0.15s;
 }
 
-.stonetop-guide-nav button:hover:not(:disabled) { background: hsl(40 25% 85%); }
+.stonetop-guide-nav button:hover:not(:disabled) { background: var(--st-on-dark-hover, hsl(40 25% 85%)); }
 .stonetop-guide-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Primary "go" button (Begin / Done / Save). !important to beat the base nav-button
@@ -32337,7 +32344,7 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-intros-notice--warn {
 	background: rgba(200, 120, 20, 0.1);
 	border: 1px solid rgba(200, 120, 20, 0.4);
-	color: #7a4a00;
+	color: var(--st-on-dark-caution, #7a4a00);
 }
 
 .stonetop-intros-notice--warn > i { color: #c07820; }
@@ -32355,7 +32362,7 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-intros-notice--ok {
 	background: rgba(40, 140, 70, 0.08);
 	border: 1px solid rgba(40, 140, 70, 0.35);
-	color: #1a5c2e;
+	color: var(--st-on-dark-ok, #1a5c2e);
 }
 
 .stonetop-intros-notice--ok > i { color: var(--st-on-dark-ok, #2a8a46); }
@@ -33046,7 +33053,7 @@ th:has(> .stonetop-roll-table-btn) {
 	transition: background 0.15s;
 }
 
-.stonetop-welcome-action:hover { background: hsl(40 25% 85%); }
+.stonetop-welcome-action:hover { background: var(--st-on-dark-hover, hsl(40 25% 85%)); }
 .stonetop-welcome-action > i { margin-right: 4px; }
 
 /* Inline preview of the "spring" hotbar macro icon, so the GM can recognise it
@@ -33126,7 +33133,7 @@ th:has(> .stonetop-roll-table-btn) {
 .stonetop-welcome-notice--warn {
 	background: rgba(200, 120, 20, 0.1);
 	border: 1px solid rgba(200, 120, 20, 0.4);
-	color: #7a4a00;
+	color: var(--st-on-dark-caution, #7a4a00);
 }
 
 .stonetop-welcome-notice--warn > i { color: #c07820; }
@@ -33748,7 +33755,7 @@ th:has(> .stonetop-roll-table-btn) {
 	transition: background 0.15s;
 }
 
-.stonetop-guide-toc-btn:hover { background: hsl(40 25% 85%); }
+.stonetop-guide-toc-btn:hover { background: var(--st-on-dark-hover, hsl(40 25% 85%)); }
 
 .stonetop-guide-toc-icon {
 	flex: 0 0 auto;
@@ -33776,7 +33783,7 @@ th:has(> .stonetop-roll-table-btn) {
 
 /* Active page: subtle fill + accent text/icon (green = active accent per tokens). */
 .stonetop-guide-toc-item.is-active .stonetop-guide-toc-btn {
-	background: rgba(0, 0, 0, 0.06);
+	background: var(--st-on-dark-selected, rgba(0, 0, 0, 0.06));
 	border-color: rgb(var(--st-ink-rgb) / 0.15);
 	font-weight: 700;
 	color: var(--st-green-text);
@@ -33803,12 +33810,12 @@ th:has(> .stonetop-roll-table-btn) {
 	font-weight: 400;
 }
 :is(.application, .window-app).stonetop-themed .window-content .stonetop-guide-toc .stonetop-guide-toc-btn:hover {
-	background: hsl(40 25% 85%);
+	background: var(--st-on-dark-hover, hsl(40 25% 85%));
 	border-color: transparent;
 	color: inherit;
 }
 :is(.application, .window-app).stonetop-themed .window-content .stonetop-guide-toc-item.is-active .stonetop-guide-toc-btn {
-	background: rgba(0, 0, 0, 0.06);
+	background: var(--st-on-dark-selected, rgba(0, 0, 0, 0.06));
 	border-color: rgb(var(--st-ink-rgb) / 0.15);
 	font-weight: 700;
 	color: var(--st-green-text);
@@ -34982,7 +34989,7 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: calc(1px + var(--st-trim-top)) 9px calc(1px + var(--st-trim-bottom));
 	border: 1px solid rgba(100, 116, 139, 0.3);
 	border-radius: 999px;
-	background: hsl(210 12% 92%);
+	background: var(--st-on-dark-raised, hsl(210 12% 92%));
 	color: var(--st-text-body);
 	font-family: var(--font-stonetop);
 	font-size: var(--st-fs-sm);
@@ -34990,7 +34997,7 @@ th:has(> .stonetop-roll-table-btn) {
 	transition: background 0.12s, border-color 0.12s;
 }
 .stonetop-cf-tag:hover,
-.stonetop-cf-chip:hover { background: hsl(210 12% 85%); }
+.stonetop-cf-chip:hover { background: var(--st-on-dark-hover, hsl(210 12% 85%)); }
 .stonetop-cf-tag.is-selected,
 .stonetop-cf-chip.is-selected {
 	border-color: var(--st-green-border);
@@ -35018,7 +35025,7 @@ th:has(> .stonetop-roll-table-btn) {
 	cursor: pointer;
 	white-space: nowrap;
 }
-.stonetop-cf-mini-btn:hover { background: hsl(40 25% 85%); }
+.stonetop-cf-mini-btn:hover { background: var(--st-on-dark-hover, hsl(40 25% 85%)); }
 /* Remove-a-row. Every caller of this modifier is a bare `fa-times` beside a field — never a
    worded command — and a bordered, paper-filled pill gave that X the same weight as the control
    it deletes, so a list of six rows read as six buttons. Drawn as the ink alone, like the threat
@@ -35214,7 +35221,7 @@ th:has(> .stonetop-roll-table-btn) {
 	padding: var(--st-trim-top) 7px var(--st-trim-bottom);
 	border: 1px solid rgba(100, 116, 139, 0.3);
 	border-radius: 999px;
-	background: hsl(210 12% 92%);
+	background: var(--st-on-dark-raised, hsl(210 12% 92%));
 	font-size: var(--st-fs-xs);
 }
 .stonetop-cf-preview-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: var(--st-fs-sm); }
@@ -36064,6 +36071,18 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    ========================================================================== */
 
 /* --- the shared card ------------------------------------------------------- */
+/* THE ACCENT, AS PAINTED. A card, the create dialog and the GM Toolkit's type list each carry the
+   stone they are accented in INLINE, as `--threat-accent-raw`, and every rule reads
+   `--threat-accent`, made here on the same element so it is computed from that element's own
+   stone (a custom property is resolved where it is declared, so a dark rule on an ancestor could
+   never reach an inline value). On paper it is the stone exactly, a mix at 100%. The dark palettes
+   set `--st-on-dark-accent-mix` and the stone is mixed into the card's ink: the stones are dark
+   greys and browns picked for parchment, and on the darkened card they read 1.3:1. One property,
+   so the doom box, the pips and the edge stripe lift with the lettering. */
+:is(.threat-card, .create-threat, .steading-threat-type-list > li) {
+	--threat-accent: color-mix(in srgb, var(--threat-accent-raw) var(--st-on-dark-accent-mix, 100%),
+		var(--tc-ink, var(--st-text)));
+}
 .stonetop .threat-card {
 	--tc-paper: #f6f1e6;
 	--tc-paper-hi: #fbf7ee;
@@ -36072,7 +36091,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	--tc-ink-soft: #4a4034;
 	--tc-rule: #c7b59a;
 	--tc-rule-hard: #8f7f63;
-	--threat-accent: #6e3b3b;
+	--threat-accent-raw: #6e3b3b;
 	position: relative;
 	display: flex;
 	flex-direction: column;
@@ -40472,7 +40491,7 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	color: var(--st-text);
 	/* The label crosses from the pale track onto the slate fill as the bar grows, so it
 	   carries a light halo rather than picking one background to be legible against. */
-	text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+	text-shadow: 0 0 3px rgb(var(--st-paper-rgb) / 0.9);
 	/* Sits over the fill: it must never swallow a click or shift the bar. */
 	pointer-events: none;
 }
@@ -42777,8 +42796,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 
 .stonetop-catalog-badge--grim {
 	border-color: hsl(28 45% 55%);
-	background: hsl(28 60% 91%);
-	color: hsl(28 50% 28%);
+	background: var(--st-on-dark-highlight, hsl(28 60% 91%));
+	color: var(--st-on-dark-caution, hsl(28 50% 28%));
 }
 
 .stonetop-catalog-badge--mild {
@@ -50748,6 +50767,17 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	   result labels on a roll card are OPAQUE, so a label reads the same on any card behind it. */
 	--st-on-dark-raised:    #2d2721;
 	--st-on-dark-highlight: rgba(226, 178, 94, 0.16);
+	/* The pale slate and parchment hovers and selections (`hsl(210 15% 94%)`, `hsl(40 25% 85%)`
+	   and their kin), written in hsl() and so missed by the first pass: washes of the ink channel,
+	   so slate re-points them with no restating. Selected sits a step above hover. */
+	--st-on-dark-hover:     rgb(var(--st-ink-rgb) / 0.1);
+	--st-on-dark-selected:  rgb(var(--st-ink-rgb) / 0.14);
+	/* The classic layout's hovered tab, #bbb on paper: the strip's own fill, a step lit. */
+	--st-on-dark-tab-hover: linear-gradient(rgb(var(--st-ink-rgb) / 0.14), rgb(var(--st-ink-rgb) / 0.14)), var(--st-tabstrip-bg);
+	/* How much of a threat, site or hazard card's stone accent survives, mixed into the card's ink.
+	   The accents are dark stones picked for parchment (#6e3b3b on the dark card is 1.3:1); see
+	   `--threat-accent` on `.stonetop .threat-card`. */
+	--st-on-dark-accent-mix: 40%;
 	--st-on-dark-failure-bg: #4a2420;
 	--st-on-dark-partial-bg: #45361c;
 	--st-on-dark-success-bg: #233a29;
@@ -50771,16 +50801,16 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--st-warm-hover-bg: rgba(235, 228, 214, 0.08);
 
 	/* The timeline's kinds, lifted for the dark page (see their note in the first :root): the
-	   same eight hues, each walked up to 4.5:1 or past on the panel, a card and its chip's tint.
-	   Death goes to ASH here, not the near-white its light-paper charcoal would invert to, which
+	   same eight hues, each walked up to 4.5:1 or past on the panel, a card and its chip's tint,
+	   on Slate's papers as well as these (Slate wears this block). Death goes to ASH here, not the near-white its light-paper charcoal would invert to, which
 	   was the bone of the ink ramp and read as a row with no colour at all. */
-	--st-timeline-kind-levelup:    #d8a71f;
-	--st-timeline-kind-kills:      #fa918b;
-	--st-timeline-kind-expedition: #40bfba;
+	--st-timeline-kind-levelup:    #dcaa20;
+	--st-timeline-kind-kills:      #fa9690;
+	--st-timeline-kind-expedition: #4cc3be;
 	--st-timeline-kind-site:       #a8c7e6;
-	--st-timeline-kind-death:      #b0ada8;
+	--st-timeline-kind-death:      #b7b5b0;
 	--st-timeline-kind-wound:      #f2a46e;
-	--st-timeline-kind-arcana:     #b9a3f3;
+	--st-timeline-kind-arcana:     #bca8f4;
 	--st-timeline-kind-follower:   #f1bcdd;
 
 	/* The timeline's seasons, lifted for the dark page (see their note in the first :root). */
@@ -50877,6 +50907,13 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--stonetop-spiral-icon: url('/systems/stonetop-pwd/assets/icons/steading/check-spiral.svg');
 }
 
+/* The Seasons Change card's four season glyphs are black `<img>`s, so on the dark card they
+   vanished. Flipped to about the bone ink (#ebebeb). Zero-weight root so the always-dark
+   basic-move panel's own `invert(1)`, (0,2,0), still wins there. */
+:where(:root.stonetop-dark) .stonetop-season-row-icon {
+	filter: invert(0.92);
+}
+
 /* Core's own colour names, where core declares them: on the window roots, and on the chat cards
    this system paints (only those: a plain chat message keeps core's parchment, and light ink on
    it would vanish). `color-scheme: dark` brings native selects, checkboxes and scrollbars over.
@@ -50911,25 +50948,48 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--color-border-light:           var(--st-rule-light-1);
 }
 
+/* The message header on those same cards. Core inks it with a fixed `--color-dark-4` (#444), not
+   one of the names above, so the speaker, the timestamp and the trash can stayed near-black on the
+   dark paper. And a roll card is posted as the message's FLAVOR, which core draws inside that
+   header: whatever on the card names no ink of its own (the formula chip) inherited the same #444
+   instead of the card's body ink set on the message. Zero-weight prefix, so the undead insert's
+   own header ink (further up) still outranks it. */
+:where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout)
+	.message:is(:has(.stonetop-roll-card), :has(.stonetop-startup-card), :has(.stonetop-chat-move),
+		:has(.stonetop-dying-card)) .message-header {
+	color: var(--st-text-secondary);
+}
+:where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout)
+	.message:is(:has(.stonetop-roll-card), :has(.stonetop-startup-card), :has(.stonetop-chat-move),
+		:has(.stonetop-dying-card)) .message-header .flavor-text {
+	color: var(--st-text-body);
+}
+
 /* The lamplit paper, on the four surfaces that paint the grain. Each selector is the rule it
-   replaces, verbatim, behind a `:where()` that weighs nothing: see "HOW IT WINS" above. */
+   replaces, verbatim, behind a `:where()` that weighs nothing: see "HOW IT WINS" above.
+   The Paper Texture Transparency wash goes on top, unblended, as it does on the light paper: it is
+   the dark page's own colour here (--st-paper-veil reads --st-page, which this palette re-points on
+   the same root), so the slider fades the lamplit grain toward its page just as it fades the
+   parchment. */
 :where(:root.stonetop-dark) .vtt .stonetop:not(.application,.image-popout,.journal-sheet,.sidebar-popout) .window-content,
 :where(:root.stonetop-dark) :is(.application, .window-app).stonetop-themed .window-content,
 :where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-roll-card),
 :where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-startup-card),
 :where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-chat-move) {
 	background:
+		var(--st-paper-veil-layer),
 		linear-gradient(var(--st-paper-tint), var(--st-paper-tint)) center / auto no-repeat,
 		#fff var(--st-inverted-paper) center / cover no-repeat;
-	background-blend-mode: screen, difference;
+	background-blend-mode: normal, screen, difference;
 }
 /* The dying card keeps its ember at the top, a little stronger so it still shows on the dark. */
 :where(:root.stonetop-dark) :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-dying-card) {
 	background:
 		linear-gradient(180deg, hsla(8, 50%, 42%, 0.22), transparent 42%),
+		var(--st-paper-veil-layer),
 		linear-gradient(var(--st-paper-tint), var(--st-paper-tint)) center / auto no-repeat,
 		#fff var(--st-inverted-paper) center / cover no-repeat;
-	background-blend-mode: normal, screen, difference;
+	background-blend-mode: normal, normal, screen, difference;
 }
 
 /* CORE'S CREAM BUTTONS. Core's compatibility layer, the last it declares, paints every button in
@@ -50995,6 +51055,105 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	box-shadow: inset 0 0 0 1px var(--st-btn-primary-border);
 }
 
+/* The Followers tab. Its card header bands, trait/detail pills and the rules cards' move bars were
+   written as pale `hsl()` fills, which the white-paper scan (it reads hex and rgba only) never saw,
+   so in dark they stayed near-white under bone ink: names and pills all but vanished. They go the
+   way the dead sheet already took them, washes of the ink channel over the card, so the band still
+   reads a step up from the body and the pills keep their families (trait amber, detail violet).
+   The dead sheet's own rules out-weigh these and keep its skin. */
+:where(:root.stonetop-dark) .stonetop-follower-header,
+:where(:root.stonetop-dark) .stonetop-follower-rules-header {
+	background: rgb(var(--st-ink-rgb) / 0.06);
+}
+:where(:root.stonetop-dark) .stonetop-follower-card--beast .stonetop-follower-header {
+	background: hsla(40, 40%, 60%, 0.1);
+}
+:where(:root.stonetop-dark) .stonetop-follower-card--livestock .stonetop-follower-header {
+	background: hsla(95, 25%, 60%, 0.1);
+}
+:where(:root.stonetop-dark) .stonetop-follower-card--custom .stonetop-follower-header {
+	background: hsla(210, 35%, 65%, 0.1);
+}
+:where(:root.stonetop-dark) .stonetop-follower-tag {
+	background: rgb(var(--st-ink-rgb) / 0.075);
+	border-color: rgb(var(--st-ink-rgb) / 0.22);
+}
+:where(:root.stonetop-dark) .stonetop-follower-tag--trait,
+:where(:root.stonetop-dark) .stonetop-follower-tag--exceptional {
+	background: hsla(40, 45%, 58%, 0.22);
+	border-color: hsla(40, 45%, 62%, 0.45);
+}
+:where(:root.stonetop-dark) .stonetop-follower-tag--detail {
+	background: hsla(270, 32%, 60%, 0.2);
+	border-color: hsla(270, 32%, 62%, 0.42);
+}
+:where(:root.stonetop-dark) .stonetop-follower-tag.stonetop-exceptional-toggle.is-selected {
+	background: hsla(40, 45%, 55%, 0.38);
+	border-color: hsla(40, 45%, 62%, 0.65);
+}
+:where(:root.stonetop-dark) .stonetop-follower-rules-toggle:hover {
+	background: rgb(var(--st-ink-rgb) / 0.12);
+}
+:where(:root.stonetop-dark) .stonetop-follower-rule summary {
+	background: rgb(var(--st-ink-rgb) / 0.055);
+}
+:where(:root.stonetop-dark) .stonetop-order-followers-dialog .stonetop-of-readout {
+	background: var(--st-on-dark-raised);
+}
+:where(:root.stonetop-dark) .stonetop-follower-fate-dialog .stonetop-ff-option:hover {
+	background: var(--st-warm-hover-bg);
+}
+
+/* Placeholders. Core declares `--input-placeholder-color` on every input ITSELF, and under the
+   forced `theme-light` that is `--color-dark-4`, a dark grey, so a window-root token cannot reach
+   it and every empty field in dark (the relationship board's "How they feel, why…" among them)
+   printed its hint at about 2:1. Re-pointed on the fields of our own windows, to the muted ink the
+   system's own placeholders already read. */
+:where(:root.stonetop-dark) :where(.app, .application, .window-app):where(.stonetop, .stonetop-themed) :is(input, textarea) {
+	--input-placeholder-color: var(--st-text-muted);
+}
+
+/* The expedition's undead tag. On parchment its lettering is the kind's ink mixed DOWN into black;
+   here that black is the page, so the ink is mixed UP into the bone instead, keeping its hue. */
+:where(:root.stonetop-dark) .stonetop-expedition-dialog .stonetop-exp-load-undead {
+	color: color-mix(in srgb, var(--st-past-death-ink) 60%, var(--st-text));
+}
+
+/* A broken cross-link on our own sheets. Core's `--color-text-bad` fallback is a #aa2222 pitched
+   for paper (about 2:1 here). Journal pages are left out: they keep core's paper and its theme. */
+:where(:root.stonetop-dark) :is(.stonetop-so-entry-body, .stonetop-npc-sheet, .stonetop-monster-sheet) a.content-link.broken {
+	border-bottom-color: var(--st-on-dark-danger);
+	color: var(--st-on-dark-danger);
+}
+
+/* A RELATIONSHIP-MAP COLOUR THE TABLE CHOSE. Stored as a hex deepened for the PAPER (see
+   `boardGrounds`, module/relmap/relmap-ink.js), so on this board the deep ones (soot, charcoal, the
+   forty's "deep" row, any colour picked under the light skin) are dark on dark. Lifted here to a
+   lightness floor in its own hue and chroma, the way the eight named inks are lifted for this page;
+   a colour already that light is left exactly as chosen. Lines, arrowheads, group outlines and the
+   palette's swatches together, so a swatch never shows a colour its line is not drawn in. Behind
+   @supports because the property is substituted into a stroke: a browser without relative colour
+   would draw no line at all, where without this rule it draws the deep one. */
+@supports (color: oklch(from red l c h)) {
+	:where(:root.stonetop-dark) .stonetop-relmap-line--custom,
+	:where(:root.stonetop-dark) .stonetop-relmap-head--custom,
+	:where(:root.stonetop-dark) .stonetop-relmap-ink--custom {
+		--relmap-ink: oklch(from var(--relmap-ink-raw, var(--st-relmap-ink-slate)) max(l, 0.75) c h);
+	}
+	/* High contrast's own rule darkens these lines toward black, for white paper, and matches here
+	   too at (0,3,0): this outweighs it, and raises the floor instead. */
+	:root.stonetop-dark.stonetop-high-contrast .stonetop-relmap-line--custom,
+	:root.stonetop-dark.stonetop-high-contrast .stonetop-relmap-head--custom,
+	:root.stonetop-dark.stonetop-high-contrast .stonetop-relmap-ink--custom {
+		--relmap-ink: oklch(from var(--relmap-ink-raw, var(--st-relmap-ink-slate)) max(l, 0.84) c h);
+	}
+	/* The members' ring, drawn straight from the group's hex (RelationshipMapWindow#_lightGroup). */
+	:where(:root.stonetop-dark) .stonetop-relmap-node.is-in-group .stonetop-relmap-face {
+		box-shadow: 0 0 0 3px var(--st-page),
+			0 0 0 6px oklch(from var(--relmap-group-ink, var(--st-accent-fill)) max(l, 0.75) c h);
+	}
+}
+
 /* Love letters and Threat cards keep their handed-over paper, darkened (user's call, 2026-09-27):
    a warm dark tan a step lighter than the page (1.35:1), so the letter still reads as a separate
    sheet laid on it. The maroon seal stays maroon; its label is `--ll-seal-text`, pinned light,
@@ -51049,6 +51208,7 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--st-on-dark-ok:      hsl(140 45% 72%);
 	--st-on-dark-umber:   #c4b0a2;
 	--st-on-dark-raised:  #28231e;
+	--st-on-dark-accent-mix: 15%;   /* every threat, site and hazard stone at 7:1 on the card */
 	--st-on-dark-rule-soft: rgba(240, 235, 224, 0.4);
 	--st-on-dark-rule:      #a39a8a;
 	/* The hit tiers at 7:1, on the page and on a roll card's opaque result labels alike. */
@@ -51064,13 +51224,13 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--st-gold-border:  #d9b44a;
 	--st-gold-text:    #e6c56a;
 	/* The timeline's kinds at 7:1 on the darker page, and unwashed like the light skin's. */
-	--st-timeline-kind-levelup:    #cc9d1d;
-	--st-timeline-kind-kills:      #f1848d;
-	--st-timeline-kind-expedition: #3cb5b1;
+	--st-timeline-kind-levelup:    #d0a01e;
+	--st-timeline-kind-kills:      #f28991;
+	--st-timeline-kind-expedition: #3db9b5;
 	--st-timeline-kind-site:       #9abee2;
-	--st-timeline-kind-death:      #a9a39e;
+	--st-timeline-kind-death:      #aba6a1;
 	--st-timeline-kind-wound:      #f2aa86;
-	--st-timeline-kind-arcana:     #c590e3;
+	--st-timeline-kind-arcana:     #c794e4;
 	--st-timeline-kind-follower:   #e6a8cc;
 	--st-timeline-card-wash: 0%;
 	--st-timeline-chip-wash: 0%;

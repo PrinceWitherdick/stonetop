@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { readCss, readRepo, repoFileExists, ownRule } from "../fakes/css.js";
+import { declarations, readCss, readRepo, repoFileExists, ownRule } from "../fakes/css.js";
 import { fakeEl } from "../fakes/dom.js";
 import { contrastRatio, parseColor, ratioText } from "../fakes/contrast.js";
 import { applySheetContrast, watchFoundryTheme } from "../../module/settings.js";
@@ -142,6 +142,22 @@ describe("the dark palette", () => {
 		// Only the Stonetop cards: a plain message keeps core's parchment, and bone ink on it vanishes.
 		for (const [sel] of tier) expect(sel).toMatch(/\.message:is\(:has\(/);
 	});
+
+	// Core inks the message header with a fixed #444, and a roll card is posted as the FLAVOR, which
+	// core draws inside that header: speaker, time, trash can and the formula chip went near-black.
+	it("re-inks the chat cards' header, and the card posted as its flavor, from the ramp", () => {
+		const header = RULES.find(([sel]) => /#chat/.test(sel) && /\.message-header\s*$/.test(sel));
+		expect(header, "the speaker and timestamp keep core's #444 on the dark paper").toBeTruthy();
+		expect(header[1]).toMatch(/color:\s*var\(--st-text-secondary\)/);
+		const flavor = RULES.find(([sel]) => /#chat/.test(sel) && /\.message-header \.flavor-text\s*$/.test(sel));
+		expect(flavor, "a card in the flavor inherits the header's #444").toBeTruthy();
+		expect(flavor[1]).toMatch(/color:\s*var\(--st-text-body\)/);
+		// Zero weight, so the undead insert's own header ink still wins; only our cards, never a plain message.
+		for (const [sel] of [header, flavor]) {
+			expect(sel).toMatch(/^:where\(:root\.stonetop-dark\)/);
+			expect(sel).toMatch(/\.message:is\(:has\(/);
+		}
+	});
 });
 
 describe("the lamplit paper", () => {
@@ -184,6 +200,26 @@ describe("the lamplit paper", () => {
 				expect(one.trim(), "a paint rule weighs more than the rule it replaces").toMatch(/^:where\(:root\.stonetop-dark\)/);
 			}
 			expect(body, "the blend list no longer matches the layers").toMatch(/background-blend-mode:[^;]*screen,\s*difference;/);
+		}
+	});
+
+	// Paper Texture Transparency reaches the dark papers too: the wash on top, unblended, one blend
+	// mode per layer.
+	it("lays the Paper Texture Transparency wash over the lamplit grain", () => {
+		const paints = RULES.filter(([, body]) => /#fff\s+var\(--st-inverted-paper\)/.test(body));
+		for (const [sel, body] of paints) {
+			expect(body, `${sel} leaves the transparency slider out`).toMatch(/var\(--st-paper-veil-layer\),\s*linear-gradient\(var\(--st-paper-tint\)/);
+			const background = /background:([^;]*);/.exec(body)[1];
+			// Top-level commas only: the layers' own functions nest theirs.
+			let depth = 0;
+			let layers = 1;
+			for (const ch of background) {
+				if (ch === "(") depth++;
+				else if (ch === ")") depth--;
+				else if (ch === "," && depth === 0) layers++;
+			}
+			const modes = /background-blend-mode:([^;]*);/.exec(body)[1].split(",").length;
+			expect(modes, `${sel}: one blend mode per layer`).toBe(layers);
 		}
 	});
 
@@ -418,25 +454,40 @@ describe("the colours written for white paper", () => {
 	// slate in every palette with its own fixed slate ink.
 	const KEPT = /stonetop-gm-diagram-img|stonetop-image-zoom-view|stonetop-toggle-thumb|stonetop-journey|deathsdoor-dialog|death-drip|stonetop-timeline-orient/;
 	const stripVars = v => v.replace(/var\([^()]*(\([^()]*\))?[^()]*\)/g, "");
-	const literals = v => (stripVars(v).match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|\b(white|black)\b/gi) || [])
+	// hsl() too: the first pass read hex and rgba only, and some thirty pale hsl() hovers, chips and
+	// selections sat out of its sight with bone ink on them, the Followers tab's among them.
+	const literals = v => (stripVars(v).match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)|\b(white|black)\b/gi) || [])
 		.filter(v => parseColor(v));
 	const values = (body, prop) => [...body.matchAll(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, "g"))].map(m => m[1]);
+	const GROUND = "background(?:-color|-image)?";
+	const norm = sel => sel.replace(/\/\*[\s\S]*?\*\//g, "").trim().replace(/\s+/g, " ");
 	const paper = [...CSS.slice(0, CSS.indexOf(`${DARK} {`)).matchAll(RULE)]
 		.map(([, sel, body]) => [sel.trim().replace(/\s+/g, " "), body])
 		.filter(([sel]) => !SCOPED.test(sel) && !KEPT.test(sel));
+	// A rule the dark section answers selector for selector (the Followers tab's washes, the undead
+	// tag's lettering) is turned over there, so its paper literal is not a miss.
+	const TURNED = new Set(RULES.flatMap(([sel]) => norm(sel).split(/,\s*/))
+		.filter(s => s.startsWith(":where(:root.stonetop-dark) "))
+		.map(s => s.slice(":where(:root.stonetop-dark) ".length)));
+	const turned = sel => norm(sel).split(/,\s*/).every(s => TURNED.has(s));
+	// An opaque literal ground pins the rule's paper in every palette, and its ink with it.
+	const pinned = body => values(body, GROUND).some(v => literals(v).some(c => parseColor(c).alpha > 0.5));
 
 	it("scanned the file at all", () => {
 		expect(paper.length).toBeGreaterThan(3000);
 	});
 
+	// Whether or not the rule names a ground: a token fill turns dark with the page and a wash
+	// lets it through, so a near-black ink is a miss on either. (The first pass skipped any rule
+	// with a background at all, and a `transparent` pill kept its `color: #000`.)
 	it("paints no near-black ink straight onto the page", () => {
-		const offenders = paper.filter(([, body]) => !values(body, "background(?:-color)?").length
+		const offenders = paper.filter(([sel, body]) => !turned(sel) && !pinned(body)
 			&& values(body, "color").some(v => literals(v).some(c => lum(c) < 0.2 && parseColor(c).alpha > 0.4)));
 		expect(offenders.map(([sel]) => sel)).toEqual([]);
 	});
 
 	it("leaves no white well under ink the palette turns to bone", () => {
-		const offenders = paper.filter(([, body]) => values(body, "background(?:-color)?")
+		const offenders = paper.filter(([sel, body]) => !turned(sel) && values(body, GROUND)
 			.some(v => literals(v).some(c => lum(c) > 0.5 && parseColor(c).alpha > 0.2)));
 		expect(offenders.map(([sel]) => sel)).toEqual([]);
 	});
@@ -506,6 +557,139 @@ describe("the colours written for white paper", () => {
 	it("gives a grey rule an edge at 3:1", () => {
 		expect(contrastRatio(D.get("--st-on-dark-rule"), D.get("--stonetop-bg"))).toBeGreaterThanOrEqual(3);
 		expect(contrastRatio(DH.get("--st-on-dark-rule"), DH.get("--stonetop-bg"))).toBeGreaterThanOrEqual(3);
+	});
+});
+
+// The Followers tab's pale fills are written in hsl(), which the scan above does not read, so its
+// card header bands, pills and move bars stayed near-white under bone ink (reported in slate). Each
+// pale hsl() fill on a follower surface has a dark rule for the same selector.
+describe("the followers tab", () => {
+	const RULE = /([^{}]+)\{([^{}]*)\}/g;
+	const norm = sel => sel.replace(/\/\*[\s\S]*?\*\//g, "").trim().replace(/\s+/g, " ");
+	const FOLLOWER = /stonetop-follower-|stonetop-of-readout|stonetop-ff-option/;
+	const paleHsl = body => [...body.matchAll(/(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/g)]
+		.some(([, v]) => [...v.replace(/var\([^()]*(\([^()]*\))?[^()]*\)/g, "").matchAll(/hsla?\([^)]*?\s(\d+(?:\.\d+)?)%\s*(?:\/[^)]*)?\)/g)].some(m => +m[1] > 75));
+	const pale = [...CSS.slice(0, CSS.indexOf(`${DARK} {`)).matchAll(RULE)]
+		.map(([, sel, body]) => [norm(sel), body])
+		.filter(([sel, body]) => FOLLOWER.test(sel) && !/stonetop-dark|past-death|high-contrast/.test(sel) && paleHsl(body));
+	const dark = new Set(RULES.flatMap(([sel]) => norm(sel).split(/,\s*/))
+		.filter(s => s.startsWith(":where(:root.stonetop-dark) "))
+		.map(s => s.slice(":where(:root.stonetop-dark) ".length)));
+
+	it("found the pale fills", () => {
+		expect(pale.length).toBeGreaterThan(8);
+	});
+
+	it("turns every one of them over in dark", () => {
+		const missing = pale.flatMap(([sel]) => sel.split(/,\s*/)).filter(s => !dark.has(s));
+		expect(missing).toEqual([]);
+	});
+});
+
+// Core declares its placeholder ink on each input, not on the window, as a dark grey under the forced
+// light theme: the relationship board's empty notes read about 2:1 in dark until it was re-pointed.
+describe("placeholders", () => {
+	it("re-points core's placeholder ink on the fields themselves", () => {
+		const rule = RULES.find(([sel, body]) => /\(input, textarea\)$/.test(sel) && /--input-placeholder-color\s*:/.test(body));
+		expect(rule, "no dark rule re-points --input-placeholder-color on the inputs").toBeTruthy();
+		expect(rule[1]).toMatch(/--input-placeholder-color:\s*var\(--st-text-muted\)/);
+		for (const pal of [D, DH, S, SH]) {
+			const muted = pal.get("--st-text-muted") ?? D.get("--st-text-muted");
+			const panel = pal.get("--stonetop-bg") ?? D.get("--stonetop-bg");
+			expect(contrastRatio(muted, panel)).toBeGreaterThanOrEqual(4.5);
+		}
+	});
+});
+
+// A threat, site or hazard card carries its stone INLINE, and the stones are dark greys and browns
+// picked for parchment: #6e3b3b lettering on the darkened card was 1.3:1. An inline property cannot
+// be re-pointed by a dark rule, so the card carries the raw stone and the stylesheet derives the
+// accent from it, on the same element, mixed into the card's ink by the amount each palette asks.
+describe("the threat cards' accent", () => {
+	const TEMPLATES = ["templates/journal/partials/threat-card.hbs", "templates/journal/partials/site-card.hbs",
+		"templates/journal/partials/hazard-card.hbs", "templates/dialogs/create-threat.hbs",
+		"templates/actor/partials/gm-toolkit-tab-threats.hbs"];
+	const STONES = [
+		...[...readRepo("module/threats/threat-types.js").matchAll(/accent:\s*"(#[0-9a-f]{6})"/gi)].map(m => m[1]),
+		readRepo("module/sites/site-view.js").match(/SITE_ACCENT = "(#[0-9a-f]{6})"/i)?.[1],
+		readRepo("module/hazards/hazard-data.js").match(/HAZARD_ACCENT = "(#[0-9a-f]{6})"/i)?.[1],
+	];
+	const CARD = customProperties(declarations(CSS, ":root.stonetop-dark .stonetop .threat-card"));
+	const mix = (stone, ink, p) => hex(parseColor(stone).rgb.map((c, i) => c * p + parseColor(ink).rgb[i] * (1 - p)));
+
+	it("is handed over raw, never as the property the rules read", () => {
+		for (const path of TEMPLATES) {
+			const src = readRepo(path);
+			expect(src, path).toMatch(/--threat-accent-raw:\s*\{\{accent\}\}/);
+			expect(src, path).not.toMatch(/--threat-accent:/);
+		}
+	});
+
+	it("is derived on the elements that carry it, the raw stone exactly on paper", () => {
+		const rule = CSS.match(/:is\(\.threat-card, \.create-threat, \.steading-threat-type-list > li\) \{([^}]*)\}/)?.[1];
+		expect(rule, "the rule that derives --threat-accent").toBeTruthy();
+		expect(rule).toMatch(/--threat-accent:\s*color-mix\(in srgb, var\(--threat-accent-raw\) var\(--st-on-dark-accent-mix, 100%\)/);
+	});
+
+	it("clears 4.5:1 on every stop of the dark card, and 7:1 in dark + high contrast", () => {
+		expect(STONES.length).toBeGreaterThanOrEqual(10);
+		expect(CARD.get("--tc-ink"), "the dark card's ink").toBeTruthy();
+		const stops = ["--tc-paper", "--tc-paper-hi", "--tc-paper-lo"].map(name => CARD.get(name));
+		for (const [pal, floor] of [[D, 4.5], [DH, 7]]) {
+			const p = parseFloat(pal.get("--st-on-dark-accent-mix")) / 100;
+			expect(p, "the mix is not set").toBeGreaterThan(0);
+			for (const stone of STONES) {
+				const ink = mix(stone, CARD.get("--tc-ink"), p);
+				for (const g of stops) expect(contrastRatio(ink, g), `${stone} as ${ink} on ${g}`).toBeGreaterThanOrEqual(floor);
+			}
+		}
+	});
+});
+
+// A relationship-map colour the table chose is stored deepened for paper (relmap-ink.js#boardGrounds),
+// so on the dark board soot, charcoal and every "deep" swatch were dark on dark, and high contrast's
+// own darkening toward black matched under dark + high contrast as well.
+describe("the relationship map's chosen colours", () => {
+	const lifted = RULES.filter(([sel, body]) => /relmap-(line|head|ink)--custom/.test(sel) && /--relmap-ink:/.test(body));
+
+	it("are lifted to a lightness floor in their own hue on the dark board", () => {
+		const dark = lifted.find(([sel]) => sel.startsWith(":where(:root.stonetop-dark)"));
+		expect(dark, "no dark rule lifts the custom inks").toBeTruthy();
+		expect(dark[1]).toMatch(/oklch\(from var\(--relmap-ink-raw[^)]*\)\) max\(l, 0\.\d+\) c h\)/);
+	});
+
+	it("outweigh high contrast's darkening under dark + high contrast", () => {
+		const high = lifted.find(([sel]) => sel.startsWith(DARK_HC));
+		expect(high, "high contrast still darkens the custom inks on the dark board").toBeTruthy();
+		expect(high[1]).not.toMatch(/#000|black/);
+	});
+
+	it("sit behind @supports, so a browser without relative colour keeps the stored line", () => {
+		const at = CSS.indexOf("@supports (color: oklch(from red l c h))");
+		expect(at).toBeGreaterThan(CSS.indexOf(`${DARK} {`));
+		expect(CSS.indexOf(".stonetop-relmap-line--custom", at)).toBeGreaterThan(at);
+	});
+});
+
+// `var(--name, #literal)` paints the literal in EVERY palette when nothing declares the name: three
+// were stranded that way (`--st-text-strong`, `--stonetop-armor-boost`, and core's absent
+// `--color-text-bad`), as `--color-border-light` was before them.
+describe("colour fallbacks", () => {
+	// Core's own names, declared in foundry2.css; set inline per element; or answered by a rule.
+	const KNOWN = new Set([
+		"--color-warm-1", "--color-border-light-2", "--color-underline-header", "--color-border-dark-5",
+		"--color-border-dark-tertiary", "--color-light-1", "--color-level-success",
+		"--site-accent",       // the journey pin's stone, inline, on the map
+		"--st-heart",          // a filled heart, 3:1 as a mark on both papers
+		"--color-text-bad",    // journal pages keep core's paper; our sheets' dark rule re-inks it
+	]);
+
+	it("only fall back for names something declares", () => {
+		const declared = new Set([...CSS.matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
+		const stranded = [...CSS.matchAll(/var\(\s*(--[\w-]+)\s*,\s*(?:#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|white\b|black\b)/gi)]
+			.map(m => m[1])
+			.filter(name => !declared.has(name) && !KNOWN.has(name) && !name.startsWith("--st-on-dark-"));
+		expect([...new Set(stranded)]).toEqual([]);
 	});
 });
 

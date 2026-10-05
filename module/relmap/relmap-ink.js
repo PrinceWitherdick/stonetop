@@ -28,6 +28,8 @@
 // actually handles -- a hex from a colour input, and the `hsl()` the ink tokens are declared in --
 // and answers null rather than guessing at anything else.
 
+import { isDarkPalette } from "../utils/palette.js";
+
 /**
  * The class fragment a line wearing a colour of its own is drawn with.
  *
@@ -263,12 +265,21 @@ function rgbToHex(rgb) {
  * moves under the high-contrast skin and under the flat-paper setting, and a guard measuring
  * against a remembered tone would be passing colours against a page nobody has.
  *
+ * ⚠ EXCEPT UNDER A DARK PALETTE, which answers the PAPER. A chosen hex is stored once and read by
+ * the whole table, and the stylesheet can lift a deep colour for a dark board (the `--custom`
+ * rules under `.stonetop-dark`) but has no way to deepen a pale one for paper. So the stored hex is
+ * always the one that reads on paper, wherever it was picked; walked toward white for the dark
+ * board it would come out a pale line for everyone else at the table.
+ *
  * @param {HTMLElement} [root]  the element to read the custom properties off; the document root by
  *        default, which is where every one of them is declared.
  * @returns {Array<number[]>}  the grounds, as rgb triples. Never empty: a document that answers
  *          nothing falls back to the stylesheet's own two, so the guard cannot quietly go blind.
  */
 export function boardGrounds(root = globalThis.document?.documentElement ?? null) {
+	if (isDarkPalette(root)) {
+		return [parseColour(RELMAP_GROUND_FALLBACK.page), parseColour(RELMAP_GROUND_FALLBACK.panel)];
+	}
 	const read = name => {
 		const said = root && globalThis.getComputedStyle
 			? globalThis.getComputedStyle(root).getPropertyValue(name)

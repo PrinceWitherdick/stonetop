@@ -71,6 +71,22 @@ describe("the module's palette is the stylesheet's", () => {
 		}
 	});
 
+	// Slate wears the dark rules, so the dark skins' colours are painted on its papers too: Slate +
+	// high contrast had every shipped kind a hair under 7:1 on its panel before they were measured there.
+	it("and on Slate's papers for the two dark skins", () => {
+		const same = value => String(value ?? "").replace(/\s+/g, " ").trim();
+		const SLATE = { dark: ":root.stonetop-dark.stonetop-slate", darkHigh: ":root.stonetop-dark.stonetop-slate.stonetop-high-contrast" };
+		for (const [mode, selector] of Object.entries(SLATE)) {
+			const body = ownRule(css, selector);
+			const slate = TIMELINE_COLOUR_GROUNDS[mode].slate;
+			expect(slate, `no Slate grounds for ${mode}`).toBeTruthy();
+			expect(same(declared(body, "--st-page")), `Slate page on ${mode}`).toBe(same(slate.page));
+			expect(same(declared(body, "--stonetop-bg")), `Slate panel on ${mode}`).toBe(same(slate.panel));
+			expect(same(declared(body, "--st-card-fill")), `Slate card on ${mode}`).toBe(same(slate.card));
+		}
+		for (const mode of ["light", "lightHigh"]) expect(TIMELINE_COLOUR_GROUNDS[mode].slate).toBeUndefined();
+	});
+
 	it("over the same chip and card washes", () => {
 		const light = ownRule(css, ":root");
 		const percent = prop => parseFloat(declared(light, prop)) / 100;
