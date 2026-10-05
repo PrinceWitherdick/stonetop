@@ -54,6 +54,7 @@ import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onUpdateSiteNote } from "./module/sites/site-scene-pins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { installMapPinNameToggle } from "./module/hooks/MapPinNameToggle.js";
+import { registerMapBrightness } from "./module/hooks/map-brightness.js";
 import { installTimeBanner } from "./module/seasons/time-banner.js";
 import { installLoveLetterNotice } from "./module/actors/character/love-letter-notice.js";
 import { registerExpeditionRouteHooks } from "./module/hooks/ExpeditionRouteOverlay.js";
@@ -915,6 +916,10 @@ Hooks.on("drawNote", onDrawStonetopNote);
 // for you alone. `ready` rather than `init`: it mounts into core's own `#ui-right` row, which
 // does not exist until the interface has been rendered. See hooks/MapPinNameToggle.js.
 Hooks.once("ready", installMapPinNameToggle);
+
+// The imported maps dimmed for this browser, on the canvas and in the journal pages. Registered
+// at load so the first `canvasReady` of a reload is heard. See hooks/map-brightness.js.
+registerMapBrightness();
 
 // The weather, the season and the year hung from the top of the screen, read off the steading.
 // `ready` for the same reason as the eye: it mounts into core's own `#ui-top`. See

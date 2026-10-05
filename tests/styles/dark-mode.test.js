@@ -609,14 +609,27 @@ describe("the setting", () => {
 	afterEach(() => { globalThis.document = saved; });
 	const classes = () => globalThis.document.documentElement.classes;
 
-	it("turns the three axes on independently for every palette, and none for anything else", () => {
+	it("wears high contrast over any page when the checkbox is ticked", () => {
+		for (const [page, dark, slate] of [["normal", false, false], ["dark", true, false], ["slate", true, true]]) {
+			applySheetContrast(page, true);
+			expect(classes().includes("stonetop-high-contrast"), `${page}: high contrast`).toBe(true);
+			expect(classes().includes("stonetop-dark"), `${page}: dark`).toBe(dark);
+			expect(classes().includes("stonetop-slate"), `${page}: slate`).toBe(slate);
+			applySheetContrast(page, false);
+			expect(classes().includes("stonetop-high-contrast"), `${page}: unticked`).toBe(false);
+			expect(classes().includes("stonetop-dark"), `${page}: dark kept`).toBe(dark);
+		}
+	});
+
+	// A value stored before the split ("dark-high") never reaches here: Ready splits it first.
+	it("turns the dark axes on for every palette, and none for anything else", () => {
 		const expected = {
-			normal: [false, false, false], high: [true, false, false], dark: [false, true, false], "dark-high": [true, true, false],
-			slate: [false, true, true], "slate-high": [true, true, true],
+			normal: [false, false, false], dark: [false, true, false], slate: [false, true, true],
+			high: [false, false, false], "dark-high": [false, false, false],
 			"": [false, false, false], DARK: [false, false, false], "dark high": [false, false, false], SLATE: [false, false, false],
 		};
 		for (const [value, [hc, dark, slate]] of Object.entries(expected)) {
-			applySheetContrast(value);
+			applySheetContrast(value, false);
 			expect(classes().includes("stonetop-high-contrast"), `${value}: high contrast`).toBe(hc);
 			expect(classes().includes("stonetop-dark"), `${value}: dark`).toBe(dark);
 			expect(classes().includes("stonetop-slate"), `${value}: slate`).toBe(slate);
@@ -643,14 +656,14 @@ describe("the setting", () => {
 
 		it("is Lamplit when Foundry's applications are dark and paper when they are light", () => {
 			foundry("dark");
-			applySheetContrast("auto");
+			applySheetContrast("auto", false);
 			expect(on()).toEqual({ hc: false, dark: true, slate: false });
-			applySheetContrast("auto-high");
+			applySheetContrast("auto", true);
 			expect(on()).toEqual({ hc: true, dark: true, slate: false });
 			foundry("light");
-			applySheetContrast("auto");
+			applySheetContrast("auto", false);
 			expect(on()).toEqual({ hc: false, dark: false, slate: false });
-			applySheetContrast("auto-high");
+			applySheetContrast("auto", true);
 			expect(on()).toEqual({ hc: true, dark: false, slate: false });
 		});
 
@@ -693,18 +706,20 @@ describe("the setting", () => {
 		});
 	});
 
-	it("has a label for every palette, offered or not", () => {
+	it("has a label for every page, and for the High Contrast checkbox", () => {
 		const en = JSON.parse(readRepo("languages/en.json"));
 		const labels = en.stonetop?.settings?.sheetContrast ?? {};
-		// The value is "dark-high"; its label key is camelCase, like every other key in en.json.
-		for (const key of ["normal", "high", "dark", "darkHigh", "slate", "slateHigh", "auto", "autoHigh"]) expect(labels[key], key).toBeTruthy();
+		for (const key of ["normal", "dark", "slate", "auto"]) expect(labels[key], key).toBeTruthy();
+		expect(en.stonetop?.settings?.highContrast?.name).toBeTruthy();
+		expect(en.stonetop?.settings?.highContrast?.hint).toBeTruthy();
 	});
 
-	// Offered since the sheet, the chat cards and the dialogs were migrated. The setting's label is
-	// "Dark Mode & Contrast" (key still `sheetContrast`), so a search for "dark" finds it.
-	it("offers every palette on the setting", () => {
+	// The setting's label is "Dark Mode" (key still `sheetContrast`), so a search for "dark" finds
+	// it. High contrast is its own checkbox (2026-10-04), so no page carries it as a choice.
+	it("offers every page on the setting, and no high-contrast combination", () => {
 		const src = readRepo("module/settings.js");
 		const choices = src.match(/register\(SYSTEM_ID, "sheetContrast"[\s\S]*?choices: \{([^}]*)\}/)?.[1] ?? "";
-		for (const value of ["normal", "high", "dark", "dark-high", "slate", "slate-high", "auto", "auto-high"]) expect(choices, value).toContain(`"${value}":`);
+		for (const value of ["normal", "dark", "slate", "auto"]) expect(choices, value).toContain(`"${value}":`);
+		expect(choices).not.toMatch(/high/i);
 	});
 });

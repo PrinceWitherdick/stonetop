@@ -14,6 +14,7 @@
 
 import { SYSTEM_ID } from "../system-id.js";
 import { isFightTabEnabled } from "../settings.js";
+import { PALETTE_HOOK } from "../utils/palette.js";
 import { HEROES, FOES } from "./engagements.js";
 import { createFightTrackerClass } from "./FightTracker.js";
 import { installFightWatcher } from "./fight-watcher.js";
@@ -114,9 +115,8 @@ export function registerFightTab({ config = globalThis.CONFIG, hooks = globalThi
 	installReadinessLoss({ hooks });
 	// The canvas destroys the overlay with its interface group; drop the handles to it.
 	hooks.on("canvasTearDown", teardownFightOverlay);
-	// A reader switching high contrast on or off gets the lines repainted in that mode's ink.
-	hooks.on("clientSettingChanged", key => {
-		if (String(key ?? "") === `${SYSTEM_ID}.sheetContrast`) refreshFightOverlay();
-	});
+	// A change of palette (high contrast, a dark page, Follow Foundry re-resolving) gets the lines
+	// repainted in that palette's ink.
+	hooks.on(PALETTE_HOOK, () => refreshFightOverlay());
 	return true;
 }

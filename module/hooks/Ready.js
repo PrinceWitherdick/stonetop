@@ -25,7 +25,7 @@ import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, watchFoundryTheme, applySheetTexture, applyNoItalics, getTimelineKindColours, refuseHiddenFeature, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isFightTabEnabled, getArraySetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, splitLegacyHighContrast, watchFoundryTheme, applySheetTexture, applySheetTextureFade, applyNoItalics, getTimelineKindColours, refuseHiddenFeature, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isFightTabEnabled, getArraySetting } from "../settings.js";
 import { applyTimelineKindColours } from "../timeline/timeline-colours.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -189,12 +189,17 @@ export async function onReady() {
 	applyReduceMotion(getSetting("reduceMotion"));
 	// The three accessibility skins. Applied here with the rest rather than left to their own
 	// `onChange`, because that only fires when somebody CHANGES the setting — a client that
-	// stored "high" last session would otherwise load every sheet in the palette it could not
-	// read, until it touched the control again.
+	// stored high contrast last session would otherwise load every sheet in the palette it could
+	// not read, until it touched the control again. (The page and the `highContrast` checkbox
+	// both: applySheetContrast reads the checkbox itself.) A page stored as "dark-high" and the
+	// like is first split into the page plus the High Contrast checkbox, so nothing reads it after.
+	try { await splitLegacyHighContrast(); }
+	catch (err) { console.error("Stonetop | high-contrast split failed", err); }
 	applySheetContrast(getSetting("sheetContrast"));
 	// "Follow Foundry" re-resolves whenever Foundry's own theme, or the OS's, changes.
 	watchFoundryTheme();
 	applySheetTexture(getSetting("sheetTexture"));
+	applySheetTextureFade(getSetting("sheetTextureFade"));
 	applyNoItalics(getSetting("noItalics"));
 	// The GM's timeline colours, for the same reason: `onChange` repaints only on a change.
 	applyTimelineKindColours(getTimelineKindColours());

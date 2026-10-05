@@ -168,6 +168,15 @@
 	   while leaving the colour at 94% makes the paper DARKER than it was, and every grey on it
 	   HARDER to read rather than easier. See the accessibility block below, which moves both. */
 	--stonetop-bg-texture: url('/systems/stonetop-pwd/assets/graphics/sheet-bg.webp');
+	/* HOW FAR THE GRAIN IS KNOCKED BACK. The image can't be made translucent (it has no alpha,
+	   see above), so the four surfaces that paint it lay this wash of the page colour OVER it
+	   instead, which reads the same: the spirals fade toward the paper they sit on. The strength
+	   is the reader's "Paper Texture Transparency" setting, written onto the root inline by
+	   applySheetTextureFade; the fallback is that setting's default. 0% is the image at full
+	   strength. */
+	--st-paper-veil: color-mix(in srgb, var(--st-page) var(--st-paper-veil-strength, 30%), transparent);
+	/* That wash as the background layer each of the four lays first, over the grain. */
+	--st-paper-veil-layer: linear-gradient(var(--st-paper-veil), var(--st-paper-veil));
 	/* THE SAME GRAIN, FOR THE FOUR PAPERS THAT INVERT IT.
 	   A past-death sheet, the black rooms of the Death's Door dialog and the two death-drip chat
 	   cards do not lay this image over a colour. They paint it over a WHITE background-color and
@@ -248,6 +257,11 @@
 	   cards dissolve into it. Named here so one scope can turn them all over at once. */
 	--st-card-fill: rgba(0, 0, 0, 0.03);
 	--st-card-rule: rgba(0, 0, 0, 0.12);
+	/* What the fill above is laid OVER: half the page's own colour, so a card holds the grain
+	   back instead of letting the whole of it show through. Read from --st-page, which every
+	   theme re-points on :root, so this turns over with them; only a returned character's black
+	   paper, which never moves --st-page, needs it named again (see .stonetop-past-death). */
+	--st-card-veil: color-mix(in srgb, var(--st-page) 50%, transparent);
 
 	/* The warm rule drawn around a piece of printed BOOK ART — a journal illustration, a GM
 	   playbook flowchart. Not `--st-card-rule`: that one separates our own surfaces, while this
@@ -1198,6 +1212,9 @@ figure.stonetop-map img {
 	margin: 0 auto;
 	border: 1px solid rgb(var(--st-ink-rgb) / 0.3);
 	border-radius: 3px;
+	/* The reader's Map Brightness setting (hooks/map-brightness.js), the same dimming the
+	   poster-map Scenes get on the canvas. */
+	filter: brightness(var(--stonetop-map-brightness, 1));
 }
 figure.stonetop-map figcaption {
 	margin-top: 0.35em;
@@ -1366,7 +1383,7 @@ figure.stonetop-map figcaption {
    behavioral change is that the parchment no longer bleeds onto other modules' /
    core V1 windows. */
 .vtt .stonetop:not(.application,.image-popout,.journal-sheet,.sidebar-popout) .window-content {
-	background: var(--st-page) var(--stonetop-bg-texture);
+	background: var(--st-paper-veil-layer), var(--st-page) var(--stonetop-bg-texture);
 	background-position: center;
 	background-size: cover;
 	background-attachment: scroll;
@@ -1502,7 +1519,7 @@ body :is(.app, .window-app).stonetop-height-resized {
 
 /* Content: the same parchment field our sheets use, with dark legible text. */
 :is(.application, .window-app).stonetop-themed .window-content {
-	background: var(--st-page) var(--stonetop-bg-texture);
+	background: var(--st-paper-veil-layer), var(--st-page) var(--stonetop-bg-texture);
 	background-position: center;
 	background-size: cover;
 	color: var(--st-text-body);
@@ -5862,7 +5879,7 @@ body.stonetop-hide-roll-descriptions :is(#chat, #chat-notifications, #chat-popou
 :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-roll-card),
 :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-startup-card),
 :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-chat-move) {
-	background: var(--st-page) var(--stonetop-bg-texture) center / cover;
+	background: var(--st-paper-veil-layer), var(--st-page) var(--stonetop-bg-texture) center / cover;
 	border-radius: var(--st-radius-lg);
 	border-width: 1px;
 	border-bottom-width: 2px;
@@ -12114,8 +12131,9 @@ ul.stonetop-move-tiers[data-rolled-tier="failure"] > li[data-tier="failure"] { -
 	border-radius: var(--st-radius);
 	/* Through a variable: the fill is a faint SHADOW on paper, and a shadow on black paper is
 	   nothing at all — a card on the sheet of someone who came back needs a faint LIGHT instead.
-	   The value here is the paper one, unchanged; the dark scope re-points it. */
-	background: var(--st-card-fill);
+	   The value here is the paper one, unchanged; the dark scope re-points it. Over the veil,
+	   so the paper's grain shows through the card only faintly. */
+	background: linear-gradient(var(--st-card-fill), var(--st-card-fill)), var(--st-card-veil);
 	padding: 8px 12px;
 }
 
@@ -14336,7 +14354,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	padding: 12px 14px;
 	border: 1px solid var(--color-border-light-2);
 	border-radius: var(--st-radius);
-	background: rgba(0,0,0,0.03);
+	background: linear-gradient(var(--st-card-fill), var(--st-card-fill)), var(--st-card-veil);
 }
 
 .stonetop-special-move-name {
@@ -16464,6 +16482,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 	   invocation cards and the special-possessions list. */
 	--st-card-fill:                rgba(255, 255, 255, 0.055);
 	--st-card-rule:                rgba(255, 255, 255, 0.14);
+	--st-card-veil:                color-mix(in srgb, #0e0e0e 50%, transparent);
 	--st-btn-primary-bg:           hsl(0 0% 9%);
 	--st-btn-primary-bg-hover:     hsl(0 0% 16%);
 	--st-btn-primary-border:       hsl(40 13% 44%);
@@ -17603,6 +17622,7 @@ button.stonetop-mark-sign-btn.is-active:hover {
 :is(#chat, #chat-notifications, #chat-popout) .message:has(.stonetop-dying-card) {
 	background:
 		linear-gradient(180deg, hsla(8, 45%, 22%, 0.14), transparent 42%),
+		var(--st-paper-veil-layer),
 		var(--st-page) var(--stonetop-bg-texture) center / cover;
 	border-color: hsl(8 38% 46%);
 }
@@ -38145,6 +38165,9 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 	border: 1px solid rgba(0,0,0,0.22); border-radius: var(--st-radius);
 	/* The maps are ink on cream, so they carry their own ground in both themes. */
 	background: var(--stonetop-route-case);
+	/* The reader's Map Brightness setting (hooks/map-brightness.js): the same imported files the
+	   Setting Overview pages show. The picture only, so the route line and pins over it stay lit. */
+	filter: brightness(var(--stonetop-map-brightness, 1));
 }
 
 /* The route line. Two paths over the same curve: a cream casing under red dots, so each dot
@@ -45306,6 +45329,10 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 .stonetop-travel-map .stonetop-image-zoom-view {
 	border: 1px solid rgba(0,0,0,0.22);
 	border-radius: var(--st-radius);
+}
+/* Map Brightness, as on the route step's own map above. */
+.stonetop-travel-map .stonetop-image-zoom-img {
+	filter: brightness(var(--stonetop-map-brightness, 1));
 }
 .stonetop-travel-map-chrome,
 .stonetop-travel-map-foot { flex: 0 0 auto; }

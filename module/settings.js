@@ -5,6 +5,8 @@ import { SYSTEM_ID } from "./system-id.js";
 import { WEATHER_FX_PARTS, WEATHER_FX_SETTING } from "./seasons/weather-fx-parts.js";
 import { isPrimaryGM } from "./utils/primary-gm.js";
 import { localize } from "./utils/i18n.js";
+import { PALETTE_HOOK } from "./utils/palette.js";
+import { MIN_MAP_BRIGHTNESS } from "./hooks/map-brightness.js";
 import { applyTimelineKindColours, normalizeKindColours } from "./timeline/timeline-colours.js";
 
 /**
@@ -1274,20 +1276,18 @@ export function registerSettings() {
 		scope: "client",
 		config: true,
 		type: String,
-		// A CHOICE rather than a checkbox. The palette is the axis, not the boolean "more contrast":
-		// the light-on-dark pair (the "Lamplit" section of stonetop.css) landed here as two more
-		// values rather than as a second setting that has to be kept exclusive with this one by hand.
+		// A CHOICE: which PAGE, parchment or one of the dark ones. High contrast is NOT one of
+		// them any more; it is the `highContrast` checkbox below, worn over whichever page this
+		// picks (user, 2026-10-04). It used to be four more values here ("high", "dark-high",
+		// "slate-high", "auto-high"), one per page, which made a reader pick from a list of every
+		// combination; splitLegacyHighContrast carries a value stored that way across on load.
 		// Configure Settings and the Preferences tab on the character sheet and the GM Toolkit all
 		// read these choices off the registration.
 		choices: {
 			"normal":     "stonetop.settings.sheetContrast.normal",
-			"high":       "stonetop.settings.sheetContrast.high",
 			"dark":       "stonetop.settings.sheetContrast.dark",
-			"dark-high":  "stonetop.settings.sheetContrast.darkHigh",
 			"slate":      "stonetop.settings.sheetContrast.slate",
-			"slate-high": "stonetop.settings.sheetContrast.slateHigh",
 			"auto":       "stonetop.settings.sheetContrast.auto",
-			"auto-high":  "stonetop.settings.sheetContrast.autoHigh",
 		},
 		default: "normal",
 		// NO re-render, unlike most of the settings below it: the palette is tokens on the document
@@ -1300,6 +1300,37 @@ export function registerSettings() {
 		onChange: value => applySheetContrast(value),
 	});
 
+	// HIGH CONTRAST, its own switch over whichever page the setting above picks: plain white
+	// paper or the darker dark page, every grey and coloured ink pitched to 7:1, and the focus
+	// ring, underlined links and heavier hairlines that come with it. The two are independent
+	// axes (two classes on the root, see applySheetContrast), so a checkbox each is the honest
+	// shape. Client-scoped like the page, and offered beside it on the Preferences tab.
+	game.settings.register(SYSTEM_ID, "highContrast", {
+		name: "stonetop.settings.highContrast.name",
+		hint: "stonetop.settings.highContrast.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: false,
+		onChange: value => applyHighContrast(value),
+	});
+
+	// The imported poster maps, as Scenes, in the Setting Overview pages and on the expedition's
+	// route map, turned down for this browser (hooks/map-brightness.js). A PERCENT slider rather than a multiplier like the font
+	// size's, because "75" is what a reader means by "a bit darker" and "0.75" is not. Its own
+	// setting rather than part of the palette above: a map can glare in the light palette at night
+	// as much as in the dark one. No onChange: the hook module hears the change by key and repaints
+	// the canvas, the journal figures and the route maps itself.
+	game.settings.register(SYSTEM_ID, "mapBrightness", {
+		name: "stonetop.settings.mapBrightness.name",
+		hint: "stonetop.settings.mapBrightness.hint",
+		scope: "client",
+		config: true,
+		type: Number,
+		range: { min: MIN_MAP_BRIGHTNESS, max: 100, step: 5 },
+		default: 100,
+	});
+
 	game.settings.register(SYSTEM_ID, "sheetTexture", {
 		name: "stonetop.settings.sheetTexture.name",
 		hint: "stonetop.settings.sheetTexture.hint",
@@ -1310,6 +1341,22 @@ export function registerSettings() {
 		// should have to turn it back on.
 		default: true,
 		onChange: value => applySheetTexture(value),
+	});
+
+	// How faint the grain is while it is on. A PERCENT, like the map brightness above, and read the
+	// way a reader asks for it: higher is MORE transparent. 0 is the image at full strength; the
+	// default 30 is the level the parchment was knocked back to on 2026-10-04, so nobody's sheets
+	// move. Capped short of 100 because a full veil is just "Paper Texture" off by another route.
+	// Written into --st-paper-veil-strength by applySheetTextureFade (see --st-paper-veil).
+	game.settings.register(SYSTEM_ID, "sheetTextureFade", {
+		name: "stonetop.settings.sheetTextureFade.name",
+		hint: "stonetop.settings.sheetTextureFade.hint",
+		scope: "client",
+		config: true,
+		type: Number,
+		range: { min: 0, max: SHEET_TEXTURE_FADE_MAX, step: 5 },
+		default: SHEET_TEXTURE_FADE_DEFAULT,
+		onChange: value => applySheetTextureFade(value),
 	});
 
 	// ITALICS OFF. A third setting in the same family, and kept apart from the other two for the
@@ -2209,21 +2256,58 @@ export function applyReduceMotion(value) {
  * Slate is a third class, `.stonetop-slate`, worn WITH `.stonetop-dark`: the same dark mode with
  * the warm tokens re-pointed cool, so everything the dark palette does still applies to it.
  *
- * "auto" and "auto-high" are not palettes of their own. They resolve, here and on every change of
- * Foundry's theme (see watchFoundryTheme), to the dark pair or the paper pair.
+ * "auto" is not a palette of its own. It resolves, here and on every change of Foundry's theme
+ * (see watchFoundryTheme), to Lamplit or parchment.
+ *
+ * `value` is the PAGE (the `sheetContrast` setting) and `high` the `highContrast` checkbox, read
+ * off the setting when not passed. The page values that once carried high contrast with them
+ * ("dark-high" and the rest) are not read here: Ready runs splitLegacyHighContrast first.
+ *
+ * Fires PALETTE_HOOK when the classes actually change, for whatever paints in the palette's ink
+ * outside the stylesheet's reach (utils/palette.js).
  *
  * Compared as strings against the values that mean "on", so an unreadable or retired setting
  * lands on the normal palette rather than on a half-applied one.
  */
-export function applySheetContrast(value) {
+export function applySheetContrast(value, high = getBooleanSetting("highContrast")) {
 	let palette = String(value ?? "");
-	if (palette === "auto" || palette === "auto-high") {
-		const dark = foundryAppsAreDark();
-		palette = palette === "auto" ? (dark ? "dark" : "normal") : (dark ? "dark-high" : "high");
-	}
-	document.documentElement.classList.toggle("stonetop-high-contrast", ["high", "dark-high", "slate-high"].includes(palette));
-	document.documentElement.classList.toggle("stonetop-dark", ["dark", "dark-high", "slate", "slate-high"].includes(palette));
-	document.documentElement.classList.toggle("stonetop-slate", palette === "slate" || palette === "slate-high");
+	if (palette === "auto") palette = foundryAppsAreDark() ? "dark" : "normal";
+	const root = document.documentElement;
+	const worn = () => _PALETTE_CLASSES.map(name => root.classList.contains(name)).join();
+	const before = worn();
+	root.classList.toggle("stonetop-high-contrast", high === true);
+	root.classList.toggle("stonetop-dark", palette === "dark" || palette === "slate");
+	root.classList.toggle("stonetop-slate", palette === "slate");
+	if (worn() !== before) globalThis.Hooks?.callAll?.(PALETTE_HOOK);
+}
+
+const _PALETTE_CLASSES = ["stonetop-high-contrast", "stonetop-dark", "stonetop-slate"];
+
+/** The `highContrast` checkbox, applied over whatever page the reader has picked. */
+export function applyHighContrast(value) {
+	let page = "";
+	try { page = getSetting("sheetContrast"); } catch { /* not registered yet */ }
+	applySheetContrast(page, value === true);
+}
+
+/** The page values that carried high contrast with them before it was its own checkbox. */
+const _LEGACY_HIGH_CONTRAST = { "high": "normal", "dark-high": "dark", "slate-high": "slate", "auto-high": "auto" };
+
+/**
+ * Carry a page value stored with high contrast folded into it ("dark-high" and the rest) across
+ * to the two settings it means now: the page, and the `highContrast` checkbox ticked. Called once
+ * from Ready; a no-op for a value already split.
+ *
+ * ⚠ THE PAGE FIRST. Each write's onChange paints from both settings, and the checkbox's reads the
+ * page back: ticked while the page still says "dark-high", it would paint the light page (no
+ * "dark" in it) for a moment before the second write put the dark one back.
+ */
+export async function splitLegacyHighContrast() {
+	const stored = String(getSetting("sheetContrast") ?? "");
+	const page = _LEGACY_HIGH_CONTRAST[stored];
+	if (page === undefined) return;
+	await setSetting("sheetContrast", page);
+	await setSetting("highContrast", true);
 }
 
 /**
@@ -2248,7 +2332,7 @@ export function foundryAppsAreDark() {
 export function watchFoundryTheme(hooks = globalThis.Hooks) {
 	const reapply = () => {
 		const value = String(getSetting("sheetContrast") ?? "");
-		if (value === "auto" || value === "auto-high") applySheetContrast(value);
+		if (value === "auto") applySheetContrast(value);
 	};
 	hooks?.on("clientSettingChanged", key => { if (key === "core.uiConfig") reapply(); });
 	globalThis.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", reapply);
@@ -2266,6 +2350,23 @@ export function watchFoundryTheme(hooks = globalThis.Hooks) {
  */
 export function applySheetTexture(value) {
 	document.documentElement.classList.toggle("stonetop-no-texture", !value);
+}
+
+// The `sheetTextureFade` default, shared with the fallback below so an unreadable value lands
+// on the same fade a fresh client gets.
+export const SHEET_TEXTURE_FADE_DEFAULT = 30;
+// Its top, shared with the clamp below for the same reason.
+export const SHEET_TEXTURE_FADE_MAX = 90;
+
+/**
+ * How far the paper grain is faded toward the page, as a percent on the document root. The image
+ * is opaque, so it cannot be made translucent itself; the stylesheet lays a wash of the page
+ * colour over it at this strength instead (--st-paper-veil). Clamped to the setting's own range.
+ */
+export function applySheetTextureFade(value) {
+	const percent = Number(value);
+	const safe    = Number.isFinite(percent) ? Math.min(Math.max(percent, 0), SHEET_TEXTURE_FADE_MAX) : SHEET_TEXTURE_FADE_DEFAULT;
+	document.documentElement.style.setProperty("--st-paper-veil-strength", `${safe}%`);
 }
 
 /**

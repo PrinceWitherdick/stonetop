@@ -958,20 +958,28 @@
         "hint": "Scale the text on Stonetop sheets, dialogs and chat cards to make it easier to read. 1.00 is the size the sheets were drawn at, so 1.25 is a quarter larger again and 1.40 is the largest."
       },
       "sheetContrast": {
-        "name": "Dark Mode & Contrast",
-        "hint": "The colours of Stonetop sheets, dialogs and chat cards. Dark (Lamplit) is the dark mode: light ink on a warm, dark page, easier on the eyes at night and for readers bothered by glare. Dark (Slate) is the same in a cool blue-grey. Follow Foundry uses Lamplit whenever Foundry's own theme is dark, and parchment when it is light. High Contrast repaints them on plain white paper and darkens every grey and coloured text on them well past the readability guideline; Dark, High Contrast does the same for the dark page. None of these touch the paper grain, so set that below to taste. Pair any of them with a larger font size above.",
-        "normal": "Normal (Parchment)",
-        "high": "High Contrast",
+        "name": "Dark Mode",
+        "hint": "The page behind Stonetop sheets, dialogs and chat cards. Dark (Lamplit) is light ink on a warm, dark page, easier on the eyes at night and for readers bothered by glare. Dark (Slate) is the same in a cool blue-grey. Follow Foundry uses Lamplit whenever Foundry's own theme is dark, and parchment when it is light. Tick High Contrast below to go with any of them. None of these touch the paper grain, so set that below to taste.",
+        "normal": "Off (Parchment)",
         "dark": "Dark (Lamplit)",
-        "darkHigh": "Dark, High Contrast",
         "slate": "Dark (Slate)",
-        "slateHigh": "Dark (Slate), High Contrast",
-        "auto": "Follow Foundry",
-        "autoHigh": "Follow Foundry, High Contrast"
+        "auto": "Follow Foundry"
+      },
+      "highContrast": {
+        "name": "High Contrast",
+        "hint": "Darken every grey and coloured text well past the readability guideline, on plain white paper, or on a darker page in Dark Mode. Adds a clearer focus ring, underlined links and heavier dividing lines. Pair it with a larger font size above."
+      },
+      "mapBrightness": {
+        "name": "Map Brightness",
+        "hint": "Dim the imported Stonetop maps (The Village, The Vicinity, World's End, Marshedge and Gordin's Delve), as scenes, in the Setting Overview pages, and on an expedition's route map. 100 is as imported; lower takes the glare off, which helps most in Dark Mode. Only on this computer. Other maps, and the rulebook pages, are left alone."
       },
       "sheetTexture": {
         "name": "Paper Texture",
-        "hint": "Show the faint grain on the paper behind Stonetop sheets, dialogs and chat cards. Turn it off for a flat page, which is easier to read text on. This works on its own, whatever Dark Mode & Contrast is set to."
+        "hint": "Show the faint grain on the paper behind Stonetop sheets, dialogs and chat cards. Turn it off for a flat page, which is easier to read text on. This works on its own, whatever Dark Mode and High Contrast are set to."
+      },
+      "sheetTextureFade": {
+        "name": "Paper Texture Transparency",
+        "hint": "How faint the spirals and grain on the paper are, while Paper Texture is on. 0 shows them at full strength; higher fades them further into the page, up to 90. 30 is the default."
       },
       "noItalics": {
         "name": "No Italic Text",
