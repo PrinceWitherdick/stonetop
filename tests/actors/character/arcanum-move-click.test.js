@@ -1,6 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import { RING_SOURCE_UUID, resolveServantBatch } from "../../../module/data/servant-of-daagon.js";
+import { readRepo as read } from "../../fakes/css.js";
 
 // A mystery on an arcanum's back is a move, and the arcana tab now treats it as one: clicking
 // its name posts it to chat, or opens the same dialog a playbook move's name opens. These cover
@@ -195,6 +196,31 @@ describe("_postGuidedCharacterMove — an arcanum move posts as a move card", ()
 		expect(content).toContain("strike the flint");
 		expect(content).not.toContain("stonetop-arcanum-move-picks");
 	});
+
+	// A rolled mystery's roll card carries the printed text and its ladder, so the card ahead of
+	// it must not print the same text a second time.
+	it("posts nothing ahead of a roll when nothing was ticked", async () => {
+		const { sheet } = makeSheet();
+		const guide = sheet._arcanumMoveGuide(FIRST_LIGHT);
+		await sheet._postGuidedCharacterMove("FIRST LIGHT", guide, formHtml(), { withText: false });
+		expect(ChatMessage.create).not.toHaveBeenCalled();
+	});
+
+	it("posts only what was ticked ahead of a roll", async () => {
+		const { sheet } = makeSheet();
+		const guide = sheet._arcanumMoveGuide(FIRST_LIGHT);
+		await sheet._postGuidedCharacterMove("FIRST LIGHT", guide, formHtml(["It burns bright"]), { withText: false });
+		const { content } = ChatMessage.create.mock.calls[0][0];
+		expect(content).toContain("FIRST LIGHT");
+		expect(content).toContain("<li>It burns bright</li>");
+		expect(content).not.toContain("strike the flint");
+	});
+
+	it("is told to leave the text off by the mystery's roll button", () => {
+		const SHEET = read("module/actors/character/StonetopCharacterSheet.js");
+		const roll = SHEET.slice(SHEET.indexOf("const rollWith = chosenStat => async html => {"));
+		expect(roll.slice(0, 900)).toContain("this._postGuidedCharacterMove(name, guide, html, { withText: !guide.card })");
+	});
 });
 
 describe("the Ring of Daagon's cost cards carry 'Mark a consequence'", () => {
@@ -235,6 +261,13 @@ describe("the Ring of Daagon's cost cards carry 'Mark a consequence'", () => {
 		await ringSheet({ loyalty: 2 })._applyCallUp(INPUT, { kind: "loyalty" });
 		expect(posted()).toContain("You spend <strong>1 Loyalty</strong>");
 		expect(posted()).not.toContain("stonetop-mark-consequence");
+	});
+
+	it("Call Up's card names the 5d4 and the headcount roll", async () => {
+		await ringSheet({ loyalty: 2 })._applyCallUp(INPUT, {
+			kind: "loyalty", dice: [3, 1, 4, 2, 2], countRoll: { formula: "1d6+1", total: 3 },
+		});
+		expect(posted()).toContain("(5d4: 3, 1, 4, 2, 2; 1d6+1: 3)");
 	});
 
 	it("Send Them Back's 6- paid with a consequence carries the button; paid in Loyalty, not", async () => {

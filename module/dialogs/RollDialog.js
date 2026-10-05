@@ -93,6 +93,16 @@ function stepperHtml(ariaLabel) {
 					</div>`;
 }
 
+/** One ticked line, in the damage window's line markup and skin: one look for "a ticked thing
+ *  this roll spends". */
+function offerLineHtml({ name, label, checked = false }) {
+	return `
+				<label class="stonetop-damage-seed stonetop-damage-seed--move stonetop-roll-offer">
+					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="${escHtml(name)}"${checked ? " checked" : ""}>
+					<span class="stonetop-damage-seed-text">${escHtml(label)}</span>
+				</label>`;
+}
+
 /** The picker's live answer, read off the DOM rather than a closure: the `.is-active` class we
  *  stamp on click IS the state, so reading it there is one source of truth. */
 function readActiveMode(root) {
@@ -239,12 +249,9 @@ export function promptRoll({
 			const box = root?.querySelector?.(`[name="offer-${offer.key}"]`);
 			return box ? !!box.checked : offer.applied !== false;
 		}).map(offer => offer.key));
-		// The damage window's line markup and skin: one look for "a ticked thing this roll spends".
-		const offerLines = lines.map(offer => `
-				<label class="stonetop-damage-seed stonetop-damage-seed--move stonetop-roll-offer">
-					<input type="checkbox" class="stonetop-check stonetop-damage-seed-check" name="offer-${escHtml(offer.key)}"${offer.applied === false ? "" : " checked"}>
-					<span class="stonetop-damage-seed-text">${escHtml(offer.label)}</span>
-				</label>`).join("");
+		const offerLines = lines.map(offer => offerLineHtml({
+			name: `offer-${offer.key}`, label: offer.label, checked: offer.applied !== false,
+		})).join("");
 
 		// This window's readout is the dice line ("Roll 3d6 and keep the highest two"), which is
 		// the mode picker's own answer restated. The damage window replaces it with a formula
@@ -283,6 +290,78 @@ export function promptRoll({
 			},
 		}, { classes: ["dialog", "stonetop", "stonetop-roll-dialog"], width: 380 });
 
+		dialog.render(true);
+	});
+}
+
+// -- The Surplus window -------------------------------------------------------
+
+/**
+ * The pre-roll prompt for a steading's Surplus roll: summer's 1d4-1, or autumn's harvest.
+ *
+ * These are not 2d6 move rolls, so the promptRoll window's settings do not govern it: it ALWAYS
+ * asks, because every question in it is one the book (or Book II) puts to this very roll and the
+ * button has no other way to hear the answer:
+ *
+ *   · "If something significantly disrupts [the harvest], have the player roll for Surplus with
+ *     disadvantage and/or a -1 penalty." (Book I p. 516)
+ *   · "If the harvest fails entirely, they don't get any Surplus (and they Meet With Disaster)."
+ *   · Book II's storm curse (-2 to the next roll to generate Surplus), the crown of flowers
+ *     (advantage in summer and autumn), Danu's displeasure (disadvantage in summer and autumn).
+ *
+ * Advantage on a Surplus roll is the formula rolled twice keeping the higher, since there is no
+ * third die to add to a 1d4 the way there is to 2d6. The mode picker's dice line says so here.
+ *
+ * @param {object} [opts]
+ * @param {string} [opts.title]
+ * @param {string} [opts.formula]   the roll as the season would make it ("1d4 - 1", "1d4 + 1")
+ * @param {boolean} [opts.harvest]  autumn's harvest, which alone can fail outright
+ * @param {boolean} [opts.shiftKey] skip the window: a plain roll
+ * @returns {Promise<{rollMode: string, modifier: number, failed: boolean}|null>} null on cancel
+ */
+export function promptSurplusRoll({ title = "Surplus", formula = "1d4", harvest = false, shiftKey = false } = {}) {
+	if (shiftKey) return Promise.resolve({ rollMode: DEFAULT_ROLL_MODE, modifier: 0, failed: false });
+	return new Promise(resolve => {
+		const settle = settler(resolve);
+		const readout = mode => mode === "adv" ? `Roll ${formula} twice and keep the higher.`
+			: mode === "dis" ? `Roll ${formula} twice and keep the lower.`
+			: `Roll ${formula}.`;
+		const failedLine = harvest ? offerLineHtml({
+			name: "harvestFailed", label: "The harvest failed entirely: no Surplus, and the steading Meets with Disaster.",
+		}) : "";
+		const readAnswer = root => ({
+			rollMode: readActiveMode(root),
+			modifier: readModifier(root),
+			failed:   !!root?.querySelector?.('[name="harvestFailed"]')?.checked,
+		});
+		const dialog = new Dialog({
+			title,
+			content: `<form class="stonetop-roll-form">
+				${modePickerHtml(harvest
+					? "Did anything disrupt the harvest, or bless it?"
+					: "Did anything help or hinder what the season brings?", DEFAULT_ROLL_MODE)}
+				<p class="stonetop-roll-dice" aria-live="polite">${escHtml(readout(DEFAULT_ROLL_MODE))}</p>
+				<p class="stonetop-roll-prompt">Add a modifier (a disrupted harvest's &minus;1, a storm's &minus;2&hellip;).</p>
+				${stepperHtml("Surplus modifier")}${failedLine}
+			</form>`,
+			buttons: rollDialogButtons("Roll", settle, readAnswer),
+			default: "roll",
+			close: () => settle(null),
+			render: html => {
+				bringDialogToFront(html);
+				const root = html[0] ?? html;
+				const out = root.querySelector(".stonetop-roll-dice");
+				wireModePicker(root, mode => { if (out) out.textContent = readout(mode); });
+				const input = wireStepper(root, () => {});
+				// A failed harvest rolls nothing, so the button stops saying it will.
+				const rollBtn = root.closest(".app, .application")?.querySelector("button[data-button='roll']");
+				root.querySelector('[name="harvestFailed"]')?.addEventListener("change", ev => {
+					if (rollBtn) rollBtn.textContent = ev.currentTarget.checked ? "Take the failed harvest" : "Roll";
+				});
+				input?.focus();
+				input?.select?.();
+			},
+		}, { classes: ["dialog", "stonetop", "stonetop-roll-dialog"], width: 380 });
 		dialog.render(true);
 	});
 }

@@ -1,4 +1,6 @@
 import { stonetopCardShell, rollFormulaChip } from "./chat.js";
+import { fateDiceFormula } from "./die-of-fate.js";
+import { escHtml } from "./strings.js";
 
 // Stonetop's seasonal weather tables (Book I, p.325). Each season is a 1d6 table;
 // the GM picks the season (informed by the latest Seasons Change move, p.517) and
@@ -11,8 +13,8 @@ import { stonetopCardShell, rollFormulaChip } from "./chat.js";
 // `sky` is ours, not the book's: which of thirteen weathers the row IS, so the steading header
 // can show it as a glyph (seasons/current-weather.js, where the vocabulary and its labels live).
 // Written onto each row by hand rather than read out of the prose, because the prose does not
-// classify cleanly — "Snow / sleet / hail, an early thunderstorm, or a day of cold, soaking
-// rains" names four weathers and is one row, and a keyword match on it would answer whichever
+// classify cleanly: "Snow/sleet/hail, an early thunderstorm or day of cold, soaking rains"
+// names four weathers and is one row, and a keyword match on it would answer whichever
 // word it happened to try first. A row's sky is the weather that row is FOR: the thing the GM
 // would say out loud describing the day, which is usually the phrase the row LEADS with.
 //
@@ -28,7 +30,9 @@ export const WEATHER_SEASONS = [
 		key:   "late-winter-early-spring",
 		label: "Late winter / early spring",
 		rows:  [
-			{ min: 1, max: 1, sky: "storm", text: "Snow / sleet / hail, an early thunderstorm, or a day of cold, soaking rains" },
+			// Verbatim, the book's missing "a" and all: every row's text is quoted as printed, and
+			// tests/utils/weather.test.js pins each one against p.325.
+			{ min: 1, max: 1, sky: "storm", text: "Snow/sleet/hail, an early thunderstorm or day of cold, soaking rains" },
 			{ min: 2, max: 3, sky: "wind",  text: "Cold and windy, maybe some showers" },
 			{ min: 4, max: 4, sky: "cloud", text: "Clouds on the horizon, steady wind", reroll: true },
 			// `fair`, not `sun`: the row says sunny AND clouded AND gusting, which is the
@@ -53,7 +57,7 @@ export const WEATHER_SEASONS = [
 			// The only row in the book that names tornadoes, so it gets the only tornado.
 			{ min: 1, max: 1, sky: "tornado",  text: "A heavy storm; high winds, hail, thunder, lightning, tornadoes" },
 			{ min: 2, max: 2, sky: "heat",     text: "Blazing heat, still air, not a cloud in sight" },
-			{ min: 3, max: 3, sky: "downpour", text: "Hot and humid, with brief, drenching thunderstorms" },
+			{ min: 3, max: 3, sky: "downpour", text: "Hot and humid, with brief, drenching thunder storms" },
 			{ min: 4, max: 5, sky: "haze",     text: "Hot, muggy, some wind" },
 			{ min: 6, max: 6, sky: "sun",      text: "Warm, sunny, breezy, perfect" },
 		],
@@ -146,18 +150,74 @@ export function weatherSeasonForCampaignSeason(season) {
  * holding both halves, for the same reason the clock itself is one flag: a key remembered
  * separately from the season it belongs to is a pick that outlives its meaning.
  *
- * @param {string|null} campaignSeason        The stamped season, or null if none.
+ * "That season" is the season OF A YEAR, the clock's "<year>:<season>" key (seasonStampKey in
+ * seasons/current-season.js), not the bare season id. Keyed by the id alone, a straddle table
+ * picked in the first summer came back as the opening table of the next summer, a year on.
+ * A pick saved under the old bare-id key never matches a stamp key, so it simply gives way to
+ * the clock once.
+ *
+ * @param {{season: string, key: string}|null} clock  The stamped season and its stamp key, or
+ *   null if nothing is stamped.
  * @param {{key?: string, for?: string|null}|string|null} [remembered]  The stored pick. A bare
- *   string is a pick saved before it was paired with a season — honoured only in an unstamped
+ *   string is a pick saved before it was paired with a season; honoured only in an unstamped
  *   world, which is where the clock has nothing to say anyway.
  * @returns {string} Always a real WEATHER_SEASONS key.
  */
-export function defaultWeatherSeason(campaignSeason, remembered = null) {
+export function defaultWeatherSeason(clock, remembered = null) {
 	const pick = typeof remembered === "string" ? { key: remembered } : (remembered ?? {});
 	const rememberedKey = getWeatherSeason(pick.key) ? pick.key : null;
-	const sameSeason    = (pick.for ?? null) === (campaignSeason ?? null);
+	const sameSeason    = (pick.for ?? null) === (clock?.key || null);
 	if (rememberedKey && sameSeason) return rememberedKey;
-	return weatherSeasonForCampaignSeason(campaignSeason) ?? rememberedKey ?? WEATHER_SEASONS[0].key;
+	return weatherSeasonForCampaignSeason(clock?.season) ?? rememberedKey ?? WEATHER_SEASONS[0].key;
+}
+
+// ── How the die is thrown ────────────────────────────────────────────────────
+// Two things can change the weather roll, and the book gives each one sentence:
+//   • Tor's blessing (Book I p.518): "any time you roll the Die of Fate for weather, roll twice
+//     and take your pick."
+//   • The rider on three rows (p.325): "roll again later with disadvantage", pending on the
+//     steading from the weather that carried it until the next weather is posted.
+// When both apply they CANCEL to one plain d6 (the user's ruling, 2026-10-02, matching the
+// house rule that advantage and disadvantage cancel on the steading's rolls).
+//
+// The words live here, beside the plans, because the picker says them BEFORE the roll and the
+// card says them after, and those two must not drift apart.
+
+/** The ways the weather die can be thrown. `dice` is how many separate Rolls one press makes. */
+export const WEATHER_ROLL_PLANS = Object.freeze({
+	plain: Object.freeze({
+		key: "plain", dice: 1, rollMode: "normal",
+		hint: "",
+		note: "",
+	}),
+	blessing: Object.freeze({
+		key: "blessing", dice: 2, rollMode: "normal",
+		hint: "Tor's blessing holds this season: one roll throws two dice and lights both rows. Click the one you'd rather keep, then post it.",
+		note: "Tor's blessing: two dice were rolled, and this is the one kept.",
+	}),
+	disadvantage: Object.freeze({
+		key: "disadvantage", dice: 1, rollMode: "dis",
+		hint: "The last weather was a warning (roll again later with disadvantage): this roll throws two dice and keeps the lower.",
+		note: "Rolled with disadvantage, as the last weather warned: two dice, the lower kept.",
+	}),
+	cancel: Object.freeze({
+		key: "cancel", dice: 1, rollMode: "normal",
+		hint: "Tor's blessing and the clouds' warning cancel out: one plain roll.",
+		note: "Tor's blessing and the clouds' warning cancel out: one plain roll.",
+	}),
+});
+
+/**
+ * Which plan this roll takes.
+ * @param {object}  [state]
+ * @param {boolean} [state.blessing]  Tor's blessing holds this season.
+ * @param {boolean} [state.rider]     The weather standing now owes a roll with disadvantage.
+ */
+export function weatherRollPlan({ blessing = false, rider = false } = {}) {
+	if (blessing && rider) return WEATHER_ROLL_PLANS.cancel;
+	if (blessing)          return WEATHER_ROLL_PLANS.blessing;
+	if (rider)             return WEATHER_ROLL_PLANS.disadvantage;
+	return WEATHER_ROLL_PLANS.plain;
 }
 
 /** The row a given 1d6 total lands on for a season (or null if the key is unknown). */
@@ -185,12 +245,33 @@ export function rowRange(row) {
  * one number is a second thing that can be passed along stale.
  *
  * @param   {string} seasonKey
+ * @param   {object} [options]
+ * @param   {"adv"|"dis"|"normal"} [options.rollMode]  "dis" throws two dice and keeps the lower,
+ *   the same shape the Die of Fate takes (utils/die-of-fate.js).
  * @returns {Promise<{roll: Roll, row: object|null}|null>}  null for an unknown season.
  */
-export async function rollWeatherResult(seasonKey) {
+export async function rollWeatherResult(seasonKey, { rollMode = "normal" } = {}) {
 	if (!getWeatherSeason(seasonKey)) return null;
-	const roll = await new Roll("1d6").evaluate();
+	const roll = await new Roll(fateDiceFormula(rollMode)).evaluate();
 	return { roll, row: resolveWeatherRow(seasonKey, roll.total) };
+}
+
+/**
+ * Throw the weather die the way a plan says: one result, or two separate ones under Tor's
+ * blessing. Two separate Rolls rather than one "2d6" so whichever the GM keeps goes out as its
+ * OWN Roll, with its own die on the card. Posts nothing, like `rollWeatherResult`.
+ *
+ * @param   {string} seasonKey
+ * @param   {object} [plan]  From weatherRollPlan.
+ * @returns {Promise<Array<{roll: Roll, row: object|null}>|null>}  null for an unknown season.
+ */
+export async function rollWeatherResults(seasonKey, plan = WEATHER_ROLL_PLANS.plain) {
+	if (!getWeatherSeason(seasonKey)) return null;
+	const results = [];
+	for (let i = 0; i < (plan?.dice ?? 1); i++) {
+		results.push(await rollWeatherResult(seasonKey, { rollMode: plan?.rollMode ?? "normal" }));
+	}
+	return results;
 }
 
 /**
@@ -200,15 +281,17 @@ export async function rollWeatherResult(seasonKey) {
  * @param   {object} [result]
  * @param   {object} [result.row]   The table row to announce.
  * @param   {Roll}   [result.roll]  The d6 behind it, or null when the GM chose the row by hand.
- * @returns {Promise<object|null>}  The row posted, or null when there was nothing to post —
+ * @param   {string} [result.note]  What changed how the die was thrown (a plan's `note`). Printed
+ *   only under a rolled result: a row chosen by hand had no die for anything to change.
+ * @returns {Promise<object|null>}  The row posted, or null when there was nothing to post,
  *   which is the half callers actually test.
  */
-export async function postWeather(seasonKey, { row = null, roll = null } = {}) {
+export async function postWeather(seasonKey, { row = null, roll = null, note = "" } = {}) {
 	const season = getWeatherSeason(seasonKey);
 	if (!season || !row) return null;
 
 	const speaker = { alias: `Weather: ${season.label}` };
-	const card    = stonetopCardShell(_weatherCardBody(row, roll), "stonetop-weather-card");
+	const card    = stonetopCardShell(_weatherCardBody(row, roll, roll ? note : ""), "stonetop-weather-card");
 
 	// A rolled result rides its own Roll message, so the dice are real ones the players can pick
 	// up and inspect; a chosen one has no roll to carry and goes out as a plain card. The roll
@@ -232,16 +315,20 @@ export async function postWeather(seasonKey, { row = null, roll = null } = {}) {
 // A CHOSEN row prints neither chip nor number. There is no formula to show, and the row's own
 // range in the number's place ("4–5") would read as a total that was never rolled — the card
 // says what the weather is, and stays quiet about a die that never left the GM's hand.
-function _weatherCardBody(row, roll) {
+function _weatherCardBody(row, roll, note = "") {
 	const reroll = row?.reroll
 		? `<p class="stonetop-weather-reroll"><i class="fas fa-rotate-right"></i> ${REROLL_NOTE}</p>`
 		: "";
+	// Why the die was thrown the way it was, so the players reading "2d6kl1" or a second die
+	// they never saw are told in words. Above the rider, which is about the NEXT roll.
+	const how = note ? `<p class="stonetop-weather-how">${escHtml(note)}</p>` : "";
 	return `<div class="card-content stonetop-weather">
 		${roll ? rollFormulaChip(roll.formula) : ""}
 		<div class="stonetop-weather-result">
 			${roll ? `<span class="stonetop-weather-number">${roll.total}</span>` : ""}
 			<span class="stonetop-weather-text">${row?.text ?? ""}</span>
 		</div>
+		${how}
 		${reroll}
 	</div>`;
 }

@@ -1205,3 +1205,98 @@ describe("a portrait's box is the circle and nothing else", () => {
 		expect(rule("name")).toMatch(/position:\s*absolute/);
 	});
 });
+
+// -- Groups: a named box or oval round some people -----------------------------------------------
+//
+// The outline layer is the FIRST thing on the board, so everything else is drawn over it, and only
+// on a board that has groups, so a board with none is drawn exactly as it always was. Its name is the
+// button, and the window finds every piece of a group again by these attributes while a drag moves
+// its people.
+describe("the groups on a board", () => {
+	const renderBoard = compile(BOARD);
+	const renderWindow = compile(WINDOW);
+	const group = {
+		id: "g1", inkKey: "green", inkHex: "", d: "M 10 10 H 90 Z",
+		name: "The hunters", align: "start", nameLeft: 12, nameTop: 8,
+		tooltip: "The hunters: Elena, Stefan", ariaLabel: "The hunters: Elena, Stefan. Click to edit.",
+	};
+	const withGroups = groups => ({ ...boardContext(), groups, unnamedGroup: "Unnamed group" });
+
+	it("draws no group layer at all on a board with no groups", () => {
+		expect(renderBoard(boardContext())).not.toContain("stonetop-relmap-groups");
+		expect(renderBoard(withGroups([]))).not.toContain("stonetop-relmap-groups");
+	});
+
+	it("draws the outlines first, under the lines, in board pixels", () => {
+		const html = renderBoard(withGroups([group]));
+		expect(html.indexOf("stonetop-relmap-groups")).toBeLessThan(html.indexOf("stonetop-relmap-lines"));
+		expect(html).toContain('<svg class="stonetop-relmap-groups" viewBox="0 0 1200 960"');
+		expect(html).not.toMatch(/stonetop-relmap-groups[^>]*preserveAspectRatio/);
+	});
+
+	it("tags the outline, its click target and its name with the group", () => {
+		const html = renderBoard(withGroups([group]));
+		expect(html).toContain('data-relmap-group-shape="g1"');
+		expect(html).toContain('data-relmap-group-hit="g1"');
+		expect(html).toMatch(/data-relmap-group="g1"[^>]*role="button"[^>]*tabindex="0"/);
+		expect(html).toContain("stonetop-relmap-ink--green");
+		expect(html).toContain(">The hunters<");
+		// Three paths per outline, all drawn from the one `d`, which the drag preview rewrites.
+		expect(html.match(/d="M 10 10 H 90 Z"/g)).toHaveLength(3);
+	});
+
+	// Whole is the absence of the modifier, as it is on a line.
+	it("marks an outline drawn in dashes, and only that one", () => {
+		expect(renderBoard(withGroups([group]))).not.toContain("is-dashed");
+		const html = renderBoard(withGroups([{ ...group, dashed: true }]));
+		expect(html).toMatch(/<g class="stonetop-relmap-group [^"]* is-dashed"[^>]*data-relmap-group-shape="g1"/);
+	});
+
+	it("puts the names after the captions and before the people", () => {
+		const html = renderBoard(withGroups([group]));
+		const name = html.indexOf('data-relmap-group="g1"');
+		expect(name).toBeGreaterThan(html.indexOf('class="stonetop-relmap-labels"'));
+		expect(name).toBeLessThan(html.indexOf('data-relmap-node="n1"'));
+	});
+
+	it("says Unnamed group on a group nobody has named yet", () => {
+		const html = renderBoard(withGroups([{ ...group, name: "" }]));
+		expect(html).toContain("is-unnamed");
+		expect(html).toContain(">Unnamed group<");
+	});
+
+	it("offers the group tool to an editor, before New person and Add someone", () => {
+		const context = {
+			canEdit: true, canCreatePerson: true, groupLabel: "Group", groupHint: "Draw a group",
+			inks: [{ key: "rose", name: "Rose" }],
+		};
+		const html = renderWindow(context);
+		const row = html.match(/<div class="stonetop-relmap-foot-tools">[\s\S]*?<\/div>\s*<\/div>/)[0];
+		expect(row).toContain('data-relmap-action="group"');
+		expect(row.indexOf('data-relmap-action="group"')).toBeGreaterThan(row.indexOf('data-relmap-action="redo"'));
+		expect(row.indexOf('data-relmap-action="group"')).toBeLessThan(row.indexOf('data-relmap-action="create"'));
+		expect(renderWindow({ ...context, canEdit: false })).not.toContain('data-relmap-action="group"');
+	});
+
+	it("leaves the group bar standing, hidden, outside the board", () => {
+		const html = renderWindow({
+			canEdit: true, inks: [{ key: "rose", name: "Rose" }],
+			groupBar: {
+				label: "Group", shapes: [{ key: "box", name: "Box", icon: "far fa-square" }], add: "Put {count} in",
+				dash: "Outline line", dashes: [{ key: "solid", name: "Solid line" }, { key: "dashed", name: "Dashed line" }],
+			},
+		});
+		expect(html).toMatch(/<div class="stonetop-relmap-groupbar"[^>]*hidden>/);
+		expect(html).toContain('data-relmap-gbar="name"');
+		expect(html).toContain('data-relmap-gbar="ink" data-relmap-gbar-value="rose"');
+		// A colour of the reader's own: the `+`, and Foundry's picker standing hidden for it.
+		expect(html).toContain('data-relmap-gbar="inkmore"');
+		expect(html).toMatch(/<color-picker[^>]*data-relmap-gbar="inkhex"[^>]*hidden>/);
+		expect(html).toContain('data-relmap-gbar="shape"');
+		expect(html).toContain('role="radiogroup" aria-label="Outline line"');
+		expect(html).toMatch(/data-relmap-gbar="dash"\s+data-relmap-gbar-value="dashed"/);
+		expect(html).toContain("stonetop-relmap-tiebar-rule--dashed");
+		expect(html).toContain('data-relmap-said="Put {count} in"');
+		expect(html.indexOf("stonetop-relmap-groupbar")).toBeGreaterThan(html.indexOf("stonetop-relmap-board"));
+	});
+});

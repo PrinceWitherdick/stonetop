@@ -114,6 +114,64 @@ export function rollResultNumber(total, dieFaces = "") {
 }
 
 /**
+ * Pull the individual die faces out of an evaluated Roll, e.g. a 2d6 that came up
+ * 2 and 3 yields "2, 3". Discarded dice (the dropped die on adv/dis) are flagged with
+ * a strike-through so the hover readout still shows what was rolled. Returns "" when
+ * the roll has no dice terms.
+ */
+export function dieResultsText(roll) {
+	const dice = roll?.dice ?? [];
+	const faces = dice.flatMap(term =>
+		(term.results ?? []).map(r => (r.active === false || r.discarded ? `(${r.result})` : `${r.result}`))
+	);
+	return faces.join(", ");
+}
+
+/** Die faces for a *multi*-die roll ("2, 4"), or "" for a single die — the readout
+ *  only helps when more than one die contributed (a 1d6 just echoes its total). */
+export function multiDieFaces(roll) {
+	const faces = dieResultsText(roll);
+	return faces.includes(",") ? faces : "";
+}
+
+/**
+ * The card a plain thrown total comes back on (a haul of provisions, the harvest, a Thrall's hunger),
+ * as a roll's `flavor`: the chip, the total, and what it was a total OF.
+ *
+ * A bare `toMessage` with a plain string flavor is the one shape that opts a message OUT of our
+ * styling: the shell class every rule in the chat block is scoped to (`.stonetop-roll-card`) rides on
+ * the flavor markup, so a card without it takes core's chrome AND shows Foundry's own dice block,
+ * which the rest of the system hides in favour of the chip. Every die the system throws without a
+ * move behind it goes out on this.
+ *
+ * The total is never shown below 0, which is what every caller does with it ("1d4-1" naphtha, a
+ * harvest docked by improvements). The faces readout is the MULTI-die one: "1d6" would only echo its
+ * own total in the tooltip, while "2d6kl1" has a discarded die worth showing.
+ *
+ * @param {Roll} roll
+ * @param {string|string[]} title  card header (an array adds sub-lines, as stonetopChatCard)
+ * @param {string} label           what the total counts
+ * @param {string|string[]} [details]  a line, or lines, under the label
+ * @param {string} [sectionClass]
+ */
+export function rolledTotalCard(roll, title, label, details = "", sectionClass = "stonetop-provisions-card") {
+	const faces = multiDieFaces(roll);
+	const total = Math.max(0, Math.trunc(roll.total));
+	const lines = [details].flat().filter(Boolean);
+	const body = `<div class="card-content">
+		${rollFormulaChip(roll.formula, faces)}
+		<div class="stonetop-roll-result">
+			${rollResultNumber(total, faces)}
+			<div class="stonetop-roll-result-body">
+				<span class="stonetop-roll-result-label">${escHtml(label)}</span>
+				${lines.length ? `<span class="stonetop-roll-result-details">${lines.map(escHtml).join("<br>")}</span>` : ""}
+			</div>
+		</div>
+	</div>`;
+	return stonetopChatCard(title, body, sectionClass);
+}
+
+/**
  * The rolled total of a DAMAGE roll: a red burst paired with the number in one cell, so
  * the figure reads as damage without re-reading the card title. Shared by every damage
  * surface — the plain damage-roll card ({@link rollDamage}) and the per-target results

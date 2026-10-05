@@ -1,10 +1,10 @@
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { openOrFocus } from "../utils/open-or-focus.js";
 import { getSetting, setSetting } from "../settings.js";
-import { WEATHER_SEASONS, getWeatherSeason, rollWeatherResult, rowRange, defaultWeatherSeason, weatherSeasonForCampaignSeason } from "../utils/weather.js";
-import { getStonetopSteadingActor } from "../utils/world.js";
-import { readCurrentSeason, currentSeasonView } from "../seasons/current-season.js";
-import { announceWeather, setWeatherFxPaused } from "../seasons/current-weather.js";
+import { WEATHER_SEASONS, getWeatherSeason, rollWeatherResults, rowRange, defaultWeatherSeason, weatherSeasonForCampaignSeason, weatherRollPlan } from "../utils/weather.js";
+import { getStonetopSteadingActor, isSteadingActor } from "../utils/world.js";
+import { readCurrentSeason, currentSeasonView, seasonStampKey, isCurrentSeasonChange } from "../seasons/current-season.js";
+import { announceWeather, readCurrentWeather, setWeatherFxPaused } from "../seasons/current-weather.js";
 import { fxMasterActive, weatherFxPaused, WEATHER_FX_SETTING } from "../seasons/weather-fx.js";
 import { openSystemSetting } from "../utils/open-settings.js";
 import { spinHighlight } from "../utils/flash-highlight.js";
@@ -16,6 +16,11 @@ const SEASON_SETTING = "weatherSeason";
 // happened" — and this one IS a selection: it has to still be there when the GM comes back to
 // the window a minute later to press Post.
 const PICKED_CLASS = "is-picked";
+
+// The class each of Tor's blessing's two rows wears (painted by the template, taken off here at
+// the start of the next walk). Both are LIT in the standing green while neither is chosen; once
+// one is, the other keeps only this class, still clickable to change the GM's mind back.
+const OFFERED_CLASS = "is-offered";
 
 // ── WeatherDialog ────────────────────────────────────────────────────────────
 // A compact GM tool for the expedition weather roll (Book I, p.325): pick the
@@ -43,23 +48,68 @@ const PICKED_CLASS = "is-picked";
 export class WeatherDialog extends StonetopDialog {
 	constructor(options = {}) {
 		super(options);
-		// The steading's stamped season, read once at open. A world with no Seasons Change
-		// recorded yet has no clock to follow (readCurrentSeason returns null rather than the
-		// header's display default), and falls back to the remembered pick as before.
+		// The steading's stamped season. A world with no Seasons Change recorded yet has no
+		// clock to follow (readCurrentSeason returns null rather than the header's display
+		// default), and falls back to the remembered pick as before. Read again on every render
+		// (`_syncClock`), and the window re-renders when the steading's season changes, so a
+		// picker left open across a Seasons Change follows it rather than rolling last season.
 		this._clock  = readCurrentSeason(getStonetopSteadingActor());
-		this._season = defaultWeatherSeason(this._clock?.season ?? null, getSetting(SEASON_SETTING));
-		// The row standing as the weather: {index, row, roll}. `roll` is the evaluated d6 when
-		// the die gave it and null when the GM picked the row themselves — which is the whole
+		this._season = this._defaultSeason();
+		// The row standing as the weather: {index, row, roll, note}. `roll` is the evaluated d6
+		// when the die gave it and null when the GM picked the row themselves, which is the whole
 		// difference the card prints. Null until either happens, and that null is what the
 		// footer reads to decide whether it shows one button or two.
 		this._picked = null;
+		// Tor's blessing's two results, each shaped like `_picked`, while the GM chooses between
+		// them. Null outside a blessed roll, and when both dice land on the same row.
+		this._offered = null;
 		// The walk in flight, so a second Re-roll abandons the first where it stands. One per
 		// dialog: there is one list and one light. Collides with nothing in Application.
 		this._spin = null;
+		// Redraw when the steading's season moves. Taken off in `close`.
+		this._clockHook = globalThis.Hooks?.on?.("updateActor", (actor, changed) => {
+			if (this.rendered && isSteadingActor(actor) && isCurrentSeasonChange(changed)) this.render(false);
+		}) ?? null;
 	}
 
+	/**
+	 * Open the picker, or bring it forward. GM-only: posting the weather writes the steading,
+	 * and the canvas and the world setting behind the Pause button are the GM's too. Every way in
+	 * (the hotbar macro, the steading header, the time banner, `game.stonetop.openWeather`) comes
+	 * through here, so this is the one gate.
+	 */
 	static open() {
+		if (!globalThis.game?.user?.isGM) return null;
 		return openOrFocus("stonetop-weather", () => new WeatherDialog().render(true));
+	}
+
+	// The clock as defaultWeatherSeason reads it: the season, and the "<year>:<season>" key the
+	// remembered pick is filed under.
+	_clockRef() {
+		return this._clock ? { season: this._clock.season, key: seasonStampKey(this._clock) } : null;
+	}
+
+	_defaultSeason() {
+		return defaultWeatherSeason(this._clockRef(), getSetting(SEASON_SETTING));
+	}
+
+	/**
+	 * Re-read the steading's clock. When it has moved since this window last looked, the table
+	 * follows it (through the same remembered-pick rule the window opened with) and whatever
+	 * was standing goes: a summer row posted under an autumn clock would be the stale weather
+	 * this exists to stop. No game with actors (the tests' bare world) leaves the clock as set.
+	 * @returns {boolean} true when the clock had moved.
+	 */
+	_syncClock() {
+		if (!globalThis.game?.actors) return false;
+		const clock = readCurrentSeason(getStonetopSteadingActor());
+		if (seasonStampKey(clock) === seasonStampKey(this._clock)) return false;
+		this._spin?.cancel();
+		this._clock   = clock;
+		this._season  = this._defaultSeason();
+		this._picked  = null;
+		this._offered = null;
+		return true;
 	}
 
 	static get defaultOptions() {
@@ -90,12 +140,16 @@ export class WeatherDialog extends StonetopDialog {
 	/** Cancel any walk still running, so nothing lands on a window that has gone. */
 	async close(options = {}) {
 		this._spin?.cancel();
+		if (this._clockHook !== null && this._clockHook !== undefined) globalThis.Hooks?.off?.("updateActor", this._clockHook);
+		this._clockHook = null;
 		return super.close(options);
 	}
 
 	getData() {
+		this._syncClock();
 		const season = getWeatherSeason(this._season);
 		const clock  = this._clockLine();
+		const plan   = this._rollPlan();
 		// The selected button goes red when the table showing is not the one the steading's clock
 		// points at. Only ever a warning ON the selection, never on the other three: the sentence
 		// above says which season the world is in, and colouring the unpicked buttons too would
@@ -113,20 +167,47 @@ export class WeatherDialog extends StonetopDialog {
 			})),
 			label:   season.label,
 			clock,
+			// How the next roll is thrown, said BEFORE it is: Tor's blessing, the last weather's
+			// rider, or the two cancelling. The same words the card prints after (weather.js).
+			rollHint: plan.hint || null,
 			// `picked` rather than the row itself: the footer only needs to know whether there
 			// is one, and the row that IS picked says so on its own line.
 			picked:  !!this._picked,
+			// A blessed roll's two rows are up and neither is chosen yet: Re-roll, no Post.
+			choosing: !this._picked && !!this._offered,
 			// The canvas control, or null when there is nothing on a canvas to control. The
 			// template hangs the whole row off it.
 			fx:      this._fxControl(),
 			rows:    season.rows.map((r, i) => ({
-				index:    i,
-				range:    rowRange(r),
-				text:     r.text,
-				reroll:   !!r.reroll,
-				isPicked: this._picked?.index === i,
+				index:     i,
+				range:     rowRange(r),
+				text:      r.text,
+				reroll:    !!r.reroll,
+				// Lit in the standing green only once it stands. A blessed roll's two rows wait
+				// as `isOffered` (a dashed edge), so neither reads as already chosen.
+				isPicked:  this._picked?.index === i,
+				isOffered: !!this._offered?.some(o => o.index === i),
 			})),
 		};
+	}
+
+	// Is Tor's blessing holding this season? A world with no game (or no steading) has none.
+	_torsBlessing() {
+		if (!globalThis.game) return false;
+		return !!getStonetopSteadingActor()?.typedActor?.torsBlessingActive?.();
+	}
+
+	// Does the weather standing now owe this roll disadvantage ("roll again later with
+	// disadvantage", Book I p.325)? Posting the next weather is what pays it off.
+	_riderPending() {
+		if (!globalThis.game) return false;
+		return !!readCurrentWeather(getStonetopSteadingActor())?.reroll;
+	}
+
+	// The plan the next roll takes. When the blessing and the rider both apply they cancel to
+	// one plain d6 (see WEATHER_ROLL_PLANS).
+	_rollPlan() {
+		return weatherRollPlan({ blessing: this._torsBlessing(), rider: this._riderPending() });
 	}
 
 	// The Pause / Resume control for the weather on the players' map, or null when this window
@@ -181,38 +262,57 @@ export class WeatherDialog extends StonetopDialog {
 	// The standing result goes with it. A row index means nothing across two tables of
 	// different lengths, and even where it resolved it would be a summer result sat under an
 	// autumn heading — the pick belongs to the table it was made on.
+	//
+	// Remembered under the clock's "<year>:<season>" key, not the bare season, so a straddle
+	// table picked one summer does not come back a year later (see defaultWeatherSeason).
 	async _pickSeason(key) {
 		if (!getWeatherSeason(key) || key === this._season) return;
 		this._spin?.cancel();
-		this._season = key;
-		this._picked = null;
-		await setSetting(SEASON_SETTING, { key, for: this._clock?.season ?? null });
+		this._season  = key;
+		this._picked  = null;
+		this._offered = null;
+		await setSetting(SEASON_SETTING, { key, for: this._clockRef()?.key ?? null });
 		this.render(false);
 	}
 
-	// Roll 1d6 on the current season's table and walk the light to the row it gave. Nothing is
+	// Roll on the current season's table and walk the light to the row it gave. Nothing is
 	// posted: the landing IS the answer, and the footer's Post button is what sends it out.
+	//
+	// The plan decides the dice. One d6 as a rule; two kept-lower when the standing weather owes
+	// disadvantage; and under Tor's blessing ("roll twice and take your pick") two separate d6,
+	// both rows lit, neither chosen until the GM clicks one, which then posts with its OWN die.
+	// Two dice that agree are one answer and simply stand. Blessing and rider together cancel
+	// to one plain d6. Every rolled result carries the plan's `note`, which the card prints.
 	async _roll() {
-		const result = await rollWeatherResult(this._season);
-		if (!result?.row) return;
+		const plan    = this._rollPlan();
+		const results = await rollWeatherResults(this._season, plan);
+		const rows    = getWeatherSeason(this._season)?.rows ?? [];
+		const landed  = (results ?? [])
+			.filter(r => r?.row)
+			.map(r => ({ index: rows.indexOf(r.row), row: r.row, roll: r.roll, note: plan.note }));
+		if (!landed.length) return;
 
-		const index = getWeatherSeason(this._season).rows.indexOf(result.row);
 		// A later click superseded this walk — that click's result is the one to keep, and this
 		// one drops out rather than overwriting it on arrival.
-		if (!await this._spinTo(index)) return;
+		if (!await this._spinTo(landed.at(-1).index)) return;
 
-		this._picked = { index, row: result.row, roll: result.roll };
+		const distinct = landed.filter((r, i) => landed.findIndex(o => o.index === r.index) === i);
+		this._offered = distinct.length > 1 ? distinct : null;
+		this._picked  = distinct.length > 1 ? null : distinct[0];
 		this.render(false);
 	}
 
 	// The GM naming the weather themselves, which the book puts first ("You decide when it
 	// rains", p.324). Same standing result as a roll, minus the die — so the card that goes out
 	// carries no total, and the footer offers the same two buttons either way.
+	//
+	// Except on one of a blessed roll's two lit rows: that is the GM TAKING THEIR PICK of the
+	// two dice, and the row stands with the die that gave it.
 	_pickRow(index) {
 		const row = getWeatherSeason(this._season)?.rows?.[index];
 		if (!row || this._picked?.index === index) return;
 		this._spin?.cancel();
-		this._picked = { index, row, roll: null };
+		this._picked = this._offered?.find(o => o.index === index) ?? { index, row, roll: null, note: "" };
 		this.render(false);
 	}
 
@@ -235,7 +335,7 @@ export class WeatherDialog extends StonetopDialog {
 	async _spinTo(index) {
 		const root = this.element?.[0] ?? null;
 		const rows = [...(root?.querySelectorAll(".stonetop-weather-row") ?? [])];
-		for (const el of rows) el.classList.remove(PICKED_CLASS);
+		for (const el of rows) el.classList.remove(PICKED_CLASS, OFFERED_CLASS);
 		if (!rows[index]) return true;
 
 		this._spin?.cancel();
@@ -279,9 +379,11 @@ export class WeatherDialog extends StonetopDialog {
 	// two calls in a row with a comment saying they must not be split, which held only while
 	// this stayed the one caller — see `announceWeather` in seasons/current-weather.js, which
 	// is where the pair now lives, along with the steading lookup it does for itself.
+	//
+	// A refused post (a user who may not write the steading) leaves the window up with its
+	// result still standing, since nothing went out.
 	async _post() {
 		if (!this._picked) return;
-		await announceWeather(this._season, this._picked);
-		this.close();
+		if (await announceWeather(this._season, this._picked)) this.close();
 	}
 }

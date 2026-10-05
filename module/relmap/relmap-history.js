@@ -28,8 +28,8 @@
 // faceless portrait carrying nothing but coordinates — so it is dropped instead.
 
 import {
-	addEdgePatch, addNodePatch, dropEdgePatch, dropNodePatch, edgePatch, isSafeId, nodePatch,
-	relmapPath,
+	addEdgePatch, addGroupPatch, addNodePatch, dropEdgePatch, dropGroupPatch, dropNodePatch,
+	edgePatch, groupMembersPatch, groupPatch, isSafeId, nodePatch, relmapPath,
 } from "./relmap-store.js";
 
 import { deletionTarget } from "../utils/foundry-compat.js";
@@ -58,8 +58,19 @@ export const RELMAP_HISTORY_MAX = 25;
  */
 export const RELMAP_COALESCE_MS = 1500;
 
-/** The two halves of a graph a step can name. Anything else in a patch is not one of ours. */
-const KINDS = Object.freeze(["nodes", "edges"]);
+/** The three parts of a graph a step can name. Anything else in a patch is not one of ours. */
+const KINDS = Object.freeze(["nodes", "edges", "groups"]);
+
+/**
+ * ⚠ THE ONE FOUR-PART PATH THIS FILE READS: `groups.<id>.members.<person>`, a single person going
+ * into or out of a group. Membership is one leaf per person so that two players filling the same
+ * group at once both win (see `groupMembersPatch`), which makes it the only write here that reaches
+ * BELOW a field. It is recorded as a `set` that carries the person as `key`, so a fold and a step
+ * both tell "Ordga into the hunters" apart from "Marrec into the hunters".
+ */
+const MEMBERS = "members";
+const isMemberPath = parts => parts.length === 4 && parts[0] === "groups" && parts[2] === MEMBERS
+	&& isSafeId(parts[3]);
 
 /**
  * ONE STEP, either way round.
@@ -124,6 +135,15 @@ export function describeWrite(graph, patch) {
 
 		const [kind, id, field] = parts;
 		if (!KINDS.includes(kind) || !isSafeId(id)) return null;
+		const at = `${kind}/${id}`;
+		if (isMemberPath(parts)) {
+			const held = touched.get(at) ?? { kind, id, fields: {} };
+			held.members ??= {};
+			// In or out, and nothing in between: a deletion is out, any write is in.
+			held.members[parts[3]] = target ? null : true;
+			touched.set(at, held);
+			continue;
+		}
 		if (target) {
 			// A deletion reaches a whole person or a whole line and never one of their fields.
 			if (parts.length !== 2) return null;
@@ -131,13 +151,12 @@ export function describeWrite(graph, patch) {
 			continue;
 		}
 		if (parts.length !== 3) return null;
-		const at = `${kind}/${id}`;
 		const held = touched.get(at) ?? { kind, id, fields: {} };
 		held.fields[field] = value;
 		touched.set(at, held);
 	}
 
-	for (const { kind, id, fields } of touched.values()) {
+	for (const { kind, id, fields, members } of touched.values()) {
 		const was = graph?.[kind]?.[id];
 		if (was) {
 			for (const [field, value] of Object.entries(fields)) {
@@ -147,6 +166,19 @@ export function describeWrite(graph, patch) {
 				forward.set.push({ kind, id, field, value });
 				back.set.push({ kind, id, field, value: was[field] });
 			}
+			for (const [key, value] of Object.entries(members ?? {})) {
+				forward.set.push({ kind, id, field: MEMBERS, key, value });
+				back.set.push({ kind, id, field: MEMBERS, key, value: was.members?.[key] ? true : null });
+			}
+			continue;
+		}
+		if (members) {
+			// A group being MADE: its members are part of what makes it, and putting it back means
+			// rubbing the whole group out. Taking somebody out of a group that is not there is nothing.
+			const into = Object.fromEntries(Object.entries(members).filter(([, on]) => on));
+			if (!Object.keys(into).length && !Object.keys(fields).length) continue;
+			forward.make.push({ kind, id, data: { ...fields, members: into } });
+			back.drop.push({ kind, id });
 			continue;
 		}
 		// Nobody there yet, so this write MAKES them, and putting it back means taking them off.
@@ -208,24 +240,40 @@ export function stepPatch(graph, step) {
 			Object.assign(patch, addNodePatch(id, data ?? {}) ?? {});
 			continue;
 		}
+		if (kind === "groups") {
+			// Only the people who will be standing: a membership leaf for somebody gone is a key
+			// nothing will ever draw. A group left with nobody in it is not re-made at all.
+			const members = Object.keys(data?.members ?? {}).filter(nodeId => standing.has(nodeId));
+			Object.assign(patch, addGroupPatch(id, { ...(data ?? {}), members }) ?? {});
+			continue;
+		}
 		if (!standing.has(data?.a) || !standing.has(data?.b)) continue;
 		Object.assign(patch, addEdgePatch(id, data ?? {}) ?? {});
 	}
 
-	for (const { kind, id, field, value } of step.set ?? []) {
+	for (const { kind, id, field, key, value } of step.set ?? []) {
 		if (!graph?.[kind]?.[id] && !making.has(`${kind}/${id}`)) continue;
+		if (kind === "groups" && field === MEMBERS) {
+			// Putting somebody back into a group they have since left the BOARD from would leave a
+			// key behind for nobody; the same rule as a field put back onto a person who has gone.
+			if (value && !standing.has(key)) continue;
+			Object.assign(patch, (value ? groupMembersPatch(id, [key]) : groupMembersPatch(id, [], [key])) ?? {});
+			continue;
+		}
 		// Through the store's own builders, so an undo is held to every bound and every clamp an
 		// ordinary edit is. A value recorded before a bound was tightened is trimmed on its way
 		// back in, exactly as it would be if the reader had typed it again today.
-		const one = kind === "nodes"
-			? nodePatch(id, { [field]: value })
-			: edgePatch(id, { [field]: value });
-		Object.assign(patch, one ?? {});
+		const build = { nodes: nodePatch, edges: edgePatch, groups: groupPatch }[kind];
+		Object.assign(patch, build?.(id, { [field]: value }) ?? {});
 	}
 
 	for (const { kind, id } of step.drop ?? []) {
 		if (kind === "nodes") {
 			if (graph?.nodes?.[id]) Object.assign(patch, dropNodePatch(graph, id) ?? {});
+			continue;
+		}
+		if (kind === "groups") {
+			if (graph?.groups?.[id]) Object.assign(patch, dropGroupPatch(id) ?? {});
 			continue;
 		}
 		if (graph?.edges?.[id]) Object.assign(patch, dropEdgePatch(id) ?? {});
@@ -254,7 +302,8 @@ function foldSteps(first, second, keep) {
 	};
 	for (const one of second.set) {
 		const at = out.set.findIndex(
-			held => held.kind === one.kind && held.id === one.id && held.field === one.field,
+			held => held.kind === one.kind && held.id === one.id && held.field === one.field
+				&& held.key === one.key,
 		);
 		if (at < 0) out.set.push(one);
 		// Already held, so the earlier value is the one already in `out` and there is nothing to do.

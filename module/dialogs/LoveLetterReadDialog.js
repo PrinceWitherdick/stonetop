@@ -1,12 +1,14 @@
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
-import { normalizeRollType, STAT_KEYS } from "../utils/roll-types.js";
+import { normalizeRollType } from "../utils/roll-types.js";
+import { LOVE_LETTER_ROLL_TYPES, loveLetterRollLabel } from "../actors/character/love-letters.js";
 import { MOVE_TIERS, pickLeadText } from "../utils/move-results.js";
 
 /**
  * Player-facing reader for a love letter (Book I, p.568). Opened from the "Read letter"
  * button on the Moves tab, it shows the letter's full contents — body, any roll and its
  * 10+/7-9/6- outcomes, the shared "choose from this list" pool, and the sign-off — then
- * offers a single action that resolves it (rolls / posts to chat and consumes the letter).
+ * offers a single action that resolves it (rolls / posts to chat, then hides the letter
+ * from the player; the GM keeps it, with a Resend).
  * The resolve logic itself stays on the sheet (StonetopCharacterSheet._onResolveLoveLetter);
  * this dialog just reads it and calls back.
  */
@@ -41,8 +43,8 @@ export class LoveLetterReadDialog extends StonetopDialog {
 	getData() {
 		const sys  = this._item?.system ?? {};
 		const stat = normalizeRollType(sys.rollType);
-		const isRolled = !!stat && STAT_KEYS.includes(stat);
-		const statLabel = isRolled ? Handlebars.helpers.statLabel(stat) : "";
+		const isRolled = !!stat && LOVE_LETTER_ROLL_TYPES.includes(stat);
+		const statLabel = isRolled ? loveLetterRollLabel(stat) : "";
 
 		const options = Array.isArray(sys.pickOptions) ? sys.pickOptions.filter(Boolean) : [];
 		const hasOptions = options.length > 0;
@@ -79,13 +81,20 @@ export class LoveLetterReadDialog extends StonetopDialog {
 		super.activateListeners(html);
 		const root = html[0];
 
-		root.querySelector(".stonetop-love-letter-resolve")?.addEventListener("click", async (ev) => {
-			ev.currentTarget.disabled = true;   // single-use — guard a double-click resolving twice
+		const button = root.querySelector(".stonetop-love-letter-resolve");
+		button?.addEventListener("click", async () => {
+			button.disabled = true;   // single-use: guard a double-click resolving twice
+			let resolved;
 			try {
-				await this._onResolve?.();
+				resolved = await this._onResolve?.();
 			} catch (err) {
 				console.error("Stonetop | Error resolving love letter from reader:", err);
-				ev.currentTarget.disabled = false;
+				button.disabled = false;
+				return;
+			}
+			// False: the player backed out of the roll prompt, so the letter is still theirs to roll.
+			if (resolved === false) {
+				button.disabled = false;
 				return;
 			}
 			this.close();

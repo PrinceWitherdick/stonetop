@@ -9,7 +9,7 @@
 	<div class="stonetop-playbook-picker-grid">
 		{{#each playbooks}}
 		<button type="button"
-			class="stonetop-playbook-picker-card stonetop-playbook-picker-card--{{slug}}"
+			class="stonetop-playbook-picker-card stonetop-playbook-picker-card--{{slug}}{{#if taken}} is-taken{{/if}}"
 			data-uuid="{{uuid}}"
 			data-complexity="{{complexity}}"
 			data-description="{{description}}"
@@ -18,6 +18,13 @@
 			<img class="stonetop-playbook-picker-card-icon" src="{{img}}" alt="">
 			{{/if}}
 			<span class="stonetop-playbook-picker-card-name">{{name}}</span>
+			{{!-- Flagged, never blocked: "No doubling up" (Book I p.49) is the table's to waive. --}}
+			{{#if takenBy}}
+			<span class="stonetop-playbook-picker-card-holders">{{takenBy}}</span>
+			{{/if}}
+			{{#if deadHolders}}
+			<span class="stonetop-playbook-picker-card-holders stonetop-playbook-picker-card-holders--dead">{{deadHolders}}</span>
+			{{/if}}
 		</button>
 		{{/each}}
 	</div>

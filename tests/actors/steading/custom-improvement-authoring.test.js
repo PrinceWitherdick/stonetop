@@ -90,7 +90,9 @@ describe("authoring a custom steading improvement", () => {
 		expect(applied["system.attributes.prosperity.value"]).toBe(1);
 		expect(applied["flags.stonetop_pwd.steading.resources"].map(r => r.name))
 			.toContain("The Maker's Roads");
-		expect(done.summary).toContain("Prosperity +1");
+		// Said as the transition the write makes, before and after (U4).
+		expect(done.summary).toContain("Prosperity +0 → +1");
+		expect(done.summary).toContain("The Maker's Roads added to Resources");
 
 		// The record of what was applied is what the un-complete reads back, so put the
 		// steading in the state that update would have left it in and toggle it off.
@@ -108,6 +110,10 @@ describe("authoring a custom steading improvement", () => {
 		expect(reverted["flags.stonetop_pwd.steading.resources"].map(r => r.name))
 			.not.toContain("The Maker's Roads");
 		expect(undone.reverted).toBe(true);
+		// And the revert reads the other way round: what it was, what it goes back to.
+		expect(undone.summary).toEqual(expect.arrayContaining([
+			"Prosperity +1 → +0", "The Maker's Roads removed from Resources",
+		]));
 	});
 
 	// A built-in slug's effects come from the table, never from a definition, so a custom
@@ -120,9 +126,10 @@ describe("authoring a custom steading improvement", () => {
 		await steading.setImprovementCompleted("custom-bell-tower", true);
 		const data = actor.update.mock.calls.at(-1)[0];
 		expect(data["flags.stonetop_pwd.steading.improvements"]["custom-bell-tower"].completed).toBe(true);
-		// No grants means nothing to record and nothing to reverse, so `applied` is never
-		// written at all (the `null` an emptied record leaves behind is a different thing).
-		expect(data["flags.stonetop_pwd.steading.improvements"]["custom-bell-tower"].applied).toBeUndefined();
+		// No grants means nothing to record and nothing to reverse, so `applied` is written as
+		// null: a completed entry with no `applied` key at all reads as one completed before the
+		// grant engine existed, and an edit that later gave it grants would be presumed applied.
+		expect(data["flags.stonetop_pwd.steading.improvements"]["custom-bell-tower"].applied).toBeNull();
 		expect(data).not.toHaveProperty("system.attributes.prosperity.value");
 	});
 

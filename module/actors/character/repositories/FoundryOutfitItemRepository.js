@@ -2,11 +2,15 @@ import { OutfitItemBuilder } from "../../../model/OutfitItem.js";
 import { FoundryPackStore } from "./FoundryPackStore.js";
 import { ITEM_FLAG_SCOPE, ITEMS_PACK } from "../StonetopFlags.js";
 
+// Every flag getAll reads must be listed here: a live pack's index holds ONLY the fields asked
+// for, so one left out arrives undefined and falls to its default. `shield` once was, and every
+// catalog shield read as "not a shield": Armored never lightened it and it never bought its +1
+// Readiness on a Defend 7+. The tests' fake pack only indexes what is asked for, to catch that.
 const FIELDS = [
 	"system.moveType",
 	...["slug", "inventoryColumn", "sortOrder", "weight", "note", "resource",
 	    "resourceFirst", "prosperityResource", "breakBefore", "smallGrid", "twoCol", "armor",
-	    "special", "specialCategory", "isTreasure"]
+	    "shield", "special", "specialCategory", "isTreasure"]
 		.map(f => `flags.${ITEM_FLAG_SCOPE}.${f}`),
 ];
 

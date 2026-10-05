@@ -9,6 +9,7 @@
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { THREAT_TYPES, THREAT_PROXIMITIES, threatType, DEFAULT_PROXIMITY } from "./threat-types.js";
 import { setThreatName } from "./threat-store.js";
+import { enrichHTML } from "../utils/foundry-compat.js";
 
 const EMPTY_ROW = {
 	grimPortents: () => ({ text: "", done: false }),
@@ -25,7 +26,14 @@ export class ThreatEditorDialog extends StonetopDialog {
 		// adding/editing a row inside it would snap it shut and hide the row just added.
 		this._moreOpen = false;
 		// Keep the form in sync if the page changes elsewhere (tab toggle, another GM).
-		this._onUpdate = (doc) => { if (doc?.id === this.page?.id && this.rendered) this.render(false); };
+		// Except for this window's own rich-text save: the editor already shows what it saved, and
+		// re-rendering under it tears its view down while ProseMirror is still handling the click.
+		// The option travels to every client and appId is only unique on this one, so the save is
+		// ours only when this user made it too; another GM's editor re-renders as usual.
+		this._onUpdate = (doc, _change, options, userId) => {
+			if (options?.threatEditorRichSave === this.appId && userId === game.user?.id) return;
+			if (doc?.id === this.page?.id && this.rendered) this.render(false);
+		};
 	}
 
 	static get defaultOptions() {
@@ -69,7 +77,7 @@ export class ThreatEditorDialog extends StonetopDialog {
 		return super.close(options);
 	}
 
-	getData() {
+	async getData() {
 		const page = this.page;
 		const sys = page.system ?? {};
 		const proximity = sys.proximity || DEFAULT_PROXIMITY;
@@ -82,6 +90,7 @@ export class ThreatEditorDialog extends StonetopDialog {
 			name: page.name,
 			moreOpen: this._moreOpen,
 			system: sys,
+			descriptionEnriched: await enrichHTML(sys.description ?? ""),
 			typeLabel: threatType(sys.type).label,
 			typeOptions: THREAT_TYPES.map(t => ({ id: t.id, label: t.label, selected: t.id === sys.type })),
 			proximityOptions: THREAT_PROXIMITIES.map(p => ({ id: p.id, label: p.label, selected: p.id === proximity })),
@@ -112,7 +121,15 @@ export class ThreatEditorDialog extends StonetopDialog {
 				// The name is the threat's identity across the page, the parent entry, and its
 				// scene pins — route it through setThreatName so a rename isn't half-applied.
 				if (field === "name") { await setThreatName(this.page, el.value); return; }
-				await this.page.update({ [field]: el.type === "checkbox" ? el.checked : el.value });
+				const value = el.type === "checkbox" ? el.checked : el.value;
+				// A rich editor also reports when a re-render disconnects it; that carries what the
+				// page already holds, and writing it back would only bounce another re-render.
+				if (scalar.tagName === "PROSE-MIRROR") {
+					if (value === foundry.utils.getProperty(this.page, field)) return;
+					await this.page.update({ [field]: value }, { threatEditorRichSave: this.appId });
+					return;
+				}
+				await this.page.update({ [field]: value });
 				return;
 			}
 			const listEl = ev.target.closest?.(".threat-list[data-list]");

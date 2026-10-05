@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "magical, Value 2",
+    "note": "<em>magical</em>, Value 2",
     "isTreasure": true,
     "artifactLore": "<p>It’s about the size of two fists, with a mass of blood-sucking insects floating in its center. It tethers an ambitious spirit of insects, blight, and disease. Treat it as a threat (type: magical entity, Instinct to foster worship) with the following moves:</p><ul><li>Demand a blood sacrifice, poured over the amber</li><li>Shield someone from sickness, vermin, and poison</li><li>Blight an enemy with sickness, vermin, or both</li></ul>"
   },
@@ -17,7 +17,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "magical, Value 2"
+      "note": "<em>magical</em>, Value 2"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

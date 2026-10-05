@@ -512,12 +512,17 @@ export class ImageZoomWindow extends StonetopDialog {
  *
  * Returns null for an empty src: the caller's picture simply isn't there yet, and an empty window
  * saying so is worse than nothing happening.
+ *
+ * `classes` are ADDED to the window's own, never in place of them: AppV1 replaces an array option
+ * outright, so passing the caller's list alone would strip `stonetop-image-zoom` and its layout.
  */
-export function openImageZoom({ src, title = "", key = "", onPick = null } = {}) {
+export function openImageZoom({ src, title = "", key = "", onPick = null, classes = [] } = {}) {
 	if (!src) return null;
 	const id = `stonetop-image-zoom-${key || "image"}`;
 	return openOrFocus(id, () => {
-		const app = new ImageZoomWindow({ src, alt: title, onPick }, { id, title });
+		const options = { id, title };
+		if (classes.length) options.classes = [...ImageZoomWindow.defaultOptions.classes, ...classes];
+		const app = new ImageZoomWindow({ src, alt: title, onPick }, options);
 		app.render(true);
 		return app;
 	});

@@ -7,7 +7,7 @@
       grab it anywhere to drop a pinned Note on a scene. The dragstart is wired on the tab
       root in StonetopSteadingSheet._activateThreatsListeners. --}}
 <article class="threat-card threat-card--{{type.id}}{{#if collapsed}} is-collapsed{{/if}}{{#if canDrag}} is-draggable{{/if}}"
-         data-threat-id="{{id}}" data-page-uuid="{{uuid}}" style="--threat-accent:{{accent}};"{{#if canDrag}} draggable="true"{{/if}}>
+         data-threat-id="{{id}}" data-page-uuid="{{uuid}}" style="--threat-accent-raw:{{accent}};"{{#if canDrag}} draggable="true"{{/if}}>
 	{{> "stonetop.card-head" kind="threat" typeLabel=type.label}}
 
 	{{#if hasInstinct}}

@@ -1,5 +1,5 @@
 import { escHtml } from "../utils/strings.js";
-import { stonetopCardShell } from "../utils/chat.js";
+import { rolledTotalCard, stonetopCardShell } from "../utils/chat.js";
 import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { SYSTEM_ID } from "../system-id.js";
 import { moveLearnedIn } from "../actors/character/owns-move.js";
@@ -183,7 +183,7 @@ const REMINDER_RESETS = {
 		rolls:  true,
 		update: async actor => {
 			const roll = await new globalThis.Roll("1d4-1").evaluate();
-			await roll.toMessage?.({ speaker: globalThis.ChatMessage?.getSpeaker?.({ actor }), flavor: "Laboratory: this season's naphtha" });
+			await roll.toMessage?.({ speaker: globalThis.ChatMessage?.getSpeaker?.({ actor }), flavor: rolledTotalCard(roll, "Laboratory", "uses of naphtha this season") });
 			const uses = Math.max(0, Math.min(NAPHTHA_TRACK, Number(roll.total) || 0));
 			return { [`flags.${SYSTEM_ID}.inventory.resources.${NAPHTHA_SLUG}`]: NAPHTHA_TRACK - uses };
 		},

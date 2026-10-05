@@ -1,5 +1,5 @@
 import { STONETOP_SCOPE, readableFlags, resolvedFlagProperty } from "./StonetopFlags.js";
-import { deletionEntry } from "../../utils/foundry-compat.js";
+import { deletionEntry, serverNow } from "../../utils/foundry-compat.js";
 import {
 	DEATHS_DOOR_FLAG, DEATHS_DOOR_ROLL_FLAG, DEATHS_DOOR_ROLLING_FLAG, DEATHS_DOOR_STATE, NEVER_GONNA_KEEP_ME_DOWN,
 	effectiveDeathsDoorState, pastDeathKind,
@@ -27,10 +27,7 @@ export function deathsDoorRollMarker(actor) {
  * The clock a marker's `at` is written and read against: the server's, so two tables' machines a minute apart
  * agree on how long a roll has been sitting.
  */
-export function deathsDoorRollClock() {
-	const server = Number(globalThis.game?.time?.serverTime);
-	return Number.isFinite(server) && server > 0 ? server : Date.now();
-}
+export const deathsDoorRollClock = serverNow;
 
 /**
  * Write the marker whole. Every key goes out, nulls included: a flag update MERGES into what is stored, so a
@@ -156,6 +153,11 @@ export function actorPastDeathKind(actor) {
  */
 export function isOutOfPlay(actor) {
 	return !!actor && resolvedFlagProperty(actor, DEATHS_DOOR_FLAG) === DEATHS_DOOR_STATE.DEAD;
+}
+
+/** `isOutOfPlay` for a roster read that must never throw: a sheet that can't say is not dead. */
+export function isOutOfPlaySafe(actor) {
+	try { return isOutOfPlay(actor); } catch { return false; }
 }
 
 /**

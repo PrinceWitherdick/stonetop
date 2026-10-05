@@ -10,7 +10,7 @@ vi.mock("../../../module/utils/roll-engine.js", async importOriginal => ({
 
 const { rollStat } = await import("../../../module/utils/roll-engine.js");
 const { createStonetopSteadingSheetClass } = await import("../../../module/actors/steading/StonetopSteadingSheet.js");
-const { IMPROVEMENT_DEFINITIONS } = await import("../../../module/actors/steading/StonetopSteading.js");
+const { IMPROVEMENT_DEFINITIONS, builtInImprovementRules } = await import("../../../module/actors/steading/StonetopSteading.js");
 
 /**
  * The steading's homefront rolls, with what the steading has built folded in: a Township's
@@ -32,6 +32,8 @@ function makeSheet({ built = [], stats = {}, diminished = false, militiaR = [], 
 		fortunesAdvantage: vi.fn(() => held),
 		clearFortunesAdvantage: vi.fn(async () => {}),
 		improvementCompleted: vi.fn(slug => built.includes(slug)),
+		// The rules list every roll reads (improvement-rules.js): these book improvements, built.
+		improvementRules: vi.fn(() => builtInImprovementRules(built)),
 		improvementDef: vi.fn(slug => IMPROVEMENT_DEFINITIONS.find(d => d.slug === slug) ?? null),
 		improvementRequirements: vi.fn(slug => (slug === "wellTrainedMilitia" ? militiaR : [])),
 	};
@@ -68,7 +70,7 @@ describe("a homefront roll, with what the steading has built", () => {
 
 	it("rolls a Deploy at advantage from the palisade, with the watch's Defenses, and names who picks", async () => {
 		const sheet = makeSheet({ built: ["palisade", "standingWatch"], stats: { defenses: 1 } });
-		await sheet._onSteadingRoll("Deploy", "defenses", { improvementAnswers: { wall: "yes", watch: "yes", strength: "yes" } });
+		await sheet._onSteadingRoll("Deploy", "defenses", { improvementAnswers: { "advantage-palisade": "yes", watch: "yes", strength: "yes" } });
 		const opts = lastRoll()[2];
 		expect(opts.rollMode).toBe("adv");
 		expect(opts.statValue).toBe(2);

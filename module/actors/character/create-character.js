@@ -15,11 +15,12 @@
 // its holder is core's own conveniences (the player-list entry, the C hotkey, the default
 // speaker), which is why an added character leaves an existing assignment where it is.
 
-import { charactersOwnedBy } from "../../utils/playbook-actors.js";
+import { charactersPlayedBy } from "../../utils/playbook-actors.js";
 import { bringDialogToFront } from "../../utils/front-on-open.js";
 import { escHtml } from "../../utils/strings.js";
 import { STONETOP_SCOPE } from "./StonetopFlags.js";
 import { isMidCreation, progressFor } from "./onboarding-progress.js";
+import { isOutOfPlaySafe } from "./deaths-door-actor.js";
 
 /**
  * Create a character, hand it to a player, and greet them with character creation.
@@ -42,9 +43,15 @@ export async function createCharacterForUser(userId, { folder = null, name = "" 
 	// an unasked-for delete throws away an hour of answers, an unasked-for addition leaves a
 	// sheet nobody meant to make. So ask, and let the answer drive both the delete below and
 	// the assignment further down.
-	let alongside = false;
+	//
+	// Replace is a CHECKLIST, not all-or-nothing: only the characters ticked are deleted, and the
+	// dead start unticked, since a fallen PC's sheet is the record of a life the table may want to
+	// keep. Ticking none and pressing Replace deletes nothing and adds the new character alongside.
+	// Never listed at all: a character another user holds as their assigned `character`, however
+	// much ownership this player has been given over it (the Ready.js greeting asks the same).
+	const deleted = new Set();
 	if (user) {
-		const existing = charactersOwnedBy(user.id);
+		const existing = charactersPlayedBy(user.id);
 		if (existing.length) {
 			// Deleting an Actor needs Assistant GM or better — Actor's metadata overrides
 			// only `create` and `update`, so `delete` keeps the base "ASSISTANT" default,
@@ -58,8 +65,11 @@ export async function createCharacterForUser(userId, { folder = null, name = "" 
 				isSelf: user.id === game.user?.id,
 			});
 			if (!choice) return null;
-			alongside = choice === "add";
-			if (!alongside && !await _deleteCharacters(existing, user)) return null;
+			const doomed = choice.choice === "replace"
+				? existing.filter(a => choice.deleteIds.includes(a.id))
+				: [];
+			if (doomed.length && !await _deleteCharacters(doomed, user)) return null;
+			for (const a of doomed) deleted.add(a.id);
 		}
 	}
 
@@ -103,8 +113,15 @@ export async function createCharacterForUser(userId, { folder = null, name = "" 
 	// holds it: a player whose characters were all handed to them by ownership alone has an
 	// empty `character`, and leaving it empty keeps re-triggering the "no character yet"
 	// orientation in hooks/Ready.js. Ownership, which is what actually gates play, is stamped
-	// on the create either way.
-	const claimsAssignment = !alongside || !user?.character;
+	// on the create either way. A replacement that deleted the assigned character frees the
+	// slot, so the new one takes it; one that deleted only others leaves it where it is.
+	//
+	// A DEAD assigned character frees it too. The dead start unticked in the replace list, so the
+	// usual replacement after a death keeps the fallen sheet, and nobody is playing it: leaving
+	// the slot there would point the player's C hotkey and default speaker at a corpse.
+	const assignedId = user?.character?.id ?? null;
+	const assignedDead = !!assignedId && !deleted.has(assignedId) && isOutOfPlaySafe(user.character);
+	const claimsAssignment = !assignedId || deleted.has(assignedId) || assignedDead;
 	if (user && (isGM || isSelf) && claimsAssignment) {
 		try {
 			await user.update({ character: actor.id });
@@ -139,7 +156,8 @@ export async function createCharacterForUser(userId, { folder = null, name = "" 
  *                                        offered the addition alone.
  * @param {boolean} [options.isSelf]      Is the presser the player in question? Only the
  *                                        pronouns change.
- * @returns {Promise<"add"|"replace"|null>}  null if dismissed.
+ * @returns {Promise<{choice: "add"|"replace", deleteIds: string[]}|null>}  null if dismissed;
+ *          for "replace", the ids of the characters left ticked (possibly none).
  */
 function _askAboutExisting(user, existing, { canReplace = true, isSelf = false } = {}) {
 	const names = existing.map(a => `<strong>${escHtml(a.name)}</strong>`).join(", ");
@@ -148,16 +166,23 @@ function _askAboutExisting(user, existing, { canReplace = true, isSelf = false }
 	// Deliberately plain markup and a bare core dialog, as this confirmation has always been:
 	// nothing in this system's stylesheet reaches inside one, so <strong> carries the emphasis
 	// on its own rather than leaning on a class that would render here as an unstyled span.
-	const busy = existing.filter(isMidCreation)
-		.map(a => `<strong>${escHtml(a.name)}</strong> (${escHtml(progressFor(a).text)})`);
-	const busyNote = busy.length
-		? ` ${busy.join(", ")} ${busy.length === 1 ? "is" : "are"} still being created, so everything ` +
-		  `answered so far goes with ${it}` +
-		  (isSelf ? "." : `, and the creation window closes on ${escHtml(user.name)}'s screen.`)
-		: "";
+	const closesOn = isSelf ? "" : `, and the creation window closes on ${escHtml(user.name)}'s screen`;
+	const rowNote = a => {
+		if (isMidCreation(a)) {
+			return ` (${escHtml(progressFor(a).text)}): still being created, so everything answered ` +
+				`so far goes with it${closesOn}`;
+		}
+		return isOutOfPlaySafe(a) ? " (dead)" : "";
+	};
+	// One box per character. The living start ticked, the dead unticked (see createCharacterForUser).
+	const rows = existing.map(a =>
+		`<li><label><input type="checkbox" name="${REPLACE_FIELD}" value="${escHtml(a.id)}"` +
+		`${isOutOfPlaySafe(a) ? "" : " checked"}> <strong>${escHtml(a.name)}</strong>${rowNote(a)}</label></li>`,
+	).join("");
 	const replaceLine = canReplace
-		? `<p><strong>Replace</strong> instead and ${it} ${existing.length === 1 ? "is" : "are"} ` +
-		  `<strong>permanently deleted</strong> first. This can't be undone.${busyNote}</p>`
+		? `<p><strong>Replace</strong> instead and the ones ticked below are ` +
+		  `<strong>permanently deleted</strong> first. This can't be undone. With none ticked, ` +
+		  `nothing is deleted and the new character is added alongside.</p><ul>${rows}</ul>`
 		: `<p>Replacing ${it} would mean deleting ${it}, which only your GM can do.</p>`;
 
 	return new Promise(resolve => {
@@ -168,14 +193,14 @@ function _askAboutExisting(user, existing, { canReplace = true, isSelf = false }
 			add: {
 				icon: '<i class="fas fa-user-plus"></i>',
 				label: "Add Another",
-				callback: () => resolve("add"),
+				callback: () => resolve({ choice: "add", deleteIds: [] }),
 			},
 		};
 		if (canReplace) {
 			buttons.replace = {
 				icon: '<i class="fas fa-triangle-exclamation"></i>',
 				label: "Replace",
-				callback: () => resolve("replace"),
+				callback: html => resolve({ choice: "replace", deleteIds: _tickedIds(html) }),
 			};
 		}
 		buttons.cancel = {
@@ -197,6 +222,16 @@ function _askAboutExisting(user, existing, { canReplace = true, isSelf = false }
 			close: () => resolve(null),
 		}).render(true);
 	});
+}
+
+/** The checkbox name the replace list's rows share. */
+const REPLACE_FIELD = "stonetop-replace";
+
+/** The character ids left ticked in the replace list. `html` is what core's Dialog hands a callback. */
+function _tickedIds(html) {
+	const root = html?.[0] ?? html;
+	const boxes = root?.querySelectorAll?.(`input[name="${REPLACE_FIELD}"]`) ?? [];
+	return [...boxes].filter(box => box.checked).map(box => box.value);
 }
 
 /** Delete the characters being replaced. Returns false (and reports) if the delete failed. */

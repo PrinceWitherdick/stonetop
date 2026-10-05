@@ -31,6 +31,15 @@ export const GEAR_NOTE_CHIPS = [
 	{ group: "bonus", insert: "+1 damage",  term: "damage" },
 	{ group: "bonus", insert: "x piercing", term: "piercing" },
 	{ group: "bonus", insert: "+1 armor",   term: "armor" },
+	// Qualities of the thing itself, the vocabulary Book II's treasures are written in
+	// ("fragile, magical", "beautiful, indestructible"). Not weapon tags, so they sit apart.
+	{ group: "quality", insert: "fragile",        term: "fragile" },
+	{ group: "quality", insert: "crude",          term: "crude" },
+	{ group: "quality", insert: "warm",           term: "warm" },
+	{ group: "quality", insert: "cumbersome",     term: "cumbersome" },
+	{ group: "quality", insert: "magical",        term: "magical" },
+	{ group: "quality", insert: "beautiful",      term: "beautiful" },
+	{ group: "quality", insert: "indestructible", term: "indestructible" },
 ];
 
 /**
@@ -93,4 +102,24 @@ export function buildUsesResource(uses, isAmmo) {
 		else { labels[0] = "all out"; }
 	}
 	return { max: uses, title: null, labels };
+}
+
+/**
+ * A track's circle labels, typed one line per circle. Labels are POSITIONAL (label i sits
+ * after circle i), so a blank line is a circle with no label and is kept: that is how the
+ * missive's pouch puts "uses, Value 2" after its ninth circle and not its first. Only the
+ * blank lines after the last label are dropped, since they say nothing.
+ *
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function circleLabelsFromLines(text) {
+	const lines = String(text ?? "").split(/\r?\n/).map(s => s.trim());
+	while (lines.length && !lines.at(-1)) lines.pop();
+	return lines;
+}
+
+/** The inverse of circleLabelsFromLines, for a form to open on. */
+export function circleLabelsToLines(labels) {
+	return circleLabelsFromLines((Array.isArray(labels) ? labels : []).join("\n")).join("\n");
 }

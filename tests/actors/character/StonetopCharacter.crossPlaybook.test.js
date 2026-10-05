@@ -128,7 +128,19 @@ describe("StonetopCharacter.applyLevelUp — cross-playbook threading", () => {
 		expect(char._applyForeignMoveChoice).not.toHaveBeenCalled();
 		expect(char._applyStatIncreaseChoice).not.toHaveBeenCalled();
 		// level 2 → 3; cost = 6 + 2*2 = 10, so xp 20 → 10.
-		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.level.value": 3, "system.attributes.xp.value": 10 });
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.level.value": 3, "system.attributes.xp.value": 10 }, {});
+	});
+
+	// The timeline's level-up row reads the move learned off this update's options.
+	it("carries the move learned on the level write, for the timeline", async () => {
+		const actor = new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").withLevel(2).withXp(20, 30).build();
+		const char = new TestCharacterBuilder(actor).build();
+		char.addMove = vi.fn().mockResolvedValue({ id: "x", name: "Big Magic" });
+		await char.applyLevelUp("bmId", null, null, { moveName: "Big Magic" });
+		expect(actor.update).toHaveBeenCalledWith(
+			{ "system.attributes.level.value": 3, "system.attributes.xp.value": 10 },
+			{ stonetopTimelineLearned: "Big Magic" },
+		);
 	});
 });
 

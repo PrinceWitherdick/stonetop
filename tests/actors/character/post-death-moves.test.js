@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it, expect, vi } from "vitest";
-import { planLoreMoveSync, loreMoveItemData, offerLoreFollowers, mayMoveLoreMoves, LORE_FOLLOWERS } from "../../../module/actors/character/post-death-moves.js";
+import { planLoreMoveSync, loreMoveItemData, postDeathMoveItemData, offerLoreFollowers, mayMoveLoreMoves, LORE_FOLLOWERS } from "../../../module/actors/character/post-death-moves.js";
 import { MoveDefinition } from "../../../module/model/MoveDefinition.js";
 import { makeLiveActor } from "../../fakes/LiveCharacter.js";
 import { FakeRepositoryFactory } from "../../fakes/FakeRepositoryFactory.js";
@@ -99,6 +99,15 @@ describe("planLoreMoveSync", () => {
 		expect(loreMoveItemData(bodysnatcher).system).toMatchObject({
 			rollType: "cha", moveResults: { success: { value: "They do it anyway." } },
 		});
+	});
+
+	// An insert's own move was made from its text alone, so Undying's roll card posted no outcomes.
+	it("makes an insert's own move whole too, with no lore option", () => {
+		const undying = def(SHIPPED.revenant.find(m => m.name === "Undying"));
+		const { system } = postDeathMoveItemData(undying);
+		expect(system.moveType).toBe("post-death");
+		expect(system.moveResults?.partial?.value).toMatch(/half your max HP/);
+		expect(system).not.toHaveProperty("loreOption");
 	});
 });
 

@@ -35,11 +35,25 @@ export { ownsMoveNamed };
 export const OATHS_FLAG          = "oaths";
 export const BINDING_ARBITRATION = "Binding Arbitration";
 
+/**
+ * A stored `broken`, as a hard boolean. Only an explicit yes reads as broken: this drives an
+ * advantage claim, and a hand-edited world holding the string "false" must not read as "they broke
+ * it" (a plain `!!raw` called that string true).
+ */
+function coerceBroken(raw) {
+	return raw === true || raw === 1 || String(raw ?? "").trim().toLowerCase() === "true";
+}
+
 const roster = createRoster({
 	prefix: "oath",
-	// Coerced to a hard boolean rather than kept as stored: this drives an advantage claim, and a
-	// hand-edited world holding the string "false" must not read as "they broke it".
-	fields: { broken: raw => !!raw },
+	fields: { broken: coerceBroken },
+	// ONE ROW PER OATH (the user's ruling): "When you bear witness to someone's promise or oath"
+	// is per promise, and one person can swear several and break only one, so nothing here
+	// refuses a second row for the same person. The advantage asks whether ANY of their rows is
+	// ticked broken (hero-moves.js#oathbreakerAgainst).
+	dedupe: false,
+	// Token-scoped as the brand is: an oath sworn by one unlinked bandit token binds that bandit.
+	tokenScoped: true,
 });
 
 /**
@@ -70,7 +84,12 @@ export const readOaths   = roster.readList;
 export const addOath     = roster.add;
 export const removeOath  = roster.remove;
 export const oathIndex   = roster.buildIndex;
-export const isSwornBy   = roster.isOnIndex;
+/**
+ * Is this person bound by a row on a prepared `oathIndex`, for the ADVANTAGE: a linked row names
+ * its own document only (and a token row that token only), a name-only row is matched by name.
+ * The roster's looser `isOnIndex` serves suggestions and must not decide a roll.
+ */
+export const isBoundBy   = roster.isHeldOnIndex;
 
 /** Re-word what somebody swore. `{ entries, changed }`, `changed` null when nothing moved. */
 export function noteOath(list, id, note) {

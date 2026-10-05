@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "beautiful, Value 2",
+    "note": "<em>beautiful</em>, Value 2",
     "isTreasure": true
   },
   "flags": {
@@ -14,7 +14,7 @@
       "slug": "a-ring-of-petrified-wood-set-with-a-shining-diamond",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "beautiful, Value 2"
+      "note": "<em>beautiful</em>, Value 2"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

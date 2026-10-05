@@ -1037,6 +1037,15 @@ describe("a Revenant's Undying on the damage card", () => {
 		expect(posted.at(-1).content).toContain("halved from 7 after armor, Undying");
 	});
 
+	// Out of play (the Final Consequence, the Last Door) is out of every party list, whatever insert they wear.
+	it("halves nothing for a Revenant who has left play", async () => {
+		const wyn = revenant();
+		wyn.flags[SCOPE].deathsDoor = "dead";
+		const { tokens } = fightInARow([["wyn", wyn]]);
+		await apply({ move: "Bite", weapon: null, results: [{ uuid: tokens.wyn.uuid, name: "Wyn", raw: 9 }], applied: [] });
+		expect(wyn.system.attributes.hp.value).toBe(3);
+	});
+
 	it("takes the blow whole when the box was ticked off", async () => {
 		const wyn = revenant();
 		const { tokens } = fightInARow([["wyn", wyn]]);

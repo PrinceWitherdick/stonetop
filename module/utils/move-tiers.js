@@ -1,6 +1,7 @@
-import { capitalizeFirst, escHtml, formatOutcomeDetail, splitPickList, stripHtmlToText } from "./strings.js";
+import { capitalizeFirst, decodeEntities, escHtml, formatOutcomeDetail, splitPickList, stripHtmlToText } from "./strings.js";
 import { firstOptionList, pickableMoveDescription } from "./chat.js";
 import { MOVE_TIERS, MOVE_TIERS_CLASS, ROLLED_TIER_ATTR } from "./move-results.js";
+import { outcomeTier } from "./counted-tier.js";
 
 /**
  * Move cards used to print the book's prose verbatim, and the book states a move's outcomes as
@@ -60,22 +61,52 @@ const _ENTITY_MAX = 34;
 // restatement of it — folded into the success row it would be labelled 10+ and read as a lie,
 // so it stays in the prose where its author put it.
 //
-// Captures: 1 = the threshold, 2 = "+" when it is a threshold rather than a range,
-// 3 = the range's upper bound ("7-9"), 4 = "miss" / "failure".
-const _TIER_HEAD_RE = /^(?:(?:and|then|also|but|or|otherwise|next|finally)\b[,;:]?\s+)*on an?\s+(?:(10|[6-9])\s*(?:(\+)|[-\u2010-\u2015]\s*([6-9])?)|(miss|failure)\b)/i;
+// The pattern does MATCH an 11+/12+/13+ head, though, so it can end the rung before it: such a
+// line is a STOPPER (`_tierHead` hands back no rungs), which keeps "on a 7-9, …; on a 12+, …"
+// from reading the 12+ line as more of the 7-9.
+//
+// The article is optional ("On 7+, you corner your prey", the Wolf Pelt's condensed move), and a
+// threshold may be spelled out ("on a 6 or less"), or a hit named in words ("on a weak hit").
+const _TIER_HEAD_RE = /^(?:(?:and|then|also|but|or|otherwise|next|finally)\b[,;:]?\s+)*on\s+(?:an?\s+)?(?:(?<n>1[0-3]|[6-9])(?:\s*(?<plus>\+)|\s*[-\u2010-\u2015]\s*(?<hi>1[0-3]|[6-9])?|\s+or\s+(?:(?<orMore>more|higher|better|above)|less|lower|below|fewer)\b)|(?<word>strong\s+hit|weak\s+hit|hit|miss|failure)\b)/i;
+
+// The span of totals each rung answers to, for reading a head as the rungs it overlaps.
+const _RUNG_SPANS = [["success", 10, Infinity], ["partial", 7, 9], ["failure", -Infinity, 6]];
+const _WORD_RUNGS = { "strong hit": ["success"], "weak hit": ["partial"], hit: ["success", "partial"], miss: ["failure"], failure: ["failure"] };
 
 /**
- * Which rungs a matched tier head names. A "7+" line is stated once and applies to BOTH the
- * hit and the partial (Muster, Burgle, Alpha), which is exactly how those moves' own stored
- * moveResults spell it out — the same sentence on each of the two rows.
+ * A clause's tier head, or null when it opens with none: `{ keys, length }`, the rungs it names
+ * and how much of the clause the head itself takes up. A head names every rung its totals
+ * overlap, so a "7+" line is stated once and applies to BOTH the hit and the partial (Muster,
+ * Burgle, Alpha), which is exactly how those moves' own stored moveResults spell it out, and a
+ * "10-11" is the 10+ rather than the 7-9 its dash once made it.
+ *
+ * `keys` is EMPTY for an 11+ and up: a bonus line, not a rung (see `_TIER_HEAD_RE`).
  */
-function _tierKeysFor(match) {
-	if (match[4]) return ["failure"];
-	const n = Number(match[1]);
-	if (match[2]) return n >= 10 ? ["success"] : ["success", "partial"];
-	if (match[3]) return ["partial"];
-	return n <= 6 ? ["failure"] : ["partial"];
+function _tierHead(head) {
+	const m = String(head ?? "").match(_TIER_HEAD_RE);
+	if (!m) return null;
+	const g = m.groups;
+	if (g.word) return { keys: _WORD_RUNGS[g.word.toLowerCase().replace(/\s+/g, " ")], length: m[0].length };
+	const n = Number(g.n);
+	if (n >= 11) return { keys: [], length: m[0].length };
+	const [lo, hi] = g.plus || g.orMore ? [n, Infinity]
+		: g.hi ? [n, Math.max(n, Number(g.hi))]
+		: [-Infinity, n];
+	const keys = _RUNG_SPANS.filter(([, a, b]) => a <= hi && b >= lo).map(([key]) => key);
+	return { keys, length: m[0].length };
 }
+
+// A clause that speaks for the whole move rather than for the rung before it: "Regardless, …",
+// "In any case, …", "Whatever the result, …", or a spend menu that opens after the tiers ("You can
+// spend Readiness 1-for-1 to:"). Such a clause ends a rung however the paragraph is laid out.
+const _GENERAL_RE = /^(?:regardless\b|in any case\b|in all cases\b|whatever the result\b|whatever happens\b|you (?:can|may) spend\b)/i;
+
+// A rung that RESTATES another as its starting point ("on a 10+, as a 7-9, but both apply"):
+// what was said for the rung before is folded into "as a 7-9", so it is not said twice.
+const _RESTATES_RE = /^as\s+(?:(?:a|an|per\s+a|with\s+a)\s+)?(?:7\s*\p{Pd}\s*9|10\+|above)\b/iu;
+
+// An abbreviation whose full stop does not end a sentence, so what follows keeps its case.
+const _ABBREV_END_RE = /\b(?:e\.g|i\.e|vs|cf)\.$/i;
 
 // A trailing "either way, …" rider — the clause the book hangs off the END of a tier sentence
 // (Know Things' "the GM might ask 'how do you know this?'", Danger Sense's advantage). It reads
@@ -162,7 +193,9 @@ function _coverageOf(words, have) {
  * difference, and a waiver would take the whole file out of a check it should stay inside.
  */
 function _headText(html) {
-	return stripHtmlToText(html).replace(/^[\s"'\u2018\u201c(\u2014\u2013-]+/, "").trim();
+	// `decodeEntities` on top, for the NUMERIC forms `stripHtmlToText` leaves alone: a tier typed
+	// "7&#8211;9" or "on&#160;a 10+" is a tier, as utils/move-picks.js already reads it for a cap.
+	return decodeEntities(stripHtmlToText(html)).replace(/^[\s"'\u2018\u201c(\u2014\u2013-]+/, "").trim();
 }
 
 /**
@@ -220,6 +253,10 @@ export function balanceInlineHtml(html) {
  * tier while ", all 3 apply:" stayed behind as a fragment, and the move lost its 6- rung and
  * gained a sentence starting with a comma.
  */
+// How much raw markup a comma boundary reads for a tier head on either side of it: a head is a
+// short phrase at the very start ("on a 7-9", "and on a 10+"), with room for a tag or two around it.
+const _HEAD_WINDOW = 120;
+
 export function splitClauses(inner) {
 	const parts = [];
 	let start = 0;
@@ -229,7 +266,17 @@ export function splitClauses(inner) {
 		if (ch === "<") { inTag = true; continue; }
 		if (ch === ">") { inTag = false; continue; }
 		if (inTag) continue;
-		if (ch !== ";" && ch !== "." && ch !== ":") continue;
+		// A COMMA is a boundary only between two tier heads: "on a 10+ pick 1, on a 7-9 pick 2, on
+		// a 6- all three" is three rungs written as one run (the Thunder Drake's bellow). Anywhere
+		// else a comma is just a comma, which is why both sides are asked.
+		//
+		// Both sides read through the same bounded window. The head is anchored at the clause's
+		// start, so its first stretch decides it; reading the whole prefix instead re-stripped a
+		// growing string at every comma, quadratic in a long option paragraph.
+		if (ch === ",") {
+			if (!_tierHead(_headText(inner.slice(start, Math.min(i, start + _HEAD_WINDOW))))) continue;
+			if (!_tierHead(_headText(inner.slice(i + 1, i + 1 + _HEAD_WINDOW)))) continue;
+		} else if (ch !== ";" && ch !== "." && ch !== ":") continue;
 		// The tail of "&ndash;" / "&#8211;", not a separator. Read backwards from the "&" rather
 		// than by slicing the whole prefix, which made every semicolon cost the length of the text
 		// before it.
@@ -326,38 +373,89 @@ function _tierCorpus(moveResults) {
  * This can only ever RE-ARRANGE what the description already said: each rung's text is the
  * remainder of the clause that named it, so nothing is invented and nothing that was not
  * already on the card can appear. Returns null when the prose names no tier.
+ *
+ * `stored` is the move's own `system.moveResults`, when it has one. It is read for one question
+ * only (see `flushTail` below): whether a sentence that follows a rung mid-paragraph is more of
+ * that rung. It never supplies a word of the result.
+ *
+ * When the inline options of one rung are shared by the others ("on a 10+, pick 3; on a 7-9,
+ * pick 1: a; b; c"), they are lifted off that rung and handed back as `sharedOptions`, a
+ * non-enumerable property of the result, for the ladder to list under its rows.
  */
-export function parseTiersFromProse(description) {
+export function parseTiersFromProse(description, stored = null) {
 	const src = String(description ?? "");
 	if (!src.trim()) return null;
+	// TWO OR MORE ROLLS, each with tiers of its own (the Seasons Change's four seasons, the Humble
+	// Broom's two lullabies), are not one ladder: merged, the 10+ row read "pick 1 seasonal gain;
+	// pick 2 seasonal gains; pick 1 seasonal gain; the winter is relatively mild…" with no season
+	// left to say which was which. Such a description keeps its prose, or its stored rows.
+	if (_rolledTriggerCount(src) > 1) return null;
 	const parts = { success: [], partial: [], failure: [] };
 	let found = false;
 
 	const readParagraph = (inner) => {
 		// A rung's text runs on past the clause that named it ("on a 6-, don't mark XP; you know
-		// there's a trap") — so a lower-case clause straight after one belongs to the same rung.
+		// there's a trap"), so a clause straight after one that does not open a new sentence
+		// (lower case, or a number: "1d4 other objects are also unmade") belongs to the same rung.
 		// `current` holds that rung until a clause opens something new, and never crosses a
 		// paragraph, which is where one move's tiers stop and the next sentence starts.
 		let current = null;
-		for (const clause of splitClauses(inner)) {
+		// The rung's last clause ended on a colon, so what follows is the list it introduces,
+		// whatever its case: "but choose one: The ring eats at your life-force… / Mark a
+		// consequence." Held until a clause closes a sentence.
+		let colonOpen = false;
+		// The paragraph OPENED with a tier head, so it is that rung's paragraph: every sentence
+		// in it belongs to the rung (Bodysnatcher's 6-, "…and you mark a consequence. You'll never
+		// be able to possess them again.").
+		let opened = false;
+		// Capitalised sentences after a rung in a paragraph that did NOT open with it: the rung's
+		// own follow-on (Deploy's "If the steading is acting from a position of strength, you
+		// choose. Otherwise, the GM chooses.") or general text that only happens to come after it
+		// (the Stretched Vellum's "If your roll equals or exceeds…"). Words cannot tell those two
+		// apart, so the move's stored row is asked: the run joins the rung when the row already
+		// says what it says.
+		let tail = [];
+		const push = (keys, text, head = false) => { for (const key of keys) parts[key].push({ text, head }); };
+		const flushTail = () => {
+			if (tail.length && current && _tailBelongs(tail, current, parts, stored)) push(current, tail.join(" "));
+			else if (tail.length) current = null;
+			tail = [];
+		};
+		splitClauses(inner).forEach((clause, i) => {
 			const head = _headText(clause);
-			const m = head.match(_TIER_HEAD_RE);
-			if (m) {
-				current = _tierKeysFor(m);
+			const tier = _tierHead(head);
+			if (tier) {
+				flushTail();
+				// An 11+ line is not a rung: it ends the one before it and stays in the prose.
+				if (!tier.keys.length) { current = null; colonOpen = false; return; }
+				if (i === 0) opened = true;
+				current = tier.keys;
 				found = true;
-				const rest = head.slice(m[0].length).replace(/^[\s,;:.]+/, "").trim();
-				for (const key of current) if (rest) parts[key].push(rest);
-				continue;
+				const rest = head.slice(tier.length).replace(/^[\s,;:.]+/, "").trim();
+				// "on a 10+, as a 7-9, but both apply": the restatement replaces what the 7+ before it
+				// said for this rung, rather than following it.
+				if (_RESTATES_RE.test(rest)) for (const key of current) parts[key] = [];
+				if (rest) push(current, rest, true);
+				colonOpen = /:$/.test(rest);
+				return;
 			}
+			if (!current) return;
+			// A clause carrying block markup (a list typed inside the paragraph, as the Heavy's
+			// Sheriff background does) is not rung prose, and it ends the rung.
+			if (_BLOCKISH_RE.test(clause)) { flushTail(); current = null; colonOpen = false; return; }
 			// A rider belongs to every rung equally, so it belongs to none of them: it is lifted
-			// out separately, under the finished ladder.
-			if (current && _RIDER_RE.test(head)) { current = null; continue; }
-			if (current && /^[a-z]/.test(head)) {
-				for (const key of current) parts[key].push(head);
-				continue;
+			// out separately, under the finished ladder. A general clause ends the rung the same way.
+			if (_RIDER_RE.test(head) || _GENERAL_RE.test(head)) { flushTail(); current = null; colonOpen = false; return; }
+			if (tail.length) { tail.push(head); return; }
+			if (colonOpen || opened || !/^[A-Z]/.test(head)) {
+				push(current, head);
+				// A list after a colon runs to the end of its sentence.
+				colonOpen = colonOpen ? !/[.!?]["')\]]?$/.test(head) : /:$/.test(head);
+				return;
 			}
-			current = null;
-		}
+			tail.push(head);
+		});
+		flushTail();
 	};
 
 	for (const { gap, html, implicitParagraph } of _blocks(src)) {
@@ -372,12 +470,17 @@ export function parseTiersFromProse(description) {
 	}
 
 	if (!found) return null;
+	const joined = {};
+	for (const { key } of MOVE_TIERS) {
+		const value = _joinParts(parts[key]);
+		if (value) joined[key] = value;
+	}
+	const shared = _liftSharedOptions(joined);
 	const results = {};
 	for (const { key, label } of MOVE_TIERS) {
-		const value = _joinParts(parts[key]);
-		if (!value) continue;
-		results[key] = { label, value: _sentence(value) };
+		if (joined[key]) results[key] = { label, value: _sentence(joined[key]) };
 	}
+	if (shared) Object.defineProperty(results, "sharedOptions", { value: shared, enumerable: false });
 	// TWO rungs at least. One rung read out of prose is nearly always half a sentence rather
 	// than a ladder — Glorious Servant's "when you Invoke the Sun God and roll a 10+, you need
 	// not choose a consequence; on a 7-9, you choose one" states its hit as part of the TRIGGER,
@@ -387,16 +490,97 @@ export function parseTiersFromProse(description) {
 	return moveTierRows(results).length >= 2 ? results : null;
 }
 
+// A roll that is MADE ("roll +WIS", "rolls +Fortunes", "roll 1d4+Population"), as opposed to one
+// that is only mentioned ("if you roll a 6-").
+const _ROLL_MENTION = String.raw`\b(?:roll|rolls|rolling)\s+(?:\+|\d*d\d)`;
+// A rung head anywhere in running text, article optional, any dash.
+const _RUNG_MENTION = String.raw`\bon\s+(?:an?\s+)?(?:10|[6-9])\s*(?:\+|\p{Pd})`;
+const _ROLL_OR_RUNG_RE = new RegExp(`(${_ROLL_MENTION})|${_RUNG_MENTION}`, "giu");
+
+/**
+ * How many rolls a description makes that have tiers of their own: each roll mention followed by
+ * at least one rung head before the next roll mention. Read over the paragraphs only, as the
+ * ladder is, so a roll named inside an option list does not count.
+ */
+function _rolledTriggerCount(src) {
+	const text = [..._blocks(src)]
+		.map(({ gap, html, implicitParagraph }) => html === null
+			? (implicitParagraph ? gap : "")
+			: (html.match(/^<p\b[^>]*>([\s\S]*?)<\/p\s*>$/i)?.[1] ?? ""))
+		.map(inner => decodeEntities(stripHtmlToText(inner)))
+		.join(" \n ");
+	let count = 0;
+	let rollOpen = false;
+	for (const m of text.matchAll(_ROLL_OR_RUNG_RE)) {
+		if (m[1]) { rollOpen = true; continue; }
+		if (rollOpen) { count++; rollOpen = false; }
+	}
+	return count;
+}
+
+/**
+ * Whether a run of capitalised sentences that follows a rung mid-paragraph is more of that rung:
+ * true when the words it adds (those the rung's prose does not already hold) are, for the most
+ * part, words the move's STORED row for that rung uses too. Deploy's "If the steading is acting
+ * from a position of strength, you choose. Otherwise, the GM chooses." is in its stored 7-9 ("you
+ * choose if acting from strength, GM chooses otherwise"); Defend's "You can spend Readiness
+ * 1-for-1 to:" adds "can spend", which its stored 7-9 never says. No stored row, no evidence:
+ * the run stays where it was written.
+ */
+function _tailBelongs(tail, keys, parts, stored) {
+	if (!stored) return false;
+	return keys.some(key => {
+		const said = new Set(_words(parts[key].map(p => p.text).join(" ")));
+		const added = _words(tail.join(" ")).filter(w => !said.has(w));
+		if (added.length < 2) return false;
+		return _coverageOf(added, new Set(_words(stored[key]?.value ?? ""))) >= _TAIL_COVERED;
+	});
+}
+
+// A rung that takes some number of options without listing them itself ("Pick 3.", "Both.").
+const _NAMES_A_COUNT_RE = /\b(?:picks?|chooses?|ask)\s+(?:\d+|one|two|three|both|all)\b|\ball\s+(?:\d+|two|three)\b|^both\b/i;
+
+// An inline option list at the end of a rung: the one pick-list parser, reading a rung's grammar.
+const _inlineOptions = text => splitPickList(text, { rung: true });
+
+/**
+ * One rung lists its options inline and another only names a count ("on a 10+, pick 3; on a
+ * 7-9, pick 1: a; b; c", the Patch of Rainbow Moss): the options belong to both, so they come off
+ * the rung that happened to list them and are returned to be listed under the ladder, leaving that
+ * rung its lead-in. `values` (plain rung text by key) is rewritten in place. Null when there is
+ * nothing shared.
+ */
+function _liftSharedOptions(values) {
+	for (const key of Object.keys(values)) {
+		const list = _inlineOptions(values[key]);
+		if (!list) continue;
+		const others = Object.keys(values).filter(k => k !== key);
+		if (!others.some(k => _NAMES_A_COUNT_RE.test(values[k]) && !_inlineOptions(values[k]))) continue;
+		// "also pick 2 from:" loses its "from" with its list: "Also pick 2 from." pointed at nothing.
+		values[key] = list.intro.replace(/\s+from:$/i, ":");
+		return list.options;
+	}
+	return null;
+}
+
 /**
  * Join a rung's collected fragments back into prose. A rung is often written across two
  * sentences ("on a 7+, the steading is alert…. On a 10+, also pick 2"), and once the second
  * one's own "On a 10+," lead-in is stripped away it starts mid-sentence — so a fragment that
  * lands after a full stop is given its capital back.
+ *
+ * Each fragment is `{ text, head }`, `head` when it opened with a tier head of its own. Such a
+ * fragment is a new statement, so a colon left hanging before it is settled to a full stop: Bark
+ * an Order's 10+ read "They must choose 1: you can sense which one…", as if sensing were the
+ * choice. A fragment that merely continues its clause keeps the colon it follows ("When you're
+ * looking to sell: you can sell it now").
  */
 function _joinParts(parts) {
-	return parts.reduce((acc, part) => {
-		if (!acc) return part;
-		return acc + " " + (/[.!?]["')\]]?$/.test(acc) ? capitalizeFirst(part) : part);
+	return parts.reduce((acc, { text, head }) => {
+		if (!acc) return text;
+		const prev = head ? acc.replace(/:$/, ".") : acc;
+		const ended = /[.!?]["')\]]?$/.test(prev) && !_ABBREV_END_RE.test(prev);
+		return prev + " " + (ended ? capitalizeFirst(text) : text);
 	}, "").trim();
 }
 
@@ -425,12 +609,16 @@ function _sentence(text) {
  * "… +STAT to …" lines. A description that restates no tier comes back verbatim.
  *
  * `moveResults` is what the ladder will say, and is consulted only to decide whether a clause
- * left behind by a cut is already covered there — see `_COVERED`.
+ * left behind by a cut is already covered there (see `_COVERED`). `alsoSaid` is anything else
+ * the ladder will print (the options `parseTiersFromProse` lifted to list under it).
+ *
+ * `ladderAt` is where in `body` the ladder belongs: right after the last block a tier was cut
+ * from, or after the list that block still introduces. Null when nothing was cut.
  */
-export function stripTierProse(description, moveResults = null) {
+export function stripTierProse(description, moveResults = null, alsoSaid = []) {
 	const src = String(description ?? "");
-	if (!src.trim()) return { body: "", riders: [], listLeadCut: false };
-	const corpus = _tierCorpus(moveResults);
+	if (!src.trim()) return { body: "", riders: [], listLeadCut: false, ladderAt: null };
+	const corpus = [_tierCorpus(moveResults), ...alsoSaid].join(" ");
 	// Tokenized ONCE for the whole walk: `corpus` is loop-invariant, and the two coverage tests
 	// below run per kept clause, so this was up to 2N tokenizations of the full ladder text plus
 	// 2N identical Set constructions per move.
@@ -457,9 +645,22 @@ export function stripTierProse(description, moveResults = null) {
 		// Set by a tier cut and held until a clause that clearly starts something new: the
 		// clauses immediately after a cut are usually the rest of the sentence it was in.
 		let armed = false;
+		// Which kept clauses stood right before a cut tier clause (see the join below).
+		const leadsIntoCut = new Set();
 		for (const clause of clauses) {
 			const head = _headText(clause);
-			if (_TIER_HEAD_RE.test(head)) { armed = droppedHere = dropped = lastClauseCut = true; continue; }
+			const tier = _tierHead(head);
+			if (tier?.keys.length) {
+				if (kept.length) leadsIntoCut.add(kept.length - 1);
+				armed = droppedHere = dropped = lastClauseCut = true;
+				continue;
+			}
+			// An 11+ line after a cut is not the cut sentence's tail: it is kept, as a sentence.
+			if (tier && armed) {
+				armed = lastClauseCut = false;
+				kept.push(_capitalizeVisible(clause.trim()));
+				continue;
+			}
 			if (armed) {
 				// A rider, or a lower-case opening — the tail of the sentence the cut landed in
 				// ("On a 7-9 when you're looking to sell: | you can sell it now, but…"). Left
@@ -467,7 +668,7 @@ export function stripTierProse(description, moveResults = null) {
 				// it: Danger Sense's 6- carries its own "you know there's a trap") or becomes a
 				// footnote under the ladder (Shake It Off's NPC caveat, which the ladder only
 				// abbreviates). Never simply dropped on the strength of its lower case.
-				if (_RIDER_RE.test(head) || /^[a-z]/.test(head)) {
+				if (_RIDER_RE.test(head) || /^[^A-Z]/.test(head)) {
 					if (_coverageOf(_words(head), corpusWords) < _TAIL_COVERED) {
 						riders.push(_capitalizeVisible(balanceInlineHtml(clause.trim())));
 					}
@@ -480,9 +681,11 @@ export function stripTierProse(description, moveResults = null) {
 			lastClauseCut = false;
 			kept.push(clause.trim());
 		}
-		if (!droppedHere) return { html: block, leadLost: false };
+		if (!droppedHere) return { html: block, leadLost: false, cut: false };
+		// Only a colon that led INTO a cut tier is settled: an ordinary colon mid-prose ("Steer
+		// clear: they probably aren't hills") is still followed by what it always introduced.
 		const joined = kept
-			.map((c, i) => (i < kept.length - 1 ? _colonToStop(c) : _trailingStop(c)))
+			.map((c, i) => (i < kept.length - 1 ? (leadsIntoCut.has(i) ? _colonToStop(c) : c) : _trailingStop(c)))
 			.join(" ");
 		const body = balanceInlineHtml(joined).trim();
 		// What is left introduces the next block only if it ENDS on a colon and that colon was
@@ -497,6 +700,7 @@ export function stripTierProse(description, moveResults = null) {
 		return {
 			html: body ? openTag + body + closeTag : "",
 			leadLost: lastClauseCut || !_ENDS_ON_COLON.test(body),
+			cut: true,
 		};
 	};
 
@@ -514,11 +718,18 @@ export function stripTierProse(description, moveResults = null) {
 	let seenList = false;
 	// What the block just before this one said about whether it still introduces the next.
 	let prevLeadLost = false;
+	// Where the ladder goes (see the return), and whether the block after the last cut paragraph is
+	// one that paragraph still introduces (Defend's "You can spend Readiness 1-for-1 to:" and its
+	// list), so the ladder waits until after it rather than parting a lead-in from its list.
+	let ladderAt = null;
+	let introducesNext = false;
 	for (const { gap, html, implicitParagraph } of _blocks(src)) {
 		if (html === null) {
-			out += implicitParagraph
-				? rewriteParagraph("<p>" + gap + "</p>").html.replace(/^<p>|<\/p>$/g, "")
-				: gap;
+			if (implicitParagraph) {
+				const rewritten = rewriteParagraph("<p>" + gap + "</p>");
+				out += rewritten.html.replace(/^<p>|<\/p>$/g, "");
+				if (rewritten.cut) ladderAt = out.length;
+			} else out += gap;
 			continue;
 		}
 		out += gap;
@@ -526,6 +737,11 @@ export function stripTierProse(description, moveResults = null) {
 			const rewritten = rewriteParagraph(html);
 			out += rewritten.html;
 			prevLeadLost = rewritten.leadLost;
+			introducesNext = false;
+			if (rewritten.cut) {
+				ladderAt = out.length;
+				introducesNext = !rewritten.leadLost;
+			}
 			continue;
 		}
 		if (!seenList && /^<ul\b/i.test(html)) {
@@ -534,10 +750,12 @@ export function stripTierProse(description, moveResults = null) {
 		}
 		prevLeadLost = false;
 		out += html;
+		if (introducesNext) ladderAt = out.length;
+		introducesNext = false;
 	}
 	// No `dropped &&` guard: `leadLost` is only ever true past the `droppedHere` return above, and
 	// `droppedHere` and `dropped` are set in the same statement, so a cut has always happened.
-	return { body: dropped ? out : src, riders, listLeadCut };
+	return { body: dropped ? out : src, riders, listLeadCut, ladderAt: dropped ? ladderAt : null };
 }
 
 /**
@@ -654,10 +872,16 @@ function _buildMoveBodyHtml(description, moveResults) {
 	// states, and stored rows fill the rest, which also carries the moves whose descriptions state
 	// no outcome at all (every player-authored custom move, plus the Blessed's Borrow Power and
 	// Suck the Poison Out — 5 of the 54 shipped, and the reason this argument exists).
-	const results = _mergeTiers(parseTiersFromProse(description), moveResults);
+	const parsed = parseTiersFromProse(description, moveResults);
+	const results = _mergeTiers(parsed, moveResults);
 	if (!moveTierRows(results).length) return String(description ?? "");
-	const { body, riders, listLeadCut } = stripTierProse(description, results);
+	// Options one rung listed inline for all of them, listed once under the rows instead.
+	const shared = parsed?.sharedOptions ?? [];
+	const { body, riders, listLeadCut, ladderAt } = stripTierProse(description, results, shared);
 	const notes = riders.map(r => '<p class="stonetop-move-tiers-note">' + r + '</p>').join("");
+	const sharedHtml = shared.length
+		? '<ul class="stonetop-move-shared-options">' + shared.map(o => "<li>" + escHtml(capitalizeFirst(o)) + "</li>").join("") + "</ul>"
+		: "";
 
 	// THE move's printed option list, found ONCE and used for both questions below — which
 	// options the ladder must not reprint, and which list gets re-hung under it. `firstOptionList`
@@ -676,13 +900,33 @@ function _buildMoveBodyHtml(description, moveResults) {
 	// Readiness 1-for-1 to:" and Silver Tongued's "You may spend Nerve, 1-for-1, to:" are not
 	// tier clauses and survive the strip, and their lists are a separate offer rather than the
 	// outcome of a roll — those stay attached to the sentence that opens them.
-	if (!listLeadCut || !list) return body + ladder + notes;
+	//
+	// THE LADDER SITS WHERE ITS TIERS WERE (`ladderAt`), not at the end of the body: Urges' second
+	// trigger ("When you act on your impulse without being compelled…") and Dark Succor's
+	// "Regardless, reset your Favor to 0." follow the outcomes in the book, and appended after them
+	// the ladder read as the outcome of the wrong sentence. A move with no tier in its prose (its
+	// rows all stored) has no such place, and its ladder goes last.
+	if (!listLeadCut || !list) return _insertAt(body, ladderAt, ladder + sharedHtml + notes, false);
 	// Moved WHOLE and unmodified, ticked options and all: `data-index` is positional within its
 	// own `<ul>`, so a message's saved ticks still land on the option they were put on. The rider
-	// goes last of all — it comments on the whole move ("either way, gain advantage on your next
+	// goes after it: it comments on the whole move ("either way, gain advantage on your next
 	// roll to act on the answer"), and the answers it means are in the list above it.
-	const withoutList = (body.slice(0, list.index) + body.slice(list.index + list.length)).trim();
-	return withoutList + ladder + body.slice(list.index, list.index + list.length) + notes;
+	const listHtml = body.slice(list.index, list.index + list.length);
+	const withoutList = body.slice(0, list.index) + body.slice(list.index + list.length);
+	const at = ladderAt == null ? null
+		: ladderAt > list.index ? Math.max(list.index, ladderAt - list.length) : ladderAt;
+	return _insertAt(withoutList, at, ladder + listHtml + sharedHtml + notes, true);
+}
+
+/**
+ * `html` with `insert` at offset `at`, or after all of it when `at` is null or nothing but space
+ * follows. `trim` trims the outer ends, as the list-moving path always has.
+ */
+function _insertAt(html, at, insert, trim) {
+	if (at == null || at >= html.trimEnd().length) return (trim ? html.trim() : html) + insert;
+	const before = html.slice(0, at);
+	const after = html.slice(at);
+	return (trim ? before.trimStart() : before) + insert + (trim ? after.trimEnd() : after);
 }
 
 /**
@@ -710,6 +954,24 @@ function _buildMoveBodyHtml(description, moveResults) {
 export function moveCardBody(description, moveResults = null, { pickable = true } = {}) {
 	const body = pickable ? pickableMoveDescription(description) : String(description ?? "");
 	return moveBodyHtml(body, moveResults ?? null);
+}
+
+/**
+ * The body a ROLL card shows: `moveCardBody`, unless the caller already built one. rollStat runs
+ * every description through here, so a roll whose caller handed over the move's raw prose (Death's
+ * Door, Send Them Back, a seeker lead) still gets the ladder `markRolledTier` lights, and Shift
+ * Up/Down has a rung to move. A body that already carries a ladder was built by its caller (with
+ * pick bonuses, say) and is left exactly as it is. One with none, built or not, comes out the same
+ * either way: both steps leave a body they have nothing to add to untouched.
+ *
+ * @param {string} description
+ * @param {object|null} [moveResults]
+ * @param {{pickable?: boolean}} [opts]  as moveCardBody: false when the roll declares its own pool
+ */
+export function rollCardBody(description, moveResults = null, opts = {}) {
+	const html = String(description ?? "");
+	if (!html.trim() || new RegExp(`class="[^"]*\\b${MOVE_TIERS_CLASS}\\b`).test(html)) return html;
+	return moveCardBody(html, moveResults, opts);
 }
 
 /**
@@ -745,4 +1007,26 @@ export function markRolledTier(html, tierKey) {
 	const open = new RegExp(
 		`<ul\\b(?![^>]*\\b${ROLLED_TIER_ATTR}=)([^>]*\\bclass="[^"]*\\b${MOVE_TIERS_CLASS}\\b[^>]*)>`);
 	return src.replace(open, `<ul$1 ${ROLLED_TIER_ATTR}="${tierKey}">`);
+}
+
+/**
+ * MOVE the mark on a landed card once its total is rewritten (a GM's Shift Up/Down, a +1, Burn
+ * Brightly, Impetuous Youth): the ladder `markRolledTier` stamped is re-stamped with the tier the
+ * new total COUNTS as. A 12+ is a strong hit, so "critical" marks the 10+ row. Only a ladder that
+ * was stamped at the roll is touched, so a card that never showed one gains none. Answers whether
+ * a ladder was re-marked.
+ *
+ * Takes the card's root element (stonetop.js#_shiftRollCardFlavor's wrapper), or anything with a
+ * `querySelector`, which is what lets a test drive it without a DOM.
+ *
+ * @param {{querySelector: Function}} root
+ * @param {string} tier  "critical" | "success" | "partial" | "failure"
+ */
+export function remarkRolledTier(root, tier) {
+	const rung = outcomeTier(tier);
+	if (!MOVE_TIERS.some(t => t.key === rung)) return false;
+	const ladder = root?.querySelector?.(`.stonetop-roll-card ul.${MOVE_TIERS_CLASS}[${ROLLED_TIER_ATTR}]`);
+	if (!ladder) return false;
+	ladder.setAttribute(ROLLED_TIER_ATTR, rung);
+	return true;
 }

@@ -617,6 +617,17 @@
 		</details>
 		{{/if}}
 	</div>
+	{{!-- The built-in cards' "in the party" toggle (follower-party.js), the same control a custom
+	      card carries in its own actions row below: whether they travel, eat at Make Camp and heal
+	      there. Unset, the companion and the crew are in; initiates and beasts are not. --}}
+	{{#if edit.card}}{{#unless (eq ftype "custom")}}
+	<div class="stonetop-follower-card-actions">
+		<label class="stonetop-follower-party-toggle">
+			<input type="checkbox" class="stonetop-follower-party-check" data-ftype="{{ftype}}" data-slug="{{slug}}" {{#if party}}checked{{/if}}>
+			Party follower <span class="stonetop-follower-party-hint">(travels with the party: eats and rests at Make Camp)</span>
+		</label>
+	</div>
+	{{/unless}}{{/if}}
 	{{/inline}}
 
 	<div class="stonetop-details-heading-row">
@@ -1057,7 +1068,7 @@
 		{{#if edit.card}}
 		<div class="stonetop-follower-card-actions">
 			<label class="stonetop-follower-party-toggle">
-				<input type="checkbox" class="stonetop-follower-party-check" data-slug="{{slug}}" {{#if party}}checked{{/if}}>
+				<input type="checkbox" class="stonetop-follower-party-check" data-ftype="custom" data-slug="{{slug}}" {{#if party}}checked{{/if}}>
 				Party follower <span class="stonetop-follower-party-hint">(any PC pays/spends its Loyalty)</span>
 			</label>
 			<div class="stonetop-follower-card-actions-buttons">

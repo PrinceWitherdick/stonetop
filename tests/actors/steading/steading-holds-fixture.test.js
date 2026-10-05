@@ -59,37 +59,43 @@ function fixtureSteadingFlags({ year = 1, season = "spring" } = {}) {
 const keysFor = actor => new StonetopSteading(actor).holdsView().map(r => r.key);
 
 describe("the test fixture's seeded tray", () => {
-	// NO season lights all nine, and that is the tray's shape rather than a hole in the seed:
-	// the weapons' bill is spring-only, the herd's growth is summer-only, and the herd's feed
-	// and winter's debt are both winter-only. What the macro seeds is season-INDEPENDENT, so
+	// NO season lights all eleven, and that is the tray's shape rather than a hole in the seed:
+	// the weapons' bill is spring-only, the herd's growth is summer-only, the harvest is
+	// autumn-only, and the herd's feed and winter's debt are both winter-only. What the macro seeds is season-INDEPENDENT, so
 	// each season below is the full set MINUS the rows that season shuts out. A row that stops
 	// being gated on its season should break one of these, not the header in the world.
 	const at = season => keysFor(seededActor({ season, steadingFlags: fixtureSteadingFlags({ season }) }));
-	const ALL = HOLD_DEFS.map(d => d.key);
+	// Less the owed disaster: it is left behind by a pick shut unmade at Fortunes −1, a moment
+	// rather than a standing state, so the fixture does not seed one into every test world.
+	// And less the generic upkeep row: it is a HOMEBREW improvement's upkeep, and the fixture seeds
+	// only the book's own (the watch and the weapons keep their own rows).
+	const ALL = HOLD_DEFS.map(d => d.key).filter(k => k !== "disasterOwed" && k !== "upkeep");
 	const without = (...keys) => ALL.filter(k => !keys.includes(k));
 
 	it("lights the six spring allows, weapons included", () => {
-		expect(at("spring")).toEqual(without("herdAdvance", "militiaTraining", "herdFeed", "winterDebt"));
+		expect(at("spring")).toEqual(without("herdAdvance", "harvest", "militiaTraining", "herdFeed", "winterDebt"));
 		expect(at("spring")).toHaveLength(6);
 	});
 
 	// Summer trades the weapons' spring bill for two of its own: the herd's growth and the
 	// militia's drills, which is why it ties winter for the widest the tray ever gets.
 	it("trades the weapons' spring bill for the herd's growth and the militia's drills", () => {
-		expect(at("summer")).toEqual(without("weaponsUpkeep", "herdFeed", "winterDebt"));
+		expect(at("summer")).toEqual(without("harvest", "weaponsUpkeep", "herdFeed", "winterDebt"));
 		expect(at("summer")).toHaveLength(7);
 	});
 
-	// Autumn asks nothing seasonal of anybody, so it is the quietest the seeded tray gets.
-	it("drops to five in autumn, which shuts out every season-locked row", () => {
+	// Autumn's one seasonal row is its harvest, which waits until the harvest is complete: the
+	// quietest the seeded tray gets.
+	it("drops to six in autumn, the harvest its only season-locked row", () => {
 		expect(at("autumn")).toEqual(without("herdAdvance", "militiaTraining", "weaponsUpkeep", "herdFeed", "winterDebt"));
-		expect(at("autumn")).toHaveLength(5);
+		expect(at("autumn")).toContain("harvest");
+		expect(at("autumn")).toHaveLength(6);
 	});
 
 	// Seven again, by a different route: the herd's FEED and winter's second consumption fall
 	// together where summer had the herd's growth and the militia.
 	it("matches summer at seven in winter, on different rows", () => {
-		expect(at("winter")).toEqual(without("herdAdvance", "militiaTraining", "weaponsUpkeep"));
+		expect(at("winter")).toEqual(without("herdAdvance", "harvest", "militiaTraining", "weaponsUpkeep"));
 		expect(at("winter")).toHaveLength(7);
 	});
 
@@ -261,7 +267,7 @@ describe("re-running the fixture after the season turns", () => {
 	const expected = {
 		spring: ["fortunesAdvantage", "muster", "torsBlessing", "innGathering", "standingWatch", "weaponsUpkeep"],
 		summer: ["fortunesAdvantage", "muster", "torsBlessing", "herdAdvance", "innGathering", "standingWatch", "militiaTraining"],
-		autumn: ["fortunesAdvantage", "muster", "torsBlessing", "innGathering", "standingWatch"],
+		autumn: ["fortunesAdvantage", "muster", "torsBlessing", "harvest", "innGathering", "standingWatch"],
 		winter: ["fortunesAdvantage", "muster", "torsBlessing", "innGathering", "standingWatch", "herdFeed", "winterDebt"],
 	};
 

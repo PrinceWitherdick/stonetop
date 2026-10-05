@@ -41,8 +41,8 @@
 				<option value="{{key}}" {{#if (eq key ../resource.maxStatValue)}}selected{{/if}}>{{abbr}}</option>
 				{{/each}}
 			</select></label>
-		<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Stage labels (one per line)</span>
-			<textarea class="stonetop-arc-input" data-arc-field="{{prefix}}.labels" data-arc-type="lines" rows="2" placeholder="plenty&#10;low&#10;out">{{resource.labelsText}}</textarea></label>
+		<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Circle labels (one line per circle; leave a line blank to skip one)</span>
+			<textarea class="stonetop-arc-input" data-arc-field="{{prefix}}.labels" data-arc-type="lines" rows="2" placeholder="&#10;low&#10;out">{{resource.labelsText}}</textarea></label>
 	</div>
 	{{/inline}}
 
@@ -195,6 +195,16 @@
 				<div class="stonetop-arc-subgrid">
 					<label class="stonetop-arc-row stonetop-arc-row--wide"><span>Trigger (“When you…”)</span>
 						<input type="text" class="stonetop-arc-input" data-arc-field="flags.stonetop.back.move.name" value="{{edit.back.move.name}}"></label>
+					{{!-- Which stat it rolls. Blank reads the stat off the effect text ("roll +INT"),
+					      and a move that says none there has no roll. --}}
+					<label class="stonetop-arc-row"><span>Roll</span>
+						<select class="stonetop-arc-input" data-arc-field="flags.stonetop.back.move.rollType">
+							<option value="" {{#if (eq "" edit.back.move.rollTypeValue)}}selected{{/if}}>— as the text says —</option>
+							{{#each statOptions}}
+							<option value="{{key}}" {{#if (eq key ../edit.back.move.rollTypeValue)}}selected{{/if}}>+{{abbr}}</option>
+							{{/each}}
+							<option value="ask" {{#if (eq "ask" edit.back.move.rollTypeValue)}}selected{{/if}}>Ask each time</option>
+						</select></label>
 				</div>
 				<label class="stonetop-arc-label">Move effect</label>
 				<prose-mirror class="stonetop-arc-rich" data-arc-field="flags.stonetop.back.move.description" value="{{edit.back.move.description}}">{{{edit.back.move.descriptionEnriched}}}</prose-mirror>

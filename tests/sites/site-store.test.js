@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shapeSiteSystem } from "../../module/sites/site-store.js";
+import { shapeSiteSystem, tableFaces, BLANK_FACE } from "../../module/sites/site-store.js";
 
 describe("shapeSiteSystem", () => {
 	it("fills every field for an empty seed, so a bare site still saves", () => {
@@ -65,6 +65,14 @@ describe("shapeSiteSystem", () => {
 			{ caption: "What the crinwin are up to", rows: [] },
 			{ caption: "", rows: ["fighting over junk"] },
 		]);
+	});
+
+	it("keeps a blank face as a face, so the die and the numbering stay as the wizard showed them", () => {
+		const sys = shapeSiteSystem({
+			randomTables: [{ caption: "Encounters", rows: ["Wolves", "Wolves", "", "Bears", "Bears", " "] }],
+		});
+		expect(sys.randomTables[0].rows).toEqual(["Wolves", "Wolves", BLANK_FACE, "Bears", "Bears", BLANK_FACE]);
+		expect(tableFaces(["", " "])).toEqual([]);
 	});
 
 	it("coerces stray shapes rather than throwing", () => {

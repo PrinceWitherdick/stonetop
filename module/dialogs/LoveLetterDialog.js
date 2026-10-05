@@ -59,18 +59,16 @@ export class LoveLetterDialog extends StonetopDialog {
 		const rollType = normalizeRollType(sys.rollType) ?? "";
 		const mr = sys.moveResults ?? {};
 		const options = Array.isArray(sys.pickOptions) ? sys.pickOptions.filter(Boolean) : [];
-		// A letter is authored in ONE of two mutually-exclusive result styles, and reopens
-		// in whichever it was saved with. Classify by the shared pick-list POOL (pickOptions)
-		// — the defining feature of list style — NOT by the per-tier pick counts alone: the
-		// pre-rename dialog showed a "Pick N" box beside every prose tier, so a legacy prose
-		// letter can carry a non-zero pick alongside real prose. Keying on those counts would
-		// force such a letter into list mode and blank its prose on the next save. So prefer
-		// prose whenever the letter has prose text; only treat bare pick counts (no pool, no
-		// prose) as list. The template picks the checked radio / visible panel off resultStyle
-		// via the `eq` helper.
+		// A letter is authored in one of two result styles, and reopens in whichever it was
+		// saved with. List style is prose's superset (a pool, pick counts, and optional words
+		// per result), so the shared pick-list POOL (pickOptions) decides it first. Pick counts
+		// alone do NOT: the pre-rename dialog showed a "Pick N" box beside every prose tier, so a
+		// legacy prose letter can carry a stray non-zero pick alongside real prose, and it stays
+		// prose. Only bare pick counts (no pool, no prose) read as list. The template picks the
+		// checked radio / visible panel off resultStyle via the `eq` helper.
 		const hasProse = !!(mr.success?.value || mr.partial?.value || mr.failure?.value);
 		const hasPicks = !!(mr.success?.pick || mr.partial?.pick || mr.failure?.pick);
-		const resultStyle = hasProse ? "prose" : ((options.length > 0 || hasPicks) ? "list" : "prose");
+		const resultStyle = options.length > 0 ? "list" : (hasProse ? "prose" : (hasPicks ? "list" : "prose"));
 		return {
 			isEdit: !!this._item,
 			recipients: this._item ? [] : loveLetterRecipientOptions(),
@@ -147,8 +145,9 @@ export class LoveLetterDialog extends StonetopDialog {
 			return;
 		}
 
-		// Persist ONLY the fields for the chosen result style, so a saved letter never
-		// carries both a pick-list and freeform prose (which the reader would show together).
+		// Persist ONLY the fields of the chosen result style: prose style drops the pool and
+		// pick counts, list style keeps them plus its own per-result words (the list panel's
+		// listSuccess/... fields, not the hidden prose panel's).
 		const isList = this._selectedStyle(root) === "list";
 		const input = {
 			name,
@@ -164,8 +163,13 @@ export class LoveLetterDialog extends StonetopDialog {
 				partial: val("[name=pickPartial]"),
 				failure: val("[name=pickFailure]"),
 			} : { success: 0, partial: 0, failure: 0 },
-			// Prose style: freeform 10+/7-9/6- outcome text.
-			results: isList ? { success: "", partial: "", failure: "" } : {
+			// The 10+/7-9/6- words: the whole outcome in prose style, an optional addition to
+			// the picks in list style.
+			results: isList ? {
+				success: val("[name=listSuccess]"),
+				partial: val("[name=listPartial]"),
+				failure: val("[name=listFailure]"),
+			} : {
 				success: val("[name=success]"),
 				partial: val("[name=partial]"),
 				failure: val("[name=failure]"),

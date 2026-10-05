@@ -8,7 +8,7 @@ import { escHtml } from "./strings.js";
 import { confirmOutcome } from "./ask-with-buttons.js";
 import { ledgerNounOptionsHtml, wireLedgerFilters } from "./ledger-filter.js";
 import { categoryForEntry } from "./ledger-categories.js";
-import { ledgerNoun } from "./ledger-core.js";
+import { ledgerSubject, canDeleteLedgerEntry } from "./ledger-core.js";
 import { attachFrontOnOpen } from "./front-on-open.js";
 
 function ledgerDate(timestamp) {
@@ -30,7 +30,11 @@ function ledgerDate(timestamp) {
 	};
 }
 
-function buildRows(items) {
+/**
+ * The ledger's rows. `canDelete(entry)` decides each row's checkbox: a row the viewer may not
+ * delete (a GM's entry, for a player) gets a disabled one, so select-all and Delete pass it by.
+ */
+export function ledgerRowsHtml(items, canDelete = () => true) {
 	if (!items.length) return `<li class="stonetop-ledger-empty">No ledger entries yet.</li>`;
 	return items.map((entry, index, list) => {
 		const date = ledgerDate(entry.timestamp);
@@ -38,11 +42,12 @@ function buildRows(items) {
 		const header = date.key !== previous
 			? `<li class="stonetop-ledger-date-header" data-date-key="${escHtml(date.key)}">${escHtml(date.label)}</li>`
 			: "";
+		const locked = !canDelete(entry);
 		// Subject and category are stamped here, from the entry itself, so the filter can read
 		// them back off the row instead of re-deriving them from the rendered text — and so the
 		// noun it matches on is character-for-character the one the dropdown offers.
-		return `${header}<li class="stonetop-ledger-entry" data-id="${escHtml(entry.id)}" data-timestamp="${entry.timestamp ?? 0}" data-noun="${escHtml(ledgerNoun(entry.action))}" data-category="${escHtml(categoryForEntry(entry))}" data-date-key="${escHtml(date.key)}" data-date-label="${escHtml(date.label)}">
-			<input type="checkbox" class="stonetop-ledger-row-check">
+		return `${header}<li class="stonetop-ledger-entry" data-id="${escHtml(entry.id)}" data-timestamp="${entry.timestamp ?? 0}" data-noun="${escHtml(ledgerSubject(entry))}" data-category="${escHtml(categoryForEntry(entry))}" data-date-key="${escHtml(date.key)}" data-date-label="${escHtml(date.label)}">
+			<input type="checkbox" class="stonetop-ledger-row-check"${locked ? ` disabled title="Only the GM can delete an entry the GM made"` : ""}>
 			<div class="stonetop-ledger-entry-content">
 				<div class="stonetop-ledger-entry-main">${escHtml(entry.action)}${entry.move ? ` <span class="stonetop-ledger-entry-move">via ${escHtml(entry.move)}</span>` : ""}</div>
 				<div class="stonetop-ledger-entry-user">Changed by ${escHtml(entry.userName)}</div>
@@ -54,6 +59,22 @@ function buildRows(items) {
 	}).join("");
 }
 
+/** The rows a Delete can take: on show and deletable. */
+const SELECTABLE = ".stonetop-ledger-entry:not([hidden]) .stonetop-ledger-row-check:not(:disabled)";
+/** The rows whose checkbox is ticked AND that are on show and deletable. */
+const SELECTED_ROW_CHECKS = `${SELECTABLE}:checked`;
+
+/**
+ * The ids of the rows a Delete would take: ticked, on show, deletable. Only what is ON SHOW: a row
+ * ticked and then filtered out of view used to be deleted along with the visible ones, unseen,
+ * and counted in the confirmation as though the player could see it.
+ */
+export function selectedLedgerIds(root) {
+	return [...root.querySelectorAll(SELECTED_ROW_CHECKS)]
+		.map(el => el.closest(".stonetop-ledger-entry")?.dataset.id)
+		.filter(Boolean);
+}
+
 /**
  * Open the changes-ledger dialog for an actor.
  * @param {Actor}  actor   the steading / NPC actor whose ledger is shown
@@ -63,10 +84,15 @@ function buildRows(items) {
 export function openLedgerDialog(actor, ledger) {
 	const entries = ledger.getEntries(actor);
 	const nounOptions = ledgerNounOptionsHtml(entries);
+	// The same rule deleteEntries applies (canDeleteLedgerEntry): an observer gets no editing at
+	// all, and a player cannot tick a GM's entry. The write is refused anyway; this keeps the
+	// dialog from offering what it cannot do.
+	const canDelete = (entry) => canDeleteLedgerEntry(actor, entry);
+	const mayEdit = entries.some(canDelete);
 
 	const content = `<div class="stonetop-ledger-container">
 		<div class="stonetop-ledger-toolbar">
-			<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
+			${mayEdit ? `<label class="stonetop-edit-toggle stonetop-ledger-edit-toggle" title="Edit entries">
 				<input type="checkbox" class="stonetop-ledger-edit-check">
 				<span class="stonetop-toggle-track">
 					<span class="stonetop-toggle-thumb"><i class="fas fa-pen"></i></span>
@@ -77,7 +103,7 @@ export function openLedgerDialog(actor, ledger) {
 			</label>
 			<button type="button" class="stonetop-ledger-delete-selected">
 				<i class="fas fa-trash"></i> Delete
-			</button>
+			</button>` : ""}
 			<input type="search" class="stonetop-ledger-search" placeholder="Filter entries…">
 			<select class="stonetop-ledger-noun" title="Filter by subject">
 				<option value="">All changes</option>
@@ -89,7 +115,7 @@ export function openLedgerDialog(actor, ledger) {
 			</select>
 		</div>
 		<section class="stonetop-ledger-dialog">
-			<ol class="stonetop-ledger-list">${buildRows(entries)}</ol>
+			<ol class="stonetop-ledger-list">${ledgerRowsHtml(entries, canDelete)}</ol>
 		</section>
 	</div>`;
 
@@ -137,7 +163,8 @@ export function openLedgerDialog(actor, ledger) {
 			};
 
 			const syncSelectAll = () => {
-				const visibleRows = html.find(".stonetop-ledger-entry:not([hidden]) .stonetop-ledger-row-check");
+				if (!selectAllEl) return;
+				const visibleRows = html.find(SELECTABLE);
 				const total   = visibleRows.length;
 				const checked = visibleRows.filter(":checked").length;
 				selectAllEl.checked       = checked === total && total > 0;
@@ -153,8 +180,7 @@ export function openLedgerDialog(actor, ledger) {
 			});
 
 			html.find(".stonetop-ledger-select-all").on("change", ev => {
-				html.find(".stonetop-ledger-entry:not([hidden]) .stonetop-ledger-row-check")
-					.prop("checked", ev.currentTarget.checked);
+				html.find(SELECTABLE).prop("checked", ev.currentTarget.checked);
 			});
 
 			html[0].addEventListener("change", ev => {
@@ -174,29 +200,38 @@ export function openLedgerDialog(actor, ledger) {
 			});
 
 			html.find(".stonetop-ledger-delete-selected").on("click", async () => {
-				const checked = [...html.find(".stonetop-ledger-row-check:checked")];
-				if (!checked.length) return;
+				const selected = selectedLedgerIds(list);
+				if (!selected.length) return;
 
+				// Rows come off once the write has landed, and only the rows it actually deleted:
+				// taken off first, a refused write (a player without the right) left the dialog
+				// showing them gone while the ledger kept them.
 				const doDelete = async () => {
-					const ids = new Set(
-						checked.map(el => el.closest(".stonetop-ledger-entry").dataset.id)
-					);
-					checked.forEach(el => el.closest(".stonetop-ledger-entry")?.remove());
+					let deleted;
+					try {
+						deleted = await ledger.deleteEntries(actor, new Set(selected));
+					} catch (err) {
+						console.error("Stonetop | could not delete ledger entries", err);
+						ui.notifications?.error?.("Those ledger entries could not be deleted.");
+						return;
+					}
+					for (const id of deleted ?? []) {
+						list.querySelector(`.stonetop-ledger-entry[data-id="${CSS.escape(id)}"]`)?.remove();
+					}
 					refreshDateHeaders();
 					syncDateHeaders();
 					syncSelectAll();
-					await ledger.deleteEntries(actor, ids);
 				};
 
-				if (checked.length === 1) {
+				if (selected.length === 1) {
 					await doDelete();
 					return;
 				}
 
 				const ok = await confirmOutcome({
 					title:   "Delete Ledger Entries",
-					content: `<p>You're about to delete ${checked.length} entries. They can't be brought back.</p>`,
-					yes:     { label: `Delete ${checked.length} entries`, icon: "fa-trash" },
+					content: `<p>You're about to delete ${selected.length} entries. They can't be brought back.</p>`,
+					yes:     { label: `Delete ${selected.length} entries`, icon: "fa-trash" },
 					no:      { label: "Keep them" },
 					classes: ["stonetop-ledger-child"],
 				});

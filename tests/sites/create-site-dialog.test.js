@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { CreateSiteDialog, _countLines, TERRAIN_KEY } from "../../module/sites/create-site-dialog.js";
-import { siteManner, combinableRows } from "../../module/data/site-tables.js";
+import { siteManner, combinableRows, REGION_TABLE_PREFIX } from "../../module/data/site-tables.js";
 import Handlebars from "handlebars";
 import { readRepo } from "../fakes/css.js";
 import { shapeSiteSystem } from "../../module/sites/site-store.js";
@@ -147,6 +147,12 @@ describe("the schema round-trip", () => {
 		const saved = shapeSiteSystem({ questions: [{ prompt: "Who built it?", answer: "" }] });
 		expect(seedFromPage({ name: "Tomb", system: saved }).questions)
 			.toEqual([{ prompt: "Who built it?", answer: "" }]);
+	});
+
+	it("keeps every face of a table run longer than one row may cover", () => {
+		const rows = [...Array(30).fill("Nothing"), "A wolf"];
+		const sel = seedFromPage({ name: "Tomb", system: { randomTables: [{ caption: "Encounters", rows }] } });
+		expect(on({ ...blankSel(), ...sel })._seed().randomTables[0].rows).toEqual(rows);
 	});
 
 	it("carries a list added to the schema alone, with nothing else edited", () => {
@@ -397,5 +403,121 @@ describe("cs-pick-slots.hbs", () => {
 		const d = dlg({ manner: "greenLord" });
 		d._setPick("purpose", 0, "Dwelling (home, barracks, dormitory, etc.)");
 		expect(render(d._pickSlots("purpose"))).not.toContain("stonetop-cs-combine");
+	});
+
+	it("keeps an answer no row carries selected, so a save cannot silently change it", () => {
+		const html = render(dlg({ manner: "greenLord", picks: { purpose: ["A dwelling of my own"] } })._pickSlots("purpose"));
+		expect(html).toContain('<option value="A dwelling of my own" selected>A dwelling of my own</option>');
+	});
+});
+
+describe("each combined slot rolls on its own row's sub-die", () => {
+	const dlg = (sel) => on({ ...blankSel(), ...sel });
+	const themes = siteManner("greenLord").tables.find(t => t.key === "theme").rows;
+	const plain = themes.filter(r => !r.again).map(r => r.text);
+	const top = () => 0.999;   // the last row the pool holds
+
+	it("offers and rolls a giant-sized row's 1d8 even when it was combined in second", () => {
+		const d = dlg({ manner: "greenLord", picks: { theme: [plain[0], "Sized for giants", plain[1]] } });
+		expect(d._pickSlots("theme").slots[2].rows).toHaveLength(8);
+		d._rollPick("theme", 2, top);
+		// The top of the 1d8 is Corruption (row 8), never the giant-sized 9-12 the whole table ends on.
+		expect(d._sel.picks.theme[2]).toBe("Corruption by the Things Below");
+	});
+
+	it("offers and rolls a free combine beside a giant-sized pick off the whole table", () => {
+		const d = dlg({ manner: "greenLord", picks: { theme: ["Sized for giants", plain[0], ""] } });
+		expect(d._pickSlots("theme").slots[2].rows).toHaveLength(themes.length);
+		d._rollPick("theme", 2, top);
+		expect(d._sel.picks.theme[2]).toBe("Sized for giants");
+	});
+});
+
+describe("re-opening a site saved under older wording", () => {
+	const seedFromPage = (page) => CreateSiteDialog.prototype._seedFromPage.call({}, page);
+
+	it("puts a legacy roll-again answer back on its row", () => {
+		const sel = seedFromPage({ name: "Tomb", system: {
+			manner: "greenLord",
+			picks: [{ key: "theme", label: "Theme", value: "Sized for giants, and roll 1d8 again" }],
+			regionId: "labyrinth", terrain: "An obstruction, and roll 1d10 again",
+		} });
+		expect(sel.picks.theme).toEqual(["Sized for giants"]);
+		expect(sel.terrain).toEqual(["An obstruction"]);
+		// And the 1d8 it was owed is on offer again.
+		expect(on({ ...blankSel(), ...sel })._pickSlots("theme").canAdd).toBe(true);
+	});
+
+	it("keeps a branch whose opening row no longer matches, and its answers, through a save", () => {
+		const sel = seedFromPage({ name: "Tomb", system: {
+			manner: "greenLord",
+			picks: [
+				{ key: "site", label: "What kind of site?", value: "Lingering signs, as it was once worded" },
+				{ key: "sign", label: "Lingering sign", value: "Strange plants" },
+			],
+		} });
+		const saved = shapeSiteSystem(on({ ...blankSel(), ...sel })._seed());
+		expect(saved.picks.map(p => [p.key, p.value])).toEqual([
+			["site", "Lingering signs, as it was once worded"],
+			["sign", "Strange plants"],
+		]);
+	});
+});
+
+describe("a region's further tables", () => {
+	const dlg = (sel) => on({ ...blankSel(), ...sel });
+	const building = `${REGION_TABLE_PREFIX}building`;
+	const purpose = `${REGION_TABLE_PREFIX}purpose`;
+
+	it("opens the Ruined Tower's building off its terrain and the purpose off the building", () => {
+		const d = dlg({ regionId: "ruinedTower" });
+		expect(d._pickSlots(building).slots).toEqual([]);
+		d._setPick(TERRAIN_KEY, 0, "A building, at least somewhat intact");
+		expect(d._pickSlots(building).slots[0]).toMatchObject({ label: "Building", hint: "1d12" });
+		d._setPick(building, 0, "From before the tower's fall");
+		d._setPick(purpose, 0, "Esoterica/experimentation");
+		expect(d._seed().picks).toEqual([
+			{ key: building, label: "Building", value: "From before the tower's fall" },
+			{ key: purpose, label: "Purpose", value: "Esoterica/experimentation" },
+		]);
+	});
+
+	it("drops the building and its purpose when the terrain changes away from it", () => {
+		const d = dlg({ regionId: "ruinedTower" });
+		d._setPick(TERRAIN_KEY, 0, "A building, at least somewhat intact");
+		d._setPick(building, 0, "Built after the tower's fall");
+		d._setPick(purpose, 0, "Home/barracks/living space");
+		d._setPick(TERRAIN_KEY, 0, "Mud/standing water/deep snow");
+		expect(d._sel.regionPicks).toEqual({});
+		expect(d._seed().picks).toEqual([]);
+	});
+
+	it("carries the further picks out to the page and back", () => {
+		const d = dlg({ manner: "cave", regionId: "ruinedTower" });
+		d._setPick("structure", 0, "Long, narrow, meandering");
+		d._setPick(TERRAIN_KEY, 0, "A building, at least somewhat intact");
+		d._setPick(building, 0, "From before the tower's fall");
+		d._setPick(purpose, 0, "Work/production/creation");
+		const saved = shapeSiteSystem(d._seed());
+		const sel = CreateSiteDialog.prototype._seedFromPage.call({}, { name: "T", system: saved });
+		expect(sel.picks).toEqual({ structure: ["Long, narrow, meandering"] });
+		expect(sel.regionPicks).toEqual({ building: ["From before the tower's fall"], purpose: ["Work/production/creation"] });
+	});
+});
+
+describe("Roll the lot", () => {
+	const dlg = (sel) => on({ ...blankSel(), ...sel });
+
+	it("leaves the tables the book makes conditional for the GM to roll on their own", () => {
+		const haunted = dlg({ manner: "haunted" });
+		haunted._rollAll(() => 0);
+		expect(Object.keys(haunted._sel.picks)).toEqual(["theme", "howLong", "origins"]);
+		const cave = dlg({ manner: "cave" });
+		cave._rollAll(() => 0);
+		expect(Object.keys(cave._sel.picks)).not.toContain("beast");
+		expect(Object.keys(cave._sel.picks)).toContain("discovery");
+		// Still rollable one at a time.
+		cave._rollPick("beast", 0, () => 0);
+		expect(cave._sel.picks.beast).toEqual(["Bats. So many bats"]);
 	});
 });

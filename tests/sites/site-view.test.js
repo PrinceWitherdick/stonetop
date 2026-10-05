@@ -53,10 +53,22 @@ describe("buildSiteCardVM", () => {
 			randomTables: [{ caption: "Crinwin stuff", rows: ["eating", "nest-building", "fighting over junk"] }],
 		}));
 		expect(vm.randomTables[0].die).toBe("1d3");
+		expect(vm.randomTables[0].rows.map(r => [r.roll, r.text])).toEqual([
+			["1", "eating"],
+			["2", "nest-building"],
+			["3", "fighting over junk"],
+		]);
+	});
+
+	it("prints a row repeated over several faces once, as a range (Book I p.376)", async () => {
+		const vm = await buildSiteCardVM(page({
+			randomTables: [{ caption: "Sajra's disposition", rows: ["alert", "alert", "alert", "hunting", "hunting", "asleep"] }],
+		}));
+		expect(vm.randomTables[0].die).toBe("1d6");
 		expect(vm.randomTables[0].rows).toEqual([
-			{ roll: 1, text: "eating" },
-			{ roll: 2, text: "nest-building" },
-			{ roll: 3, text: "fighting over junk" },
+			{ text: "alert", span: 3, from: 1, to: 3, roll: "1-3" },
+			{ text: "hunting", span: 2, from: 4, to: 5, roll: "4-5" },
+			{ text: "asleep", span: 1, from: 6, to: 6, roll: "6" },
 		]);
 	});
 

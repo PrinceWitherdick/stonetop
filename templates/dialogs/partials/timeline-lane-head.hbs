@@ -1,0 +1,14 @@
+{{!-- WHO A THREAD IS, at the head of their lane: one body for both layouts of the board (the column
+      heads read down, the row heads read across), so the two cannot drift. ONE box around the
+      portrait and the words, so the words centre on the portrait in both: the swimlanes pin their
+      head's children one by one, and two pinned separately would line up by their tops. A player
+      reads their playbook under their name ("The Seeker"). --}}
+<span class="stonetop-timeline-lane-who">
+	{{#if portrait}}
+	<img class="stonetop-timeline-lane-portrait" src="{{portrait}}" alt="" draggable="false">
+	{{/if}}
+	<span class="stonetop-timeline-lane-label">
+		<span class="stonetop-timeline-lane-name">{{name}}</span>
+		{{#if playbook}}<span class="stonetop-timeline-lane-playbook">{{playbook}}</span>{{/if}}
+	</span>
+</span>

@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "magical",
+    "note": "<em>magical</em>",
     "isTreasure": true,
     "artifactLore": "<p>This bedroll is decorated with Forest Folk beadwork and lined with the softest rabbit fur. It tethers a nurturing, protective spirit, one that is quiet and comforting.</p><p>When you Make Camp in the fur-lined bedroll, you regain 1d6 (extra) HP and gain advantage on your next roll.</p>"
   },
@@ -17,7 +17,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "magical"
+      "note": "<em>magical</em>"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

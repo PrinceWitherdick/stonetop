@@ -3,10 +3,44 @@
     "id":  "stonetop_pwd",
     "title":  "Stonetop",
     "description":  "<p><strong>⚠ This system has moved and is no longer updated here.</strong> It now ships under the ID <strong>stonetop-pwd</strong>, from <a href=\"https://github.com/PrinceWitherdick/stonetop-pwd\">github.com/PrinceWitherdick/stonetop-pwd</a>. This copy is kept only so that worlds created before the change can be carried across.</p><p><strong>Installing for the first time? Do not use this one.</strong> Install the new system instead and skip the migration entirely:<br><code>https://github.com/PrinceWitherdick/stonetop-pwd/releases/latest/download/system.json</code></p><p><strong>Already have a Stonetop world?</strong> Leave this installed, install the new system alongside it, then launch your world: a window titled \"Stonetop is changing its ID\" opens by itself and does the rest. Your world, its name, its folder and everything inside it stay exactly where they are, and nothing is copied. Take a backup first, and read <a href=\"https://github.com/PrinceWitherdick/stonetop/blob/main/MIGRATION.md\">MIGRATION.md</a> before you start.</p><p>An unofficial system for playing Stonetop, the pastoral fantasy Powered by the Apocalypse game by Jeremy Strandberg, with a sheet for every playbook, guided leveling, followers, the steading of Stonetop and its seasonal turns, an interactive Clash and Let Fly, a searchable bestiary, and compendium journals covering the world's people, places, and major arcana.</p><p><strong>AI training / text-and-data-mining:</strong> rights are reserved. This system, its source, and its bundled content may not be used to train, fine-tune, or evaluate AI models, or be included in datasets built for those purposes. See AI-TRAINING-NOTICE.md.</p>",
-    "version":  "1.3.3.12",
+    "version":  "1.3.3.13",
     "compatibility":  {
                           "minimum":  "13",
                           "verified":  "14"
+                      },
+    "relationships":  {
+                          "recommends":  [
+                                             {
+                                                 "id":  "dice-so-nice",
+                                                 "type":  "module",
+                                                 "reason":  "Shows 3D dice for every move, damage and steading roll."
+                                             },
+                                             {
+                                                 "id":  "sequencer",
+                                                 "type":  "module",
+                                                 "reason":  "Draws attacks on the map: swings, arrows, bites, misses and hits."
+                                             },
+                                             {
+                                                 "id":  "JB2A_DnD5e",
+                                                 "type":  "module",
+                                                 "reason":  "The animations Sequencer plays for attacks. The free edition is enough."
+                                             },
+                                             {
+                                                 "id":  "soundfxlibrary",
+                                                 "type":  "module",
+                                                 "reason":  "Gives attacks their sound, with or without Sequencer."
+                                             },
+                                             {
+                                                 "id":  "fxmaster",
+                                                 "type":  "module",
+                                                 "reason":  "Puts the rolled weather on the scene your players are on."
+                                             },
+                                             {
+                                                 "id":  "vtta-tokenizer",
+                                                 "type":  "module",
+                                                 "reason":  "Makes map tokens from portraits, from a button beside each portrait's crop button."
+                                             }
+                                         ]
                       },
     "authors":  [
                     {
@@ -24,7 +58,7 @@
                 ],
     "url":  "https://github.com/PrinceWitherdick/stonetop",
     "manifest":  "https://github.com/PrinceWitherdick/stonetop/releases/latest/download/system.json",
-    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/1.3.3.12/stonetop.zip",
+    "download":  "https://github.com/PrinceWitherdick/stonetop/releases/download/1.3.3.13/stonetop.zip",
     "license":  "LICENSE",
     "readme":  "README.md",
     "bugs":  "https://github.com/PrinceWitherdick/stonetop/issues",
@@ -115,7 +149,8 @@
                                                    "chronicle":  {},
                                                    "threat":  {},
                                                    "hazard":  {},
-                                                   "site":  {}
+                                                   "site":  {},
+                                                   "timeline":  {}
                                                }
                       },
     "primaryTokenAttribute":  "attributes.hp",

@@ -1,5 +1,5 @@
 // The corruption "gifts" and "marks" tables (Stonetop Book II, "The Things Below",
-// pp. 432 & 436) and a pure calculator that folds a set of picks onto an existing
+// p. 432, both on the "Corrupted being" page) and a pure calculator that folds a set of picks onto an existing
 // monster's stats to produce a corrupted being (or an emanation).
 //
 // A corrupted being starts with the original NPC/monster's stats, then gains up to 3
@@ -8,7 +8,8 @@
 // tags, special qualities, behavior notes). Kept Foundry-free so applyCorruption() is
 // unit-testable in isolation, like computeMonster() in monster-builder.js.
 
-import { stepDie } from "../utils/damage-die.js";
+import { stepDie, DAMAGE_DIE_RE } from "../utils/damage-die.js";
+import { splitMonsterAttackProse } from "../utils/damage.js";
 import { normalizeTags } from "./follower-build.js";
 import { byId as _byId, signedBonus } from "./table-utils.js";
 
@@ -38,12 +39,14 @@ export const GIFTS = [
 	{ id: 10, label: "Uncanny insight / inexplicable knowledge",
 	  move: { name: "Reveal uncanny insight", description: "Show inexplicable knowledge or uncanny insight into someone or something." } },
 	{ id: 11, label: "Unnatural resilience (Armor 4 except vs. bronze, +4 HP)", tag: "hardy",
-	  armorSet: 4, hpDelta: 4, quality: "unnatural resilience: Armor 4, but 0 vs. bronze" },
+	  armorSet: 4, hpDelta: 4, quality: "unnatural resilience: Armor 4, but 0 vs. bronze",
+	  // A being already above Armor 4 keeps its own armor, so its line must not claim Armor 4.
+	  qualityIfArmorKept: "unnatural resilience: 0 vs. bronze" },
 	{ id: 12, label: "Vicious / terrible / mighty physical attacks", tag: "vicious",
 	  damageBonus: 2, addTags: ["forceful"] },
 ];
 
-// ── Marks (1d12) — p. 436 (the corrupted-being table) ─────────────────────────
+// ── Marks (1d12), p. 432 (beside the gifts on the corrupted-being page) ─────────
 // Pick or roll up to 3. Mostly narrative: added tags, special qualities, and notes on
 // how the being has changed. Two are mechanical enough to be qualities (contagion, bronze).
 export const MARKS = [
@@ -83,70 +86,86 @@ export const EMANATION_BASE = {
 	damageValue: "d10 (ignores armor)",
 	rollFormula: "d10",
 	tags: ["solitary", "terrifying"],
-	qualities: "0 vs. bronze",
+	qualities: "Armor 0 vs. bronze",
 	instinct: "",
 };
 
+// The bronze clause the resilience gift and the emanation base both carry. A stat block says it
+// once: the base already IS that resilience, so taking the gift on top must not print it twice.
+const _BRONZE_ARMOR = /\b0 vs\.? bronze\b/i;
 
-/** Append attack tags into a damage line's trailing "(…)" parenthetical (or add one),
- *  de-duping case-insensitively. */
+
+/** Append attack tags into an attack's LAST "(...)" tag list (or add one), de-duping
+ *  case-insensitively both against the list and among the new tags themselves. The last list
+ *  rather than a trailing one, so "d8 (hand) w/advantage" keeps a single list. */
 function _appendTags(prose, addTags) {
-	const tags = (addTags ?? []).map(t => String(t).trim()).filter(Boolean);
-	if (!tags.length) return String(prose ?? "");
+	const tags = normalizeTags(addTags ?? []);
 	const p = String(prose ?? "").trim();
-	const paren = /\(([^)]*)\)\s*$/;
-	const m = p.match(paren);
-	if (m) {
-		const existing = m[1].split(",").map(s => s.trim()).filter(Boolean);
-		for (const t of tags) if (!existing.some(e => e.toLowerCase() === t.toLowerCase())) existing.push(t);
-		return p.replace(paren, `(${existing.join(", ")})`);
+	if (!tags.length) return p;
+	const lists = [...p.matchAll(/\(([^)]*)\)/g)];
+	const last = lists[lists.length - 1];
+	if (last) {
+		const merged = normalizeTags([...last[1].split(","), ...tags]);
+		return `${p.slice(0, last.index)}(${merged.join(", ")})${p.slice(last.index + last[0].length)}`;
 	}
 	return p ? `${p} (${tags.join(", ")})` : `(${tags.join(", ")})`;
 }
 
-/** Format a damage bonus as a signed suffix ("+2", "-1", or "" for zero). */
+/** A die expression's parts: count ("" or "2"), size, and a signed bonus that may be spaced. */
+const _DIE_PARTS_RE = /^(\d*)d(\d+)(?:\s*([+-])\s*(\d+))?$/i;
+
+/** Step one die expression ("2d6", "d8 - 1", "d10+5") and add to its bonus. The dice count is
+ *  kept, the bonus is read only from the expression itself, and the result is printed unspaced. */
+function _stepFormula(token, dieSteps, damageBonus) {
+	const m = _DIE_PARTS_RE.exec(String(token ?? "").trim());
+	if (!m) return String(token ?? "");
+	const oldBonus = m[3] ? (m[3] === "-" ? -1 : 1) * parseInt(m[4], 10) : 0;
+	return `${m[1]}${stepDie(`d${m[2]}`, dieSteps)}${signedBonus(oldBonus + damageBonus)}`;
+}
 
 /**
- * Step a damage line's die and/or bonus and splice in extra attack tags. Operates on the
- * clean `rollFormula` for the mechanical result and best-effort rewrites the prose
- * `damageValue` (which may carry a verb + tags, e.g. "gore d8+2 (hand, forceful)").
+ * Step a damage line's die and/or bonus and splice in extra attack tags, for EVERY attack the
+ * line prints ("trample d10+5 (...), crushing hands d10+5 (...), or hurled object d10+5 (...)"
+ * all gain the gift). The line is split with the same reader the stat-block sheet uses
+ * (splitMonsterAttackProse), and each attack is rewritten in place, so the book's own separators
+ * survive. `rollFormula` is stepped on its own; when it is blank it takes the first printed
+ * attack's stepped die. A line with one printed die and a formula beside it is redrawn from the
+ * formula, so the shown die always matches the rolled one.
  * @returns {{ damageValue: string, rollFormula: string }}
  */
 export function bumpDamage(damageValue = "", rollFormula = "", { dieSteps = 0, damageBonus = 0, addTags = [] } = {}) {
 	const rf = String(rollFormula ?? "").trim();
 	const dv = String(damageValue ?? "").trim();
-	const dieToken = /d(12|10|8|6|4)/i;
+	const step = token => _stepFormula(token, dieSteps, damageBonus);
+	const rfDie = rf.match(DAMAGE_DIE_RE)?.[0] ?? "";
+	const steppedRf = rfDie ? rf.replace(rfDie, step(rfDie)) : rf;
 
-	// The mechanical die normally lives in the clean rollFormula, but some stat blocks carry
-	// the die only in the prose damage line (rollFormula blank). Fall back to the prose die so
-	// a gift's die-step / bonus still lands instead of being silently dropped.
-	const dieSource = rf.match(dieToken) ? rf : dv;
-	const dieMatch = dieSource.match(dieToken);
-	if (!dieMatch) {
-		// No recognizable die anywhere — nothing to step; only annotate tags on the prose.
-		return { damageValue: _appendTags(dv, addTags), rollFormula: rf };
+	const attacks = splitMonsterAttackProse(dv);
+	const armed = attacks.filter(a => DAMAGE_DIE_RE.test(a));
+	if (!armed.length) {
+		// No die printed: nothing in the prose to step. A formula-only die is stepped and printed
+		// after the words, so the line still says what is rolled; the tags go on the line.
+		const prose = rfDie ? (dv ? `${dv} ${steppedRf}` : steppedRf) : dv;
+		return { damageValue: _appendTags(prose, addTags), rollFormula: steppedRf };
 	}
 
-	const oldDie = "d" + dieMatch[1];
-	const bonusMatch = dieSource.match(/([+-]\d+)/);
-	const oldBonus = bonusMatch ? parseInt(bonusMatch[1], 10) : 0;
-	const newDie = stepDie(oldDie, dieSteps);
-	const newBonus = oldBonus + damageBonus;
-	const newFormula = `${newDie}${signedBonus(newBonus)}`;
-
-	const oldFormula = `${oldDie}${signedBonus(oldBonus)}`;
-
-	let prose;
-	if (dv.includes(oldFormula)) {
-		prose = dv.replace(oldFormula, newFormula);
-	} else if (dieToken.test(dv)) {
-		// Prose die differs from the formula's: rewrite the prose die token (and any stray
-		// adjacent bonus) to the stepped result so the shown die always matches the rolled die.
-		prose = dv.replace(/d(12|10|8|6|4)([+-]\d+)?/i, newFormula);
-	} else {
-		prose = dv ? `${dv} ${newFormula}` : newFormula;
+	const lone = armed.length === 1 && rfDie;
+	let out = "";
+	let cursor = 0;
+	for (const attack of attacks) {
+		const at = dv.indexOf(attack, cursor);
+		if (at < 0) continue;
+		const token = attack.match(DAMAGE_DIE_RE)?.[0];
+		let bumped = token ? attack.replace(token, step(lone ? rfDie : token)) : attack;
+		// A die-less name ("none", "by weapon") is not an attack and takes no tags; one with its
+		// own tag list is.
+		if (token || /\([^)]*\)/.test(attack)) bumped = _appendTags(bumped, addTags);
+		out += dv.slice(cursor, at) + bumped;
+		cursor = at + attack.length;
 	}
-	return { damageValue: _appendTags(prose, addTags), rollFormula: newFormula };
+	out += dv.slice(cursor);
+	const newFormula = rfDie ? steppedRf : step(armed[0].match(DAMAGE_DIE_RE)[0]);
+	return { damageValue: out, rollFormula: newFormula };
 }
 
 /** Split a tag line (array or comma string) into a clean, lowercased, de-duped list.
@@ -168,8 +187,11 @@ const _normTags = (tags) => normalizeTags(tags).map(t => t.toLowerCase());
  * }}
  */
 export function applyCorruption(base = {}, picks = {}) {
-	const giftDefs = (picks.gifts ?? []).map(id => _byId(GIFTS, id)).filter(Boolean);
-	const markDefs = (picks.marks ?? []).map(id => _byId(MARKS, id)).filter(Boolean);
+	// Each gift or mark counts once however often its id is passed ("11" and 11 are one pick),
+	// so a repeated id can't stack +4 HP or +2 damage twice.
+	const defs = (table, ids) => [...new Set([...(ids ?? [])].map(String))].map(id => _byId(table, id)).filter(Boolean);
+	const giftDefs = defs(GIFTS, picks.gifts);
+	const markDefs = defs(MARKS, picks.marks);
 
 	let hp = Number(base.hp) || 0;
 	let armorValue = Number(base.armorValue) || 0;
@@ -184,15 +206,21 @@ export function applyCorruption(base = {}, picks = {}) {
 
 	for (const g of giftDefs) {
 		if (g.hpDelta) hp += g.hpDelta;
-		if (typeof g.armorSet === "number" && g.armorSet > armorValue) {
-			armorValue = g.armorSet;
-			if (!/resil/i.test(armorSource)) armorSource = armorSource ? `${armorSource}, resilience` : "resilience";
+		let quality = g.quality;
+		if (typeof g.armorSet === "number") {
+			if (g.armorSet > armorValue) {
+				armorValue = g.armorSet;
+				if (!/resil/i.test(armorSource)) armorSource = armorSource ? `${armorSource}, resilience` : "resilience";
+			} else if (g.qualityIfArmorKept) {
+				// The being's own armor already meets the gift's: only the bronze clause is new.
+				quality = g.qualityIfArmorKept;
+			}
 		}
 		if (g.dieSteps) dieSteps += g.dieSteps;
 		if (g.damageBonus) damageBonus += g.damageBonus;
 		if (Array.isArray(g.addTags)) addTags.push(...g.addTags);
 		if (g.tag) extraTags.push(g.tag);
-		if (g.quality) qualities.push(g.quality);
+		if (quality) qualities.push(quality);
 		if (g.move) moves.push(g.move);
 	}
 	for (const m of markDefs) {
@@ -214,7 +242,11 @@ export function applyCorruption(base = {}, picks = {}) {
 
 	// Qualities: base quality lines (split on ; or newline) + gift/mark quality lines.
 	const allQualities = String(base.qualities ?? "").split(/[;\n]/).map(s => s.trim()).filter(Boolean);
-	for (const q of qualities) if (!allQualities.some(x => x.toLowerCase() === q.toLowerCase())) allQualities.push(q);
+	for (const q of qualities) {
+		if (allQualities.some(x => x.toLowerCase() === q.toLowerCase())) continue;
+		if (_BRONZE_ARMOR.test(q) && allQualities.some(x => _BRONZE_ARMOR.test(x))) continue;
+		allQualities.push(q);
+	}
 
 	return {
 		hp: Math.max(1, hp),

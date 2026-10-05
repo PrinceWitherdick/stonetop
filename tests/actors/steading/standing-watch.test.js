@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readRepo as read } from "../../fakes/css.js";
+import { IMPROVEMENT_GRANTS, WATCH_SEASON_STEP } from "../../../module/actors/steading/StonetopSteading.js";
+import { upkeepStepKey, upkeepsDue } from "../../../module/actors/steading/improvement-rules.js";
+import { builtInImprovementRules } from "../../../module/actors/steading/StonetopSteading.js";
 
 // Standing Watch: "At the start of each season, the watch consumes 1 Surplus or it disbands."
 //
@@ -10,15 +13,23 @@ const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
 const STEADING = read("module/actors/steading/StonetopSteading.js");
 
 describe("the Standing Watch seasonal upkeep", () => {
+	// The watch's upkeep is its `upkeep` grant, read off the improvements in force, so it is owed
+	// only once the watch has been raised, and in every season.
 	it("only appears once the watch has actually been raised", () => {
-		expect(SHEET).toContain('this._hasImprovement("standingWatch")');
-		expect(SHEET).toContain("_hasImprovement(slug) {");
+		expect(IMPROVEMENT_GRANTS.standingWatch.upkeep).toEqual({ seasons: ["spring", "summer", "autumn", "winter"], surplus: 1 });
+		for (const season of ["spring", "summer", "autumn", "winter"]) {
+			expect(upkeepsDue(builtInImprovementRules(["standingWatch"]), season).map(u => u.slug), season).toEqual(["standingWatch"]);
+			expect(upkeepsDue(builtInImprovementRules([]), season), season).toEqual([]);
+		}
+		expect(SHEET).toContain("const upkeeps = upkeepsDue(rules, seasonId);");
+		expect(SHEET).toContain("const watchBlock = upkeeps.filter(u => u.start)");
 	});
 
-	// The herd's steps are summer/winter only; this one is not. The watch block joins the
-	// "What it costs" step ONCE, in the steps every season shares, outside the four-way branch
-	// on the season, which is what makes it unconditional.
-	it("rides every season's flow, not just two of them", () => {
+	// The herd's steps are summer/winter only; this one is not. The watch block is its own step
+	// ONCE, in the steps every season shares, outside the four-way branch on the season, which is
+	// what makes it unconditional. And it comes BEFORE the season's own steps: "at the start of
+	// each season", so in winter it is fed (or not) before the consumption roll, not after.
+	it("rides every season's flow, at the start of the season", () => {
 		const branch = SHEET.indexOf("let seasonSteps;");
 		const shared = SHEET.indexOf("const steps = [", branch);
 		expect(branch).toBeGreaterThan(-1);
@@ -29,30 +40,38 @@ describe("the Standing Watch seasonal upkeep", () => {
 		expect(seasons).not.toContain("watchBlock");
 		const tail = SHEET.slice(shared, shared + 400);
 		expect(tail).toContain("...seasonSteps");
-		expect(tail).toMatch(/step\("costs",[^\n]*watchBlock/);
+		expect(tail).toMatch(/step\("start",[^\n]*watchBlock/);
+		expect(tail.indexOf("watchBlock")).toBeLessThan(tail.indexOf("...seasonSteps"));
+		expect(tail).not.toMatch(/step\("costs",[^\n]*watchBlock/);
 	});
 
 	it("offers both outcomes, and hides feeding when there is nothing to feed it with", () => {
-		const at = SHEET.indexOf("const watchBlock =");
+		const at = SHEET.indexOf("const upkeepHtml = due =>");
 		expect(at).toBeGreaterThan(-1);
-		const block = SHEET.slice(at, at + 1200);
-		expect(block).toContain("surplus >= 1 ?");
-		expect(block).toContain(`data-action="feed-watch"`);
-		expect(block).toContain(`data-action="disband-watch"`);
+		const block = SHEET.slice(at, at + 1400);
+		expect(block).toContain("const short = surplus < due.surplus;");
+		expect(block).toContain(`data-action="pay-upkeep"`);
+		expect(block).toContain(`data-action="lose-upkeep"`);
+		const copy = SHEET.slice(SHEET.indexOf("function upkeepCopy("), SHEET.indexOf("function upkeepCopy(") + 900);
+		expect(copy).toContain("Feed the watch (");
+		expect(copy).toContain(`lose: "Disband the watch"`);
 	});
 
 	// One step key for both buttons: answering the season's question either way closes it, so
 	// a close+reopen can't feed the watch twice, nor feed it after disbanding it.
 	it("settles one shared season step whichever way the table answers", () => {
-		const at = SHEET.indexOf("const feedWatchBtn");
+		const at = SHEET.indexOf("for (const due of upkeeps)");
 		expect(at).toBeGreaterThan(-1);
-		const block = SHEET.slice(at, at + 2600);
-		// Both answers close the SAME key: feeding closes it inside the one spendSurplus write,
-		// disbanding writes the marker on its own (it spends nothing to close it). The key is
-		// NAMED, because the string is character-identical to the improvement slug.
-		expect(block).toContain(`step: WATCH_SEASON_STEP, year, seasonId`);
-		expect(block).toContain(`setSeasonStepApplied(WATCH_SEASON_STEP, year, seasonId)`);
-		expect(block).toContain(`_disableIfSeasonStepDone(disbandWatchBtn, WATCH_SEASON_STEP`);
+		const block = SHEET.slice(at, at + 3400);
+		// Both answers close the SAME key: paying closes it inside the one spendSurplus write,
+		// losing it inside the un-completion's own write (B8: as two writes, a failed second left
+		// the watch gone and the season open). The watch's key is the one it was always stamped
+		// under, so a season already settled before the upkeep moved onto the grant stays settled.
+		expect(block).toContain(`step: due.key, year, seasonId`);
+		expect(block).toContain(`seasonStep: { step: due.key, year, seasonId }`);
+		expect(block).not.toContain(`setSeasonStepApplied(due.key`);
+		expect(block).toContain(`_disableIfSeasonStepDone(loseBtn, due.key`);
+		expect(upkeepStepKey("standingWatch")).toBe(WATCH_SEASON_STEP);
 		// The feed button's own guard lives in _wireSurplusUpkeep, which takes the same key.
 		expect(SHEET).toContain("_disableIfSeasonStepDone(btn, step, year, seasonId);");
 		expect(STEADING).toContain(`export const WATCH_SEASON_STEP = "standingWatch";`);
@@ -66,12 +85,13 @@ describe("the Standing Watch seasonal upkeep", () => {
 		// The spend, the null answer and the re-lock are _wireSurplusUpkeep's — the one shape
 		// all three seasonal dues go through. The watch supplies only its own two sentences and
 		// the short-unlock that leaves it disbandable but not re-feedable.
-		const at = SHEET.indexOf("_wireSurplusUpkeep(feedWatchBtn");
+		const at = SHEET.indexOf("_wireSurplusUpkeep(payBtn");
 		expect(at).toBeGreaterThan(-1);
 		expect(SHEET.slice(at, at + 900)).toContain("shortWarning:");
+		expect(SHEET.slice(at, at + 900)).toContain("amount: due.surplus");
 		const wire = SHEET.indexOf("_wireSurplusUpkeep(btn, {");
 		const block = SHEET.slice(wire, wire + 900);
-		expect(block).toContain("spendSurplus(1, { ...seasonsMove, step, year, seasonId })");
+		expect(block).toContain("spendSurplus(amount, { ...seasonsMove, step, year, seasonId })");
 		expect(block).toContain("left === null");
 		const spend = STEADING.indexOf("async spendSurplus(");
 		expect(spend).toBeGreaterThan(-1);
@@ -81,9 +101,11 @@ describe("the Standing Watch seasonal upkeep", () => {
 	// Disbanding runs the improvement's own revert, which is what takes "Standing Watch" back
 	// off the Fortifications list and keeps the grant record honest for a later re-raise.
 	it("disbands through the improvement revert rather than editing the list by hand", () => {
-		const at = SHEET.indexOf("disbandWatchBtn?.addEventListener");
-		const block = SHEET.slice(at, at + 900);
-		expect(block).toContain(`setImprovementCompleted("standingWatch", false)`);
+		const at = SHEET.indexOf("loseBtn?.addEventListener");
+		const block = SHEET.slice(at, at + 1100);
+		expect(block).toContain(`loseImprovement(due.slug, {`);
+		const lose = STEADING.slice(STEADING.indexOf("async loseImprovement("), STEADING.indexOf("async loseImprovement(") + 300);
+		expect(lose).toContain("this._setImprovementCompleted(slug, false, { seasonStep, clearEntries: true })");
 	});
 
 	it("is styled, with the modifier declared after its base class", () => {

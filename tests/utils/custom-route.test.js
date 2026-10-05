@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-	MARK_PRECISION, customStops, customTierFor, estimateSpan, insideMap, markSpot, normalizeCustom,
-	placeSpot, pricedLeg, seedMarks, spotDistance, tierPace, withMark,
+	MARK_PRECISION, arrowOnly, arrowRemainder, customStops, customTierFor, estimateSpan, insideMap,
+	markSpot, normalizeCustom, placeSpot, pricedLeg, sameMark, seedMarks, spanOfHours, spotDistance,
+	tierPace, withMark,
 } from "../../module/utils/custom-route.js";
-import { MARCH_HOURS, TRAVEL_LEGS, TRAVEL_MAPS, travelPlace } from "../../module/data/travel-times.js";
+import { BOOK_LEGS, MARCH_HOURS, TRAVEL_MAPS, travelPlace } from "../../module/data/travel-times.js";
 import { journeyRoute } from "../../module/utils/travel-route.js";
 
 // The way they go when the GM draws it rather than letting the travel table pick the road.
@@ -68,7 +69,24 @@ describe("reading a stored path", () => {
 	// claim about where the Crossroads is.
 	it("refuses an anchor as somewhere to put a mark", () => {
 		expect(placeSpot("worlds-end", "the-crossroads")).toBeNull();
-		expect(normalizeCustom(drawn("worlds-end", [{ slug: "the-crossroads" }])).points).toEqual([]);
+		expect(markSpot("worlds-end", "the-crossroads")).toBeNull();
+	});
+
+	// But no click lays one: it arrives by `seedMarks`, standing for a stop on the table's own
+	// route, and reading it back as nothing is what turned 2 + 5 days to Tor's Fist into a ruler's
+	// "roughly 3-4 days".
+	it("keeps an anchored stop the table seeded", () => {
+		expect(normalizeCustom(drawn("worlds-end", [{ slug: "the-crossroads" }])).points)
+			.toEqual([{ slug: "the-crossroads" }]);
+		const stops = customStops("stonetop", drawn("worlds-end", [{ slug: "the-foothills" }, { slug: "tors-fist" }]));
+		expect(stops[1].spot).toEqual(travelPlace("the-foothills").spots["worlds-end"]);
+	});
+
+	// Two clicks on the same pin made a leg from Marshedge to Marshedge.
+	it("reads a stop repeated back to back as one stop", () => {
+		expect(normalizeCustom(drawn("worlds-end", [
+			{ slug: "marshedge" }, { slug: "marshedge" }, { fx: 0.5, fy: 0.5 }, { fx: 0.50001, fy: 0.5 },
+		])).points).toEqual([{ slug: "marshedge" }, { fx: 0.5, fy: 0.5 }]);
 	});
 });
 
@@ -148,6 +166,15 @@ describe("the three gestures", () => {
 		withMark(run, null, { undo: true });
 		expect(run).toEqual([a, b]);
 	});
+
+	// The same stop pressed twice adds nothing, and says so with the same array so no write is made.
+	it("does nothing when the press lands on the stop already at the end", () => {
+		const run = [a, { slug: "marshedge" }];
+		expect(withMark(run, { slug: "marshedge" }, { append: true })).toBe(run);
+		expect(withMark(run, { slug: "marshedge" })).toBe(run);
+		expect(withMark([a], { fx: 0.1, fy: 0.1 }, { append: true })).toEqual([a]);
+		expect(sameMark({ slug: "marshedge" }, { fx: 0.1, fy: 0.1 })).toBe(false);
+	});
 });
 
 describe("what the box hands you to start from", () => {
@@ -168,6 +195,25 @@ describe("what the box hands you to start from", () => {
 
 	it("has nothing to seed from a trip with no destination", () => {
 		expect(seedMarks(null, "vicinity")).toEqual([]);
+	});
+
+	// The World's End draws the Foothills only as an anchor. Seeding without it made the way one
+	// ruler-measured leg from Stonetop to Tor's Fist, "roughly 3-4 days" against the book's 2 + 5.
+	it("keeps a stop in the middle that this map draws only as an anchor", () => {
+		const route = journeyRoute({ origin: "stonetop", destination: "tors-fist" });
+		const points = seedMarks(route, "worlds-end");
+		expect(points).toEqual([{ slug: "the-foothills" }, { slug: "tors-fist" }]);
+		const seeded = journeyRoute({
+			origin: "stonetop", destination: "tors-fist", custom: { tier: "worlds-end", points },
+		});
+		expect(seeded.total.days).toEqual({ min: 7, max: 7 });
+		expect(seeded.estimated).toBe(false);
+	});
+
+	// And a destination that map draws only as an anchor is no longer dropped from the way.
+	it("keeps a destination this map draws only as an anchor", () => {
+		const route = journeyRoute({ origin: "stonetop", destination: "the-ruined-tower" });
+		expect(seedMarks(route, "worlds-end")).toEqual([{ slug: "the-crossroads" }, { slug: "the-ruined-tower" }]);
 	});
 });
 
@@ -211,14 +257,17 @@ describe("how long a drawn leg takes", () => {
 	});
 
 	// The measurement is only worth having if it reproduces the book. Replayed through the band,
-	// the printed time lands inside it for twelve of the seventeen legs the fit is made from and
-	// within one rounding step for fourteen. The three it misses are the three that are not walks:
-	// a chasm, a mountain crossing, and one stretch of unusually quick going.
+	// the printed time lands inside it for ten of the seventeen legs the fit is made from and within
+	// one rounding step for fourteen. It was twelve inside while estimates rounded to the nearest;
+	// rounding UP (user ruling, 2026-10-02) lifts the low end of a band by up to a step, so a few
+	// quick legs now sit one step under it. The three it misses by two are Marshedge's quick going
+	// to the Dread River and Three Coven Lake, and the mountain crossing from Barrier Pass.
 	it("reproduces the table's own printed times", () => {
 		let inside = 0, near = 0, total = 0;
 		for (const map of TRAVEL_MAPS) {
 			const pace = tierPace(map.slug);
-			for (const leg of TRAVEL_LEGS) {
+			// The book's rows: a `ruling` leg is not a measurement to replay.
+			for (const leg of BOOK_LEGS) {
 				const from = placeSpot(map.slug, leg.from);
 				const to = placeSpot(map.slug, leg.to);
 				if (!from || !to) continue;
@@ -235,8 +284,25 @@ describe("how long a drawn leg takes", () => {
 			}
 		}
 		expect(total).toBe(17);
-		expect(inside).toBe(12);
+		expect(inside).toBe(10);
 		expect(near).toBe(14);
+	});
+
+	// User ruling 2026-10-02: estimates round UP, as `oneUnit` and `atLeastDays` already did.
+	// Thirteen hours of march is two days, not one, and splitting a line in two cannot change that.
+	it("rounds a measured time up, never to the nearest", () => {
+		expect(spanOfHours(13, 17)).toEqual({ min: 2, max: 2, unit: "days" });
+		expect(spanOfHours(3.2, 4.1)).toEqual({ min: 4, max: 5, unit: "hours" });
+		// Float dust on a whole day is not another day.
+		expect(spanOfHours(27.0000000001, 27.0000000001)).toEqual({ min: 3, max: 3, unit: "days" });
+		expect(estimateSpan(13, { low: 1, high: 1 })).toEqual({ min: 2, max: 2, unit: "days" });
+	});
+
+	// The pace fit is the book's rows only: the ruling legs out of the Crossroads would add a
+	// Vicinity sample (the Crossroads to the Foothills) that nobody measured.
+	it("fits the pace on the book's printed rows, not the rulings", () => {
+		expect(BOOK_LEGS.every(leg => !leg.ruling)).toBe(true);
+		expect(tierPace("vicinity").n).toBe(6);
 	});
 
 	it("measures a leg in the picture's real proportions, not in raw percentages", () => {
@@ -264,6 +330,27 @@ describe("how long a drawn leg takes", () => {
 	it("has no answer for a leg with an end it cannot place", () => {
 		expect(estimateSpan(null, tierPace("vicinity"))).toBeNull();
 		expect(estimateSpan(10, null)).toBeNull();
+	});
+});
+
+describe("an edge arrow is not the place it points at", () => {
+	it("knows which places a map shows only by their arrow", () => {
+		expect(arrowOnly("worlds-end", "lygos")).toBe(true);
+		expect(arrowOnly("vicinity", "gordins-delve")).toBe(true);
+		expect(arrowOnly("worlds-end", "gordins-delve")).toBe(false);   // lettered there
+		expect(arrowOnly("worlds-end", "the-foothills")).toBe(false);   // an anchor, not an arrow
+	});
+
+	// Lygos is thirty days past Marshedge, and the World's End shows only the first few of them.
+	it("leaves most of the thirty days to Lygos past the World's End's edge", () => {
+		const rest = arrowRemainder("worlds-end", "lygos");
+		expect(rest.low).toBeGreaterThan(20 * MARCH_HOURS);
+		expect(rest.high).toBeLessThan(30 * MARCH_HOURS);
+		expect(rest.high).toBeGreaterThanOrEqual(rest.low);
+	});
+
+	it("has no remainder for a place the map letters", () => {
+		expect(arrowRemainder("worlds-end", "marshedge")).toBeNull();
 	});
 });
 

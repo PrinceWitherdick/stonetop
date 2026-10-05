@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "<em>hand</em>, magical, beautiful, Value 2",
+    "note": "<em>hand</em>, <em>magical</em>, <em>beautiful</em>, Value 2",
     "isTreasure": true
   },
   "flags": {
@@ -14,7 +14,7 @@
       "slug": "a-spearhead-wedged-deep-into-bedrock-shining-with-eternal-starlight",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "<em>hand</em>, magical, beautiful, Value 2"
+      "note": "<em>hand</em>, <em>magical</em>, <em>beautiful</em>, Value 2"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

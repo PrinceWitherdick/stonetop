@@ -3,6 +3,7 @@ import {
 	THEMES, ASPECTS, INSTINCTS,
 	SITE_FEATURES, SITE_CAUSES, SITE_SEVERITIES, EMANATION_ORIGINS,
 	CLEANSING_REQUIREMENTS, CLEANSING_BINDINGS, SITE_DANGER_MOVES,
+	SITE_DANGER_EXTRAPOLATED_NOTE, SITE_DANGER_EXTRAPOLATED_LEVELS,
 	NAME_ARTICLES, NAME_VERBS, NAME_ADJECTIVES, NAME_ROLES,
 	seedSiteDoomTrack, siteDangerMoves, generateThingName, generateThingTitle, rollThingName,
 	rollDistinct, rollOnTable,
@@ -91,10 +92,9 @@ describe("seedSiteDoomTrack", () => {
 		expect(impendingDoom.text).toBe("");
 	});
 
-	it("an unknown severity is treated as the lowest rung (climbs from shunned)", () => {
-		const { grimPortents, impendingDoom } = seedSiteDoomTrack("nope");
-		expect(grimPortents).toHaveLength(3);
-		expect(impendingDoom.text).toMatch(/wound in the world/i);
+	it("an unknown severity seeds nothing rather than passing for shunned", () => {
+		expect(seedSiteDoomTrack("nope")).toBeNull();
+		expect(seedSiteDoomTrack(undefined)).toBeNull();
 	});
 });
 
@@ -113,6 +113,27 @@ describe("siteDangerMoves", () => {
 		const all = siteDangerMoves(5);
 		expect(all).toContain(SITE_DANGER_MOVES[5][0]);
 		expect(all.length).toBeGreaterThanOrEqual(SITE_DANGER_MOVES[1].length + SITE_DANGER_MOVES[5].length);
+	});
+
+	it("carries the book's pp. 428-429 lists in full for levels 1-3", () => {
+		expect(SITE_DANGER_MOVES[1]).toHaveLength(6);
+		expect(SITE_DANGER_MOVES[2]).toHaveLength(9);
+		expect(SITE_DANGER_MOVES[3]).toHaveLength(8);
+		expect(SITE_DANGER_MOVES[1]).toContain("Make something seem worse than it is");
+		expect(SITE_DANGER_MOVES[1]).toContain("Reveal a lack of natural spirits, or only unsavory ones, plus a hateful power that yearns to be called forth");
+		expect(SITE_DANGER_MOVES[2]).toContain("Have an NPC succumb to the whispers/their fear/their emotions");
+		expect(SITE_DANGER_MOVES[3]).toContain("Trap them in a maze of time/space/perception");
+		expect(SITE_DANGER_MOVES[3]).toContain("Threaten/hinder/grab/tear at them with the environment");
+	});
+
+	it("labels the level 4-5 moves as extrapolated, and only those", () => {
+		for (const level of [1, 2, 3]) {
+			for (const move of SITE_DANGER_MOVES[level]) expect(move, move).not.toContain(SITE_DANGER_EXTRAPOLATED_NOTE);
+		}
+		for (const level of SITE_DANGER_EXTRAPOLATED_LEVELS) {
+			for (const move of SITE_DANGER_MOVES[level]) expect(move).toContain(SITE_DANGER_EXTRAPOLATED_NOTE);
+		}
+		expect(SITE_DANGER_EXTRAPOLATED_LEVELS).toEqual([4, 5]);
 	});
 });
 
@@ -184,6 +205,65 @@ describe("rollDistinct", () => {
 	it("never exceeds the table size", () => {
 		const tiny = [{ id: 1, min: 1, max: 1, text: "only" }];
 		expect(rollDistinct(tiny, 3, rng(0))).toHaveLength(1);
+	});
+
+	it("always lands on the one row left untaken, even with an rng stuck on a taken row", () => {
+		const taken = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+		// rng(0) always points at row 1 of the whole table, which is taken.
+		const picks = rollDistinct(THEMES, 2, rng(0), taken);
+		expect(picks.map(p => p.id)).toEqual([12]);
+	});
+
+	it("fills every requested slot from the untaken rows", () => {
+		const taken = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+		for (let i = 0; i < 200; i++) {
+			const ids = rollDistinct(THEMES, 2, Math.random, taken).map(p => p.id).sort((a, b) => a - b);
+			expect(ids).toEqual([11, 12]);
+		}
+	});
+
+	it("returns nothing when every row is taken", () => {
+		expect(rollDistinct(THEMES, 2, Math.random, THEMES.map(t => t.id))).toEqual([]);
+	});
+});
+
+describe("title grammar", () => {
+	// A seeded rng so the sweep is the same every run.
+	const seeded = (seed = 7) => () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+	it("conjugates, articles, counts and capitalizes correctly across many rolls", () => {
+		const r = seeded();
+		for (let i = 0; i < 4000; i++) {
+			const title = generateThingTitle(r, THEMES[i % 12]);
+			expect(title, title).not.toMatch(/undefined|null|\s{2}/);
+			expect(title, title).not.toMatch(/\b(?:Burys|Denys|Scurrys|Crushs|Destroies)\b/);
+			expect(title, title).not.toMatch(/\ba [AEIOU]/);
+			expect(title, title).not.toMatch(/\ban [^AEIOU\s]/);
+			// A counting adjective never sits on a role or a singular noun.
+			expect(title, title).not.toMatch(/\bthe (?:Forty|Hundred|Many|Thousand) /);
+			const counted = title.match(/(?:Forty|Hundred|Many|Thousand) (\S.*)$/);
+			if (counted) expect(counted[1], title).toMatch(/[^s]s$/);
+			// Two-word nouns are Title Case ("Spilled Blood", not "Spilled blood").
+			expect(title, title).not.toMatch(/Spilled blood|Red crystal/);
+		}
+	});
+
+	it("puts the third person on each kind of verb", () => {
+		// Pattern 5 is the last of five; the verb list is alphabetical.
+		const at = (list, word) => (list.indexOf(word) + 0.5) / list.length;
+		const who = verb => generateThingTitle(seq(0, 0, at(NAME_VERBS, verb), 0, 0.99), null);
+		expect(who("bury")).toBe("Who Buries the Grief");
+		expect(who("crush")).toBe("Who Crushes the Grief");
+		expect(who("destroy")).toBe("Who Destroys the Grief");
+		expect(who("howl")).toBe("Who Howls the Grief");
+	});
+});
+
+describe("generateThingName at the edge of the rng", () => {
+	it("gives 2-3 syllables even when the rng returns exactly 1", () => {
+		const name = generateThingName(rng(1));
+		// Every syllable lands on the last one ("morr") when the rng returns 1.
+		expect(name.toLowerCase().replace("'", "")).toBe("morrmorrmorr");
 	});
 });
 

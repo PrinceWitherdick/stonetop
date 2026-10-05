@@ -34,6 +34,17 @@ describe("StonetopSteading", () => {
 		}, {});
 	});
 
+	// #14: setFlag takes no options, so a move's flag-only write used to lose its name.
+	it("carries a flag-only change's options (its stonetopMove) through to the write", async () => {
+		const actor = { ...makeSteadingActor({ steadingFlags: { size: "village" } }), setFlag: vi.fn() };
+		await new StonetopSteading(actor).applyChanges({ flags: { musterHold: { year: 1 } } }, { stonetopMove: "Muster" });
+		expect(actor.setFlag).not.toHaveBeenCalled();
+		expect(actor.update).toHaveBeenCalledWith(
+			{ "flags.stonetop_pwd.steading": { size: "village", musterHold: { year: 1 } } },
+			{ stonetopMove: "Muster" },
+		);
+	});
+
 	it("marks improvements as earned when completed or requirement progress exists", async () => {
 		const actor = makeSteadingActor({
 			steadingFlags: {
@@ -477,8 +488,16 @@ describe("StonetopSteading", () => {
 
 			expect(await steading.removeCustomImprovement("custom-roadbuilding"))
 				.toMatchObject({ label: "ROADBUILDING", reverted: [] });
-			expect(actor.flags.stonetop.steading.customImprovements).toEqual([]);
-			expect(actor.flags.stonetop.steading.improvements).toEqual({ palisade: { completed: true, r: [] } });
+			// Read off the payload: this fake's `update` is a spy that applies nothing.
+			const payload = actor.update.mock.calls.at(-1)[0];
+			expect(payload["flags.stonetop_pwd.steading.customImprovements"]).toEqual([]);
+			// Only the list and the deletion: the rest of the steading, rebuilt from the cached
+			// flags, used to be written back too and undid anything written inside the round trip.
+			expect(payload).not.toHaveProperty(["flags.stonetop_pwd.steading"]);
+			expect(Object.keys(payload)).toHaveLength(2);
+			// AND the slug deleted outright (#7): the flag object is written by merging, so leaving
+			// it out of the map left it stored, ticks and all. v13 spelling here (no core in tests).
+			expect(payload).toHaveProperty(["flags.stonetop_pwd.steading.improvements.-=custom-roadbuilding"], null);
 			// Removing an unknown slug is a no-op.
 			expect(await steading.removeCustomImprovement("custom-nope")).toBe(false);
 		});
@@ -592,21 +611,22 @@ describe("StonetopSteading", () => {
 			const steading = new StonetopSteading(actor);
 
 			const result = await steading.removeCustomImprovement("custom-palisade-homebrew");
-			// The summary names what completing it APPLIED (the sheet puts "Reverted:" in front).
-			expect(result.reverted).toEqual(["Fortunes +1", "Fortifications +Palisade (homebrew)"]);
+			// The summary says what taking back what completing it APPLIED does, before and after (the sheet puts "Reverted:" in front).
+			expect(result.reverted).toEqual(["Fortunes +2 → +1", "Palisade (homebrew) removed from Fortifications"]);
 
 			// The reversal itself, read off the update payload: this fake's `update` is a spy
 			// that applies nothing, so the stat has to be checked where it is written. Both the
 			// system value and its flag mirror, as every grant write does.
-			const payload = actor.update.mock.calls.at(-1)[0];
+			const payload = actor.update.mock.calls.at(-2)[0];
 			expect(payload["system.stats.fortunes.value"]).toBe(1);
 			expect(payload["flags.stonetop_pwd.steading.system.stats.fortunes.value"]).toBe(1);
 			expect(payload["flags.stonetop_pwd.steading.fortifications"])
 				.not.toContainEqual(expect.objectContaining({ name: "Palisade (homebrew)" }));
 
-			// And the definition and its tracking entry are gone.
-			expect(actor.flags.stonetop.steading.customImprovements).toEqual([]);
-			expect(actor.flags.stonetop.steading.improvements).toEqual({});
+			// And the definition and its tracking entry are gone, the entry deleted outright.
+			const removal = actor.update.mock.calls.at(-1)[0];
+			expect(removal["flags.stonetop_pwd.steading.customImprovements"]).toEqual([]);
+			expect(removal).toHaveProperty(["flags.stonetop_pwd.steading.improvements.-=custom-palisade-homebrew"], null);
 		});
 	});
 
@@ -633,8 +653,8 @@ describe("StonetopSteading", () => {
 			expect(imps.raincatching.completed).toBe(true);
 			expect(imps.raincatching.applied).toEqual({ stats: { fortunes: 1 }, resources: ["Raincatching"] });
 			expect(result).toMatchObject({ label: "Raincatching", reverted: false });
-			expect(result.summary).toContain("Fortunes +1");
-			expect(result.summary).toContain("Resources +Raincatching");
+			expect(result.summary).toContain("Fortunes +1 → +2");
+			expect(result.summary).toContain("Raincatching added to Resources");
 		});
 
 		it("reverses the recorded grant when un-completed: negates the stat and drops the resource", async () => {
@@ -706,7 +726,9 @@ describe("StonetopSteading", () => {
 			const result = await new StonetopSteading(actor).setImprovementCompleted("raincatching", false);
 
 			const data = lastUpdate(actor);
-			expect(data["system.stats.fortunes.value"]).toBe(1);                       // stat reversed
+			// Not the Fortunes: "a one-time gain; when Seasons Change and Fortunes reset, this benefit
+			// no longer matters" (Book I p. 514), and a pre-engine completion has seen a reset since.
+			expect(data).not.toHaveProperty(["system.stats.fortunes.value"]);
 			expect(data["flags.stonetop_pwd.steading.resources"]).toEqual([
 				{ name: "", checked: false },                                          // Raincatching dropped
 				{ name: "", checked: false },
@@ -775,7 +797,8 @@ describe("StonetopSteading", () => {
 
 			const data = lastUpdate(actor);
 			expect(Object.keys(data)).toEqual(["flags.stonetop_pwd.steading.improvements"]);
-			expect(data["flags.stonetop_pwd.steading.improvements"].heroicReputation).toEqual({ completed: true, r: [] });
+			// `applied: null`, written on every completion: nothing was applied, and it says so.
+			expect(data["flags.stonetop_pwd.steading.improvements"].heroicReputation).toEqual({ completed: true, r: [], applied: null });
 			expect(result.summary).toEqual([]);
 		});
 
@@ -795,9 +818,10 @@ describe("StonetopSteading", () => {
 	});
 
 	describe("legacy improvements completed before the grants engine", () => {
-		it("back-fills `applied` so an uncheck reverts exactly once instead of double-counting the stat", async () => {
+		it("back-fills `applied` so an uncheck reverts what lasts, and not a Fortunes long since reset", async () => {
 			// A world completed under the pre-grants version stores {completed:true, r:[…]} with
-			// no `applied`, and the book's +1 Fortunes was applied by hand (Fortunes sits at 2).
+			// no `applied`, and the book's +1 Fortunes was applied by hand. Seasons have changed
+			// since, and each reset spent it (Book I p. 514), so un-completing leaves Fortunes be.
 			const actor = makeSteadingActor({ steadingFlags: {
 				system: { stats: { fortunes: { value: 2 } } },
 				resources: [{ name: "Raincatching", checked: true }, { name: "", checked: false }],
@@ -807,9 +831,11 @@ describe("StonetopSteading", () => {
 			const result = await new StonetopSteading(actor).setImprovementCompleted("raincatching", false);
 
 			const data = actor.update.mock.calls.at(-1)[0];
-			expect(data["system.stats.fortunes.value"]).toBe(1);   // reverses once — not left at 2, not pushed to 3
+			expect(data).not.toHaveProperty(["system.stats.fortunes.value"]);
+			expect(data["flags.stonetop_pwd.steading.resources"][0]).toEqual({ name: "", checked: false });
 			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied).toBeNull();
 			expect(result.reverted).toBe(true);
+			expect(result.summary).toEqual(["Raincatching removed from Resources"]);
 		});
 
 		it("does not disturb a fresh (never-completed) improvement", async () => {

@@ -3,7 +3,7 @@
 //
 // ONE PAGE IS ONE TRACK, not one entry. A track is a thread of the campaign's story -- Stonetop
 // itself, or one player character -- and its whole run of dated entries lives in this page's
-// `entries` array. The other way round, a page per entry, was refused for the reason the
+// `entries`, an object KEYED BY ENTRY ID (see the field below for why not a list). The other way round, a page per entry, was refused for the reason the
 // relationship map hides its own pages from the sidebar: a campaign's worth of entries would bury
 // every other journal in the world under a list nobody reads that way.
 //
@@ -26,9 +26,16 @@ export class TimelinePageModel extends foundry.abstract.TypeDataModel {
 			trackKind: new fields.StringField({ required: true, blank: true, initial: "" }),
 			trackId:   new fields.StringField({ required: true, blank: true, initial: "" }),
 
-			// The entries, in no guaranteed stored order: `timeline-core.js#sortEntries` puts them in
-			// reading order off the date fields, and the array's own positions carry no meaning.
-			entries: new fields.ArrayField(new fields.SchemaField({
+			// The entries, KEYED BY THEIR OWN ID, in no stored order: `timeline-core.js#sortEntries`
+			// puts them in reading order off the date fields.
+			//
+			// ⚠ AN OBJECT AND NOT A LIST, because a track has several writers on different clients (a
+			// GM's Apply credits a kill, a player's level-up writes a milestone, a player retitles a
+			// row). Foundry merges a list as one atomic value, so every write was the WHOLE list, read
+			// a moment earlier, and the last one back erased whatever landed in between. Keyed, a
+			// write touches only `system.entries.<id>` (timeline-store.js#writeEntries), and two
+			// writers to different rows, or different fields of one row, both win.
+			entries: new fields.TypedObjectField(new fields.SchemaField({
 				// This entry's own handle. ⚠ Must not contain a dot -- see normalizeEntry.
 				id: new fields.StringField({ required: true, blank: true }),
 
@@ -53,16 +60,48 @@ export class TimelinePageModel extends foundry.abstract.TypeDataModel {
 				placeUuid: new fields.StringField({ required: true, blank: true, initial: "" }),
 				body:  new fields.HTMLField({ required: true, blank: true, initial: "" }),
 
-				// "hand" for an entry somebody typed, "season" for the one a Seasons Change records.
-				// Rows derived from the ledger are never stored and so never carry a source: they are
-				// computed at render time, which is what makes them free to toggle off.
+				// "hand" for an entry somebody typed; otherwise the kind of milestone the system wrote
+				// ("season", "levelup", "kills", ...). See TIMELINE_SOURCES in timeline-core.js.
+				// ⚠ NO `choices`, deliberately: a page written by a newer build with a kind this one
+				// has never heard of must still load, and `normalizeEntry` files the stranger as typed.
 				source: new fields.StringField({ required: true, blank: true, initial: "hand" }),
+
+				// What a milestone row IS (`levelup:4`, `expedition:<trip id>`), so recording the
+				// same event again patches the row instead of adding a second. Blank on typed rows.
+				key: new fields.StringField({ required: true, blank: true, initial: "" }),
+
+				// A kills row's foes, one name per kill; a track's kill total is the sum of these.
+				// Blank strings are allowed so one stray row in a hand-edited page cannot fail the
+				// whole page's validation; `normalizeEntry` drops them on the way out.
+				foes: new fields.ArrayField(new fields.StringField({ required: true, blank: true }), { initial: [] }),
+
+				// The one tag a TYPED row wears: a kind's id it borrows ("wound") or a custom tag's id
+				// (`tag-<random>`, kept on the Timeline journal). Blank for none. No `choices`, for the
+				// reason `source` has none, and because custom tags come and go. See timeline-tags.js.
+				tag: new fields.StringField({ required: true, blank: true, initial: "" }),
 
 				// Provenance. `createdAt` is also the last tie-break in the sort, so two entries
 				// added to one season in the same click cannot swap places on a repaint.
 				createdAt: new fields.NumberField({ required: true, integer: true, initial: 0 }),
 				authorId:  new fields.StringField({ required: true, blank: true, initial: "" }),
-			})),
+			}), { validateKey: key => !key.includes(".") }),
+
+			// Whether the STORED entries are already keyed. A page written before the change still
+			// holds a list in the world's data: `migrateData` reads it as keyed, but the server merges
+			// into what it stores, so the first write to such a page has to replace the list whole
+			// rather than patch one key into it (timeline-store.js#writeEntries), and sets this.
+			keyed: new fields.BooleanField({ required: true, initial: false }),
 		};
+	}
+
+	/** A page from before the entries were keyed: its list, read as an object keyed by id. */
+	static migrateData(source) {
+		if (Array.isArray(source?.entries)) {
+			source.entries = Object.fromEntries(source.entries.map((entry, index) => {
+				const id = String(entry?.id ?? "").replace(/\./g, "").trim() || `entry-${index}`;
+				return [id, { ...entry, id }];
+			}));
+		}
+		return super.migrateData(source);
 	}
 }

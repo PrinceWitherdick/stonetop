@@ -22,7 +22,14 @@ import { holdTravel } from "./relmap-geometry.js";
  * portrait's gesture, and one on a line is a line's.
  */
 const CLAIMED = "[data-relmap-node], [data-relmap-handle], [data-relmap-remove], [data-relmap-edge], "
-	+ "[data-relmap-hit], [data-relmap-action]";
+	+ "[data-relmap-hit], [data-relmap-action], [data-relmap-group], [data-relmap-group-hit]";
+
+/** A group's name or its outline's click target, and the group it belongs to. */
+export function groupPressed(target) {
+	const el = target?.closest?.("[data-relmap-group], [data-relmap-group-hit]");
+	if (!el) return null;
+	return { el, id: el.dataset?.relmapGroup ?? el.dataset?.relmapGroupHit ?? "" };
+}
 
 /** Whether a click or a key asked to ADD TO the selection rather than to do the ordinary thing. */
 const addsToSelection = ev => !!(ev?.shiftKey || ev?.ctrlKey || ev?.metaKey);
@@ -40,8 +47,17 @@ const addsToSelection = ev => !!(ev?.shiftKey || ev?.ctrlKey || ev?.metaKey);
  * this board a plain left drag on paper has always MOVED THE BOARD, and the table has its hands used
  * to that; a selection box is the rarer gesture, so it is the one that asks for a key.
  */
-export function pressStartsBox(ev, { view, board } = {}) {
-	if (ev?.button !== 0 || !ev.shiftKey) return false;
+export function pressStartsBox(ev, opts) {
+	return !!ev?.shiftKey && pressStartsDraw(ev, opts);
+}
+
+/**
+ * Whether a press could start drawing a GROUP'S BOX: a plain left press on open paper. Asked only
+ * while the group tool is armed (the window says when), and by the pan surface as well, for the
+ * reason `pressStartsBox` gives: two spellings of one question would let a press both pan and draw.
+ */
+export function pressStartsDraw(ev, { view, board } = {}) {
+	if (ev?.button !== 0) return false;
 	const target = ev.target;
 	if (!target || !(target === view || !!board?.contains?.(target))) return false;
 	return !target.closest?.(CLAIMED);
@@ -221,6 +237,22 @@ function clearTravel(el) {
  * @param {Function} handlers.onGroupNudge `(moves) => void` — one arrow key on a face that is one
  *                                      of several selected: everybody's new spot at once. The
  *                                      group's `onNudge`; without it, each is nudged on its own.
+ *
+ * ── NAMED GROUPS ("The hunters"), drawn round some people ──
+ *
+ * A GROUP IS MOVED BY CARRYING ITS PEOPLE. Dragging its name or its outline is the selection's own
+ * group move (`onGroupMove` and the rest above), carrying whoever `groupMembers` names; this layer
+ * never learns where an outline is, because the window redraws it from where its people are.
+ *
+ * @param {Function} handlers.groupMembers `id => string[]` — who is in a group.
+ * @param {Function} handlers.onPickGroup `(id, from) => void` — a group's name or outline clicked,
+ *                                      or Enter on its name. `from` is the element, for Escape to
+ *                                      put the focus back on.
+ * @param {Function} handlers.onRemoveGroup `id => void` — Delete on a group's name.
+ * @param {Function} handlers.drawing   `() => boolean` — whether the group tool is armed, so that a
+ *                                      plain press on open paper draws a box instead of panning.
+ * @param {Function} handlers.onDrawn   `ids => void` — that box let go of, with who is inside it;
+ *                                      or null for a draw abandoned (Escape, a lost pointer).
  * @returns {Function} teardown.
  */
 export function wireRelmapDrag(root, {
@@ -228,6 +260,7 @@ export function wireRelmapDrag(root, {
 	onPickNone, onRemove, onArm,
 	seatAt, onSeatMove, onSeat, onSeatEnd, onSeatNudge,
 	selected = () => [], onSelect, nodesIn, onGroupMove, onGroupDragMove, onGroupDragEnd, onGroupNudge,
+	groupMembers, onPickGroup, onRemoveGroup, drawing = () => false, onDrawn,
 	canEdit = () => true,
 	canMove = canEdit,
 	canRemove = canEdit,
@@ -347,6 +380,16 @@ export function wireRelmapDrag(root, {
 	}
 
 	/**
+	 * Whether a drag CARRIES PEOPLE: a portrait (`node`, with everybody selected beside it in `group`
+	 * when it is one of several) or a group's name (`group`, which is its members and nobody else).
+	 * The two share every frame and the drop; only a lone portrait reads `id`, `el` and `from`, and
+	 * only where `group` is not set.
+	 */
+	function carries(d) {
+		return d?.kind === "node" || d?.kind === "group";
+	}
+
+	/**
 	 * The travel `travelled` measures, held so that nobody being carried goes past reach
 	 * (`holdTravel`). Held HERE, where both the frame and the drop ask, so what the reader watches
 	 * is what gets written: a portrait that followed the pointer past the rail and was then put back
@@ -449,14 +492,16 @@ export function wireRelmapDrag(root, {
 		board.classList.remove("is-boxing");
 		// After the class is off, so anything the window does in response reads a board that is no
 		// longer busy. Only for a drag that actually started: an armed press redrew nothing.
-		if (finished.started && finished.kind === "node") {
+		if (finished.started && carries(finished)) {
 			if (finished.group) onGroupDragEnd?.(committed ? null : restoreOf(finished.group));
 			else onDragEnd?.(finished.id, committed ? null : { x: finished.from.left, y: finished.from.top });
 		}
 		// A BOX LET GO OF ANY OTHER WAY THAN BY LETTING GO puts the selection back as it was. It has
 		// been painted frame by frame as the box grew, and Escape means "not that".
 		if (finished.started && finished.kind === "box" && !committed) {
-			onSelect?.(finished.base, { final: true });
+			onSelect?.(finished.draws ? finished.before : finished.base, { final: true });
+			// And an abandoned GROUP box is said to be abandoned, so the tool stands down.
+			if (finished.draws) onDrawn?.(null);
 		}
 		// THE SAME BARGAIN FOR A CAPTION, and it needs one for the same reason: the words have been
 		// redrawn where the pointer left them, frame by frame, and an abandoned slide has nothing
@@ -499,7 +544,7 @@ export function wireRelmapDrag(root, {
 	function frame() {
 		frameId = 0;
 		if (!drag?.started) return;
-		if (drag.kind === "node" && drag.el) {
+		if (carries(drag) && (drag.group || drag.el)) {
 			// Where the drop would land, worked out the way the drop works it out (`heldTravel`), and
 			// only then turned back into window pixels, at the scale painted NOW, for the transform.
 			const moved = heldTravel(drag, drag.clientX, drag.clientY);
@@ -640,7 +685,10 @@ export function wireRelmapDrag(root, {
 		// for exactly this press (`pressStartsBox` is the one question both of them ask), so nothing
 		// else is going to take it. Asked of `canMove` as well: a box selects people to MOVE, and a
 		// board that refuses moving them has nothing for it to do.
-		if (pressStartsBox(ev, { view, board }) && canMove()) {
+		// AND A GROUP'S BOX IS THE SAME BOX, drawn with no Shift while the group tool is armed. It
+		// selects nobody when it is let go: whoever is inside becomes the group (`onDrawn`).
+		const draws = !!drawing?.() && pressStartsDraw(ev, { view, board });
+		if ((draws || pressStartsBox(ev, { view, board })) && canMove()) {
 			const start = surface.pointToPercent?.({ clientX: ev.clientX, clientY: ev.clientY });
 			if (!start) return;
 			// ⚠ PREVENTED, unlike every other press this layer arms. Shift and a drag is the browser's
@@ -655,9 +703,42 @@ export function wireRelmapDrag(root, {
 				clientX: ev.clientX, clientY: ev.clientY,
 				dx: 0, dy: 0,
 				start,
-				// Who was chosen before the box: it ADDS to them, which is what holding Shift says.
-				base: [...(selected?.() ?? [])],
+				// Who was chosen before the box: it ADDS to them, which is what holding Shift says. A
+				// group's box starts from nobody, and gives the selection back as it was when let go.
+				base: draws ? [] : [...(selected?.() ?? [])],
+				before: [...(selected?.() ?? [])],
+				draws,
 				shown: null,
+				started: false,
+			};
+			swallowClick = false;
+			return;
+		}
+		// ⚠ A GROUP'S NAME OR OUTLINE PICKS UP EVERYBODY IN IT, and moves them as the selection is
+		// moved: one travel, one write, one step of the undo. Not consumed, so a press that never
+		// travels is still the CLICK that raises the group's bar.
+		const pressedGroup = groupPressed(ev.target);
+		if (pressedGroup) {
+			if (!canMove()) return;
+			const members = [];
+			for (const id of groupMembers?.(pressedGroup.id) ?? []) {
+				const at = nodeAt?.(id);
+				const own = nodeEl(id);
+				if (at && own) members.push({ id, el: own, from: { left: at.x, top: at.y } });
+			}
+			if (!members.length) return;
+			// A KIND OF ITS OWN, and NO `id`, `el` or `from`: those are one portrait's, and a group's
+			// name is nobody. Lent the first member's, every path that reads them without asking about
+			// `group` first would act on one arbitrary person. What it shares with a selection carried
+			// by a face is the carrying (`carries`), which only ever reads `group`.
+			drag = {
+				kind: "group",
+				pointerId: ev.pointerId,
+				startX: ev.clientX, startY: ev.clientY,
+				clientX: ev.clientX, clientY: ev.clientY,
+				dx: 0, dy: 0,
+				grab: surface.pointToPercent?.({ clientX: ev.clientX, clientY: ev.clientY }) ?? null,
+				group: members,
 				started: false,
 			};
 			swallowClick = false;
@@ -849,7 +930,7 @@ export function wireRelmapDrag(root, {
 			return;
 		}
 
-		if (finished.kind === "node") {
+		if (carries(finished)) {
 			// From the RELEASE position and the place on the board the press landed, as the preview is
 			// and for the reason `travelled` gives: the scale may no longer be the one it was pressed at.
 			const moved = heldTravel(finished, dropX, dropY);
@@ -869,6 +950,13 @@ export function wireRelmapDrag(root, {
 			// Who is in the box where it was LET GO, for the reason every other drop here reads the
 			// release: the last frame before it may never have been painted.
 			const got = boxed(finished, dropX, dropY);
+			if (finished.draws) {
+				// The box was lit as it grew by borrowing the selection's marks; they go back to what
+				// they were, and whoever was inside becomes the group.
+				onSelect?.(finished.before, { final: false });
+				onDrawn?.(got?.ids ?? finished.shown ?? []);
+				return;
+			}
 			onSelect?.(got?.ids ?? finished.shown ?? finished.base, { final: true });
 			return;
 		}
@@ -933,6 +1021,20 @@ export function wireRelmapDrag(root, {
 		// the board partial for why the painted stroke cannot take the click itself.
 		const stroke = ev.target.closest?.("[data-relmap-hit]");
 		if (stroke) { ev.preventDefault(); if (canEdit()) onPickEdge?.(stroke.dataset.relmapHit); return; }
+		// A GROUP'S NAME OR OUTLINE raises its bar. With Shift (or Ctrl, Cmd) it puts everybody in the
+		// group into the selection instead, which is the quick way to move "the hunters" somewhere
+		// AND keep them selected, or to start a second group from the first.
+		const grouped = groupPressed(ev.target);
+		if (grouped) {
+			ev.preventDefault();
+			if (!canEdit()) return;
+			if (addsToSelection(ev)) {
+				if (canMove()) onSelect?.(unionOf(selected?.() ?? [], groupMembers?.(grouped.id) ?? []), { final: true });
+				return;
+			}
+			onPickGroup?.(grouped.id, grouped.el.matches?.("[data-relmap-group]") ? grouped.el : null);
+			return;
+		}
 		// SHIFT, CTRL OR CMD ON SOMEBODY PUTS THEM IN THE SELECTION, or takes them out of it. Ahead of
 		// the face below, and asked of the whole PERSON rather than only the face, so the name hung
 		// under a portrait answers as the portrait does. It is also the keyboard's way to a selection:
@@ -1042,10 +1144,27 @@ export function wireRelmapDrag(root, {
 		// (relationship-board.js, in the capture phase, ahead of this), and with nobody selected the
 		// key has nothing to do here and goes on to whatever core does with it. Only from the BOARD:
 		// the tie bar floats in this viewport too, and its Escape is its own.
+		// AND IT STANDS AN ARMED GROUP TOOL DOWN, first, since that is the last thing the reader asked for.
+		if (ev.key === "Escape" && !drag && isPaper(ev.target) && drawing?.()) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			onDrawn?.(null);
+			return;
+		}
 		if (ev.key === "Escape" && !drag && isPaper(ev.target) && (selected?.() ?? []).length) {
 			ev.preventDefault();
 			ev.stopPropagation();
 			onSelect?.([], { final: true });
+			return;
+		}
+		// A GROUP'S NAME, which is a `div` wearing `role="button"`: Enter and Space are handed to it
+		// as they are to a caption, and the arrows and Delete are claimed below with everything else.
+		const groupName = ev.target.closest?.("[data-relmap-group]");
+		if (groupName && (ev.key === "Enter" || ev.key === " ")) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			// From the keyboard, so the bar takes the focus: there is no pointer to reach it with.
+			if (canEdit()) onPickGroup?.(groupName.dataset.relmapGroup, groupName, { keyboard: true });
 			return;
 		}
 		// A CAPTION IS NOT A REAL BUTTON ANY MORE, so Enter and Space have to be handed to it. It
@@ -1078,8 +1197,10 @@ export function wireRelmapDrag(root, {
 		// beside the handle, and carries no `data-relmap-open` of its own. Left out, a reader who
 		// tabbed onto it and pressed Delete -- the one key that means on that button exactly what
 		// the button means -- would hand the keystroke to the scene behind this window.
+		// ⚠ AND A GROUP'S NAME IS A TAB STOP TOO, whose Delete means "rub this group out". Left out
+		// of this list, that Delete would reach the scene and take the GM's selected tokens with it.
 		const mine = face
-			?? ev.target.closest?.("[data-relmap-edge], [data-relmap-handle], [data-relmap-remove]");
+			?? ev.target.closest?.("[data-relmap-edge], [data-relmap-handle], [data-relmap-remove], [data-relmap-group]");
 		if (!mine) return;
 		const step = ev.shiftKey ? NUDGE_FINE : NUDGE_STEP;
 		const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[ev.key];
@@ -1144,6 +1265,32 @@ export function wireRelmapDrag(root, {
 			}
 			return;
 		}
+		// One arrow step for everybody it carries, held as a unit at the rail (`holdTravel`), so they
+		// arrive in the shape they set out in. MORE THAN ONE IN ONE CALL, for the reason a group drag
+		// is one: a line between two of them is drawn once with both ends moved, rather than swung
+		// from one end and then the other. A group's name is always one call, however many stand.
+		const nudge = (ids, { asOne = false } = {}) => {
+			const spots = [];
+			for (const member of ids) {
+				const spot = nodeAt?.(member);
+				if (spot) spots.push([member, spot]);
+			}
+			if (!spots.length) return;
+			const held = holdTravel({ left: move[0], top: move[1] }, spots.map(([, spot]) => ({ left: spot.x, top: spot.y })));
+			const moves = {};
+			for (const [member, spot] of spots) moves[member] = { x: spot.x + held.left, y: spot.y + held.top };
+			if (onGroupNudge && (asOne || spots.length > 1)) onGroupNudge(moves);
+			else for (const [member, at] of Object.entries(moves)) (onNudge ?? onMove)?.(member, at);
+		};
+		// A GROUP'S NAME: Delete rubs the group out (its people stay), and the arrows move everybody
+		// in it together, held at the rail as a unit like any selection.
+		if (groupName) {
+			if (!canEdit()) return;
+			const id = groupName.dataset.relmapGroup;
+			if (ev.key === "Delete") { onRemoveGroup?.(id); return; }
+			if (canMove()) nudge(groupMembers?.(id) ?? [], { asOne: true });
+			return;
+		}
 		// Claimed on behalf of the board, but a caption's group and a handle have nothing to do with
 		// a portrait's Delete or its nudge. They stop the key and do nothing with it.
 		if (!face) return;
@@ -1161,28 +1308,9 @@ export function wireRelmapDrag(root, {
 		// The arrow keys are the keyboard's drag, so they answer to the same question a drag does.
 		if (!canMove()) return;
 		// AND THEY CARRY THE SAME PEOPLE A DRAG WOULD: the whole selection when the focused face is
-		// one of it, and otherwise that face alone. One step for all of them, held as a unit at the
-		// rail (`holdTravel`), so the group arrives in the shape it set out in.
+		// one of it, and otherwise that face alone.
 		const chosen = selected?.() ?? [];
-		const who = chosen.length > 1 && chosen.includes(id) ? chosen : [id];
-		const spots = [];
-		for (const member of who) {
-			const spot = nodeAt?.(member);
-			if (spot) spots.push([member, spot]);
-		}
-		if (!spots.length) return;
-		const held = holdTravel({ left: move[0], top: move[1] }, spots.map(([, spot]) => ({ left: spot.x, top: spot.y })));
-		// A GROUP IN ONE CALL, for the reason a group drag is one: a line between two of them is
-		// drawn once with both ends moved, rather than swung from one end and then the other.
-		if (spots.length > 1 && onGroupNudge) {
-			const moves = {};
-			for (const [member, spot] of spots) moves[member] = { x: spot.x + held.left, y: spot.y + held.top };
-			onGroupNudge(moves);
-			return;
-		}
-		for (const [member, spot] of spots) {
-			(onNudge ?? onMove)?.(member, { x: spot.x + held.left, y: spot.y + held.top });
-		}
+		nudge(chosen.length > 1 && chosen.includes(id) ? chosen : [id]);
 	});
 
 	return () => { end(); };

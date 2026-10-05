@@ -54,7 +54,7 @@ import { BLOOD_SOAKED_PAST } from "../data/alt-stat-grants.js";
 import { MELEE_RANGES } from "../data/weapons.js";
 import { betterMode, foldModes } from "../utils/roll-mode.js";
 import { fightStateActive, STORM_MARKINGS_NAME } from "../actors/character/fight-states.js";
-import { BINDING_ARBITRATION, OATHS_FLAG, readOaths, oathIndex, isSwornBy } from "../actors/character/oaths.js";
+import { BINDING_ARBITRATION, OATHS_FLAG, readOaths, oathIndex, isBoundBy } from "../actors/character/oaths.js";
 import { asteriskMoveUsed } from "../actors/character/WouldBeHeroAsterisk.js";
 import { HEROES, touching } from "./engagements.js";
 import { fightOnScene, gridOf } from "./fight-state.js";
@@ -376,8 +376,11 @@ export async function spendUpAgainRoll(actor, targets = []) {
  * character it is aimed at (StonetopCharacter#onRoll). A roll aimed at nobody offers it as an unticked
  * line instead (StonetopCharacter#rollOffers, off brokenOaths).
  *
- * Matched the way the roster matches anyone: a row's actor, or its name, against the token's name and
- * its actor's. Every target has to be an oathbreaker, as for the other grudges here.
+ * Matched STRICTLY (oaths.js#isBoundBy): a row linked to an actor binds that actor and its tokens, a
+ * row laid on one unlinked token binds that token alone, and only a name-only row is matched by name,
+ * against the token's name and its actor's. A second "Guard" who merely shares a linked row's
+ * spelling swore nothing. Any of the person's rows ticked broken is enough (one row per oath). Every
+ * target has to be an oathbreaker, as for the other grudges here.
  */
 export function oathbreakerAgainst(actor, targets = []) {
 	if (!targets?.length) return null;
@@ -387,8 +390,8 @@ export function oathbreakerAgainst(actor, targets = []) {
 	const breaker = target => {
 		const doc = target?.uuid ? resolveSync(target.uuid) : null;
 		const person = damageRowActor(doc);
-		return isSwornBy(index, { name: target?.name, id: target?.actorId, uuid: target?.uuid })
-			|| (!!person && isSwornBy(index, person));
+		return isBoundBy(index, { name: target?.name, id: target?.actorId, uuid: target?.uuid })
+			|| (!!person && isBoundBy(index, person));
 	};
 	return targets.every(breaker) ? BINDING_ARBITRATION : null;
 }

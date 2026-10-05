@@ -3,12 +3,14 @@ import { stripHtmlToText } from "../../utils/strings.js";
 import { categoryForCharacterPath } from "../../utils/ledger-categories.js";
 import { crewAnonMemberLabel, crewIndividualLabel } from "../../utils/crew.js";
 import { SYSTEM_ID } from "../../system-id.js";
+import { normalizeWoundList } from "./wound-record.js";
 import {
 	LEDGER_SCOPE, isLedgerPath, normalizeFlagPath, getActorProperty,
 	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
 	isBlank, truncateValue, formatValue, valuesEqual, actionForField, coalesceEntries,
-	prettifySlug, listMerge, scalarEntry,
+	prettifySlug, listMerge, scalarEntry, deltaEntry, numericMerge, editMerge, editAction,
 } from "../../utils/ledger-core.js";
+import { deletionTarget } from "../../utils/foundry-compat.js";
 
 const SYSTEM_PATH_LABELS = {
 	"name": "Name",
@@ -741,8 +743,10 @@ function possessionCustomEntries(oldValue, newValue) {
 const WOUND_STATUS_VERB = { problematic: "became problematic", stabilized: "stabilized", permanent: "became permanent" };
 
 function woundLedgerEntries(oldValue, newValue) {
-	const oldById = new Map((Array.isArray(oldValue) ? oldValue : []).map(w => [w.id, w]));
-	const newById = new Map((Array.isArray(newValue) ? newValue : []).map(w => [w.id, w]));
+	// Both sides read as the sheet reads them, so a record stored with no id meets the stand-in id
+	// its first write persists rather than reading as one wound removed and another recorded.
+	const oldById = new Map(normalizeWoundList(oldValue).map(w => [w.id, w]));
+	const newById = new Map(normalizeWoundList(newValue).map(w => [w.id, w]));
 	const label = (w) => (w?.text ? `"${stripHtml(w.text)}"` : "a wound");
 	const entries = [];
 	for (const [id, w] of newById) {
@@ -995,6 +999,10 @@ const EXACT_PATH_ENTRIES = {
 	// and that write is the only record there is.
 	[MAX_HP_PATH]: (p, o, n, names, ctx) =>
 		ctx?.paths?.has(MAX_HP_ADJUSTMENT_PATH) ? [] : [scalarEntry(SYSTEM_PATH_LABELS[MAX_HP_PATH], o, n, p)],
+	// The adjustment IS a delta, so it reads as one: "Max HP (permanent) +4". As a plain field it
+	// read "changed from 0 to 4", which says the character's max HP went from nothing to four.
+	// A run of them folds to the net change.
+	[MAX_HP_ADJUSTMENT_PATH]: (p, o, n) => [deltaEntry(SYSTEM_PATH_LABELS[MAX_HP_ADJUSTMENT_PATH], o ?? 0, n ?? 0, p)],
 	[POSSESSION_CUSTOM_PATH]:   (p, o, n) => possessionCustomEntries(o, n),
 	[WOUNDS_PATH]:              (p, o, n) => woundLedgerEntries(o, n),
 	[INVOCATIONS_PATH]:         (p, o, n, names) => invocationEntries(o, n, names),
@@ -1039,10 +1047,34 @@ const PREFIX_ENTRIES = {
 	[LORE_TEXTS_PREFIX]:  (p, o, n, names) => [loreTextEntry(p, n, names)],
 	[APPEARANCE_PREFIX]:  (p, o, n) => [appearanceEntry(n)],
 
-	[BACKGROUND_ANSWERS_PREFIX]: (p, o, n) => {
-		const question = prettifySlug(p.slice(BACKGROUND_ANSWERS_PREFIX.length));
-		const text = stripHtml(n);
-		return [{ action: text ? `${question} answered: “${truncateValue(text)}”` : `${question} answer cleared` }];
+	[BACKGROUND_ANSWERS_PREFIX]: (p, o, n) => backgroundAnswerEntries(p, n),
+};
+
+/**
+ * A background's answer to a move (`moves.backgroundAnswers.<move>`). setBackgroundAnswer stores it
+ * as `{label, value}`, which flattens into two leaves: `.label` is the question's own wording, not
+ * an answer, and `.value` is the answer. Read as one, the pair filed "Well Versed.label answered"
+ * beside "Well Versed.value answered". An older world may hold a bare string, which is the answer.
+ */
+function backgroundAnswerEntries(path, newValue) {
+	let key = path.slice(BACKGROUND_ANSWERS_PREFIX.length);
+	if (key.endsWith(".label")) return [];
+	if (key.endsWith(".value")) key = key.slice(0, -".value".length);
+	const question = prettifySlug(key);
+	const text = stripHtml(newValue);
+	return [{ action: text ? `${question} answered: “${truncateValue(text)}”` : `${question} answer cleared` }];
+}
+
+/**
+ * The few deletions that ARE news. Every other deletion is silent (see actorUpdateEntries): on
+ * both cores a removed key has usually been reset to its default, or tidied away along with
+ * something that was logged for itself. An answer being withdrawn is the exception.
+ */
+const DELETION_ENTRIES = {
+	[BACKGROUND_ANSWERS_PREFIX]: (p) => backgroundAnswerEntries(p, null),
+	[LORE_TEXTS_PREFIX]: (p, names) => {
+		const [loreSlug = ""] = p.slice(LORE_TEXTS_PREFIX.length).split(":");
+		return [{ action: `Lore: ${nameFrom(names.lore, loreSlug)}: answer cleared` }];
 	},
 };
 
@@ -1079,7 +1111,9 @@ const SORTED_ENTRY_PREFIXES = Object.keys(PREFIX_ENTRIES).sort((a, b) => b.lengt
 // Updating followers p.480). Quiet for the reason a custom follower's own `tags` are quiet (see
 // CUSTOM_FOLLOWER_LOGGED_FIELDS): an edit to the card, not a move made — and an initiate's would
 // otherwise read "Initiate details set to eager" through initiateDetailEntry.
-const BOOKKEEPING_KEY = /\.(?:-=)?(img|portraitFrame|actorUuid|extraTags|droppedTags)(\.|$)/;
+// `party` / `initiatesParty` / `beastParty` are any follower card's "in the party" toggle
+// (follower-party.js): quiet on every card, as the custom card's always was.
+const BOOKKEEPING_KEY = /\.(?:-=)?(img|portraitFrame|actorUuid|extraTags|droppedTags|party|initiatesParty|beastParty)(\.|$)/;
 const isBookkeepingPath = (path) =>
 	path.startsWith(`flags.${LEDGER_SCOPE}.`) && BOOKKEEPING_KEY.test(path);
 
@@ -1139,6 +1173,19 @@ async function actorUpdateEntries(actor, changed) {
 	for (const [path, newValue] of Object.entries(flattened)) {
 		const normalizedPath = normalizeFlagPath(path);
 		if (!normalizedPath || isLedgerPath(normalizedPath)) continue;
+
+		// A DELETION, in either core's spelling. v13's `-=key` with null fell through to labels
+		// that never matched and so said nothing; v14's ForcedDeletion at the plain path matched
+		// them and filed "Inventory changed from changed to changed" and "answered: [object
+		// Object]". Both now take the v13 reading, silence, bar the few that are news.
+		const deleted = deletionTarget(normalizedPath, newValue);
+		if (deleted !== null) {
+			const prefix = Object.keys(DELETION_ENTRIES).find(p => deleted.startsWith(p));
+			if (prefix && getActorProperty(actor, deleted) !== undefined) {
+				entries.push(...withCategory(DELETION_ENTRIES[prefix](deleted, names), deleted));
+			}
+			continue;
+		}
 
 		if (normalizedPath === "system.playbook" || normalizedPath.startsWith("system.playbook.")) {
 			const oldName = actor.system?.playbook?.name;
@@ -1262,9 +1309,81 @@ function summariseItemBatch(items, actionFor, { removed = false } = {}) {
 	return entries;
 }
 
+// ── Edits to an owned item ──────────────────────────────────────────────────
+//
+// A rename, or an edit to what an item says or does: its description, a custom move's roll, an
+// artifact's write-up. Only `name` and `system.*` are looked at, so the bookkeeping an item write
+// usually is (sort order, a picture, flags) stays quiet; within `system`, the possession-grant
+// tags are plumbing too.
+const ITEM_SILENT_SYSTEM_KEYS = new Set(["sourcePossession", "sourceKey", "sourceLabel"]);
+
+// Field names a player would use. Anything else is its camelCase key spelled out.
+const ITEM_FIELD_LABELS = {
+	description:   "description",
+	note:          "notes",
+	rollFormula:   "roll",
+	artifactHint:  "hint",
+	artifactLore:  "write-up",
+	artifactLead:  "lead",
+	identifyState: "identification",
+};
+
+const itemFieldLabel = (key) => ITEM_FIELD_LABELS[key] ?? key.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+
+/**
+ * Entries for one item update, diffed against the item BEFORE the change lands (so this is called
+ * from the actor's pre-update descendant hook). A rename reads "Move renamed from A to B" and folds
+ * a run of renames; field edits read "<Name> edited: description, roll" and fold a burst of edits to
+ * the same item into that one line.
+ *
+ * @param {Item}   item    the owned item, not yet updated
+ * @param {object} change  the update applied to it
+ */
+function itemUpdateEntries(item, change) {
+	const flat = foundry.utils.flattenObject(change ?? {});
+	const entries = [];
+	const id = item?.id ?? item?._id;
+	let name = item?.name ?? "";
+
+	if (Object.hasOwn(flat, "name") && typeof flat.name === "string" && flat.name !== item?.name && flat.name.trim()) {
+		const label = itemTypeLabel(item);
+		const merge = numericMerge(label, `item:${id}:name`, item?.name ?? "", flat.name, "rename");
+		entries.push({ category: itemBatchLabel(label).category, action: `${label} renamed from ${formatValue(item?.name)} to ${formatValue(flat.name)}`, merge });
+		name = flat.name;
+	}
+
+	const fields = [];
+	for (const [path, value] of Object.entries(flat)) {
+		if (!path.startsWith("system.")) continue;
+		const key = path.split(".")[1];
+		if (!key || ITEM_SILENT_SYSTEM_KEYS.has(key) || key.startsWith("-=") || key.startsWith("==")) continue;
+		const before = foundry.utils.getProperty(item, path);
+		if (valuesEqual(before, value) || JSON.stringify(before ?? null) === JSON.stringify(value ?? null)) continue;
+		const label = itemFieldLabel(key);
+		if (!fields.includes(label)) fields.push(label);
+	}
+	if (fields.length) {
+		const subject = stripHtml(name) ?? itemTypeLabel(item);
+		entries.push({
+			category: itemBatchLabel(itemTypeLabel(item)).category,
+			// The item's own name, said outright: a name can hold a word the action's verb list
+			// would cut it at ("Cloak marked with the Rime sigil").
+			subject,
+			action: editAction(subject, fields),
+			merge: editMerge(subject, `item:${id}`, fields),
+		});
+	}
+	return entries;
+}
+
 export class CharacterLedger {
 	static getEntries(actor) {
 		return getLedgerEntries(actor);
+	}
+
+	/** @param {{item: Item, change: object}[]} updates  each owned item with the update it is about to take */
+	static entriesForUpdatedItems(updates) {
+		return (updates ?? []).flatMap(({ item, change }) => (item ? itemUpdateEntries(item, change) : []));
 	}
 
 	static async append(actor, entries, options = {}) {
@@ -1276,9 +1395,9 @@ export class CharacterLedger {
 		return actorUpdateEntries(actor, changed);
 	}
 
-	static async deleteEntries(actor, ids) {
-		if (actor?.type !== "character") return;
-		await deleteLedgerEntries(actor, ids);
+	static async deleteEntries(actor, ids, options) {
+		if (actor?.type !== "character") return [];
+		return deleteLedgerEntries(actor, ids, options);
 	}
 
 	static entriesForCreatedItems(items) {

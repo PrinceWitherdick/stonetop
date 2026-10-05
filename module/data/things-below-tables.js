@@ -113,7 +113,9 @@ export const SITE_FEATURES = ranges([
 	[6,  6,  "A tomb / barrow / memorial, left by the locals or their ancestors"],
 	[7,  7,  "An old dwelling / gathering place of the locals or their ancestors"],
 	[8,  8,  "A ruin of the Makers, or a lingering sign of their presence"],
-	[9,  12, "Deep water, the depths obscure, conceals the site"],
+	// The book's "(roll 1d8)" is kept in the text for this wizard, which shows it as printed;
+	// `again` is the same instruction as data, which the Create a Site wizard performs.
+	[9,  12, { text: "Deep water, the depths obscure, conceals the site (roll 1d8)", again: { max: 8 } }],
 ]);
 
 // ── Corrupted-site cause (1d12) — p. 422 ──────────────────────────────────────
@@ -126,7 +128,7 @@ export const SITE_CAUSES = ranges([
 	[3,  5,  { text: "An artifact / a sorcerer's bones / remains of a corrupted beast, left to fester", fateful: true }],
 	[6,  8,  { text: "An offering of flesh / blood / trauma, intentional or not", fateful: true }],
 	[9,  10, { text: "A summoning / an invocation / a misguided invitation", fateful: true }],
-	[11, 12, { text: "A seal or binding that kept prior corruption in check, now weakened", fateful: true }],
+	[11, 12, { text: "A seal or binding that kept prior corruption in check, now weakened (roll d10 again for the original corruption)", fateful: true, again: { max: 10 } }],
 ]);
 
 // ── Corrupted-site severity (1d12) — p. 422 ───────────────────────────────────
@@ -149,14 +151,16 @@ const _SEVERITY_LADDER = [...SITE_SEVERITIES].sort((a, b) => a.level - b.level);
  * Seed a corrupted-site's doom track from its chosen severity. A site "getting worse"
  * climbs the severity ladder, so the grim portents are the levels ABOVE the chosen one
  * and the impending doom is the top of the ladder ("a wound in the world"). A site that
- * is already a wound has no room to worsen, so it gets an empty track.
+ * is already a wound has no room to worsen, so it gets an empty track. An unknown key
+ * returns null rather than passing for "shunned": a track seeded from a severity nobody
+ * picked would be a guess. (The wizard only calls this with a key it found in the table.)
  * @param {string} severityKey  a SITE_SEVERITIES key (shunned/hungry/poisonous/spawning/wound)
- * @returns {{ grimPortents: {text:string, done:boolean}[], impendingDoom: {text:string, done:boolean} }}
+ * @returns {{ grimPortents: {text:string, done:boolean}[], impendingDoom: {text:string, done:boolean} }|null}
  */
 export function seedSiteDoomTrack(severityKey) {
 	const chosen = _SEVERITY_LADDER.find(s => s.key === severityKey);
-	const from = chosen ? chosen.level : 1;
-	const worse = _SEVERITY_LADDER.filter(s => s.level > from);
+	if (!chosen) return null;
+	const worse = _SEVERITY_LADDER.filter(s => s.level > chosen.level);
 	const top = worse.length ? worse[worse.length - 1] : null;
 	const middle = top ? worse.slice(0, -1) : worse;
 	return {
@@ -170,27 +174,49 @@ export function seedSiteDoomTrack(severityKey) {
 // severity can be found in higher levels, too"), so a site accrues the GM moves of every
 // level up to its own. Keyed by SITE_SEVERITIES.level; siteDangerMoves() returns the
 // cumulative set to seed a corrupted-site threat's GM moves.
+//
+// Levels 1-3 are the book's three lists in full, word for word (only the "(next page)" and
+// "(page 430)" cross-references are given as page numbers). Levels 4 and 5 have NO move list
+// in the book: their single moves are EXTRAPOLATED from the severity table's own words
+// (p. 422: "where emanations congeal and manifest", "spreading rot, bleeding horror"), and
+// each carries SITE_DANGER_EXTRAPOLATED_NOTE so the threat card says so too.
+export const SITE_DANGER_EXTRAPOLATED_NOTE = "(extrapolated from the severity, not a book move)";
+export const SITE_DANGER_EXTRAPOLATED_LEVELS = [4, 5];
 export const SITE_DANGER_MOVES = {
-	1: [ // Disquiet and unease
-		"Introduce something ominous (a cold spot, a gust of wind, mist, a foul stench)",
-		"Ask about their fears, doubts, shames, or animosities",
-		"Reveal a lack of natural spirits, or only unsavory ones",
+	1: [ // Disquiet and unease, p. 428
+		"Introduce something ominous (a cold spot, a dramatic gust of wind, mist/fog, a foul stench, etc.)",
+		"Make something seem worse than it is",
+		"Imply that allies might betray them",
+		"Ask about their fears/doubts/shames/animosities",
+		"Have an NPC get edgy/act weird/freak out",
+		"Reveal a lack of natural spirits, or only unsavory ones, plus a hateful power that yearns to be called forth",
 	],
-	2: [ // Whispers and visions
-		"Twist their senses; lure them deeper or closer",
-		"Fill them with growing dread; keep them from sleeping",
+	2: [ // Whispers and visions, p. 428
+		"Twist their senses",
+		"Lure them deeper/closer",
+		"Keep them from sleeping",
+		"Fill them with growing dread",
+		"Overwhelm them with terror (p. 429)",
+		"Stir an unsavory emotion (anger, jealousy, despair, hate, resentment, etc.)",
 		"Whisper a suggestion or compulsion",
+		"Show an NPC struggling to keep it together, to keep control",
+		"Have an NPC succumb to the whispers/their fear/their emotions",
 	],
-	3: [ // Unnatural phenomena
-		"Present something impossible and disturbing (bleeding walls, water on the ceiling)",
-		"Have light sources dim, sputter, or snuff out; food spoil, drink foul",
-		"Eat away at their gear, or corrupt them",
+	3: [ // Unnatural phenomena, p. 429
+		"Present something impossible and disturbing (bleeding walls, water pooling on the ceiling, darkness that light won't penetrate, etc.)",
+		"Have light sources dim/sputter/snuff out",
+		"Reveal that food has spoiled/drink has fouled",
+		"Inflict a debility (from fear/cold/ennui/hunger/fatigue/nausea/despair/etc.)",
+		"Eat away at their gear, have it fail for no good reason",
+		"Trap them in a maze of time/space/perception",
+		"Threaten/hinder/grab/tear at them with the environment",
+		"Corrupt them (p. 430)",
 	],
-	4: [ // Spawning
-		"Manifest an emanation from the corrupted site",
+	4: [ // Spawning: extrapolated, see above
+		`Manifest an emanation from the corrupted site ${SITE_DANGER_EXTRAPOLATED_NOTE}`,
 	],
-	5: [ // A wound in the world
-		"Spread its rot to the surrounding area, bleeding horror outward",
+	5: [ // A wound in the world: extrapolated, see above
+		`Spread its rot to the surrounding area, bleeding horror outward ${SITE_DANGER_EXTRAPOLATED_NOTE}`,
 	],
 };
 
@@ -309,13 +335,45 @@ function _agent(verb) {
 	return _cap(v) + "er";
 }
 
+/** A verb's third person singular, capitalized: bury to Buries, crush to Crushes, destroy to
+ *  Destroys (a vowel before the y keeps it), howl to Howls. */
+function _thirdPerson(verb) {
+	const v = String(verb ?? "");
+	if (/[^aeiou]y$/i.test(v)) return _cap(v.slice(0, -1)) + "ies";
+	if (/(?:sh|ch|s|x|z)$/i.test(v)) return _cap(v) + "es";
+	return _cap(v) + "s";
+}
+
+/** Every word of a noun phrase capitalized: "spilled blood" to "Spilled Blood". */
+function _titleCase(phrase) {
+	return String(phrase ?? "").split(/\s+/).filter(Boolean).map(_cap).join(" ");
+}
+
+/** "a" or "an", by the sound of the word that follows (its first letter is close enough). */
+function _article(word) {
+	return /^[aeiou]/i.test(String(word ?? "")) ? "an" : "a";
+}
+
+// The book's adjectives that count ("Thief of a Thousand Hopes"). They only fit before a
+// plural noun, so the title patterns keep them for "of [a] <count> <plural noun>" and never put
+// them on a role ("the Many King") or a singular noun ("a Forty Hoarfrost"). Only "hundred" and
+// "thousand" take "a"; "of Forty Eyes" and "of Many Eyes" stand without one.
+const _COUNT_ADJECTIVES = ["forty", "hundred", "many", "thousand"];
+const _PLAIN_ADJECTIVES = NAME_ADJECTIVES.filter(a => !_COUNT_ADJECTIVES.includes(a));
+
+/** A noun reads as plural when it ends in a single s ("Pearls", "Pyres"; not "Abyss"). */
+function _isPlural(noun) {
+	return /[^s]s$/i.test(String(noun ?? "").trim());
+}
+
 /**
  * Compose an invented true-name approximation from 2-3 short syllables, sometimes with an
  * apostrophe (as the book's examples do: "Hec'tumel", "Unhlef'k"). Deterministic under a
  * seeded rng for tests.
  */
 export function generateThingName(rng = Math.random) {
-	const count = 2 + Math.floor((rng() || 0) * 2); // 2 or 3 syllables
+	// 2 or 3 syllables, clamped so an rng that returns exactly 1 still lands on 3.
+	const count = 2 + Math.min(1, Math.max(0, Math.floor((rng() || 0) * 2)));
 	const parts = [];
 	for (let i = 0; i < count; i++) parts.push(_pick(NAME_SYLLABLES, rng));
 	let name = parts.join("");
@@ -330,21 +388,29 @@ export function generateThingName(rng = Math.random) {
  * flavored by a theme's imagery. `theme` is a THEMES entry (or null).
  */
 export function generateThingTitle(rng = Math.random, theme = null) {
-	const adj = _pick(NAME_ADJECTIVES, rng);
+	const adj = _pick(_PLAIN_ADJECTIVES, rng);
 	const role = _pick(NAME_ROLES, rng);
 	const verb = _pick(NAME_VERBS, rng);
 	// A concrete noun pulled from a theme's imagery, when one is available.
 	const materials = theme && typeof theme.materials === "string"
 		? theme.materials.split(",").map(s => s.trim()).filter(Boolean)
 		: [];
-	const noun = materials.length ? _pick(materials, rng) : _pick(["Grief", "Sorrow", "Ash", "Shadow", "Hunger", "Ruin", "Silence"], rng);
+	const noun = _titleCase(materials.length ? _pick(materials, rng) : _pick(["Grief", "Sorrow", "Ash", "Shadow", "Hunger", "Ruin", "Silence"], rng));
 
+	// "of a <adjective> <noun>": a plural noun takes a counting adjective ("of a Thousand
+	// Pearls", "of Forty Pearls"); a singular one a plain adjective and the right article.
+	const ofA = () => {
+		if (!_isPlural(noun)) return `${_cap(role)} of ${_article(adj)} ${_cap(adj)} ${noun}`;
+		const count = _pick(_COUNT_ADJECTIVES, rng);
+		const article = count === "hundred" || count === "thousand" ? "a " : "";
+		return `${_cap(role)} of ${article}${_cap(count)} ${noun}`;
+	};
 	const patterns = [
 		() => `the ${_cap(adj)} ${_cap(role)}`,
-		() => `${_cap(role)} of ${_cap(noun)}`,
-		() => `the ${_agent(verb)} in ${_cap(noun)}`,
-		() => `${_cap(role)} of a ${_cap(adj)} ${_cap(noun)}`,
-		() => `Who ${_cap(verb)}s the ${_cap(noun)}`,
+		() => `${_cap(role)} of ${noun}`,
+		() => `the ${_agent(verb)} in ${noun}`,
+		ofA,
+		() => `Who ${_thirdPerson(verb)} the ${noun}`,
 	];
 	return (_pick(patterns, rng) ?? patterns[0])();
 }
@@ -373,19 +439,19 @@ export { rollOnTable };
 /** Roll N distinct results off a table (for "roll 2+" themes/aspects). Falls back to
  *  fewer than N if the table is smaller. `rng` returns a float in [0, 1). */
 export function rollDistinct(table, count = 2, rng = Math.random, exclude = null) {
+	// Roll only on the rows not yet taken: the ids the caller already has (`exclude`, any
+	// iterable of ids matching the table's `id` field) and each pick as it lands. Rerolling
+	// the whole table and skipping repeats could come back empty-handed with one row left;
+	// a shrinking pool always lands, and ends when it runs dry.
+	const keyOf = e => e.id ?? e.text;
+	const taken = new Set(exclude ?? []);
+	let pool = (Array.isArray(table) ? table : []).filter(e => !taken.has(keyOf(e)));
 	const out = [];
-	const seen = new Set();
-	// Seed the seen-set with ids already chosen, so a "roll to fill the rest" never hands
-	// back a pick the caller already has (Set.add would silently no-op it, leaving a slot
-	// unfilled). `exclude` is any iterable of ids matching the table's `id` field.
-	if (exclude) for (const id of exclude) seen.add(id);
-	for (let i = 0; i < count * 6 && out.length < count && out.length < table.length; i++) {
-		const entry = rollOnTable(table, rng);
+	while (out.length < count && pool.length) {
+		const entry = rollOnTable(pool, rng);
 		if (!entry) break;
-		const key = entry.id ?? entry.text;
-		if (seen.has(key)) continue;
-		seen.add(key);
 		out.push(entry);
+		pool = pool.filter(e => keyOf(e) !== keyOf(entry));
 	}
 	return out;
 }

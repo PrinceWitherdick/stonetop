@@ -1,6 +1,7 @@
 import { capitalizeFirst, escHtml, slugify, stripHtmlToText } from "../utils/strings.js";
 import { pickLimitsFrom } from "../utils/move-picks.js";
 import { firstOptionList } from "../utils/chat.js";
+import { normalizeRollType } from "../utils/roll-types.js";
 
 /**
  * The mysteries on an arcanum's BACK are moves — "choose one of the moves on the reverse"
@@ -199,6 +200,39 @@ function _parseArcanumMoves(description) {
 /** One move by slug, or null. */
 export function findArcanumMove(description, moveSlug) {
 	return parseArcanumMoves(description).find(m => m.slug === moveSlug) ?? null;
+}
+
+/**
+ * The handle slug of a card's CONDENSED move: the structured `back.move` a minor arcanum carries
+ * (trigger + effect), as opposed to the mysteries parsed out of the back's prose. Not a slug
+ * `slugify` can mint from a SHOUTED name, so it can never shadow a mystery.
+ */
+export const CONDENSED_MOVE_SLUG = "~condensed";
+
+/**
+ * A card's condensed move in the same record shape `parseArcanumMoves` returns, so a click on it
+ * takes the mysteries' path: a dialog when it rolls or offers a list, a chat card when it doesn't.
+ *
+ * The stat comes from the card's own `rollType` (what the editor sets), and failing that from the
+ * text ("roll +INT"), the way a mystery's does: most shipped minors say it only in the prose.
+ *
+ * @param {{name?: string, rollType?: *, description?: string}|null} move  `back.move`
+ * @returns {object|null}
+ */
+export function condensedArcanumMove(move) {
+	if (!move || !(String(move.name ?? "").trim() || String(move.description ?? "").trim())) return null;
+	const description = String(move.description ?? "");
+	const roll = normalizeRollType(move.rollType)?.toLowerCase()
+		?? _ROLL_RE.exec(stripHtmlToText(description))?.[1]?.toLowerCase()
+		?? null;
+	return {
+		slug: CONDENSED_MOVE_SLUG,
+		name: String(move.name ?? "").trim(),
+		boxIndex: null,
+		description,
+		roll,
+		..._picksFrom(description),
+	};
 }
 
 /**
