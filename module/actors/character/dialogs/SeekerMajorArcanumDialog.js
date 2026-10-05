@@ -63,7 +63,7 @@ export class SeekerMajorArcanumDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-seeker-major-dialog",
-			template:  "systems/stonetop-pwd/templates/dialogs/seeker-major-arcanum.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/seeker-major-arcanum.hbs",
 			width:     480,
 			height:    "auto",
 			resizable: true,

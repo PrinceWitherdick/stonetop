@@ -16,14 +16,14 @@ import {
 } from "../../../module/actors/character/unstoppable.js";
 import { DEATHS_DOOR_STATE } from "../../../module/actors/character/deaths-door.js";
 
-const TRACK = "flags.stonetop-pwd.moves.backgroundChoices.Unstoppable";
+const TRACK = "flags.stonetop_pwd.moves.backgroundChoices.Unstoppable";
 
 /** A Heavy with Unstoppable, down at `hp` in `state`, with `marks` circles marked. */
 function heavy({ hp = 0, state = DEATHS_DOOR_STATE.DYING, marks = 0, learned = true, insert = null } = {}) {
 	const def = sourceMovesFor("The Heavy").find(d => d.name === "Unstoppable");
 	const unstoppable = makeLiveItem({
 		name: "Unstoppable", type: "move", system: structuredClone(def.system),
-		flags: learned ? {} : { "stonetop-pwd": { learned: false } },
+		flags: learned ? {} : { "stonetop_pwd": { learned: false } },
 	});
 	const flags = {};
 	if (state) flags.deathsDoor = state;

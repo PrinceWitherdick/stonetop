@@ -404,14 +404,14 @@ function liveActor(steading = {}) {
 		id: `st-${Math.random().toString(36).slice(2)}`,
 		type: "stonetop",
 		system: {},
-		flags: { "stonetop-pwd": { steading: structuredClone(steading) } },
-		getFlag: (scope, key) => actor.flags["stonetop-pwd"]?.[key],
+		flags: { "stonetop_pwd": { steading: structuredClone(steading) } },
+		getFlag: (scope, key) => actor.flags["stonetop_pwd"]?.[key],
 	};
 	actor.update = vi.fn(async data => { for (const [path, value] of Object.entries(data)) writePath(actor, path, value); });
 	actor.setFlag = vi.fn(async (scope, key, value) => writePath(actor, `flags.${scope}.${key}`, value));
 	return actor;
 }
-const stored = actor => actor.flags["stonetop-pwd"].steading;
+const stored = actor => actor.flags["stonetop_pwd"].steading;
 const prosperity = actor => stored(actor).system?.attributes?.prosperity?.value;
 
 describe("the engine carries the new kinds", () => {

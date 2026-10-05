@@ -63,9 +63,9 @@ describe("forced light theme on Stonetop windows", () => {
 	});
 
 	it("ignores the bare package id, which is not a claim to own the window", () => {
-		// `stonetop-pwd` is the system id; core or a module may stamp it on a window we
+		// `stonetop_pwd` is the system id; core or a module may stamp it on a window we
 		// do not own, so only `stonetop` / `stonetop-*` skin classes count.
-		const el = root("application", "stonetop-pwd", "themed", "theme-dark");
+		const el = root("application", "stonetop_pwd", "themed", "theme-dark");
 		onRender(null, el);
 		expect(el.classList.contains("theme-dark")).toBe(true);
 		expect(el.classList.contains("theme-light")).toBe(false);

@@ -14,7 +14,7 @@ import { FakeArcanaRepository } from "../../fakes/FakeArcanaRepository.js";
 // The Seeker's arcana moves on the arcana tab (audit A7/C11 Mind Over Magic, A12/C12 Improvise,
 // A10/C10 Conduit of Power + Overchannel).
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const readJson = rel => JSON.parse(fs.readFileSync(path.resolve(rel), "utf8"));
 const AZURE_HAND = readJson("packs/src/stonetop-arcana/major/azure-hand.json").flags.stonetop;
 const MINDGEM_CARD = readJson("packs/src/stonetop-arcana/major/mindgem.json").flags.stonetop;

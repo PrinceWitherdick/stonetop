@@ -829,7 +829,7 @@ describe("the setting", () => {
 		const foundry = (applications, osDark = false) => {
 			globalThis.game = { settings: { get: (scope, key) => {
 				if (scope === "core" && key === "uiConfig") return { colorScheme: { applications, interface: "" } };
-				return scope === "stonetop-pwd" ? globalThis.__contrast : undefined;
+				return scope === "stonetop_pwd" ? globalThis.__contrast : undefined;
 			} } };
 			globalThis.matchMedia = query => ({ matches: osDark && /dark/.test(query), addEventListener() {} });
 		};

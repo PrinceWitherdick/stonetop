@@ -28,7 +28,7 @@ describe("StonetopCharacter.applyCreationStatChoice", () => {
 	it("records the pick and bumps the chosen stat on an already-owned move (re-run path)", async () => {
 		const { actor, character } = makeCharacter({ str: 1 });
 		await character.applyCreationStatChoice("pm-imp", "str");
-		expect(actor.setFlag).toHaveBeenCalledWith("stonetop-pwd", "improvedStatChoices", { imp1: "str" });
+		expect(actor.setFlag).toHaveBeenCalledWith("stonetop_pwd", "improvedStatChoices", { imp1: "str" });
 		expect(actor.update).toHaveBeenCalledWith(
 			{ "system.stats.str.value": 2 },
 			expect.objectContaining({ stonetopMove: "Improved Stat" }),

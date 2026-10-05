@@ -42,16 +42,16 @@ describe("StonetopItem.roll — move identity on the card", () => {
 	it("stamps the base move name, not the stat-decorated header", async () => {
 		await makeItem("Know Things", KNOW_THINGS).roll({ statOverride: "wis" });
 		const opts = rollStat.mock.calls[0][2];
-		expect(opts.messageFlags["stonetop-pwd"].move).toBe("Know Things");
+		expect(opts.messageFlags["stonetop_pwd"].move).toBe("Know Things");
 		expect(opts.moveName).toBe("Know Things with WIS");   // the header still names the stat
 	});
 
 	it("merges into an existing producer's flags rather than replacing them", async () => {
 		// The attack flow already stamps its own payload under the same scope key.
 		await makeItem("Clash", { rollType: "str" }).roll({
-			messageFlags: { "stonetop-pwd": { attack: { move: "clash" } } },
+			messageFlags: { "stonetop_pwd": { attack: { move: "clash" } } },
 		});
-		const flags = rollStat.mock.calls[0][2].messageFlags["stonetop-pwd"];
+		const flags = rollStat.mock.calls[0][2].messageFlags["stonetop_pwd"];
 		expect(flags.attack).toEqual({ move: "clash" });
 		expect(flags.move).toBe("Clash");
 	});
@@ -132,20 +132,20 @@ describe("StonetopItem.roll: the Invocations an Invoke card is for", () => {
 
 	it("stamps them on the message", async () => {
 		await makeItem("Invoke the Sun God", INVOKE).roll({ pickContext: { empowered: false, invocations: ["blinding-flash", "warmth-of-the-sun"] } });
-		const flags = rollStat.mock.calls[0][2].messageFlags["stonetop-pwd"];
+		const flags = rollStat.mock.calls[0][2].messageFlags["stonetop_pwd"];
 		expect(flags).toEqual({ move: "Invoke the Sun God", invocations: ["blinding-flash", "warmth-of-the-sun"] });
 	});
 
 	// R7: what an Invocation's own button offers depends on it (Bath of Healing Light's empowered choices).
 	it("stamps whether they were empowered", async () => {
 		await makeItem("Invoke the Sun God", INVOKE).roll({ pickContext: { empowered: true, invocations: ["bath-of-healing-light"] } });
-		expect(rollStat.mock.calls[0][2].messageFlags["stonetop-pwd"])
+		expect(rollStat.mock.calls[0][2].messageFlags["stonetop_pwd"])
 			.toEqual({ move: "Invoke the Sun God", invocations: ["bath-of-healing-light"], invokeEmpowered: true });
 	});
 
 	it("stamps nothing for a roll that names none", async () => {
 		await makeItem("Invoke the Sun God", INVOKE).roll();
-		expect(rollStat.mock.calls[0][2].messageFlags["stonetop-pwd"]).toEqual({ move: "Invoke the Sun God" });
+		expect(rollStat.mock.calls[0][2].messageFlags["stonetop_pwd"]).toEqual({ move: "Invoke the Sun God" });
 	});
 });
 
@@ -162,7 +162,7 @@ describe("StonetopItem.roll: Wielder of the White Flame's 10+", () => {
 	});
 
 	it("carries nothing without Invoke the Sun God learned", async () => {
-		const unlearned = { ...move("Invoke the Sun God"), flags: { "stonetop-pwd": { learned: false } } };
+		const unlearned = { ...move("Invoke the Sun God"), flags: { "stonetop_pwd": { learned: false } } };
 		await makeItem("Wielder of the White Flame", WIELDER, [move("Wielder of the White Flame"), unlearned]).roll();
 		expect(rollStat.mock.calls[0][2].tierActions).toBeUndefined();
 	});
@@ -219,7 +219,7 @@ describe("StonetopItem.roll: a monster's move posted without a roll", () => {
 	it("stamps the move's name on the message, since the heading no longer carries it", async () => {
 		const posted = await statBlockMove("monsterMove", "Block their path", { description: "", rollFormula: "" }).roll();
 
-		expect(posted.flags["stonetop-pwd"].move).toBe("Block their path");
+		expect(posted.flags["stonetop_pwd"].move).toBe("Block their path");
 	});
 
 	it("escapes the name, which a GM can edit on the stat block", async () => {
@@ -244,7 +244,7 @@ describe("StonetopItem.roll: a monster's move posted without a roll", () => {
 
 		expect(posted.content).toContain("stonetop-spend-stock");
 		expect(posted.content.indexOf("stonetop-spend-stock")).toBeLessThan(posted.content.lastIndexOf("</div>"));
-		expect(posted.flags["stonetop-pwd"].move).toBe("Call the Spirits");
+		expect(posted.flags["stonetop_pwd"].move).toBe("Call the Spirits");
 	});
 });
 

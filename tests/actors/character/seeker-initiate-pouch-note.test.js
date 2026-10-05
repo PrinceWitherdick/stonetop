@@ -78,7 +78,7 @@ describe("C14: re-picking a possession starts it fresh", () => {
 			flags: { "possessions.selected": ["books-and-scrolls"], "possessions.uses": { "books-and-scrolls": 3 } } });
 		await char.deselectPossession("books-and-scrolls");
 		await char.selectPossession("books-and-scrolls");
-		expect(actor.getFlag("stonetop-pwd", "possessions.selected")).toContain("books-and-scrolls");
-		expect(actor.getFlag("stonetop-pwd", "possessions.uses")?.["books-and-scrolls"]).toBeUndefined();
+		expect(actor.getFlag("stonetop_pwd", "possessions.selected")).toContain("books-and-scrolls");
+		expect(actor.getFlag("stonetop_pwd", "possessions.uses")?.["books-and-scrolls"]).toBeUndefined();
 	});
 });

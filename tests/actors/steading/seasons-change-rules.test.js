@@ -18,8 +18,8 @@ function steadingWith({ season = "autumn", year = 1, steading = {} } = {}) {
 		steading: { system: { stats: { fortunes: { value: 2 } } }, ...steading },
 	};
 	return new StonetopSteading({
-		type: "stonetop", system: {}, flags: { "stonetop-pwd": flags },
-		getFlag: (scope, key) => (scope === "stonetop-pwd" ? flags[key] ?? null : null),
+		type: "stonetop", system: {}, flags: { "stonetop_pwd": flags },
+		getFlag: (scope, key) => (scope === "stonetop_pwd" ? flags[key] ?? null : null),
 		setFlag: vi.fn(), update: vi.fn(),
 	});
 }

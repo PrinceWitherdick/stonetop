@@ -20,7 +20,7 @@ vi.mock("../../../module/dialogs/RelationshipLinkDialog.js", async (importOrigin
 	pickPersonOnMap: picker.pick,
 }));
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const TRACKS = {
 	[CHRONICLER]: { max: 3, title: "Diligence" },
 	[COMMUNE_WITH_ARATIS]: { max: 2, title: "Sanction" },

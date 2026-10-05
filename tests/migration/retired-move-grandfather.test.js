@@ -5,7 +5,7 @@ import { unstampedReplacers, grandfatherRetiredMoves } from "../../module/migrat
 // stamp). Copies taken before anything wrote that stamp are stamped once, so a Heavy who gave up
 // Bulwark for A Mighty Rampart by hand does not wake up to "requirement not met".
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const move = (id, name, { replaces = null, version = "1.6.5", flags = {} } = {}) => ({
 	id, type: "move", name,
 	system: replaces ? { replaces } : {},

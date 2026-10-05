@@ -158,7 +158,7 @@ describe("the Seeker's sacred pouch (Initiate of the Secret Arts)", () => {
 			flags: { "possessions.selected": [POUCH], "possessions.grantedAtLevel": { [POUCH]: 2 } },
 		});
 		await char.removeMove(item._id);
-		expect(actor.getFlag("stonetop-pwd", "possessions.selected")).not.toContain(POUCH);
+		expect(actor.getFlag("stonetop_pwd", "possessions.selected")).not.toContain(POUCH);
 		// Its level, spent Stock and picks are forgotten too, so a retake starts fresh.
 		const writes = actor.update.mock.calls.flatMap(([u]) => Object.keys(u));
 		expect(writes.some(k => k.includes("grantedAtLevel") && k.includes(POUCH))).toBe(true);
@@ -171,7 +171,7 @@ describe("the Seeker's sacred pouch (Initiate of the Secret Arts)", () => {
 			flags: { "possessions.selected": [POUCH] },
 		});
 		await char.removeMove(first._id);
-		expect(actor.getFlag("stonetop-pwd", "possessions.selected")).toContain(POUCH);
+		expect(actor.getFlag("stonetop_pwd", "possessions.selected")).toContain(POUCH);
 	});
 
 	it("a Blessed who learned it keeps the pouch they started with", async () => {
@@ -181,7 +181,7 @@ describe("the Seeker's sacred pouch (Initiate of the Secret Arts)", () => {
 			flags: { "possessions.selected": [POUCH] },
 		});
 		await char.removeMove(item._id);
-		expect(actor.getFlag("stonetop-pwd", "possessions.selected")).toContain(POUCH);
+		expect(actor.getFlag("stonetop_pwd", "possessions.selected")).toContain(POUCH);
 	});
 
 	// Initiate: "no remarkable traits". Big Magic: "choose an additional remarkable trait".

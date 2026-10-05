@@ -35,7 +35,7 @@ export class PosterMapScenesDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-poster-map-scenes",
 			title:     "Maps you already have",
-			template:  "systems/stonetop-pwd/templates/dialogs/poster-map-scenes.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/poster-map-scenes.hbs",
 			width:     520,
 			height:    "auto",
 			resizable: true,

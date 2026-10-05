@@ -14,14 +14,14 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 
 // A minimal stand-in for a character actor: `move` names become embedded move
 // Items, and `possessions` become the selected special-possession slugs (the
-// flags.stonetop-pwd.possessions.selected array the production flag reads).
+// flags.stonetop_pwd.possessions.selected array the production flag reads).
 function fakeCharacter({ name = "Test PC", moves = [], possessions = [], type = "character" } = {}) {
 	return {
 		name,
 		type,
 		items: moves.map(name => ({ type: "move", name })),
 		getFlag: (scope, key) =>
-			scope === "stonetop-pwd" && key === "possessions.selected" ? possessions : undefined,
+			scope === "stonetop_pwd" && key === "possessions.selected" ? possessions : undefined,
 	};
 }
 
@@ -129,7 +129,7 @@ describe("the Logbook's reset button", () => {
 	const seeker = (extra = {}) => ({ ...fakeCharacter({ name: "Maelis", moves: ["Logbook"] }), id: "seeker1", ...extra });
 
 	it("lists no upkeep for an un-learned move", () => {
-		const actor = { ...seeker(), items: [{ type: "move", name: "Logbook", flags: { "stonetop-pwd": { learned: false } } }] };
+		const actor = { ...seeker(), items: [{ type: "move", name: "Logbook", flags: { "stonetop_pwd": { learned: false } } }] };
 		expect(remindersForActor(actor)).toEqual([]);
 	});
 
@@ -147,7 +147,7 @@ describe("the Logbook's reset button", () => {
 		const actor = {
 			...seeker(), isOwner, update,
 			getFlag: (scope, key) => (key === "logbookResetCard" ? resetFrom : undefined),
-			typedActor: { moveResources: { usesUpdate: (move, value) => ({ [`flags.stonetop-pwd.backgroundChoices.${move}`]: value }) } },
+			typedActor: { moveResources: { usesUpdate: (move, value) => ({ [`flags.stonetop_pwd.backgroundChoices.${move}`]: value }) } },
 		};
 		const listeners = {};
 		const btn = {
@@ -165,7 +165,7 @@ describe("the Logbook's reset button", () => {
 		expect(btn.remove).not.toHaveBeenCalled();
 		await click();
 		expect(update).toHaveBeenCalledWith(
-			{ "flags.stonetop-pwd.backgroundChoices.Logbook": 0, "flags.stonetop-pwd.logbookResetCard": "msg1" },
+			{ "flags.stonetop_pwd.backgroundChoices.Logbook": 0, "flags.stonetop_pwd.logbookResetCard": "msg1" },
 			{ stonetopMove: "Logbook" });
 		expect(btn.disabled).toBe(true);
 		expect(btn.innerHTML).toContain("Logbook reset");
@@ -215,7 +215,7 @@ describe("the Laboratory's naphtha button", () => {
 		await click();
 		expect(toMessage).toHaveBeenCalledWith("1d4-1", expect.anything());
 		expect(update).toHaveBeenCalledWith(
-			{ "flags.stonetop-pwd.inventory.resources.naphtha": 1, "flags.stonetop-pwd.naphthaRollCard": "msg2" },
+			{ "flags.stonetop_pwd.inventory.resources.naphtha": 1, "flags.stonetop_pwd.naphthaRollCard": "msg2" },
 			{ stonetopMove: "Laboratory" });
 		expect(btn.innerHTML).toContain("Naphtha rolled");
 		delete globalThis.Roll;
@@ -225,7 +225,7 @@ describe("the Laboratory's naphtha button", () => {
 		const { html, actors, update, click } = rig(0);
 		wireSeasonsReminderResets({ id: "msg3" }, html, { actors });
 		await click();
-		expect(update.mock.calls.at(-1)[0]["flags.stonetop-pwd.inventory.resources.naphtha"]).toBe(3);
+		expect(update.mock.calls.at(-1)[0]["flags.stonetop_pwd.inventory.resources.naphtha"]).toBe(3);
 		delete globalThis.Roll;
 	});
 
@@ -235,7 +235,7 @@ describe("the Laboratory's naphtha button", () => {
 		toMessage.mockImplementation(async () => { notedAtRoll = update.mock.calls[0]?.[0]; });
 		wireSeasonsReminderResets({ id: "msg4" }, html, { actors });
 		await click();
-		expect(notedAtRoll).toEqual({ "flags.stonetop-pwd.naphthaRollCard": "msg4" });
+		expect(notedAtRoll).toEqual({ "flags.stonetop_pwd.naphthaRollCard": "msg4" });
 		await click();
 		expect(toMessage).toHaveBeenCalledOnce();
 		delete globalThis.Roll;
@@ -256,7 +256,7 @@ describe("the Laboratory's naphtha button", () => {
 		toMessage.mockRejectedValue(new Error("offline"));
 		wireSeasonsReminderResets({ id: "msg6" }, html, { actors });
 		await click();
-		expect(update.mock.calls.at(-1)[0]).toEqual({ "flags.stonetop-pwd.naphthaRollCard": null });
+		expect(update.mock.calls.at(-1)[0]).toEqual({ "flags.stonetop_pwd.naphthaRollCard": null });
 		expect(btn.disabled).toBe(false);
 		delete globalThis.Roll;
 	});

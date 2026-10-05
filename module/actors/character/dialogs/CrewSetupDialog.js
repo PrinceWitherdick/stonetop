@@ -129,7 +129,7 @@ export class CrewSetupDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-crew-setup",
 			title:     "Create your crew",
-			template:  "systems/stonetop-pwd/templates/dialogs/crew-setup.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/crew-setup.hbs",
 			width:     560,
 			height:    "auto",
 			resizable: true,

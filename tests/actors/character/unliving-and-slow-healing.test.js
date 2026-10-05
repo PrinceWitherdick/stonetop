@@ -12,7 +12,7 @@ import { buildLiveCharacter } from "../../fakes/LiveCharacter.js";
 // magical healing, Make Camp, Recover or Convalesce", and a Thrall's Torment's Blessing ("When you
 // recover HP, recover only half the amount that you should") halves every way HP comes back.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 /** A bare actor wearing `insert`, with `marks` ticked in its Marks section. */
 function wearing(insert, marks = []) {

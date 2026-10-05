@@ -31,7 +31,7 @@ function makeSteading(neighbors = []) {
 	const flags = { neighbors };
 	return {
 		type: "stonetop",
-		flags: { "stonetop-pwd": { steading: flags } },
+		flags: { "stonetop_pwd": { steading: flags } },
 		typedActor: { setFlags: vi.fn(async patch => Object.assign(flags, patch)) },
 		get neighbors() { return flags.neighbors; },
 	};
@@ -195,7 +195,7 @@ describe("_applyBackgroundNeighbors", () => {
 	// written against the roster as it stands after the creates, not the copy read before them.
 	it("keeps a row added to the roster while it was creating the NPCs", async () => {
 		global.Actor.create.mockImplementationOnce(async data => {
-			steading.flags["stonetop-pwd"].steading.neighbors = [{ uuid: "Actor.late", id: "late", name: "Kesh" }];
+			steading.flags["stonetop_pwd"].steading.neighbors = [{ uuid: "Actor.late", id: "late", name: "Kesh" }];
 			const id = `npc${++nextId}`;
 			const actor = {
 				id, uuid: `Actor.${id}`, name: data.name, type: data.type,
@@ -238,10 +238,10 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 		const sheet = makeSheet();
 		const flags = { background: { selected: from, ...background } };
 		sheet.actor = {
-			flags: { "stonetop-pwd": flags },
+			flags: { "stonetop_pwd": flags },
 			update: vi.fn(async upd => {
 				for (const [k, v] of Object.entries(upd)) {
-					const key = k.replace("flags.stonetop-pwd.background.", "");
+					const key = k.replace("flags.stonetop_pwd.background.", "");
 					if (key.startsWith("-=")) delete flags.background[key.slice(2)];
 					else flags.background[key] = v;
 				}
@@ -278,7 +278,7 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 		expect(names()).toEqual(["Devin", "Haeris", "Rahat", "Unz"]);
 		expect(actors.map(a => a.system.home)).toEqual(["Marshedge", "Gordin's Delve", "Lygos", "the Hillfolk"]);
 		// Stored where onboarding stores them, so a later onboarding run reads them back ticked.
-		expect(sheet.actor.flags["stonetop-pwd"].background.neighborPicks).toEqual({ "missionary-judges": ["rahat", "unz"] });
+		expect(sheet.actor.flags["stonetop_pwd"].background.neighborPicks).toEqual({ "missionary-judges": ["rahat", "unz"] });
 	});
 
 	it("still files the fixed two when the picker is closed", async () => {
@@ -329,7 +329,7 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 			expect(ask).toHaveBeenCalledTimes(1);
 			expect(names()).toEqual(["Ennis", "Shahar", "Yannic", "Tovia", "Sasca"]);
 			expect(actors.map(a => a.system.traits)).toEqual(["wary", "greedy", "proud", "stoic", "cheery"]);
-			expect(sheet.actor.flags["stonetop-pwd"].background.neighborTraits).toEqual(TRAITS);
+			expect(sheet.actor.flags["stonetop_pwd"].background.neighborTraits).toEqual(TRAITS);
 		});
 
 		it("fills in the earlier answer, and files them with no traits when closed", async () => {
@@ -341,7 +341,7 @@ describe("choosing a neighbor-naming background on the Details tab", () => {
 			expect(ask.mock.calls[0][2]).toEqual({ ennis: "wary" });
 			expect(names()).toHaveLength(5);
 			expect(actors.every(a => a.system.traits === "")).toBe(true);
-			expect(sheet.actor.flags["stonetop-pwd"].background.neighborTraits).toEqual({ ennis: "wary" });
+			expect(sheet.actor.flags["stonetop_pwd"].background.neighborTraits).toEqual({ ennis: "wary" });
 		});
 
 		it("a changed answer reaches a neighbor still wearing the old trait, not one edited since", async () => {

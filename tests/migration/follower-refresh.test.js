@@ -6,7 +6,7 @@ import { summonEntryFor } from "../../module/data/arcana-summons.js";
 // Follower cards made from the system's own lists, put right where they still hold a value an older
 // release wrote: the good dog's herder default, and two summons' notes.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const OLD_DOG = { sourceUuid: "possession:a-good-dog", name: "Rex", tags: ["herder", "keen-nosed", "clever"], notes: FOLLOWER_SUPERSEDED["possession:a-good-dog"].notes[0] };
 
 describe("followerRefresh", () => {

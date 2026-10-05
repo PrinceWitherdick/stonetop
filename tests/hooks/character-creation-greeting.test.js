@@ -18,7 +18,7 @@ vi.mock("../../module/actors/character/onboarding-resume.js", () => ({
 const { _maybeOpenCharacterCreation } = await import("../../module/hooks/Ready.js");
 
 const OWNER = 3;
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 /** One of the player's characters, as the greeting reads it. */
 function mine(id, { playbook = null, flags = {}, onNew = vi.fn(async () => {}) } = {}) {

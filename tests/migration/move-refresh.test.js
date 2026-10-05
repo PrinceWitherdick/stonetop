@@ -12,7 +12,7 @@ import { resetPackIndexFields } from "../../module/utils/pack-index.js";
 // Moves and gear characters already hold, brought up to the pack: what it has gained is filled, and
 // what it has changed or dropped is corrected where the copy still holds a value the pack once shipped.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const MADE = `flags.${SCOPE}.madeUnder`;
 const move = (name, system = {}, extra = {}) => ({ _id: `id-${name}`, type: "move", name, system, flags: {}, ...extra });
 const entry = (name, system = {}, extra = {}) => ({ _id: `pack-${name}`, name, type: "move", system, ...extra });
@@ -340,7 +340,7 @@ describe("refreshHeldMoves", () => {
 	});
 
 	it("clamps the pips on a track it made smaller, in one quiet write", async () => {
-		const clamp = { "flags.stonetop-pwd.moves.backgroundChoices.Unstoppable": 5 };
+		const clamp = { "flags.stonetop_pwd.moves.backgroundChoices.Unstoppable": 5 };
 		const heldTrackClampData = vi.fn(() => clamp);
 		const pc = character([move("Unstoppable", { resource: { max: 6 } })], { typedActor: { heldTrackClampData } });
 		const entries = [entry("Unstoppable", { resource: { max: 5 } })];

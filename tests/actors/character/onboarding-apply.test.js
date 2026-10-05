@@ -18,8 +18,8 @@ const PACK = new Map(loadPlaybookPackDocs().map(doc => [doc.system.slug, doc]));
 const playbookDoc = slug => ({ ...structuredClone(PACK.get(slug)), uuid: `Compendium.test.${slug}` });
 const moveId = (playbook, name) => sourceMovesFor(playbook).find(d => d.name === name)._id;
 const blessedId = name => moveId("The Blessed", name);
-const flag = (actor, key) => actor.getFlag("stonetop-pwd", key);
-const stamped = item => !!item.flags["stonetop-pwd"]?.[CREATION_PICK_FLAG];
+const flag = (actor, key) => actor.getFlag("stonetop_pwd", key);
+const stamped = item => !!item.flags["stonetop_pwd"]?.[CREATION_PICK_FLAG];
 const itemNamed = (actor, name) => actor.items.find(i => i.name === name);
 const playbookMoveNames = actor => actor.items.filter(i => i.system?.moveType === "playbook").map(i => i.name).sort();
 
@@ -143,7 +143,7 @@ describe("re-running onboarding", () => {
 
 	it("hands the neighbor traits as filed last time to the filing, read before they are overwritten", async () => {
 		const { actor, sheet } = await onboarded();
-		await actor.setFlag("stonetop-pwd", "background.neighborTraits", { ennis: "sly" });
+		await actor.setFlag("stonetop_pwd", "background.neighborTraits", { ennis: "sly" });
 		const pbDoc = playbookDoc("the-blessed");
 
 		await sheet._applyPlaybookSelections(pbDoc, sheet._readSelectionsFromActor(pbDoc));
@@ -205,7 +205,7 @@ describe("which moves count as onboarding's free pick", () => {
 			slug: "the-blessed", name: "The Blessed", level: 3, flags: { "background.selected": "initiate" },
 		});
 		const barkskin = await char.addMove(blessedId("Barkskin"));
-		await barkskin.setFlag("stonetop-pwd", CREATION_PICK_FLAG, true);
+		await barkskin.setFlag("stonetop_pwd", CREATION_PICK_FLAG, true);
 		await char.addMove(blessedId("Veil"));
 		const sheet = sheetFor(char, actor);
 		sheet._playbookHpInit = () => ({});
@@ -222,7 +222,7 @@ describe("which moves count as onboarding's free pick", () => {
 	it("restores a stat move's pick along with it, keyed by name", async () => {
 		const { char, actor } = buildLiveCharacter({ slug: "the-would-be-hero", name: "The Would-Be Hero", level: 1 });
 		const improved = await char.addMove(moveId("The Would-Be Hero", "Improved Stat"));
-		await actor.setFlag("stonetop-pwd", "improvedStatChoices", { [improved._id]: "dex" });
+		await actor.setFlag("stonetop_pwd", "improvedStatChoices", { [improved._id]: "dex" });
 
 		const sel = sheetFor(char, actor)._readSelectionsFromActor(playbookDoc("the-would-be-hero"));
 		expect(sel.moves).toContain("Improved Stat");
@@ -267,7 +267,7 @@ describe("changing background on the Details tab", () => {
 			slug: "the-blessed", name: "The Blessed", flags: { "background.selected": "initiate" },
 		});
 		await made.char.ensureStartingMoves();
-		if (boon) await made.actor.setFlag("stonetop-pwd", "moves.backgroundChoices", { "Rites of the Land": boon });
+		if (boon) await made.actor.setFlag("stonetop_pwd", "moves.backgroundChoices", { "Rites of the Land": boon });
 		return { ...made, sheet: sheetFor(made.char, made.actor) };
 	}
 	const choose = (sheet, slug) => sheet._onBackgroundChange({ currentTarget: { value: slug } });
@@ -313,7 +313,7 @@ describe("changing background on the Details tab", () => {
 		const made = buildLiveCharacter({ slug: "the-blessed", name: "The Blessed", flags: { "background.selected": "vessel" } });
 		await made.char.ensureStartingMoves();
 		const trackless = await made.char.addMove(blessedId("Trackless Step"));
-		await trackless.setFlag("stonetop-pwd", CREATION_PICK_FLAG, true);
+		await trackless.setFlag("stonetop_pwd", CREATION_PICK_FLAG, true);
 		const sheet = sheetFor(made.char, made.actor);
 		stubConfirm(true);
 
@@ -347,7 +347,7 @@ describe("settleBackgroundMoves, for every background shape", () => {
 		expect(ownedMoveNames(actor)).toContain("Burgle");
 		const previous = char.backgroundState();
 
-		await actor.setFlag("stonetop-pwd", "background.setupChoices", { extraMove: "Light Fingers" });
+		await actor.setFlag("stonetop_pwd", "background.setupChoices", { extraMove: "Light Fingers" });
 		await char.settleBackgroundMoves(previous);
 
 		expect(ownedMoveNames(actor)).not.toContain("Burgle");
@@ -529,7 +529,7 @@ describe("onboarding's extra Well Versed topic", () => {
 		await run(sheet, "fae");
 		// A second Well Versed at 2nd level, with its 2 topics.
 		await char.addMove(moveId("The Seeker", "Well Versed"));
-		await actor.setFlag("stonetop-pwd", "moves.moveMarks", {
+		await actor.setFlag("stonetop_pwd", "moves.moveMarks", {
 			"Well Versed": { ...wvMarks(actor), humanity: [{ stat: "", level: 2 }], primordial: [{ stat: "", level: 2 }] },
 		});
 		expect(sheet._readSelectionsFromActor(playbookDoc("the-seeker")).backgroundMoveMarks).toEqual({ "Well Versed": "fae" });

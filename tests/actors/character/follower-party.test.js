@@ -101,7 +101,7 @@ describe("the toggle on a built-in card", () => {
 		expect(party()).toEqual({ enfys: false, seren: false });
 
 		await sheet._onFollowerPartyToggle({ currentTarget: { dataset: { ftype: "initiate", slug: "enfys" }, checked: true } });
-		expect(actor.update).toHaveBeenLastCalledWith({ "flags.stonetop-pwd.initiatesParty.enfys": true });
+		expect(actor.update).toHaveBeenLastCalledWith({ "flags.stonetop_pwd.initiatesParty.enfys": true });
 		expect(party()).toEqual({ enfys: true, seren: false });
 	});
 
@@ -120,9 +120,9 @@ describe("the toggle on a built-in card", () => {
 		const { char, actor } = blessed();
 		const sheet = sheetFor(char, actor);
 		await sheet._onFollowerPartyToggle({ currentTarget: { dataset: { ftype: "custom", slug: "hound" }, checked: true } });
-		expect(actor.update).toHaveBeenLastCalledWith({ "flags.stonetop-pwd.customFollowers.hound.party": true });
+		expect(actor.update).toHaveBeenLastCalledWith({ "flags.stonetop_pwd.customFollowers.hound.party": true });
 		// A checkbox drawn before the ftype rode on it reads as a custom card's.
 		await sheet._onFollowerPartyToggle({ currentTarget: { dataset: { slug: "mule" }, checked: false } });
-		expect(actor.update).toHaveBeenLastCalledWith({ "flags.stonetop-pwd.customFollowers.mule.party": false });
+		expect(actor.update).toHaveBeenLastCalledWith({ "flags.stonetop_pwd.customFollowers.mule.party": false });
 	});
 });

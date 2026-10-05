@@ -19,7 +19,7 @@ const { readRepo } = await import("../fakes/css.js");
 
 /** A character with a level and an (empty) flag bag, as the watcher reads one. */
 function character({ id = "pc1", level = 2, flags = {} } = {}) {
-	return { id, type: "character", system: { attributes: { level: { value: level }, wounds: [] } }, flags: { "stonetop-pwd": flags } };
+	return { id, type: "character", system: { attributes: { level: { value: level }, wounds: [] } }, flags: { "stonetop_pwd": flags } };
 }
 
 beforeEach(() => {
@@ -97,7 +97,7 @@ describe("a follower's death", () => {
 });
 
 describe("kills off a damage card", () => {
-	const SCOPE = "stonetop-pwd";
+	const SCOPE = "stonetop_pwd";
 	const actors = {
 		"Actor.pc": { documentName: "Actor", uuid: "Actor.pc", type: "character", name: "Ellis", hasPlayerOwner: true },
 		"Actor.crinwin": { documentName: "Actor", uuid: "Actor.crinwin", type: "monster", name: "Crinwin" },

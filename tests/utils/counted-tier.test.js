@@ -79,18 +79,18 @@ describe("countedResult", () => {
 // What a rewritten card's identification and tier effects read (stonetop.js#_resyncRewrittenTotal,
 // tier-effects.js#reconcileTierEffects): the card's own record, under the system's scope.
 describe("cardCountedTier", () => {
-	const card = rolled => ({ getFlag: (scope, key) => (scope === "stonetop-pwd" && key === "rolled" ? rolled : undefined) });
+	const card = rolled => ({ getFlag: (scope, key) => (scope === "stonetop_pwd" && key === "rolled" ? rolled : undefined) });
 
 	it("counts a card's total by the bends it carries", () => {
 		const message = card(rolledRecord("cha", { partialCountsAsSuccess: "Let's Make a Deal" }));
-		expect(cardCountedTier(message, 7, "stonetop-pwd")).toBe("success");
-		expect(cardCountedTier(message, 6, "stonetop-pwd")).toBe("failure");
-		expect(cardCountedTier(message, 12, "stonetop-pwd")).toBe("critical");
+		expect(cardCountedTier(message, 7, "stonetop_pwd")).toBe("success");
+		expect(cardCountedTier(message, 6, "stonetop_pwd")).toBe("failure");
+		expect(cardCountedTier(message, 12, "stonetop_pwd")).toBe("critical");
 	});
 
 	it("reads a card with no record, or no card, by its total", () => {
-		expect(cardCountedTier(card(undefined), 8, "stonetop-pwd")).toBe("partial");
-		expect(cardCountedTier(null, 5, "stonetop-pwd")).toBe("failure");
+		expect(cardCountedTier(card(undefined), 8, "stonetop_pwd")).toBe("partial");
+		expect(cardCountedTier(null, 5, "stonetop_pwd")).toBe("failure");
 	});
 
 	it("keys a 12+ as the 10+ a move's outcomes are written under", () => {

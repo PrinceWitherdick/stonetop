@@ -144,7 +144,7 @@ describe("once per season, per overseer", () => {
 		const actor = {
 			type: "stonetop",
 			system: { attributes: { surplus: { value: surplus } } },
-			flags: { "stonetop-pwd": { steading: { seasonSteps: { ...seasonSteps } } } },
+			flags: { "stonetop_pwd": { steading: { seasonSteps: { ...seasonSteps } } } },
 			getFlag(scope, key) { return this.flags[scope]?.[key]; },
 			async setFlag(scope, key, value) { this.flags[scope][key] = value; },
 			update: vi.fn(async function (data) {

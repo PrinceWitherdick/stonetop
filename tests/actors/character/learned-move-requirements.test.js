@@ -9,7 +9,7 @@ import { TestCharacterBuilder } from "../../fakes/TestCharacterBuilder.js";
 import { FakeActorBuilder } from "../../fakes/FakeActorBuilder.js";
 
 const HEAVY = { slug: "the-heavy", name: "The Heavy", startingMovesNote: "", backgrounds: [] };
-const GRANTED = { "stonetop-pwd": { grantedBy: { move: "Seasoned Warrior" } } };
+const GRANTED = { "stonetop_pwd": { grantedBy: { move: "Seasoned Warrior" } } };
 const foxMove = (id, name, system = {}) => ({
 	_id: id, type: "move", name, flags: GRANTED,
 	system: { moveType: "playbook", playbook: "The Fox", ...system },

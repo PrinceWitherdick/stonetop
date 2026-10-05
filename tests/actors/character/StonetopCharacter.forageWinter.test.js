@@ -147,7 +147,7 @@ describe("winter on On the Hoof", () => {
 		const { createStonetopCharacterSheetClass } = await import("../../../module/actors/character/StonetopCharacterSheet.js");
 		const { makeLiveItem } = await import("../../fakes/LiveCharacter.js");
 		const { char, actor } = forager();
-		actor.items.push(makeLiveItem({ name: "On the Hoof", type: "move", system: { moveType: "playbook" }, flags: learned ? undefined : { "stonetop-pwd": { learned: false } } }));
+		actor.items.push(makeLiveItem({ name: "On the Hoof", type: "move", system: { moveType: "playbook" }, flags: learned ? undefined : { "stonetop_pwd": { learned: false } } }));
 		actor.typedActor = char;
 		const Base = class {
 			constructor() { this._actor = actor; }

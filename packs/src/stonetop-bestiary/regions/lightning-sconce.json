@@ -1,7 +1,7 @@
 {
   "name": "Lightning Sconce",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "magical, construct, immobile",
     "qualities": "<p>Immobile. Keyed to a phrase, signal, color, or token.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.5QceSajZpMX0eS4Q",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.5QceSajZpMX0eS4Q",
     "notes": "",
     "creatureType": "construct"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/construct.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/construct.svg"
     }
   },
   "items": [

@@ -1,7 +1,7 @@
 {
   "name": "Weather",
   "type": "script",
-  "img": "systems/stonetop-pwd/assets/icons/macros/sun-cloud.svg",
+  "img": "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",
   "scope": "global",
   "command": "game.stonetop?.openWeather?.()",
   "folder": null,

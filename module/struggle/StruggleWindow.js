@@ -11,7 +11,7 @@ import {
 	isStruggleHost, rollRow, setBundleAlly, setSpots, takesPart, touchesFlag, undoRescue,
 } from "./struggle-store.js";
 
-const TEMPLATE  = "systems/stonetop-pwd/templates/dialogs/struggle-as-one.hbs";
+const TEMPLATE  = "systems/stonetop_pwd/templates/dialogs/struggle-as-one.hbs";
 const ID_PREFIX = "stonetop-struggle";
 const SCROLLER  = ".stonetop-guide-main";
 /** The kind a struggle window is saved under by utils/window-restore.js, at the head of its key. */

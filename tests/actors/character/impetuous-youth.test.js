@@ -10,7 +10,7 @@ import { stubAsk } from "../../fakes/confirm.js";
 // The Would-Be Hero's Impetuous Youth: "When you make a move and come up short, you can give it your all and
 // turn a 6- into a 7-9, a 7-9 into a 10+, and (if it matters), a 10-11 into a 12+. But if you do, pick 1".
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const MOVE_CARD = `<section class="pbta-chat-card stonetop-roll-card"><div class="stonetop-roll-result partial"><span class="stonetop-roll-result-label">Weak Hit</span></div><div class="stonetop-card-buttons"></div></section>`;
 const DAMAGE_CARD = `<section class="pbta-chat-card stonetop-roll-card stonetop-damage-roll-card"><span class="stonetop-roll-result-label"></span><div class="stonetop-card-buttons"></div></section>`;
 

@@ -14,7 +14,7 @@ let actors;
 /** A steading whose rosters point at these actors, in the order given. */
 const steadingWith = lists => ({
 	type: "stonetop",
-	getFlag: (scope, key) => (scope === "stonetop-pwd" && key === "steading" ? lists : null),
+	getFlag: (scope, key) => (scope === "stonetop_pwd" && key === "steading" ? lists : null),
 });
 
 const row = actor => ({ id: actor.id, uuid: actor.uuid, name: actor.name });

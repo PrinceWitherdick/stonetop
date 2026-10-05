@@ -4,7 +4,7 @@
 // questions. This module holds that round-robin/done logic as pure functions so it
 // can be unit-tested without a running Foundry — IntroductionsDialog.js and the GM's
 // step-advance detection both call in. A PC's per-step record is
-// { answers: [{q,a}], passed } (see the introductionsAnswers / flags.stonetop-pwd.intro
+// { answers: [{q,a}], passed } (see the introductionsAnswers / flags.stonetop_pwd.intro
 // shapes); `total` is that playbook's question count for the step (4).
 
 // Is a PC finished with a step? Done when they passed, when they've answered every

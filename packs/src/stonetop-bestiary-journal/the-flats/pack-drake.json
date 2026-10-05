@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Sneaky, dog-sized pack hunters of the tall grass. Just the worst.",
-        "description": "<p>Sneaky little dog-sized critters that prowl the <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, hunting in packs ranging from six to a couple dozen. Just the worst.</p>",
+        "description": "<p>Sneaky little dog-sized critters that prowl the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong>, hunting in packs ranging from six to a couple dozen. Just the worst.</p>",
         "questions": [
           {
             "prompt": "What's the surest sign of their presence?",
@@ -61,7 +61,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.W7YFeowcF0yptQC3"
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.W7YFeowcF0yptQC3"
         ]
       },
       "sort": 100000,

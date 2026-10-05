@@ -52,7 +52,7 @@ import { format, localize } from "../utils/i18n.js";
 // A plain literal, not built from SYSTEM_ID, for the reason RelationshipMapWindow gives: the
 // precache map in stonetop.js is checked against the source by finding this PATH in it, and an
 // interpolated one appears nowhere for that check to find.
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/person-picker.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/person-picker.hbs";
 
 export class PersonPickerDialog extends StonetopDialog {
 	/**

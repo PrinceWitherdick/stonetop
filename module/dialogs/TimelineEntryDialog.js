@@ -32,7 +32,7 @@ import { createCustomTag, worldCustomTags } from "../timeline/timeline-tag-store
 import { renderTemplate } from "../utils/foundry-compat.js";
 
 /** One chip in the Tag row: the template's own partial, so a tag made after render matches the rest. */
-const TAG_CHIP_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/partials/timeline-entry-tag.hbs";
+const TAG_CHIP_TEMPLATE = "systems/stonetop_pwd/templates/dialogs/partials/timeline-entry-tag.hbs";
 
 export class TimelineEntryDialog extends StonetopDialog {
 	/**
@@ -73,7 +73,7 @@ export class TimelineEntryDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			// No fixed id: a GM correcting one entry while writing another is ordinary, and two
 			// dialogs sharing a DOM id paint into each other.
-			template: "systems/stonetop-pwd/templates/dialogs/timeline-entry.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/timeline-entry.hbs",
 			width:  520,
 			height: "auto",
 			resizable: false,

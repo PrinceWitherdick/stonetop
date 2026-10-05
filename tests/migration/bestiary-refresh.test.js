@@ -15,7 +15,7 @@ import { SUPERSEDED_FORMAT } from "../../module/migration/superseded-values.js";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "packs", "src", "stonetop-bestiary");
 const source = rel => JSON.parse(readFileSync(path.join(root, rel), "utf8"));
 // A world copy as the seed makes it: the pack's stat block, stamped with where it came from.
-const seeded = (entry, edit = c => c) => edit({ ...structuredClone(entry), _stats: { compendiumSource: `Compendium.stonetop-pwd.stonetop-bestiary.Actor.${entry._id}` } });
+const seeded = (entry, edit = c => c) => edit({ ...structuredClone(entry), _stats: { compendiumSource: `Compendium.stonetop_pwd.stonetop-bestiary.Actor.${entry._id}` } });
 
 describe("monsterRefresh", () => {
 	it("corrects the Specter's armor source, off the generated history", () => {
@@ -79,9 +79,9 @@ describe("monsterRefresh", () => {
 
 describe("bestiarySourceId", () => {
 	it("is the pack id a monster was seeded from, under any id the system has had", () => {
-		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop-pwd.stonetop-bestiary.Actor.abc" } })).toBe("abc");
 		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop_pwd.stonetop-bestiary.Actor.abc" } })).toBe("abc");
-		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop-pwd.stonetop-items.Item.abc" } })).toBeNull();
+		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop_pwd.stonetop-bestiary.Actor.abc" } })).toBe("abc");
+		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop_pwd.stonetop-items.Item.abc" } })).toBeNull();
 		expect(bestiarySourceId({ _stats: {} })).toBeNull();
 	});
 });

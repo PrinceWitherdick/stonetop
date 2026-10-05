@@ -1,7 +1,7 @@
 {
   "name": "The Guard",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, organized",
     "qualities": "<p>Three sorts serve: Ex-Claws (bully, threaten, demand bribes), Loyalists (give fair warning, stand firm), and New recruits (avoid danger or punishment).</p>",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.vmZHAuziESAq3yf8",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.vmZHAuziESAq3yf8",
     "notes": "",
     "creatureType": "human-group"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/human-group.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/human-group.svg"
     }
   },
   "items": [

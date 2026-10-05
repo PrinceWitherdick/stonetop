@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 /**
  * Every `icons/…` path in `packs/src` is one Foundry actually ships.
  *
- * Compendium documents point their artwork at two places: our own `systems/stonetop-pwd/assets/…`
+ * Compendium documents point their artwork at two places: our own `systems/stonetop_pwd/assets/…`
  * files, and Foundry's bundled `icons/…` library. The second kind is the dangerous one, because
  * nothing in this repository can see it. The path is a bare string, the file lives in the Foundry
  * install, and a wrong one fails the way a wrong image path always fails in a browser: a blank
@@ -135,7 +135,7 @@ describe("compendium artwork paths", () => {
 	it("points its own artwork at this system's real files, case-exactly", () => {
 		// Same NTFS-versus-Forge trap as the manifest test: a wrong-case path opens fine on the
 		// maintainer's machine and 404s on a hosted Linux server.
-		const prefix = "systems/stonetop-pwd/";
+		const prefix = "systems/stonetop_pwd/";
 		const ours = all.filter(e => e.img.startsWith(prefix));
 
 		const broken = [];

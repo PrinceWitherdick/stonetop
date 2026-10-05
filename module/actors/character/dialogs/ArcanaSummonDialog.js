@@ -43,7 +43,7 @@ export class ArcanaSummonDialog extends StonetopDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-arcana-summon-dialog",
-			template:  "systems/stonetop-pwd/templates/dialogs/arcana-summon.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/arcana-summon.hbs",
 			width:     440,
 			height:    "auto",
 			resizable: true,

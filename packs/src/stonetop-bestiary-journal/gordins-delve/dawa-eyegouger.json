@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "A cursed goatherder turned Boss's enforcer, kept sauced until there's killing to do.",
-        "description": "<p>A goatherder from north of <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.VZ3YkXn70E1C7TEO]{Barrier Pass}</strong>, with orange irises and too-long fingers — marks of the Howling Curse. She turned up in <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin's Delve}</strong> years back, and one of the Bosses put her to work as an enforcer. They keep her sauced and happy until there's work to be done; then they dry her out, point out the target, and stand well back.</p>",
+        "description": "<p>A goatherder from north of <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.VZ3YkXn70E1C7TEO]{Barrier Pass}</strong>, with orange irises and too-long fingers — marks of the Howling Curse. She turned up in <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.HesP5wBhjA0l9Ffk]{Gordin's Delve}</strong> years back, and one of the Bosses put her to work as an enforcer. They keep her sauced and happy until there's work to be done; then they dry her out, point out the target, and stand well back.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",
@@ -48,7 +48,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.clNUnzTPrxZPGCPp"
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.clNUnzTPrxZPGCPp"
         ]
       },
       "sort": 100000,

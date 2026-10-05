@@ -7,7 +7,7 @@ import { STRUGGLE_MOVES } from "./struggle-rules.js";
 import { followerKey, newSetupDraft, setupHelpers, setupRows, setupView } from "./struggle-setup.js";
 import { clearAsk, liveStruggle, startStruggle } from "./struggle-store.js";
 
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/struggle-setup.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/struggle-setup.hbs";
 const WINDOW_ID = "stonetop-struggle-setup";
 const SCROLLER = ".stonetop-guide-main";
 const REDRAWS_ON = new Set(["include", "aidPick"]);

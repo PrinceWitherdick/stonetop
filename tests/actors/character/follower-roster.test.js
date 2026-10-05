@@ -57,7 +57,7 @@ describe("followerRosterOf", () => {
 	it("falls back on what the flags alone say when the playbook can't be read", async () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		try {
-			const flags = { "stonetop-pwd": { customFollowers: { h: { name: "Hound", party: true } } } };
+			const flags = { "stonetop_pwd": { customFollowers: { h: { name: "Hound", party: true } } } };
 			const actor = { name: "Rhianna", items: [], flags, getFlag: () => undefined, typedActor: { playbook: async () => { throw new Error("no pack"); } } };
 			expect((await followerRosterOf(actor)).map(f => f.name)).toEqual(["Hound"]);
 			expect((await partyFollowersOf(actor)).map(f => f.name)).toEqual(["Hound"]);

@@ -484,7 +484,7 @@ describe("one character's share", () => {
 	// Walk It Off: "Clear it as you would a debility". Its box is the move's track, not a debility box.
 	it("clears a Ranger's Walk It Off box when that was the pick", () => {
 		const { update } = share({ benefit: CAMP_BENEFIT.DEBILITY, debility: { key: "walkItOff", name: "Walk It Off" } });
-		expect(update["flags.stonetop-pwd.moves.backgroundChoices.Walk It Off"]).toBe(0);
+		expect(update["flags.stonetop_pwd.moves.backgroundChoices.Walk It Off"]).toBe(0);
 		expect(Object.keys(update).filter(k => k.startsWith("system.attributes.debilities"))).toEqual([]);
 	});
 

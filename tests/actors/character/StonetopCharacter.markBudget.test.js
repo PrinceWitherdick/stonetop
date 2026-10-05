@@ -99,7 +99,7 @@ function makeChar({ def, copies = 1, marks = {}, level = 5 }) {
 // The moveMarks object written by the last actor.update() call.
 function writtenMarks(actor) {
 	const frag = actor.update.mock.calls.at(-1)[0];
-	return frag["flags.stonetop-pwd.moves.moveMarks"];
+	return frag["flags.stonetop_pwd.moves.moveMarks"];
 }
 
 describe("StonetopCharacter.setCountMark — repeat-scaling budget", () => {
@@ -232,7 +232,7 @@ describe("Well Versed: the background's topic", () => {
 			"moves.moveMarks": { "Well Versed": moveMarks },
 		},
 	});
-	const liveMarks = actor => actor.getFlag("stonetop-pwd", "moves.moveMarks")["Well Versed"];
+	const liveMarks = actor => actor.getFlag("stonetop_pwd", "moves.moveMarks")["Well Versed"];
 	const card = async char => (await char.buildSnapshot()).movelist.playbookMoves.find(m => m.name === "Well Versed");
 
 	it("names the background's box, from the stored answer or the background's fixed one", async () => {
@@ -307,7 +307,7 @@ describe("a learned move held twice", () => {
 			name: "Well Versed", type: "move",
 			// An old copy without the budget: the pack's definition is read first.
 			system: { ...structuredClone(wellVersed().system), markBudget: null },
-			flags: { "stonetop-pwd": { grantedBy: { move: "Dabbler" } } },
+			flags: { "stonetop_pwd": { grantedBy: { move: "Dabbler" } } },
 		})),
 	});
 
@@ -328,11 +328,11 @@ describe("a learned move held twice", () => {
 			items: [
 				...GRANTERS.map(([name, playbook], n) => ({
 					_id: `granter${n}`, name, type: "move", system: { moveType: "playbook", playbook },
-					...(n === 0 ? { flags: { "stonetop-pwd": { learned: false } } } : {}),
+					...(n === 0 ? { flags: { "stonetop_pwd": { learned: false } } } : {}),
 				})),
 				...GRANTERS.map(([move], n) => ({
 					_id: `wv${n}`, name: "Well Versed", type: "move", system: structuredClone(wellVersed().system),
-					flags: { "stonetop-pwd": { grantedBy: { move, instanceId: `granter${n}` } } },
+					flags: { "stonetop_pwd": { grantedBy: { move, instanceId: `granter${n}` } } },
 				})),
 			],
 		});
@@ -347,7 +347,7 @@ describe("a learned move held twice", () => {
 	it("takes 3 topics and refuses a 4th", async () => {
 		const { char, actor } = foxWithTwo();
 		for (const slug of ["fae", "makers", "wild", "primordial"]) await char.setCountMark("Well Versed", slug, 1);
-		const marks = actor.getFlag("stonetop-pwd", "moves.moveMarks")["Well Versed"];
+		const marks = actor.getFlag("stonetop_pwd", "moves.moveMarks")["Well Versed"];
 		expect(["fae", "makers", "wild"].map(s => marks[s]?.length)).toEqual([1, 1, 1]);
 		expect(marks.primordial ?? []).toEqual([]);
 	});

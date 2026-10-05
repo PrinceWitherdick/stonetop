@@ -31,9 +31,9 @@ function liveActor(steading = {}, { system = {}, deferred = false } = {}) {
 		id: `st-${Math.random().toString(36).slice(2)}`,
 		type: "stonetop",
 		system: structuredClone(system),
-		flags: { "stonetop-pwd": { steading: structuredClone(steading) } },
+		flags: { "stonetop_pwd": { steading: structuredClone(steading) } },
 		pending: [],
-		getFlag: (scope, key) => actor.flags["stonetop-pwd"]?.[key],
+		getFlag: (scope, key) => actor.flags["stonetop_pwd"]?.[key],
 	};
 	const apply = data => { for (const [path, value] of Object.entries(data)) writePath(actor, path, value); };
 	const write = data => {
@@ -48,7 +48,7 @@ function liveActor(steading = {}, { system = {}, deferred = false } = {}) {
 	return actor;
 }
 
-const stored = actor => actor.flags["stonetop-pwd"].steading;
+const stored = actor => actor.flags["stonetop_pwd"].steading;
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe("B3: a write issued inside a completion's round trip", () => {
@@ -79,7 +79,7 @@ describe("B3: a write issued inside a completion's round trip", () => {
 		expect(after.system.stats.fortunes.value).toBe(2);
 		expect(after.resources[0].checked).toBe(false);
 		// And the write named only the key it changed.
-		expect(Object.keys(actor.update.mock.calls.at(-1)[0])).toEqual(["flags.stonetop-pwd.steading.resources"]);
+		expect(Object.keys(actor.update.mock.calls.at(-1)[0])).toEqual(["flags.stonetop_pwd.steading.resources"]);
 	});
 
 	// The sheet's own list writes (a Resources/Fortifications/Assets tick, add or delete) used to

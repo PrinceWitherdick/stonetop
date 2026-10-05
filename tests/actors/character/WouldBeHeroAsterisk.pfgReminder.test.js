@@ -11,7 +11,7 @@ import {
 } from "../../../module/actors/character/WouldBeHeroAsterisk.js";
 import { ROLLED_FLAG, rolledRecord } from "../../../module/utils/counted-tier.js";
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const PFG_OPTIONS = [
 	{ slug: "stat", marks: 4, choice: "stat" },
 	{ slug: "hp", marks: 1, hp: 4 },

@@ -95,7 +95,7 @@ beforeEach(() => {
 		i18n: global.game.i18n,
 		user: { isGM: true },
 		settings: {
-			settings: new Map([["stonetop-pwd.expeditionAnswers", { scope: "world" }]]),
+			settings: new Map([["stonetop_pwd.expeditionAnswers", { scope: "world" }]]),
 			get: (_ns, key) => store[key],
 			set: (_ns, key, value) => { store[key] = value; return Promise.resolve(value); },
 		},
@@ -182,7 +182,7 @@ describe("taking horses from the herd", () => {
 		expect(asked).toHaveBeenCalledTimes(1);
 		expect(asked.mock.calls[0][0].content).toContain(`max="8" value="2"`);
 		expect(world.steading.update).toHaveBeenCalledWith(
-			{ "flags.stonetop-pwd.steading.herd": { grown: 5, yearlings: 0, foals: 0 } }, { stonetopMove: "Requisition" });
+			{ "flags.stonetop_pwd.steading.herd": { grown: 5, yearlings: 0, foals: 0 } }, { stonetopMove: "Requisition" });
 		expect(assetsNow()[0].takenBy).toBeUndefined();
 		expect(tripNow().requisitioned).toEqual([{ name: "3 horses from the herd", herd: 3 }]);
 	});
@@ -199,7 +199,7 @@ describe("taking horses from the herd", () => {
 		await d._toggleRequisitionedAsset(0, false);
 		// The fake herd still reads 8 grown (its update writes nothing back), so 8 + 3.
 		expect(world.steading.update).toHaveBeenCalledWith(
-			{ "flags.stonetop-pwd.steading.herd": { grown: 11, yearlings: 0, foals: 0 } }, { stonetopMove: "Requisition" });
+			{ "flags.stonetop_pwd.steading.herd": { grown: 11, yearlings: 0, foals: 0 } }, { stonetopMove: "Requisition" });
 		expect(tripNow().requisitioned).toEqual([]);
 		expect(d._buildAssetPicker().rows[0]).toMatchObject({ ours: false, take: true, name: HERD_ASSET_NAME });
 	});
@@ -491,7 +491,7 @@ describe("rolling Requisition", () => {
 
 	// The Marshal's Logistics: "when you Requisition, you have advantage".
 	it("asks the Logistics line only once a character has it learned, and names them", () => {
-		const move = (name, learned = true) => ({ type: "move", name, flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+		const move = (name, learned = true) => ({ type: "move", name, flags: learned ? {} : { "stonetop_pwd": { learned: false } } });
 		global.game.actors = [
 			{ type: "character", name: "Wren", items: [move("Logistics")] },
 			{ type: "character", name: "Ash", items: [move("Logistics", false)] },

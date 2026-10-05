@@ -41,8 +41,8 @@ function makeUndead(slug, { counts = {}, insert = {}, hp = 4, max = 16, debiliti
 	return { actor, char };
 }
 
-const count = (actor, key) => Number(actor.flags["stonetop-pwd"].postDeathLore?.counts?.[key] ?? 0);
-const flag = (actor, key) => actor.flags["stonetop-pwd"][key];
+const count = (actor, key) => Number(actor.flags["stonetop_pwd"].postDeathLore?.counts?.[key] ?? 0);
+const flag = (actor, key) => actor.flags["stonetop_pwd"][key];
 
 /** The tab's view for `char`, in play mode for its owner unless told otherwise. */
 async function tabView(char, opts = {}) {

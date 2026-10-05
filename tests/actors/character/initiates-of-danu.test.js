@@ -156,7 +156,7 @@ describe("onboarding's initiates", () => {
 
 		await sheet._applyCommonSelections(playbookDoc, { backgroundSlug: "initiate", initiates: ["olwin", "seren"] });
 
-		expect(actor.getFlag("stonetop-pwd", "background.choices")).toEqual({
+		expect(actor.getFlag("stonetop_pwd", "background.choices")).toEqual({
 			enfys: false, afon: false, gwendyl: false, olwin: true, seren: true,
 		});
 	});
@@ -171,7 +171,7 @@ describe("onboarding's initiates", () => {
 
 		await sheet._applyCommonSelections(playbookDoc, { backgroundSlug: "vessel", initiates: [] });
 
-		expect(actor.getFlag("stonetop-pwd", "background.choices")).toEqual({ enfys: true, afon: true });
+		expect(actor.getFlag("stonetop_pwd", "background.choices")).toEqual({ enfys: true, afon: true });
 	});
 });
 
@@ -192,7 +192,7 @@ describe("ordering Seren", () => {
 		await sheet.orderFollower({ name: "Seren", tags: [], moves: [], exceptional: false }, { ftype: "initiate", slug: "seren" });
 		expect(opened.at(-1).exceptional).toBe(true);
 
-		await actor.setFlag("stonetop-pwd", "initiateDetails.seren.exceptional", false);
+		await actor.setFlag("stonetop_pwd", "initiateDetails.seren.exceptional", false);
 		await sheet.orderFollower({ name: "Seren", tags: [], moves: [], exceptional: false }, { ftype: "initiate", slug: "seren" });
 		expect(opened.at(-1).exceptional).toBe(false);
 	});
@@ -219,11 +219,11 @@ describe("the Followers tab", () => {
 		expect(bySlug.seren.damageRoll).toBe("d4");
 		expect(bySlug.seren.damage).toBe("walking stick d4 (close)");
 
-		await actor.setFlag("stonetop-pwd", "background.selected", "vessel");
+		await actor.setFlag("stonetop_pwd", "background.selected", "vessel");
 		expect(sheet._buildFollowersData(BLESSED).initiates ?? []).toEqual([]);
 		// The picks and the details are still there for a return to Initiate.
-		expect(actor.getFlag("stonetop-pwd", "background.choices")).toEqual({ enfys: true, seren: true });
-		await actor.setFlag("stonetop-pwd", "background.selected", "initiate");
+		expect(actor.getFlag("stonetop_pwd", "background.choices")).toEqual({ enfys: true, seren: true });
+		await actor.setFlag("stonetop_pwd", "background.selected", "initiate");
 		expect(sheet._buildFollowersData(BLESSED).initiates.map(c => c.slug)).toEqual(["enfys", "seren"]);
 	});
 

@@ -325,7 +325,7 @@ describe("the Weather picker against the steading", () => {
 		dlg._clock = { season: "summer", year: 2 };
 		await dlg._pickSeason("late-summer-early-autumn");
 		expect(globalThis.game.settings.set)
-			.toHaveBeenCalledWith("stonetop-pwd", "weatherSeason", { key: "late-summer-early-autumn", for: "2:summer" });
+			.toHaveBeenCalledWith("stonetop_pwd", "weatherSeason", { key: "late-summer-early-autumn", for: "2:summer" });
 	});
 });
 
@@ -514,7 +514,7 @@ describe("the Weather picker's canvas control", () => {
 
 		await dlg._toggleFx();
 
-		expect(globalThis.game.settings.set).toHaveBeenCalledWith("stonetop-pwd", "weatherSceneFx", false);
+		expect(globalThis.game.settings.set).toHaveBeenCalledWith("stonetop_pwd", "weatherSceneFx", false);
 		expect(dlg._picked.index).toBe(2);
 		expect(dlg.render).toHaveBeenCalled();
 	});

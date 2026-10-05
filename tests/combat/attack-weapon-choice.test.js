@@ -86,7 +86,7 @@ describe("grantedWeaponAttackFor", () => {
 
 	it("lets a player-authored move of the same name act as itself", () => {
 		// Player-authored is the custom-move flag (owns-move.js#isPlayerAuthoredMove), not moveType.
-		const actor = lightbearer(CLASH, { name: "Purifying Flames", system: { moveType: "other" }, flags: { "stonetop-pwd": { custom: true } } });
+		const actor = lightbearer(CLASH, { name: "Purifying Flames", system: { moveType: "other" }, flags: { "stonetop_pwd": { custom: true } } });
 
 		expect(grantedWeaponAttackFor(actor, actor.items[1])).toBeNull();
 	});
@@ -119,7 +119,7 @@ describe("maybeBeginAttack with a weapon already chosen", () => {
 			stat: "wis", weaponSlug: "purifying-flames-holy-light",
 		});
 
-		const attack = begun.messageFlags["stonetop-pwd"].attack;
+		const attack = begun.messageFlags["stonetop_pwd"].attack;
 		expect(attack.move).toBe("Clash");
 		expect(attack.weapon.name).toBe("Holy light");
 		// The d10 that replaces the PC's own die, and the piercing the damage card reads back.
@@ -136,7 +136,7 @@ describe("maybeBeginAttack with a weapon already chosen", () => {
 	// creature of darkness", so a +WIS Clash IS the holy light, with nothing to ask.
 	it("takes the holy light, unasked, for a +WIS Clash with no weapon named", async () => {
 		const begun = await maybeBeginAttack(actor, { name: "Clash" }, { stat: "wis" });
-		expect(begun.messageFlags["stonetop-pwd"].attack.weapon.name).toBe("Holy light");
+		expect(begun.messageFlags["stonetop_pwd"].attack.weapon.name).toBe("Holy light");
 	});
 
 	it("still asks for a Clash on any other stat", async () => {

@@ -113,7 +113,7 @@ describe("a held disadvantage", () => {
 
 	function interfered({ held = null, dis = INTERFERED, sticky = "normal" } = {}) {
 		const made = camper({ held, sticky });
-		made.actor.flags["stonetop-pwd"].heldDisadvantage = dis;
+		made.actor.flags["stonetop_pwd"].heldDisadvantage = dis;
 		return made;
 	}
 
@@ -155,7 +155,7 @@ describe("a held disadvantage", () => {
 	// left. One side each way (Advantage; Interfere and Weakened) is a straight roll.
 	it("folds the debility with the promises, not onto the roll they left", async () => {
 		const made = camper({ sticky: "adv", weakened: true });
-		made.actor.flags["stonetop-pwd"].heldDisadvantage = INTERFERED;
+		made.actor.flags["stonetop_pwd"].heldDisadvantage = INTERFERED;
 		await made.char.onDirectStatRoll("str");
 		expect(rolled[0].options.rollMode).toBe("normal");
 		expect(rolled[0].options.stonetopDebility).toBe("Weakened");
@@ -173,7 +173,7 @@ describe("holding another promise", () => {
 	it("keeps the earlier name in the camp's update fragment", () => {
 		const { char } = camper({ held: { source: "Bram's Aid" } });
 		expect(char.heldAdvantageData("A peaceful night's rest")).toEqual({
-			"flags.stonetop-pwd.heldAdvantage": { source: "Bram's Aid & A peaceful night's rest" },
+			"flags.stonetop_pwd.heldAdvantage": { source: "Bram's Aid & A peaceful night's rest" },
 		});
 	});
 

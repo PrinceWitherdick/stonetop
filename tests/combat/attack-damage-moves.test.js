@@ -26,7 +26,7 @@ const bulletsOf = (description) => firstOptionList(description)?.items ?? [];
 
 const item = (name, moveType = "playbook") => ({ type: "move", name, system: { moveType } });
 // A move a player wrote in the custom-move dialog (utils/custom-move-data.js#buildCustomMoveData).
-const custom = (name) => ({ ...item(name, "other"), flags: { "stonetop-pwd": { custom: true } } });
+const custom = (name) => ({ ...item(name, "other"), flags: { "stonetop_pwd": { custom: true } } });
 
 describe("attackMoveFor: which moves deal a character's damage", () => {
 	it("takes the two basic attacks and the three playbook moves that also deal your damage", () => {
@@ -257,7 +257,7 @@ describe("maybeBeginAttack: Ambush", () => {
 
 		const begun = await maybeBeginAttack(fox("Ambush"), item("Ambush"), { stat: "dex" });
 
-		const attack = begun.messageFlags["stonetop-pwd"].attack;
+		const attack = begun.messageFlags["stonetop_pwd"].attack;
 		expect(attack.move).toBe("Ambush");
 		// `moveKey` is what the Confirm reads back to know Cheap Shot rides this roll.
 		expect(attack.moveKey).toBe("ambush");

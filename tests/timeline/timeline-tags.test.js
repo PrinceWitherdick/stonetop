@@ -200,7 +200,7 @@ describe("making a custom tag", () => {
 		const made = await createCustomTag({ name: " The hunters ", colour: "#3F5F8A" }, { journal: doc, makeId: () => "abc" });
 		expect(made).toEqual({ tag: { id: "tag-abc", name: "The hunters", colour: "#3f5f8a" }, existed: false });
 		expect(doc.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.timelineTags.tag-abc": { id: "tag-abc", name: "The hunters", colour: "#3f5f8a" },
+			"flags.stonetop_pwd.timelineTags.tag-abc": { id: "tag-abc", name: "The hunters", colour: "#3f5f8a" },
 		});
 	});
 
@@ -223,7 +223,7 @@ describe("making a custom tag", () => {
 
 describe("the dialog's tag chips", () => {
 	it("draws a tag made after render from the partial the template draws the rest with", async () => {
-		const html = await renderTemplate("systems/stonetop-pwd/templates/dialogs/partials/timeline-entry-tag.hbs",
+		const html = await renderTemplate("systems/stonetop_pwd/templates/dialogs/partials/timeline-entry-tag.hbs",
 			{ id: "tag-hunt", kind: "custom", icon: "fa-tag", label: "<The> hunters", style: "--tl-tag-light: #000000;" });
 		expect(html).toContain('class="stonetop-timeline-entry-tag stonetop-timeline-kind--custom"');
 		expect(html).toContain('data-tag="tag-hunt"');

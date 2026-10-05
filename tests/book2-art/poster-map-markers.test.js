@@ -36,7 +36,7 @@ function seedJournals(places) {
 		id: `world-${i}`,
 		name: slug,
 		ownership: { default: 0 },
-		_stats: { compendiumSource: `Compendium.stonetop-pwd.stonetop-journal.JournalEntry.${journalId}` },
+		_stats: { compendiumSource: `Compendium.stonetop_pwd.stonetop-journal.JournalEntry.${journalId}` },
 	}));
 	globalThis.game.journal = entries;
 	globalThis.JournalEntry = {
@@ -64,7 +64,7 @@ function fakeScene(posterMap, notes = [], dimensions = { sceneX: 0, sceneY: 0 })
 		width: 6000,
 		height: 4714,
 		dimensions,
-		flags: { "stonetop-pwd": { posterMap } },
+		flags: { "stonetop_pwd": { posterMap } },
 		notes: { contents: notes },
 		created: [],
 		updated: [],
@@ -150,7 +150,7 @@ describe("markPosterMapScenes", () => {
 			expect(note.author).toBe(null);
 			expect(note.entryId).toBe(null);
 			expect(note.text).toBeTruthy();
-			expect(note.flags["stonetop-pwd"].posterPin).toMatch(/^marker:/);
+			expect(note.flags["stonetop_pwd"].posterPin).toMatch(/^marker:/);
 		}
 	});
 
@@ -164,7 +164,7 @@ describe("markPosterMapScenes", () => {
 		expect(glyph("To Gordin's Delve")).toBe(placeMarkerIcon("exit"));
 		expect(placeMarkerIcon("place")).not.toBe(placeMarkerIcon("exit"));
 		// And their keys cannot collide, since an arrow and the place it points at share a name.
-		const keys = scene.created.map(n => n.flags["stonetop-pwd"].posterPin);
+		const keys = scene.created.map(n => n.flags["stonetop_pwd"].posterPin);
 		expect(new Set(keys).size).toBe(keys.length);
 	});
 
@@ -183,7 +183,7 @@ describe("markPosterMapScenes", () => {
 		// The re-drawn places keep the key a place has always had. This is the whole reason the
 		// key is a family and not a glyph: a table that already has Tor's Fist on their map must
 		// get their pin RE-DRESSED next load, not a second pin standing beside the first.
-		const key = text => note(text).flags["stonetop-pwd"].posterPin;
+		const key = text => note(text).flags["stonetop_pwd"].posterPin;
 		expect(key("Tor's Fist")).toBe(markerPinKey("tors-fist"));
 		expect(key("Barrier Pass")).toBe(markerPinKey("barrier-pass"));
 		expect(key("Huffel Peaks")).toBe(markerPinKey("huffel-peaks", "region"));
@@ -209,7 +209,7 @@ describe("markPosterMapScenes", () => {
 		// precisely what the version that wrote it laid down.
 		const scene = fakeScene("vicinity");
 		await run([scene]);
-		const isPlacePin = n => !/^marker:(exit|region):/.test(n.flags["stonetop-pwd"].posterPin);
+		const isPlacePin = n => !/^marker:(exit|region):/.test(n.flags["stonetop_pwd"].posterPin);
 		// Wind the world back: places only, at the old sizing, and the GM deleted one of them.
 		scene.notes.contents = scene.notes.contents.filter(isPlacePin)
 			.filter(n => n.text !== "Cave Bears")
@@ -286,7 +286,7 @@ describe("markPosterMapScenes", () => {
 
 	it("fills only the gap when a GM has moved a pin and renamed it", async () => {
 		const scene = fakeScene("vicinity", [
-			{ text: "moved by hand", texture: { src: placeMarkerIcon() }, flags: { "stonetop-pwd": { posterPin: markerPinKey("the-maw") } } },
+			{ text: "moved by hand", texture: { src: placeMarkerIcon() }, flags: { "stonetop_pwd": { posterPin: markerPinKey("the-maw") } } },
 		]);
 		await run([scene]);
 		expect(scene.created).toHaveLength(13);

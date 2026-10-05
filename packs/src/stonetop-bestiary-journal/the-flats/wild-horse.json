@@ -36,7 +36,7 @@
       "src": null,
       "system": {
         "concept": "Skittish wild herds that roam the prairie.",
-        "description": "<p>They roam the <strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong> in herds ranging from a half-dozen to a couple dozen. The larger herds will, in time, give rise to a ceffylwraig.</p>",
+        "description": "<p>They roam the <strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nBvsH19B1bG2d4Di]{Flats}</strong> in herds ranging from a half-dozen to a couple dozen. The larger herds will, in time, give rise to a ceffylwraig.</p>",
         "questions": [],
         "lore": [],
         "hooks": "",
@@ -48,7 +48,7 @@
         "dangers": [],
         "notes": "",
         "statBlocks": [
-          "Compendium.stonetop-pwd.stonetop-bestiary.Actor.uMjVv3GGJowiNCka"
+          "Compendium.stonetop_pwd.stonetop-bestiary.Actor.uMjVv3GGJowiNCka"
         ]
       },
       "sort": 100000,

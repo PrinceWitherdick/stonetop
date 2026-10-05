@@ -27,7 +27,7 @@ import { openOrFocus } from "./open-or-focus.js";
 import { anchoredOffset, centreOffset, clampPan, clampZoom, fitScale, stepZoom } from "./image-zoom.js";
 import { pickPointOnImage, watchPointsOnImage } from "./pick-point-on-image.js";
 
-const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/image-zoom.hbs";
+const TEMPLATE = "systems/stonetop_pwd/templates/dialogs/image-zoom.hbs";
 
 // Which overlay children are CONTROLS rather than scenery, for a caller that says nothing. Two
 // attributes and not one, because a caller's overlay may want a control that names no place — the

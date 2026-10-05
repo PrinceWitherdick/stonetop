@@ -37,7 +37,7 @@ describe("planning the portrait flip", () => {
 		expect(plan).toHaveLength(1);
 		expect(plan[0].updates).toEqual({
 			img: full,
-			"flags.stonetop-pwd.portraitFrame": frameFor(full, rect),
+			"flags.stonetop_pwd.portraitFrame": frameFor(full, rect),
 		});
 	});
 
@@ -45,7 +45,7 @@ describe("planning the portrait flip", () => {
 		// The other direction into the same target state: a world that never ran the old re-point
 		// has the illustration on `img` and only needs the frame and the token.
 		const plan = planPeoplePortraitFlips([actor({ img: full })], resolve);
-		expect(plan[0].updates).toEqual({ "flags.stonetop-pwd.portraitFrame": frameFor(full, rect) });
+		expect(plan[0].updates).toEqual({ "flags.stonetop_pwd.portraitFrame": frameFor(full, rect) });
 	});
 
 	it("puts a following token on the square file", () => {
@@ -66,7 +66,7 @@ describe("planning the portrait flip", () => {
 		const done = actor({ img: square, prototypeToken: { texture: { src: square } } });
 		expect(planPeoplePortraitFlips([done], resolve)[0].updates).toEqual({
 			img: full,
-			"flags.stonetop-pwd.portraitFrame": frameFor(full, rect),
+			"flags.stonetop_pwd.portraitFrame": frameFor(full, rect),
 			"prototypeToken.texture.src": square,
 		});
 	});
@@ -86,7 +86,7 @@ describe("planning the portrait flip", () => {
 		// the target layout plans no update, so the no-op re-statement above cannot become a write
 		// that happens forever.
 		const settled = actor({ img: full, prototypeToken: { texture: { src: square } },
-			flags: { "stonetop-pwd": { portraitFrame: frameFor(full, rect) } } });
+			flags: { "stonetop_pwd": { portraitFrame: frameFor(full, rect) } } });
 		expect(planPeoplePortraitFlips([settled], resolve)).toEqual([]);
 	});
 
@@ -108,7 +108,7 @@ describe("planning the portrait flip", () => {
 		// A hand-cropped face IS the answer to "which square do the small surfaces show"; the
 		// pipeline's default must not silently overrule it.
 		const chosen = { src: full, rect: [0.2, 0.05, 0.6, 0.35] };
-		const npc = actor({ img: square, flags: { "stonetop-pwd": { portraitFrame: chosen } } });
+		const npc = actor({ img: square, flags: { "stonetop_pwd": { portraitFrame: chosen } } });
 		expect(planPeoplePortraitFlips([npc], resolve)[0].updates).toEqual({ img: full });
 	});
 
@@ -120,10 +120,10 @@ describe("planning the portrait flip", () => {
 		const host = "https://assets.forge-vtt.com/xyz/";
 		const served = () => ({ whole: host + full, square: host + square, rect });
 		const chosen = { src: full, rect: [0.2, 0.05, 0.6, 0.35] };
-		const npc = actor({ img: full, flags: { "stonetop-pwd": { portraitFrame: chosen } } });
+		const npc = actor({ img: full, flags: { "stonetop_pwd": { portraitFrame: chosen } } });
 		expect(planPeoplePortraitFlips([npc], served)[0].updates).toEqual({
 			img: host + full,
-			"flags.stonetop-pwd.portraitFrame": { src: host + full, rect: chosen.rect },
+			"flags.stonetop_pwd.portraitFrame": { src: host + full, rect: chosen.rect },
 		});
 	});
 
@@ -132,29 +132,29 @@ describe("planning the portrait flip", () => {
 		// illustration would not repair it — it would re-aim it at a different part of a different
 		// picture. Nothing honest to do, so nothing is done.
 		const onSquare = { src: square, rect: [0.1, 0.1, 0.9, 0.9] };
-		const npc = actor({ img: square, flags: { "stonetop-pwd": { portraitFrame: onSquare } } });
+		const npc = actor({ img: square, flags: { "stonetop_pwd": { portraitFrame: onSquare } } });
 		expect(planPeoplePortraitFlips([npc], resolve)[0].updates).toEqual({ img: full });
 	});
 
 	it("seeds over an unusable frame, which is a vacancy rather than a choice", () => {
-		const npc = actor({ img: full, flags: { "stonetop-pwd": { portraitFrame: { src: full, rect: [2, 2, 1, 1] } } } });
+		const npc = actor({ img: full, flags: { "stonetop_pwd": { portraitFrame: { src: full, rect: [2, 2, 1, 1] } } } });
 		expect(planPeoplePortraitFlips([npc], resolve)[0].updates)
-			.toEqual({ "flags.stonetop-pwd.portraitFrame": frameFor(full, rect) });
+			.toEqual({ "flags.stonetop_pwd.portraitFrame": frameFor(full, rect) });
 	});
 
 	it("finds follower portraits nested in flags and frames them beside their img", () => {
-		// A card's art lives at flags.stonetop-pwd.<shape>.img, and the shape differs per follower
+		// A card's art lives at flags.stonetop_pwd.<shape>.img, and the shape differs per follower
 		// type — walking for the key is what covers a type added later. On a PLAYER CHARACTER, which
 		// is where follower cards live: the flag walk is deliberately not gated by type even though
 		// the actor's own portrait is.
 		const pc = actor({
 			type: "character",
-			img: "systems/stonetop-pwd/assets/playbooks/blessed.webp",
-			flags: { "stonetop-pwd": { followers: { "npc:enfys": { img: square, name: "Enfys" } } } },
+			img: "systems/stonetop_pwd/assets/playbooks/blessed.webp",
+			flags: { "stonetop_pwd": { followers: { "npc:enfys": { img: square, name: "Enfys" } } } },
 		});
 		expect(planPeoplePortraitFlips([pc], resolve)[0].updates).toEqual({
-			"flags.stonetop-pwd.followers.npc:enfys.img": full,
-			"flags.stonetop-pwd.followers.npc:enfys.portraitFrame": frameFor(full, rect),
+			"flags.stonetop_pwd.followers.npc:enfys.img": full,
+			"flags.stonetop_pwd.followers.npc:enfys.portraitFrame": frameFor(full, rect),
 		});
 	});
 
@@ -162,13 +162,13 @@ describe("planning the portrait flip", () => {
 		const pc = actor({
 			type: "character",
 			flags: {
-				"stonetop-pwd": {
+				"stonetop_pwd": {
 					customFollowers: { enfys: { img: square, portraitFrame: { src: full, rect: [0.1, 0.1, 0.4, 0.4] } } },
 				},
 			},
 		});
 		expect(planPeoplePortraitFlips([pc], resolve)[0].updates)
-			.toEqual({ "flags.stonetop-pwd.customFollowers.enfys.img": full });
+			.toEqual({ "flags.stonetop_pwd.customFollowers.enfys.img": full });
 	});
 
 	it("leaves a player character's own portrait alone", () => {
@@ -179,10 +179,10 @@ describe("planning the portrait flip", () => {
 			type: "character",
 			img: full,
 			prototypeToken: { texture: { src: full } },
-			flags: { "stonetop-pwd": { customFollowers: { enfys: { img: other } } } },
+			flags: { "stonetop_pwd": { customFollowers: { enfys: { img: other } } } },
 		});
 		expect(planPeoplePortraitFlips([pc], resolve)[0].updates).toEqual({
-			"flags.stonetop-pwd.customFollowers.enfys.portraitFrame": frameFor(other, otherRect),
+			"flags.stonetop_pwd.customFollowers.enfys.portraitFrame": frameFor(other, otherRect),
 		});
 	});
 
@@ -195,15 +195,15 @@ describe("planning the portrait flip", () => {
 	it("moves several holdings on one actor at once", () => {
 		const npc = actor({
 			img: square,
-			flags: { "stonetop-pwd": { crew: { a: { img: other } }, hirelings: { b: { img: square } } } },
+			flags: { "stonetop_pwd": { crew: { a: { img: other } }, hirelings: { b: { img: square } } } },
 		});
 		const plan = planPeoplePortraitFlips([npc], resolve);
 		expect(plan[0].updates).toEqual({
 			img: full,
-			"flags.stonetop-pwd.portraitFrame": frameFor(full, rect),
-			"flags.stonetop-pwd.crew.a.portraitFrame": frameFor(other, otherRect),
-			"flags.stonetop-pwd.hirelings.b.img": full,
-			"flags.stonetop-pwd.hirelings.b.portraitFrame": frameFor(full, rect),
+			"flags.stonetop_pwd.portraitFrame": frameFor(full, rect),
+			"flags.stonetop_pwd.crew.a.portraitFrame": frameFor(other, otherRect),
+			"flags.stonetop_pwd.hirelings.b.img": full,
+			"flags.stonetop_pwd.hirelings.b.portraitFrame": frameFor(full, rect),
 		});
 		expect(plan[0].changes).toHaveLength(5);
 	});
@@ -213,7 +213,7 @@ describe("planning the portrait flip", () => {
 		const done = actor({
 			img: full,
 			prototypeToken: { texture: { src: square } },
-			flags: { "stonetop-pwd": { portraitFrame: frameFor(full, rect) } },
+			flags: { "stonetop_pwd": { portraitFrame: frameFor(full, rect) } },
 		});
 		expect(planPeoplePortraitFlips([done], resolve)).toHaveLength(0);
 	});
@@ -248,10 +248,10 @@ describe("planning the portrait flip", () => {
 		cyclic.self = cyclic;
 		const deep = { a: { b: { c: { d: { e: { f: { g: { img: square } } } } } } } };
 		const pool = [
-			actor({ flags: { "stonetop-pwd": cyclic } }),
-			actor({ flags: { "stonetop-pwd": deep } }),
-			actor({ flags: { "stonetop-pwd": { list: [{ img: square }] } } }),
-			actor({ flags: { "stonetop-pwd": { thing: { img: 42 } } } }),
+			actor({ flags: { "stonetop_pwd": cyclic } }),
+			actor({ flags: { "stonetop_pwd": deep } }),
+			actor({ flags: { "stonetop_pwd": { list: [{ img: square }] } } }),
+			actor({ flags: { "stonetop_pwd": { thing: { img: 42 } } } }),
 			actor({ flags: null }),
 		];
 		expect(() => planPeoplePortraitFlips(pool, resolve)).not.toThrow();
@@ -259,8 +259,8 @@ describe("planning the portrait flip", () => {
 		const plan = planPeoplePortraitFlips(pool, resolve);
 		expect(plan).toHaveLength(1);
 		expect(plan[0].updates).toEqual({
-			"flags.stonetop-pwd.img": full,
-			"flags.stonetop-pwd.portraitFrame": frameFor(full, rect),
+			"flags.stonetop_pwd.img": full,
+			"flags.stonetop_pwd.portraitFrame": frameFor(full, rect),
 		});
 	});
 

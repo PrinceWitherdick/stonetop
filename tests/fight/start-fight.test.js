@@ -132,14 +132,14 @@ describe("startWindowModel", () => {
 			sceneTokens: [],
 			pcsElsewhere: [{ uuid: "Actor.pim", name: "Pim" }],
 			people: [{ uuid: "Actor.maeve", name: "Maeve", disposition: 1 }, { uuid: "Actor.tovia", name: "Tovia", disposition: 0 }],
-			monsters: [{ uuid: "Compendium.stonetop-pwd.stonetop-bestiary.Actor.x", name: "Rime Lord", fromPack: true }],
+			monsters: [{ uuid: "Compendium.stonetop_pwd.stonetop-bestiary.Actor.x", name: "Rime Lord", fromPack: true }],
 			format,
 		});
 		expect(model.groups.map(g => g.key)).toEqual(["pcsElsewhere", "people", "monsters"]);
 		expect(model.sides.get("actor:Actor.pim")).toBe("heroes");
 		expect(model.sides.get("actor:Actor.maeve")).toBe("heroes");
 		expect(model.sides.get("actor:Actor.tovia")).toBe("foes");
-		expect(model.sides.get("actor:Compendium.stonetop-pwd.stonetop-bestiary.Actor.x")).toBe("foes");
+		expect(model.sides.get("actor:Compendium.stonetop_pwd.stonetop-bestiary.Actor.x")).toBe("foes");
 		expect(model.groups[2].people[0].hint).toBe("From the bestiary");
 		expect(model.selected).toEqual([]);
 	});
@@ -288,7 +288,7 @@ describe("startFight", () => {
 
 	it("imports a bestiary monster once, however many times it is picked", async () => {
 		const { scene } = world();
-		const packDoc = { documentName: "Actor", uuid: "Compendium.stonetop-pwd.stonetop-bestiary.Actor.rime", pack: "stonetop-pwd.stonetop-bestiary", name: "Rime Lord" };
+		const packDoc = { documentName: "Actor", uuid: "Compendium.stonetop_pwd.stonetop-bestiary.Actor.rime", pack: "stonetop_pwd.stonetop-bestiary", name: "Rime Lord" };
 		globalThis.fromUuid = vi.fn(async () => packDoc);
 		let made = 0;
 		globalThis.Actor = {

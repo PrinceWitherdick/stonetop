@@ -1,7 +1,7 @@
 {
   "name": "Wild Horse",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -25,7 +25,7 @@
     "tags": "group, large, cautious, swift",
     "qualities": "",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.nXxqWnbt932F98UJ",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.nXxqWnbt932F98UJ",
     "notes": "",
     "creatureType": "natural-beast"
   },
@@ -34,7 +34,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/natural-beast.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/natural-beast.svg"
     }
   },
   "items": [

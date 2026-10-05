@@ -439,7 +439,7 @@ describe("using an Invocation", () => {
 });
 
 // ── Lightbearer audit (2026-09-25) ────────────────────────────────────────────────────────
-const unlearned = name => ({ type: "move", name, flags: { "stonetop-pwd": { learned: false } } });
+const unlearned = name => ({ type: "move", name, flags: { "stonetop_pwd": { learned: false } } });
 
 describe("the invoke window asks LEARNED moves (B4)", () => {
 	it("offers no roll for an un-learned Invoke the Sun God", async () => {
@@ -644,7 +644,7 @@ describe("the Invocations count cue", () => {
 	const cueFor = ({ level, known, borrowed = false, grantedAt = null }) => {
 		const { sheet, actor } = makeSheet({ known: TEN.slice(0, known).map(o => o.slug) });
 		actor.system.attributes = { ...(actor.system.attributes ?? {}), level: { value: level } };
-		if (grantedAt != null) actor.flags["stonetop-pwd"] = { ...(actor.flags["stonetop-pwd"] ?? {}), "invocations.grantedAtLevel": grantedAt };
+		if (grantedAt != null) actor.flags["stonetop_pwd"] = { ...(actor.flags["stonetop_pwd"] ?? {}), "invocations.grantedAtLevel": grantedAt };
 		sheet._stonetopCharacter = actor.typedActor;
 		globalThis.game.settings ??= { get: () => false };
 		return sheet._buildInvocationsData({ startingCount: 2, options: TEN }, { borrowed }).countCue;
@@ -769,7 +769,7 @@ describe("Invoking as a 10+", () => {
 		expect(posted[0].content).toMatch(/The effort taxes you; mark a debility/);
 		// Stamped like a rolled card, so the consequence wiring acts on its ticks, and as the 10+ it
 		// stands for, so the holy relics and an Invocation's own button are offered on it (R7).
-		expect(posted[0].flags["stonetop-pwd"]).toEqual({ move: "Invoke the Sun God", invokeTenPlus: true, invocations: ["warmth-of-the-sun"] });
+		expect(posted[0].flags["stonetop_pwd"]).toEqual({ move: "Invoke the Sun God", invokeTenPlus: true, invocations: ["warmth-of-the-sun"] });
 	});
 
 	it("gives an Empowered Invocation its extra consequence on the list", async () => {
@@ -779,7 +779,7 @@ describe("Invoking as a 10+", () => {
 		dialog.press("roll", { empowerChecked: true });
 		await posting;
 		expect(posted[0].content).toMatch(/data-pick-max-success="2"/);
-		expect(posted[0].flags["stonetop-pwd"].invokeEmpowered).toBe(true);
+		expect(posted[0].flags["stonetop_pwd"].invokeEmpowered).toBe(true);
 	});
 
 	it("answers null for Just show it, so the Wielder card's button is given back", async () => {

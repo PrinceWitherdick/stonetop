@@ -63,7 +63,7 @@ export class CallUpDeepOnesDialog extends StonetopDialog {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-call-up-deep-ones",
 			title:     "Call Up the Deep Ones",
-			template:  "systems/stonetop-pwd/templates/dialogs/call-up-deep-ones.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/call-up-deep-ones.hbs",
 			// Rail + panel, at a fixed height so switching panels never resizes the
 			// frame; the panel column scrolls if one runs long.
 			width:     660,

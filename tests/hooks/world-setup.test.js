@@ -26,7 +26,7 @@ const MAP = (slug) => ({ map: { slug, name: slug }, src: `art/${slug}.webp`, has
 
 let store;
 
-function harness({ isGM = true, activeGmId = "gm-1", settings = {}, packs = ["stonetop-pwd.stonetop-bestiary", "stonetop-pwd.stonetop-items"] } = {}) {
+function harness({ isGM = true, activeGmId = "gm-1", settings = {}, packs = ["stonetop_pwd.stonetop-bestiary", "stonetop_pwd.stonetop-items"] } = {}) {
 	store = {
 		seedingComplete: false,
 		bestiaryActorsSeeded: false,
@@ -47,7 +47,7 @@ function harness({ isGM = true, activeGmId = "gm-1", settings = {}, packs = ["st
 		// The bestiary/treasure guards check their pack exists before claiming the work is
 		// owed, so a dev build without one doesn't get a row for an import that can't run.
 		packs: { get: (id) => (packs.includes(id) ? { collection: id } : undefined) },
-		system: { id: "stonetop-pwd", version: "9.9.9" },
+		system: { id: "stonetop_pwd", version: "9.9.9" },
 	};
 	global.ui = {
 		notifications: {

@@ -207,7 +207,7 @@ describe("treasure art", () => {
 		const prev = globalThis.game;
 		globalThis.game = values === null ? undefined : {
 			settings: {
-				settings: new Map(Object.keys(values).map(k => [`stonetop-pwd.${k}`, {}])),
+				settings: new Map(Object.keys(values).map(k => [`stonetop_pwd.${k}`, {}])),
 				get: (ns, key) => values[key],
 			},
 		};

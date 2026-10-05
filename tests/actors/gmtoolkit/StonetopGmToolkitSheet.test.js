@@ -334,8 +334,8 @@ describe("StonetopGmToolkitSheet", () => {
 	// look on disk.
 	it("names a template that actually exists", () => {
 		const declared = makeSheet().template;
-		expect(declared).toMatch(/^systems\/stonetop-pwd\/templates\//);
-		expect(repoFileExists(declared.replace("systems/stonetop-pwd/", "")), `${declared} does not exist`).toBe(true);
+		expect(declared).toMatch(/^systems\/stonetop_pwd\/templates\//);
+		expect(repoFileExists(declared.replace("systems/stonetop_pwd/", "")), `${declared} does not exist`).toBe(true);
 	});
 });
 
@@ -574,7 +574,7 @@ describe("the move randomizer", () => {
 	it("registers its partial, at a path that exists", () => {
 		const entry = STONETOP_JS.match(/"stonetop\.section-randomize":\s*"([^"]+)"/);
 		expect(entry, "no preload entry for the randomize partial").toBeTruthy();
-		expect(repoFileExists(entry[1].replace("systems/stonetop-pwd/", "")), `${entry[1]} does not exist`).toBe(true);
+		expect(repoFileExists(entry[1].replace("systems/stonetop_pwd/", "")), `${entry[1]} does not exist`).toBe(true);
 	});
 
 	// A real <button>, so Enter and Space fire it with no keydown handler of our own. An <a> or
@@ -978,7 +978,7 @@ describe("the GM Toolkit is registered on all three legs", () => {
 	it("preloads the moves partial, from a path that exists", () => {
 		const entry = STONETOP_JS.match(/"stonetop\.gm-toolkit-tab-moves":\s*"([^"]+)"/);
 		expect(entry, "no preload entry for the moves partial").toBeTruthy();
-		expect(repoFileExists(entry[1].replace("systems/stonetop-pwd/", "")), `${entry[1]} does not exist`).toBe(true);
+		expect(repoFileExists(entry[1].replace("systems/stonetop_pwd/", "")), `${entry[1]} does not exist`).toBe(true);
 		// Both halves of the handshake: the map key and the name the sheet actually invokes.
 		expect(SHEET_HBS).toContain('"stonetop.gm-toolkit-tab-moves"');
 	});
@@ -1150,7 +1150,7 @@ describe("the Preferences tab", () => {
 		const savedUser = game.user;
 		game.user = { id: "gm1", isGM: true };
 		game.settings = {
-			settings: new Map([["stonetop-pwd.reduceMotion",
+			settings: new Map([["stonetop_pwd.reduceMotion",
 				{ name: "Reduce Motion", hint: "", type: Boolean, default: false }]]),
 			menus: new Map(),
 			get: () => true,

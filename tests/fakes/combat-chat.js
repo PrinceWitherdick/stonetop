@@ -11,7 +11,7 @@
  */
 import { vi } from "vitest";
 
-export const SCOPE = "stonetop-pwd";
+export const SCOPE = "stonetop_pwd";
 
 /** The character the blow is aimed at. Two armor, which is what makes mitigation visible. */
 export const pc = {

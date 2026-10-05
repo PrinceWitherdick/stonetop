@@ -21,14 +21,14 @@ import { POSTER_MAPS } from "../../module/book2-art/poster-map-catalog.js";
 
 const VILLAGE = POSTER_MAPS[0];
 const VICINITY = POSTER_MAPS[1];
-const MARKER = `systems/stonetop-pwd/${PLACE_MARKER_ICON_SUFFIX}`;
-const SITE_PIN = `systems/stonetop-pwd/${SITE_PIN_ICON_SUFFIX}`;
+const MARKER = `systems/stonetop_pwd/${PLACE_MARKER_ICON_SUFFIX}`;
+const SITE_PIN = `systems/stonetop_pwd/${SITE_PIN_ICON_SUFFIX}`;
 
 /** A plain scene: not a poster map, so it has only the world default behind it. */
 const scene = (id, map = null) => ({
 	id,
 	name: map?.name ?? "Somewhere",
-	flags: map ? { "stonetop-pwd": { posterMap: map.slug } } : {},
+	flags: map ? { "stonetop_pwd": { posterMap: map.slug } } : {},
 });
 
 let _game;

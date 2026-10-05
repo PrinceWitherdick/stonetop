@@ -31,7 +31,7 @@ describe("what moves a vital", () => {
 	});
 
 	it("counts what the vitals are worked out from: a carried mark, the playbook, a level, the hand-set deltas", () => {
-		expect(mayMoveVitals({ flags: { "stonetop-pwd": { inventory: { checked: { shield: true } } } } })).toBe(true);
+		expect(mayMoveVitals({ flags: { "stonetop_pwd": { inventory: { checked: { shield: true } } } } })).toBe(true);
 		expect(mayMoveVitals({ system: { playbook: { slug: "the-heavy" } } })).toBe(true);
 		expect(mayMoveVitals({ system: { attributes: { level: { value: 2 } } } })).toBe(true);
 		expect(mayMoveVitals({ system: { attributes: { armor: { adjustment: 1 } } } })).toBe(true);
@@ -41,15 +41,15 @@ describe("what moves a vital", () => {
 	it("ignores what play writes over and over and no vital reads", () => {
 		expect(mayMoveVitals({ name: "Pim", img: "pim.webp" })).toBe(false);
 		expect(mayMoveVitals({ system: { attributes: { xp: { value: 3 }, wounds: [] } } })).toBe(false);
-		for (const key of FLAG_NOISE) expect(mayMoveVitals({ flags: { "stonetop-pwd": { [key]: 1 } } })).toBe(false);
-		expect(mayMoveVitals({ flags: { "stonetop-pwd": { "-=camp": null } } })).toBe(false);
+		for (const key of FLAG_NOISE) expect(mayMoveVitals({ flags: { "stonetop_pwd": { [key]: 1 } } })).toBe(false);
+		expect(mayMoveVitals({ flags: { "stonetop_pwd": { "-=camp": null } } })).toBe(false);
 	});
 
 	// The keyed ledger's own writes: one entry per key, and the one-time conversion of an old
 	// array ledger, which v13 spells as a forced replacement `==ledger`.
 	it("ignores the ledger's keyed writes and its v13 replacement", () => {
-		expect(mayMoveVitals({ flags: { "stonetop-pwd": { ledger: { abc: { action: "HP changed from 5 to 4" } } } } })).toBe(false);
-		expect(mayMoveVitals({ flags: { "stonetop-pwd": { "==ledger": { abc: { action: "x" } } } } })).toBe(false);
+		expect(mayMoveVitals({ flags: { "stonetop_pwd": { ledger: { abc: { action: "HP changed from 5 to 4" } } } } })).toBe(false);
+		expect(mayMoveVitals({ flags: { "stonetop_pwd": { "==ledger": { abc: { action: "x" } } } } })).toBe(false);
 	});
 
 	it("spells each quiet flag as its owner does", () => {
@@ -63,14 +63,14 @@ describe("what moves a vital", () => {
 	});
 
 	it("re-mirrors everyone when a Blessed lays or lifts a mark: Barkskin is armor on somebody else's sheet", () => {
-		expect(mayMoveMarks({ flags: { "stonetop-pwd": { blessedMarks: [{ kind: "barkskin", uuid: "Actor.pim" }] } } })).toBe(true);
-		expect(mayMoveMarks({ flags: { "stonetop-pwd": { inventory: { checked: { shield: true } } } } })).toBe(false);
+		expect(mayMoveMarks({ flags: { "stonetop_pwd": { blessedMarks: [{ kind: "barkskin", uuid: "Actor.pim" }] } } })).toBe(true);
+		expect(mayMoveMarks({ flags: { "stonetop_pwd": { inventory: { checked: { shield: true } } } } })).toBe(false);
 	});
 
 	it("counts the steading's Weapons of War, and nothing else about the steading", () => {
-		expect(mayMoveSteadingGear({ flags: { "stonetop-pwd": { steading: { improvements: { "weapons-of-war": { completed: true } } } } } })).toBe(true);
-		expect(mayMoveSteadingGear({ flags: { "stonetop-pwd": { steading: { fortifications: ["Weapons of war"] } } } })).toBe(true);
-		expect(mayMoveSteadingGear({ flags: { "stonetop-pwd": { steading: { system: { attributes: { prosperity: { value: 2 } } } } } } })).toBe(false);
+		expect(mayMoveSteadingGear({ flags: { "stonetop_pwd": { steading: { improvements: { "weapons-of-war": { completed: true } } } } } })).toBe(true);
+		expect(mayMoveSteadingGear({ flags: { "stonetop_pwd": { steading: { fortifications: ["Weapons of war"] } } } })).toBe(true);
+		expect(mayMoveSteadingGear({ flags: { "stonetop_pwd": { steading: { system: { attributes: { prosperity: { value: 2 } } } } } } })).toBe(false);
 	});
 });
 
@@ -123,7 +123,7 @@ describe("the vitals mirror hooks", () => {
 	});
 
 	describe("changes outside the character", () => {
-		const weaponsOfWar = { flags: { "stonetop-pwd": { steading: { improvements: { "weapons-of-war": { completed: true } } } } } };
+		const weaponsOfWar = { flags: { "stonetop_pwd": { steading: { improvements: { "weapons-of-war": { completed: true } } } } } };
 		const steading = { id: "stonetop", type: "stonetop" };
 		const arcanum = { parent: null, type: "move", system: { moveType: "arcanum" } };
 
@@ -147,7 +147,7 @@ describe("the vitals mirror hooks", () => {
 			const others = world(false);
 			handlers.updateActor(steading, weaponsOfWar, {}, "me");
 			const mine = world(true);
-			handlers.updateActor(steading, { flags: { "stonetop-pwd": { steading: { population: 3 } } } }, {}, "me");
+			handlers.updateActor(steading, { flags: { "stonetop_pwd": { steading: { population: 3 } } } }, {}, "me");
 			await vi.runAllTimersAsync();
 			for (const actor of [others.pim, others.cadi, mine.pim, mine.cadi]) expect(actor.sync).not.toHaveBeenCalled();
 		});
@@ -165,7 +165,7 @@ describe("the vitals mirror hooks", () => {
 describe("StonetopCharacter#syncStoredVitals", () => {
 	// update() resolves to the document when the write changed it, as core's does; to nothing when it did not.
 	function typed(attributes, computed, flags = {}) {
-		const actor = { system: { attributes }, flags: { "stonetop-pwd": flags } };
+		const actor = { system: { attributes }, flags: { "stonetop_pwd": flags } };
 		actor.update = vi.fn(async () => actor);
 		return { self: { _actor: actor, computedVitals: async () => computed }, actor };
 	}
@@ -244,7 +244,7 @@ describe("StonetopCharacter#syncStoredVitals", () => {
 	it("records the penalty the max is built from, alongside the max", async () => {
 		const { self, actor } = typed({ armor: { value: 2, unpierceable: 0 }, hp: { value: 9, max: 18 } }, { armor: 2, unpierceable: 0, maxHp: 16, hpPenalty: 2 });
 		await sync(self);
-		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16, "flags.stonetop-pwd.mirroredHpPenalty": 2 }, { stonetopLedger: true });
+		expect(actor.update).toHaveBeenCalledWith({ "system.attributes.hp.max": 16, "flags.stonetop_pwd.mirroredHpPenalty": 2 }, { stonetopLedger: true });
 	});
 
 	// Every owner client syncs; the one whose write arrives second changes nothing, and must not

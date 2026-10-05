@@ -5,7 +5,7 @@ import { PlaybookPickerDialog, playbookHolders } from "../../../../module/actors
 // p.49): a playbook someone else holds is FLAGGED on its card, never locked.
 
 const OWNER = 3;
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const PLAYBOOKS = [
 	{ slug: "the-fox",   name: "The Fox" },
 	{ slug: "the-heavy", name: "The Heavy" },
@@ -93,7 +93,7 @@ describe("the picker's cards", () => {
 		global.game = { ...savedGame, actors: [pc("wren", "Wren", { playbook: "the-fox" })], users };
 		try {
 			const data = await picker.getData();
-			const html = await renderTemplate("systems/stonetop-pwd/templates/dialogs/playbook-picker.hbs", data);
+			const html = await renderTemplate("systems/stonetop_pwd/templates/dialogs/playbook-picker.hbs", data);
 			expect(html).toContain("Taken by Wren (Aderyn)");
 			expect(html).toMatch(/<button type="button"\s+class="stonetop-playbook-picker-card stonetop-playbook-picker-card--the-fox is-taken"/);
 			expect(data.playbooks.find(p => p.slug === "the-heavy").taken).toBe(false);

@@ -8,7 +8,7 @@ function makeSteadingActor({ system = {}, steadingFlags = {} } = {}) {
 		system,
 		flags: { stonetop: { steading: steadingFlags } },
 		getFlag: (scope, key) => {
-			if (scope !== "stonetop-pwd" || key !== "steading") return null;
+			if (scope !== "stonetop_pwd" || key !== "steading") return null;
 			return steadingFlags;
 		},
 		update: vi.fn(),
@@ -30,7 +30,7 @@ describe("StonetopSteading", () => {
 		await new StonetopSteading(actor).setSystemValue("attributes.prosperity.value", 2);
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.prosperity.value": 2,
-			"flags.stonetop-pwd.steading.system.attributes.prosperity.value": 2,
+			"flags.stonetop_pwd.steading.system.attributes.prosperity.value": 2,
 		}, {});
 	});
 
@@ -40,7 +40,7 @@ describe("StonetopSteading", () => {
 		await new StonetopSteading(actor).applyChanges({ flags: { musterHold: { year: 1 } } }, { stonetopMove: "Muster" });
 		expect(actor.setFlag).not.toHaveBeenCalled();
 		expect(actor.update).toHaveBeenCalledWith(
-			{ "flags.stonetop-pwd.steading": { size: "village", musterHold: { year: 1 } } },
+			{ "flags.stonetop_pwd.steading": { size: "village", musterHold: { year: 1 } } },
 			{ stonetopMove: "Muster" },
 		);
 	});
@@ -309,7 +309,7 @@ describe("StonetopSteading", () => {
 			expect(snapshot.residents[0].profileImg).toBe("wren.webp");
 			// Legacy text row with no linked actor → the roster's empty-slot face (not the
 			// mark an art-less NPC actor wears, which is people/default_profile.svg).
-			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop-pwd/assets/icons/people/empty_profile.svg");
+			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/empty_profile.svg");
 		} finally {
 			game.actors = prevActors;
 		}
@@ -320,7 +320,7 @@ describe("StonetopSteading", () => {
 	// the roster draws its own empty-slot face rather than passing the stored one through.
 	it.each([
 		["Foundry's default", "icons/svg/mystery-man.svg"],
-		["the mark the system stamps", "systems/stonetop-pwd/assets/icons/people/default_profile.svg"],
+		["the mark the system stamps", "systems/stonetop_pwd/assets/icons/people/default_profile.svg"],
 	])("falls back to the roster's empty face when the linked NPC wears %s", async (_label, img) => {
 		const bala = {
 			id: "bala", uuid: "Actor.bala", type: "npc", name: "Bala", img,
@@ -338,7 +338,7 @@ describe("StonetopSteading", () => {
 			});
 			const snapshot = await new StonetopSteading(actor).buildSnapshot();
 
-			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop-pwd/assets/icons/people/empty_profile.svg");
+			expect(snapshot.neighbors[0].profileImg).toBe("systems/stonetop_pwd/assets/icons/people/empty_profile.svg");
 		} finally {
 			game.actors = prevActors;
 		}
@@ -490,14 +490,14 @@ describe("StonetopSteading", () => {
 				.toMatchObject({ label: "ROADBUILDING", reverted: [] });
 			// Read off the payload: this fake's `update` is a spy that applies nothing.
 			const payload = actor.update.mock.calls.at(-1)[0];
-			expect(payload["flags.stonetop-pwd.steading.customImprovements"]).toEqual([]);
+			expect(payload["flags.stonetop_pwd.steading.customImprovements"]).toEqual([]);
 			// Only the list and the deletion: the rest of the steading, rebuilt from the cached
 			// flags, used to be written back too and undid anything written inside the round trip.
-			expect(payload).not.toHaveProperty(["flags.stonetop-pwd.steading"]);
+			expect(payload).not.toHaveProperty(["flags.stonetop_pwd.steading"]);
 			expect(Object.keys(payload)).toHaveLength(2);
 			// AND the slug deleted outright (#7): the flag object is written by merging, so leaving
 			// it out of the map left it stored, ticks and all. v13 spelling here (no core in tests).
-			expect(payload).toHaveProperty(["flags.stonetop-pwd.steading.improvements.-=custom-roadbuilding"], null);
+			expect(payload).toHaveProperty(["flags.stonetop_pwd.steading.improvements.-=custom-roadbuilding"], null);
 			// Removing an unknown slug is a no-op.
 			expect(await steading.removeCustomImprovement("custom-nope")).toBe(false);
 		});
@@ -619,14 +619,14 @@ describe("StonetopSteading", () => {
 			// system value and its flag mirror, as every grant write does.
 			const payload = actor.update.mock.calls.at(-2)[0];
 			expect(payload["system.stats.fortunes.value"]).toBe(1);
-			expect(payload["flags.stonetop-pwd.steading.system.stats.fortunes.value"]).toBe(1);
-			expect(payload["flags.stonetop-pwd.steading.fortifications"])
+			expect(payload["flags.stonetop_pwd.steading.system.stats.fortunes.value"]).toBe(1);
+			expect(payload["flags.stonetop_pwd.steading.fortifications"])
 				.not.toContainEqual(expect.objectContaining({ name: "Palisade (homebrew)" }));
 
 			// And the definition and its tracking entry are gone, the entry deleted outright.
 			const removal = actor.update.mock.calls.at(-1)[0];
-			expect(removal["flags.stonetop-pwd.steading.customImprovements"]).toEqual([]);
-			expect(removal).toHaveProperty(["flags.stonetop-pwd.steading.improvements.-=custom-palisade-homebrew"], null);
+			expect(removal["flags.stonetop_pwd.steading.customImprovements"]).toEqual([]);
+			expect(removal).toHaveProperty(["flags.stonetop_pwd.steading.improvements.-=custom-palisade-homebrew"], null);
 		});
 	});
 
@@ -644,12 +644,12 @@ describe("StonetopSteading", () => {
 
 			const data = lastUpdate(actor);
 			expect(data["system.stats.fortunes.value"]).toBe(2);
-			expect(data["flags.stonetop-pwd.steading.system.stats.fortunes.value"]).toBe(2);
-			expect(data["flags.stonetop-pwd.steading.resources"]).toEqual([
+			expect(data["flags.stonetop_pwd.steading.system.stats.fortunes.value"]).toBe(2);
+			expect(data["flags.stonetop_pwd.steading.resources"]).toEqual([
 				{ name: "Farming", checked: true },
 				{ name: "Raincatching", checked: true },
 			]);
-			const imps = data["flags.stonetop-pwd.steading.improvements"];
+			const imps = data["flags.stonetop_pwd.steading.improvements"];
 			expect(imps.raincatching.completed).toBe(true);
 			expect(imps.raincatching.applied).toEqual({ stats: { fortunes: 1 }, resources: ["Raincatching"] });
 			expect(result).toMatchObject({ label: "Raincatching", reverted: false });
@@ -670,11 +670,11 @@ describe("StonetopSteading", () => {
 
 			const data = lastUpdate(actor);
 			expect(data["system.stats.fortunes.value"]).toBe(1);
-			expect(data["flags.stonetop-pwd.steading.resources"]).toEqual([
+			expect(data["flags.stonetop_pwd.steading.resources"]).toEqual([
 				{ name: "Farming", checked: true },
 				{ name: "", checked: false },
 			]);
-			const imps = data["flags.stonetop-pwd.steading.improvements"];
+			const imps = data["flags.stonetop_pwd.steading.improvements"];
 			expect(imps.raincatching.completed).toBe(false);
 			expect(imps.raincatching.applied).toBeNull();
 			expect(result.reverted).toBe(true);
@@ -692,7 +692,7 @@ describe("StonetopSteading", () => {
 			await new StonetopSteading(actor).setImprovementCompleted("raincatching", true);
 
 			// Only the improvements map is rewritten — no fresh stat/list changes.
-			expect(Object.keys(lastUpdate(actor))).toEqual(["flags.stonetop-pwd.steading.improvements"]);
+			expect(Object.keys(lastUpdate(actor))).toEqual(["flags.stonetop_pwd.steading.improvements"]);
 		});
 
 		it("does not duplicate a resource that is already present, recording nothing to revert for it", async () => {
@@ -706,8 +706,8 @@ describe("StonetopSteading", () => {
 
 			const data = lastUpdate(actor);
 			expect(data["system.stats.fortunes.value"]).toBe(2);                                   // fortunes still bumps
-			expect(Object.keys(data)).not.toContain("flags.stonetop-pwd.steading.resources");       // list untouched
-			expect(data["flags.stonetop-pwd.steading.improvements"].raincatching.applied)
+			expect(Object.keys(data)).not.toContain("flags.stonetop_pwd.steading.resources");       // list untouched
+			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied)
 				.toEqual({ stats: { fortunes: 1 } });                                              // no resource recorded
 		});
 
@@ -729,12 +729,12 @@ describe("StonetopSteading", () => {
 			// Not the Fortunes: "a one-time gain; when Seasons Change and Fortunes reset, this benefit
 			// no longer matters" (Book I p. 514), and a pre-engine completion has seen a reset since.
 			expect(data).not.toHaveProperty(["system.stats.fortunes.value"]);
-			expect(data["flags.stonetop-pwd.steading.resources"]).toEqual([
+			expect(data["flags.stonetop_pwd.steading.resources"]).toEqual([
 				{ name: "", checked: false },                                          // Raincatching dropped
 				{ name: "", checked: false },
 			]);
 			expect(result.reverted).toBe(true);
-			expect(data["flags.stonetop-pwd.steading.improvements"].raincatching.applied).toBeNull();
+			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied).toBeNull();
 		});
 
 		it("back-fill claims no reversal for a legacy Township already at its target size", async () => {
@@ -751,9 +751,9 @@ describe("StonetopSteading", () => {
 			const result = await new StonetopSteading(actor).setImprovementCompleted("township", false);
 
 			const data = lastUpdate(actor);
-			expect(data["flags.stonetop-pwd.steading.size"]).toBeUndefined();          // size left intact
+			expect(data["flags.stonetop_pwd.steading.size"]).toBeUndefined();          // size left intact
 			expect(result.reverted).toBe(false);
-			expect(data["flags.stonetop-pwd.steading.improvements"].township.applied).toBeNull();
+			expect(data["flags.stonetop_pwd.steading.improvements"].township.applied).toBeNull();
 		});
 
 		it("Township sets Size and Population, recording their prior values for reversal", async () => {
@@ -763,9 +763,9 @@ describe("StonetopSteading", () => {
 			await new StonetopSteading(actor).setImprovementCompleted("township", true);
 
 			const data = lastUpdate(actor);
-			expect(data["flags.stonetop-pwd.steading.size"]).toBe("town");
+			expect(data["flags.stonetop_pwd.steading.size"]).toBe("town");
 			expect(data["system.attributes.population.value"]).toBe(0);
-			expect(data["flags.stonetop-pwd.steading.improvements"].township.applied).toEqual({
+			expect(data["flags.stonetop_pwd.steading.improvements"].township.applied).toEqual({
 				setSize: { from: "village", to: "town" },
 				setPopulation: { from: 3, to: 0 },
 			});
@@ -781,12 +781,12 @@ describe("StonetopSteading", () => {
 			await new StonetopSteading(actor).setImprovementCompleted("stoneWall", true);
 
 			const data = lastUpdate(actor);
-			expect(data["flags.stonetop-pwd.steading.fortifications"]).toEqual([
+			expect(data["flags.stonetop_pwd.steading.fortifications"]).toEqual([
 				{ name: "Village militia", checked: true },
 				{ name: "", checked: false },           // Palisade slot cleared
 				{ name: "Stone Wall", checked: true },  // filled the trailing empty slot
 			]);
-			const applied = data["flags.stonetop-pwd.steading.improvements"].stoneWall.applied;
+			const applied = data["flags.stonetop_pwd.steading.improvements"].stoneWall.applied;
 			expect(applied.fortifications).toEqual(["Stone Wall"]);
 			expect(applied.removedFortifications).toEqual([{ name: "Palisade", checked: true }]);
 		});
@@ -796,9 +796,9 @@ describe("StonetopSteading", () => {
 			const result = await new StonetopSteading(actor).setImprovementCompleted("heroicReputation", true);
 
 			const data = lastUpdate(actor);
-			expect(Object.keys(data)).toEqual(["flags.stonetop-pwd.steading.improvements"]);
+			expect(Object.keys(data)).toEqual(["flags.stonetop_pwd.steading.improvements"]);
 			// `applied: null`, written on every completion: nothing was applied, and it says so.
-			expect(data["flags.stonetop-pwd.steading.improvements"].heroicReputation).toEqual({ completed: true, r: [], applied: null });
+			expect(data["flags.stonetop_pwd.steading.improvements"].heroicReputation).toEqual({ completed: true, r: [], applied: null });
 			expect(result.summary).toEqual([]);
 		});
 
@@ -810,7 +810,7 @@ describe("StonetopSteading", () => {
 				.setImprovementCompleted("raincatching", true, { forceR: [true, true, true, true, true] });
 
 			const data = lastUpdate(actor);
-			const imp = data["flags.stonetop-pwd.steading.improvements"].raincatching;
+			const imp = data["flags.stonetop_pwd.steading.improvements"].raincatching;
 			expect(imp.completed).toBe(true);
 			expect(imp.r).toEqual([true, true, true, true, true]);
 			expect(data["system.stats.fortunes.value"]).toBe(2);
@@ -832,8 +832,8 @@ describe("StonetopSteading", () => {
 
 			const data = actor.update.mock.calls.at(-1)[0];
 			expect(data).not.toHaveProperty(["system.stats.fortunes.value"]);
-			expect(data["flags.stonetop-pwd.steading.resources"][0]).toEqual({ name: "", checked: false });
-			expect(data["flags.stonetop-pwd.steading.improvements"].raincatching.applied).toBeNull();
+			expect(data["flags.stonetop_pwd.steading.resources"][0]).toEqual({ name: "", checked: false });
+			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied).toBeNull();
 			expect(result.reverted).toBe(true);
 			expect(result.summary).toEqual(["Raincatching removed from Resources"]);
 		});
@@ -844,7 +844,7 @@ describe("StonetopSteading", () => {
 			const data = actor.update.mock.calls.at(-1)[0];
 			// Normal fresh completion still applies the grant and records it.
 			expect(data["system.stats.fortunes.value"]).toBe(2);
-			expect(data["flags.stonetop-pwd.steading.improvements"].raincatching.applied).toEqual({ stats: { fortunes: 1 }, resources: ["Raincatching"] });
+			expect(data["flags.stonetop_pwd.steading.improvements"].raincatching.applied).toEqual({ stats: { fortunes: 1 }, resources: ["Raincatching"] });
 		});
 	});
 
@@ -865,7 +865,7 @@ describe("StonetopSteading", () => {
 			const actor = makeSteadingActor();
 			const res = await new StonetopSteading(actor).setHerd({ grown: -4, yearlings: 2.9, foals: 1 });
 			expect(actor.update).toHaveBeenCalledWith(
-				{ "flags.stonetop-pwd.steading.herd": { grown: 0, yearlings: 2, foals: 1 } }, {});
+				{ "flags.stonetop_pwd.steading.herd": { grown: 0, yearlings: 2, foals: 1 } }, {});
 			expect(res).toEqual({ grown: 0, yearlings: 2, foals: 1, total: 3 });
 		});
 
@@ -873,7 +873,7 @@ describe("StonetopSteading", () => {
 			const actor = makeSteadingActor({ steadingFlags: { system: { stats: { fortunes: { value: 1 } } } } });
 			await new StonetopSteading(actor).setImprovementCompleted("herdOfHorses", true);
 			const data = lastUpdate(actor);
-			expect(data["flags.stonetop-pwd.steading.herd"]).toEqual({ grown: 12, yearlings: 0, foals: 0 });
+			expect(data["flags.stonetop_pwd.steading.herd"]).toEqual({ grown: 12, yearlings: 0, foals: 0 });
 			expect(data["system.stats.fortunes.value"]).toBe(2);
 		});
 
@@ -883,7 +883,7 @@ describe("StonetopSteading", () => {
 				system: { stats: { fortunes: { value: 1 } } },
 			} });
 			await new StonetopSteading(actor).setImprovementCompleted("herdOfHorses", true);
-			expect(Object.keys(lastUpdate(actor))).not.toContain("flags.stonetop-pwd.steading.herd");
+			expect(Object.keys(lastUpdate(actor))).not.toContain("flags.stonetop_pwd.steading.herd");
 		});
 
 		it("never removes the herd when the improvement is un-completed", async () => {
@@ -893,7 +893,7 @@ describe("StonetopSteading", () => {
 				improvements: { herdOfHorses: { completed: true, r: [], applied: { stats: { fortunes: 1 } } } },
 			} });
 			await new StonetopSteading(actor).setImprovementCompleted("herdOfHorses", false);
-			expect(Object.keys(lastUpdate(actor))).not.toContain("flags.stonetop-pwd.steading.herd");
+			expect(Object.keys(lastUpdate(actor))).not.toContain("flags.stonetop_pwd.steading.herd");
 		});
 
 		it("exposes the herd view on the Herd of Horses card only once completed", async () => {

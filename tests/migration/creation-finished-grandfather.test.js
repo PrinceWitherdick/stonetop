@@ -9,7 +9,7 @@ import { oncePerVersion } from "../../module/migration/once-per-version.js";
 // stamped ONCE PER WORLD: a re-run under a later version would reach characters saved and closed
 // part-way under the new code, and wrongly mark them finished.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const SETTING = "repairSweepVersions";
 
 let stored;

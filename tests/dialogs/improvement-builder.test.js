@@ -41,7 +41,7 @@ beforeAll(async () => {
 	// rather than a stand-in that could offer anything.
 	dialog._saver = improvementCardSaver();
 	dialog._activeTab = "improvement";
-	markup = await renderTemplate("systems/stonetop-pwd/templates/dialogs/improvement-builder.hbs", dialog.getData());
+	markup = await renderTemplate("systems/stonetop_pwd/templates/dialogs/improvement-builder.hbs", dialog.getData());
 });
 
 describe("the improvement builder's panels", () => {
@@ -655,7 +655,7 @@ describe("the improvement builder's ids", () => {
 		const other = Object.create(ImprovementBuilderDialog.prototype);
 		other._saver = improvementCardSaver();
 		other._activeTab = "improvement";
-		const second = await renderTemplate("systems/stonetop-pwd/templates/dialogs/improvement-builder.hbs", other.getData());
+		const second = await renderTemplate("systems/stonetop_pwd/templates/dialogs/improvement-builder.hbs", other.getData());
 		const first = markup.match(/id="(stonetop-ib-\d+)-/)?.[1];
 		expect(second).not.toContain(`id="${first}-`);
 	});

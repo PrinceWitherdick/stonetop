@@ -66,7 +66,7 @@ describe("what a drop resolves to", () => {
 	// ⚠ THE ONE THAT BITES. A page inside a compendium is the commonest thing a GM drags out of this
 	// system, and `fromUuidSync` throws on it rather than answering null.
 	it("survives a compendium-embedded uuid, which throws rather than answering null", async () => {
-		dragged.value = { uuid: "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.a.JournalEntryPage.b" };
+		dragged.value = { uuid: "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.a.JournalEntryPage.b" };
 		globalThis.fromUuidSync = () => { throw new Error("fromUuidSync was invoked on an Embedded Document"); };
 		globalThis.fromUuid = async () => ({ name: "Gordin's Delve" });
 
@@ -77,7 +77,7 @@ describe("what a drop resolves to", () => {
 	// A pack uuid is KEPT here, unlike on the character rosters which deliberately drop one: this is
 	// only ever a link to follow, and a link into a compendium is a perfectly good link.
 	it("keeps a compendium uuid rather than throwing it away", async () => {
-		const uuid = "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.a.JournalEntryPage.b";
+		const uuid = "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.a.JournalEntryPage.b";
 		dragged.value = { uuid };
 		globalThis.fromUuidSync = () => { throw new Error("embedded"); };
 		globalThis.fromUuid = async () => ({ name: "Gordin's Delve" });

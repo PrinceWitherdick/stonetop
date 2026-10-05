@@ -37,7 +37,7 @@ function posterScene(map, notes = []) {
 		name: map.name,
 		width: map.width,
 		height: map.height,
-		flags: { "stonetop-pwd": { posterMap: map.slug } },
+		flags: { "stonetop_pwd": { posterMap: map.slug } },
 		notes,
 		calls: [],
 		createEmbeddedDocuments(_type, data) {
@@ -69,7 +69,7 @@ const MIDDLE = { fx: 0.5, fy: 0.5 };
 
 beforeEach(() => {
 	noteId = 0;
-	global.game = { user: { isGM: true }, system: { id: "stonetop-pwd" } };
+	global.game = { user: { isGM: true }, system: { id: "stonetop_pwd" } };
 });
 
 describe("finding the Scene a spot belongs on", () => {

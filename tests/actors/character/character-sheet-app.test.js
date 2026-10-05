@@ -17,18 +17,18 @@ vi.mock("../../../module/dialogs/RelationshipLinkDialog.js", async (importOrigin
 
 function makeCharacterMock(actor) {
 	const background = {
-		selectBackground: vi.fn(async slug => actor.setFlag("stonetop-pwd", "background.selected", slug)),
+		selectBackground: vi.fn(async slug => actor.setFlag("stonetop_pwd", "background.selected", slug)),
 		addChoice: vi.fn(),
-		selectedSlug: actor.getFlag("stonetop-pwd", "background.selected") ?? "",
+		selectedSlug: actor.getFlag("stonetop_pwd", "background.selected") ?? "",
 		choices: {},
 	};
 	const instinct = { select: vi.fn(), selectedValue: "" };
 	const appearance = {
 		select: vi.fn(async (lineIdx, value) => {
-			const saved = actor.getFlag("stonetop-pwd", "appearance.selected") ?? {};
-			actor.setFlag("stonetop-pwd", "appearance.selected", { ...saved, [lineIdx]: value });
+			const saved = actor.getFlag("stonetop_pwd", "appearance.selected") ?? {};
+			actor.setFlag("stonetop_pwd", "appearance.selected", { ...saved, [lineIdx]: value });
 		}),
-		saved: actor.getFlag("stonetop-pwd", "appearance.selected") ?? {},
+		saved: actor.getFlag("stonetop_pwd", "appearance.selected") ?? {},
 	};
 	const origin = { select: vi.fn() };
 	// The holy light is live state, not a stub return: getData reads the getter and the
@@ -176,7 +176,7 @@ function makeCharacterMock(actor) {
 		moveResources: { add: vi.fn() },
 		buildSnapshot: vi.fn(async () => ({})),
 		setInventoryResource: vi.fn(),
-		inventoryResourceData: vi.fn((slug, count) => ({ [`flags.stonetop-pwd.inventory.resources.${slug}`]: count })),
+		inventoryResourceData: vi.fn((slug, count) => ({ [`flags.stonetop_pwd.inventory.resources.${slug}`]: count })),
 		// The live hit points and the COMPUTED max, as Recover and Convalesce read them at the press.
 		get hp() { return Number(actor.system?.attributes?.hp?.value) || 0; },
 		computedMaxHp: vi.fn(async () => Number(actor.system?.attributes?.hp?.max) || 0),
@@ -287,7 +287,7 @@ describe("StonetopCharacterSheet event handlers", () => {
 
 		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(true);
 
-		await actor.setFlag("stonetop-pwd", "moves.dismissedLevelOverage", "2:3:4");
+		await actor.setFlag("stonetop_pwd", "moves.dismissedLevelOverage", "2:3:4");
 		expect((await sheet.getData()).stonetop.movelist.showLevelMovesOverLimit).toBe(false);
 
 		actor.typedActor.buildSnapshot = vi.fn(async () => minimalSheetSnapshot({
@@ -752,11 +752,11 @@ describe("StonetopCharacterSheet holy light candle", () => {
 		globalThis.ChatMessage = { create: vi.fn(async data => data), getSpeaker: () => ({}) };
 		try {
 			await sheet._stonetopCharacter.setBattleJoy(true);
-			await actor.setFlag("stonetop-pwd", "battleJoy", true);
+			await actor.setFlag("stonetop_pwd", "battleJoy", true);
 			await sheet._onBattleJoyToggle(clickEvent());
 			expect(asked).not.toHaveBeenCalled();
 			expect(sheet._stonetopCharacter.onRoll).not.toHaveBeenCalled();
-			expect(actor.getFlag("stonetop-pwd", "battleJoy")).toBeNull();
+			expect(actor.getFlag("stonetop_pwd", "battleJoy")).toBeNull();
 			expect(globalThis.ChatMessage.create.mock.calls[0][0].content).toContain("their Battle Joy ends, with no roll");
 		} finally {
 			globalThis.ChatMessage = saved;
@@ -1412,7 +1412,7 @@ describe("StonetopCharacterSheet._applyRecover", () => {
 		const actor = hurt();
 		const sheet = makeSheet(actor);
 		await sheet._applyRecover({ purse: purse("supplies", 3), base: 4 });
-		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop-pwd.inventory.resources.supplies": 2 }), RECOVER);
+		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop_pwd.inventory.resources.supplies": 2 }), RECOVER);
 	});
 
 	// The one thing that may stand in for supplies at a Recover (Book II p.462). It is spent
@@ -1421,7 +1421,7 @@ describe("StonetopCharacterSheet._applyRecover", () => {
 		const actor = hurt({ resources: { "twisting-pine": 1 } });
 		const sheet = makeSheet(actor);
 		await sheet._applyRecover({ purse: purse("twisting-pine", 1, "Twisting Pine sap"), base: 4 });
-		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop-pwd.inventory.resources.twisting-pine": 0 }), RECOVER);
+		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop_pwd.inventory.resources.twisting-pine": 0 }), RECOVER);
 	});
 
 	// Audit #1: every automated move write names its move, so the ledger reads "via Recover".
@@ -1431,9 +1431,9 @@ describe("StonetopCharacterSheet._applyRecover", () => {
 		await sheet._applyRecover({ purse: purse("supplies", 1), base: 5 });
 		expect(actor.update).toHaveBeenCalledTimes(1);
 		expect(actor.update).toHaveBeenCalledWith({
-			"flags.stonetop-pwd.inventory.resources.supplies": 0,
+			"flags.stonetop_pwd.inventory.resources.supplies": 0,
 			"system.attributes.hp.value": 9,
-			"flags.stonetop-pwd.recover.spent": true,
+			"flags.stonetop_pwd.recover.spent": true,
 		}, RECOVER);
 	});
 
@@ -1462,7 +1462,7 @@ describe("StonetopCharacterSheet._applyRecover", () => {
 	it("spends from the purse as it is now, not as the window counted it", async () => {
 		const actor = hurt({ resources: { supplies: 2 } });   // a camp ate one since the window opened
 		await makeSheet(actor)._applyRecover({ purse: purse("supplies", 3), base: 4 });
-		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop-pwd.inventory.resources.supplies": 1 }), RECOVER);
+		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop_pwd.inventory.resources.supplies": 1 }), RECOVER);
 	});
 
 	it("spends nothing when the purse has run dry since the window opened", async () => {
@@ -1567,7 +1567,7 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 		});
 		expect(actor.update).toHaveBeenCalledWith({
 			"system.attributes.hp.value": 8,
-			"flags.stonetop-pwd.background.setupResources.auspicious-birth": 0,
+			"flags.stonetop_pwd.background.setupResources.auspicious-birth": 0,
 		}, { stonetopMove: "Convalesce" });
 	});
 
@@ -1862,7 +1862,7 @@ describe("StonetopCharacterSheet._onDropPlaybook", () => {
 	// and deleted them.
 	function makePlaybookDoc(slug, extra = {}) {
 		return {
-			uuid: `Compendium.stonetop-pwd.stonetop-items.${slug}`,
+			uuid: `Compendium.stonetop_pwd.stonetop-items.${slug}`,
 			name: slug,
 			type: "playbook",
 			system: { slug },
@@ -2185,7 +2185,7 @@ describe("StonetopCharacterSheet Death's Door card past the Door", () => {
 	// The return is not a heal (the user's ruling, 2026-09-30): Torment's Blessing leaves it at a full half.
 	it("promises a Thrall with Torment's Blessing the full half, unhalved", () => {
 		const sheet = makeCardSheet("thrall", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
-		sheet.actor.flags = { "stonetop-pwd": {
+		sheet.actor.flags = { "stonetop_pwd": {
 			postDeathInsert: { slug: "thrall" }, postDeathLore: { counts: { "marks:torments-blessing": 1 } },
 		} };
 		expect(card(sheet).hint.text).toContain("8 HP");

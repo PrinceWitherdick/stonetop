@@ -8,7 +8,7 @@ import { StonetopCharacter } from "../../../module/actors/character/StonetopChar
 
 const steadingActor = (steading = {}) => ({
 	type: "stonetop",
-	flags: { "stonetop-pwd": { steading } },
+	flags: { "stonetop_pwd": { steading } },
 	getFlag: () => undefined,
 });
 

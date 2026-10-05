@@ -1,7 +1,7 @@
 {
   "name": "Willow Witches",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -26,7 +26,7 @@
     "tags": "group, primordial, cautious, devious, organized, magical, all-wise",
     "qualities": "<p>Armor 0 vs. black iron. Impossible to deceive or surprise. Divide damage taken equally between the three witches (round down).</p>",
     "count": 3,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.M8gYXMHKcRqCshbC",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.M8gYXMHKcRqCshbC",
     "notes": "",
     "creatureType": "spirit"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/spirit.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/spirit.svg"
     }
   },
   "items": [

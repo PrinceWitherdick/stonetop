@@ -89,7 +89,7 @@ describe("applying the seasonal gains", () => {
 			"system.attributes.population.value": 1,
 			"system.attributes.surplus.value": 2,
 			"system.stats.defenses.value": 0,
-			"flags.stonetop-pwd.steading.torsBlessing": "1:autumn",
+			"flags.stonetop_pwd.steading.torsBlessing": "1:autumn",
 		});
 		// The gains say what they did first, then whatever rode along.
 		expect(notices.at(-1)).toBe("The muster lapses with the season.");
@@ -109,10 +109,10 @@ describe("the first spring's gains", () => {
 		expect(data).toMatchObject({
 			"system.attributes.population.value": 1,
 			"system.attributes.surplus.value": 1,
-			"flags.stonetop-pwd.steading.torsBlessing": "1:spring",
+			"flags.stonetop_pwd.steading.torsBlessing": "1:spring",
 		});
 		// The marker that keeps a second finish from granting them again, in the same write.
-		expect(data["flags.stonetop-pwd.steading.seasonSteps"]).toEqual({ [SPRING_BURST_GAINS_STEP]: "1:spring" });
+		expect(data["flags.stonetop_pwd.steading.seasonSteps"]).toEqual({ [SPRING_BURST_GAINS_STEP]: "1:spring" });
 	});
 
 	it("hold once the clock is stamped Spring of Year One", async () => {
@@ -124,7 +124,7 @@ describe("the first spring's gains", () => {
 		const actor = steadingActor({ clock: { season: "spring", year: 1 } });
 		expect(await applySpringBurstGains(actor, { tor: true })).not.toBeNull();
 		// Written as its own key, not the whole steading rebuilt from the cache (see applyChanges).
-		expect(written(actor)["flags.stonetop-pwd.steading.torsBlessing"]).toBe("1:spring");
+		expect(written(actor)["flags.stonetop_pwd.steading.torsBlessing"]).toBe("1:spring");
 	});
 
 	// Re-running the walkthrough mid-campaign: the clock is past the first spring, the same test

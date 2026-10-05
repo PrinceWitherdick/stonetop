@@ -48,7 +48,7 @@ describe("the importer's on-disk inventory", () => {
 
 	it("takes that prefix from what a previous run OBSERVED, never from an assumption", () => {
 		// The same world setting the re-apply pass publishes and the gallery reads.
-		expect(COMMAND).toContain(`game.settings.get("stonetop-pwd", "book2ArtPrefix")`);
+		expect(COMMAND).toContain(`game.settings.get("stonetop_pwd", "book2ArtPrefix")`);
 		// And no host is hard-coded. A hostname may be NAMED in a comment — one is, to record the
 		// shape this was written against — but the moment one appears in code, this stops being a
 		// mechanism that works on any host and becomes a special case for one of them.
@@ -70,7 +70,7 @@ describe("the importer's on-disk inventory", () => {
 	it("survives a world whose system settings never registered", () => {
 		// The macro's whole point is that it works on a broken world. Reading an unregistered
 		// setting throws, so the guard has to be there or the inventory takes the run down.
-		expect(COMMAND).toContain(`game.settings.settings?.has?.("stonetop-pwd.book2ArtPrefix")`);
+		expect(COMMAND).toContain(`game.settings.settings?.has?.("stonetop_pwd.book2ArtPrefix")`);
 	});
 
 	it("keeps a rejected browse meaning 'not there', which is the honest answer", () => {

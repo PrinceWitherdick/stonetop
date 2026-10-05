@@ -35,7 +35,7 @@ function useSettings({ fallback = true, perMap = {} } = {}) {
 }
 
 /** A Scene the poster-map builder wrote: stamped with its slug, named the shipped name. */
-const posterScene = map => ({ name: map.name, flags: { "stonetop-pwd": { posterMap: map.slug } } });
+const posterScene = map => ({ name: map.name, flags: { "stonetop_pwd": { posterMap: map.slug } } });
 
 /**
  * A Scene our importer built BEFORE it stamped the flag: the shipped name, and the printing
@@ -89,7 +89,7 @@ describe("which poster map a scene is", () => {
 	it("ignores a flag naming a map this package does not ship", () => {
 		// A record left by a map that has since been dropped must not name a row that is not
 		// there; the name fallback is what decides, and here it decides nothing.
-		expect(posterMapSlugOf({ name: "Somewhere", flags: { "stonetop-pwd": { posterMap: "atlantis" } } }))
+		expect(posterMapSlugOf({ name: "Somewhere", flags: { "stonetop_pwd": { posterMap: "atlantis" } } }))
 			.toBeNull();
 	});
 

@@ -20,7 +20,7 @@ const {
 	sitesOnMap,
 } = await import("../../module/sites/site-map-spots.js");
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 /** A site page with just the flag surface these functions touch. */
 function page(name, spot = null) {

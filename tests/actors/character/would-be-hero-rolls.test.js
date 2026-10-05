@@ -26,7 +26,7 @@ vi.mock("../../../module/pc-asks/pc-ask-flow.js", async (importOriginal) => {
 	return { ...real, aimPcAskRoll: (...args) => (seams.aim ?? real.aimPcAskRoll)(...args) };
 });
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 function wbhRoller({ id = "pim", moves = [], flags = {}, total = 8 } = {}) {
 	const rolled = (name, rollType = "dex") => ({ _id: `${name}-1`, name, type: "move", system: { rollType }, roll: vi.fn(async () => ({ total })) });

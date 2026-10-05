@@ -82,7 +82,7 @@ import { refreshSeededMonsters } from "../migration/bestiary-refresh.js";
 import { refreshCatalogFollowers } from "../migration/follower-refresh.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
-const _EOS_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/truce.svg";
+const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
 
@@ -94,7 +94,7 @@ const _EOS_HOTBAR_SLOT  = 10;
 // of the same name. It was slot 9 until the two legacy macros left new worlds' bars; a
 // world that already has it placed keeps it where it is.
 const _CHRONICLE_MACRO_NAME   = "The Chronicle";
-const _CHRONICLE_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/bookmarklet.svg";
+const _CHRONICLE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg";
 const _CHRONICLE_MACRO_SCRIPT = "game.stonetop?.saveChronicle?.()";
 const _CHRONICLE_HOTBAR_SLOT  = 7;
 
@@ -104,8 +104,8 @@ const _CHRONICLE_HOTBAR_SLOT  = 7;
 // un-ignored in .gitignore and named explicitly in the release zip step, so released
 // worlds get the macro too. A build that omits it still skips seeding, silently.
 const _TEST_MACRO_NAME   = "(TEST ONLY) Populate World";
-const _TEST_MACRO_SRC    = "systems/stonetop-pwd/scripts/local/create-test-characters.js";
-const _TEST_MACRO_IMG    = "systems/stonetop-pwd/assets/icons/macros/hazard-sign.svg";
+const _TEST_MACRO_SRC    = "systems/stonetop_pwd/scripts/local/create-test-characters.js";
+const _TEST_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/hazard-sign.svg";
 const _TEST_MACRO_FOLDER = "For Testing Purposes";
 
 // Retired hotbar macro — the Introductions walkthrough now launches from the
@@ -147,25 +147,25 @@ const _RETIRED_BROWSER_MACROS = [
 // layout-version bump, because an older world's arrangement is not wrong and re-snapping it
 // would undo any arrangement its GM had made.
 const _SYSTEM_MACROS = [
-	{ name: "Welcome to Stonetop", img: "systems/stonetop-pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
-	{ name: "Run an Expedition",   img: "systems/stonetop-pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 2 },
+	{ name: "Welcome to Stonetop", img: "systems/stonetop_pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
+	{ name: "Run an Expedition",   img: "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 2 },
 	// GM prep (Book I p.568), and its only door: the character sheet reads, edits and deletes a
 	// letter but never writes a new one.
-	{ name: "Write a Love Letter", img: "systems/stonetop-pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 3 },
-	{ name: "Die of Fate",         img: "systems/stonetop-pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 4, shared: true, playerSlot: 1 },
+	{ name: "Write a Love Letter", img: "systems/stonetop_pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 3 },
+	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 4, shared: true, playerSlot: 1 },
 	// One window over the arcana, the bestiary and the world's people (see
 	// dialogs/StonetopBrowserDialog.js), so a magnifying glass rather than any one list's
 	// symbol — it is the LOOKING that all three tabs have in common.
-	{ name: "Browse Stonetop",     img: "systems/stonetop-pwd/assets/icons/macros/magnifying-glass.svg", command: "game.stonetop?.openBrowser?.()",        slot: 5 },
+	{ name: "Browse Stonetop",     img: "systems/stonetop_pwd/assets/icons/macros/magnifying-glass.svg", command: "game.stonetop?.openBrowser?.()",        slot: 5 },
 	// Shared, unlike its neighbours: everyone at the table owns the relationship maps and edits
 	// them, so a macro only the GM could reach would be a window most of its users could not open.
 	// The picture is the board itself: boxed people joined by lines. Not the truce handshake End
 	// of Session already wears, because two macros on one picture are indistinguishable on the bar.
-	{ name: "Relationship Map",    img: "systems/stonetop-pwd/assets/icons/macros/relationship-map.svg", command: "game.stonetop?.openRelationshipMap?.()", slot: 6, shared: true, playerSlot: 2 },
+	{ name: "Relationship Map",    img: "systems/stonetop_pwd/assets/icons/macros/relationship-map.svg", command: "game.stonetop?.openRelationshipMap?.()", slot: 6, shared: true, playerSlot: 2 },
 	// Seasons Change took the spring icon that Welcome used to carry; Welcome now uses the
 	// direction-signs.
-	{ name: "Seasons Change",      img: "systems/stonetop-pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 8, legacy: true },
-	{ name: "Weather",             img: "systems/stonetop-pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 9, legacy: true },
+	{ name: "Seasons Change",      img: "systems/stonetop_pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 8, legacy: true },
+	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 9, legacy: true },
 ];
 
 // Bump to re-snap the system macros into their canonical slots once, on every client

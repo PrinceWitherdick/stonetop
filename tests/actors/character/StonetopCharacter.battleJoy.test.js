@@ -11,7 +11,7 @@ function heavy({ raging = false, weakened = false, learned = true } = {}) {
 		slug: "the-heavy", name: "The Heavy", seedStartingMoves: false,
 		items: [makeLiveItem({
 			name: BATTLE_JOY, type: "move", system: { rollType: "con" },
-			flags: learned ? {} : { "stonetop-pwd": { learned: false } },
+			flags: learned ? {} : { "stonetop_pwd": { learned: false } },
 		})],
 		flags: raging ? { battleJoy: true } : {},
 	});

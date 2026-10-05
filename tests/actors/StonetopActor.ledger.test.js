@@ -132,7 +132,7 @@ describe("edits to a character's items (#21b)", () => {
 
 	it("stays quiet for bookkeeping: sort, picture, flags, the grant tags", async () => {
 		const actor = makeActor({ id: "items-3", type: "character", items: [sword()] });
-		await edit(actor, { _id: "i1", sort: 5, img: "x.webp", "flags.stonetop-pwd.k": 1, "system.sourceKey": "k2" });
+		await edit(actor, { _id: "i1", sort: 5, img: "x.webp", "flags.stonetop_pwd.k": 1, "system.sourceKey": "k2" });
 		expect(actions(actor)).toEqual([]);
 	});
 

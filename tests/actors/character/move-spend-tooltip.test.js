@@ -30,7 +30,7 @@ describe("the Spend 1 to: hover", () => {
 			.addItem({
 				_id: "gm1", type: "move", name: "Silver Tongued",
 				system: { moveType: "playbook", playbook: "The Fox", resource: NERVE },
-				flags: { "stonetop-pwd": { grantedBy: { move: "Versatile" } } },
+				flags: { "stonetop_pwd": { grantedBy: { move: "Versatile" } } },
 			}).build();
 		const snap = await new TestCharacterBuilder(actor).withPlaybookRepo(new FakePlaybookRepository(HEAVY)).build().buildSnapshot();
 		expect(movesByKey(snap, "learned").find(m => m.name === "Silver Tongued").resource.spendTooltip).toBe(HOVER);

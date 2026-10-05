@@ -24,7 +24,7 @@ import { STONETOP_SCOPE } from "../../../module/actors/character/StonetopFlags.j
 import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
 import { CharacterOnboardingDialog } from "../../../module/actors/character/dialogs/CharacterOnboardingDialog.js";
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const CLASH   = { key: "clash",   filter: isClashWeapon };
 const LET_FLY = { key: "let-fly", filter: isLetFlyWeapon };
 

@@ -222,7 +222,7 @@ describe("StonetopCharacter — special possession item grants", () => {
 		const { actor, character } = makeCharacter();
 		await character.selectPossession("apiary");
 		expect(actor.setFlag).toHaveBeenCalledWith(
-			"stonetop-pwd", "possessionGrantsApplied", { apiary: true },
+			"stonetop_pwd", "possessionGrantsApplied", { apiary: true },
 		);
 	});
 });
@@ -249,7 +249,7 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 		const [, payload] = actor.createEmbeddedDocuments.mock.calls[0];
 		expect(payload.map(p => p.name)).toEqual(["Beeswax", "Honey", "Bee smokers"]);
 		expect(actor.setFlag).toHaveBeenCalledWith(
-			"stonetop-pwd", "possessionGrantsApplied", { apiary: true },
+			"stonetop_pwd", "possessionGrantsApplied", { apiary: true },
 		);
 	});
 
@@ -270,7 +270,7 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 		await character.ensurePossessionGrants();
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 		expect(actor.setFlag).toHaveBeenCalledWith(
-			"stonetop-pwd", "possessionGrantsApplied", { apiary: true },
+			"stonetop_pwd", "possessionGrantsApplied", { apiary: true },
 		);
 	});
 
@@ -281,7 +281,7 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 		await character.ensurePossessionGrants();
 		expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
 		expect(actor.setFlag).toHaveBeenCalledWith(
-			"stonetop-pwd", "possessionGrantsApplied", { mastiffs: true },
+			"stonetop_pwd", "possessionGrantsApplied", { mastiffs: true },
 		);
 	});
 
@@ -321,7 +321,7 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 			await character.ensurePossessionGrants();
 			expect(created(actor)).toEqual(["Parchment", "Notebook"]);
 			expect(created(actor)).not.toContain("Beeswax");
-			expect(actor.getFlag("stonetop-pwd", "possessionGrantsApplied")).toEqual({ "scribes-tools": true });
+			expect(actor.getFlag("stonetop_pwd", "possessionGrantsApplied")).toEqual({ "scribes-tools": true });
 		});
 
 		it("does not resurrect preselected gear the player deleted", async () => {
@@ -347,7 +347,7 @@ describe("StonetopCharacter — ensurePossessionGrants back-fill", () => {
 			});
 			await character.ensurePossessionGrants();
 			expect(created(actor)).toEqual(["Parchment", "Notebook"]);
-			expect(actor.getFlag("stonetop-pwd", "possessionGrantsPreselected")).toBe("the-judge");
+			expect(actor.getFlag("stonetop_pwd", "possessionGrantsPreselected")).toBe("the-judge");
 		});
 	});
 });

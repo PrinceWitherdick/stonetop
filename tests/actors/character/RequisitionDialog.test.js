@@ -12,7 +12,7 @@ function makeDialog(assets, items = []) {
 	const steadingActor = {
 		name: "Stonetop",
 		system: {},
-		flags: { "stonetop-pwd": { steading: { assets } } },
+		flags: { "stonetop_pwd": { steading: { assets } } },
 		getFlag: (scope, key) => steadingActor.flags[scope]?.[key],
 		setFlag: vi.fn(),
 	};
@@ -24,7 +24,7 @@ function makeDialog(assets, items = []) {
 	);
 }
 
-const logistics = (learned = true) => ({ type: "move", name: "Logistics", flags: learned ? {} : { "stonetop-pwd": { learned: false } } });
+const logistics = (learned = true) => ({ type: "move", name: "Logistics", flags: learned ? {} : { "stonetop_pwd": { learned: false } } });
 
 function makeRoot(elements) {
 	return {
@@ -96,7 +96,7 @@ describe("RequisitionDialog", () => {
 	// 7-9." Asked as a COUNT, capped at the grown horses, and read back for the roll.
 	it("asks how many horses come from the herd, and reads the count back for the roll", () => {
 		const dialog = makeDialog([]);
-		dialog._steadingActor.flags["stonetop-pwd"].steading = { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 9, yearlings: 3, foals: 0 } };
+		dialog._steadingActor.flags["stonetop_pwd"].steading = { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 9, yearlings: 3, foals: 0 } };
 		expect(dialog.getData().herdQuestion).toMatchObject({ max: 9 });
 		expect(dialog.getData().herdQuestion.label).toMatch(/of 12/);
 		expect(dialog._rollAnswers(makeRoot({ '[name="herdCount"]': { value: "4" } }))).toEqual({ herdCount: 4, logistics: false });
@@ -115,10 +115,10 @@ describe("RequisitionDialog", () => {
 		vi.stubGlobal("ui", { notifications: { info, warn: vi.fn() } });
 		try {
 			const dialog = makeDialog([{ name: HERD_ASSET_NAME, checked: true, beast: { slug: "horse", herd: true } }]);
-			const steading = dialog._steadingActor.flags["stonetop-pwd"].steading;
+			const steading = dialog._steadingActor.flags["stonetop_pwd"].steading;
 			Object.assign(steading, { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 10, yearlings: 2, foals: 1 } });
 			dialog._steadingActor.update = vi.fn(async data => {
-				steading.herd = data["flags.stonetop-pwd.steading.herd"];
+				steading.herd = data["flags.stonetop_pwd.steading.herd"];
 			});
 			dialog.render = vi.fn();
 			const asked = stubAsk("take", fakeForm({ horses: { value: "3" } }));
@@ -145,7 +145,7 @@ describe("RequisitionDialog", () => {
 		vi.stubGlobal("ui", { notifications: { info: vi.fn(), warn: vi.fn() } });
 		try {
 			const dialog = makeDialog([]);
-			Object.assign(dialog._steadingActor.flags["stonetop-pwd"].steading, { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 10 } });
+			Object.assign(dialog._steadingActor.flags["stonetop_pwd"].steading, { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 10 } });
 			dialog._steadingActor.update = vi.fn();
 			const asked = stubAsk("none");
 			expect(await dialog._takeFromHerd(makeRoot({}))).toBe(false);

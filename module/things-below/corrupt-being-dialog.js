@@ -84,7 +84,7 @@ export class CorruptBeingDialog extends StepperDialog {
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
 			id:        "stonetop-corrupt-being",
-			template:  "systems/stonetop-pwd/templates/dialogs/corrupt-being.hbs",
+			template:  "systems/stonetop_pwd/templates/dialogs/corrupt-being.hbs",
 			width:     768,
 			height:    "auto",
 			resizable: true,

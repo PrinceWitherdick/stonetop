@@ -369,22 +369,22 @@ describe("follower fate: the crew's members are followers too (p.469)", () => {
 	it("Dead strikes a named individual off the roster: HP re-keyed behind them, the headcount one lower", () => {
 		const crew = crewFlags({ individuals: [{ name: "Aled" }, { name: "Eira" }, { name: "Glaw" }], individualsHp: { 0: 6, 1: 0, 2: 3 }, memberHp: [6, 6, 6] }).crew;
 		const update = fate.crewMemberDeathUpdate(crew, "crew-individual", 1);
-		expect(update["flags.stonetop-pwd.crew.individuals"].map(i => i.name)).toEqual(["Aled", "Glaw"]);
-		expect(update["flags.stonetop-pwd.crew.individualsHp.1"]).toBe(3);
-		expect(update["flags.stonetop-pwd.crew.individualsHp.-=2"]).toBe(null);
-		expect(update["flags.stonetop-pwd.crew.size"]).toBe(5);
+		expect(update["flags.stonetop_pwd.crew.individuals"].map(i => i.name)).toEqual(["Aled", "Glaw"]);
+		expect(update["flags.stonetop_pwd.crew.individualsHp.1"]).toBe(3);
+		expect(update["flags.stonetop_pwd.crew.individualsHp.-=2"]).toBe(null);
+		expect(update["flags.stonetop_pwd.crew.size"]).toBe(5);
 	});
 
 	it("Dead strikes an anonymous member off: their HP and face leave by the same cut", () => {
 		const update = fate.crewMemberDeathUpdate(crewFlags().crew, "crew-member", 1);
-		expect(update["flags.stonetop-pwd.crew.memberHp"]).toEqual([6, 6, 6]);
-		expect(update["flags.stonetop-pwd.crew.memberPortrait"]).toEqual(["a.webp", "c.webp", "d.webp"]);
-		expect(update["flags.stonetop-pwd.crew.size"]).toBe(5);
+		expect(update["flags.stonetop_pwd.crew.memberHp"]).toEqual([6, 6, 6]);
+		expect(update["flags.stonetop_pwd.crew.memberPortrait"]).toEqual(["a.webp", "c.webp", "d.webp"]);
+		expect(update["flags.stonetop_pwd.crew.size"]).toBe(5);
 	});
 
 	it("an unset crew size (the default six) still drops to five", () => {
 		const update = fate.crewMemberDeathUpdate({ individuals: [], memberHp: [0] }, "crew-member", 0);
-		expect(update["flags.stonetop-pwd.crew.size"]).toBe(5);
+		expect(update["flags.stonetop_pwd.crew.size"]).toBe(5);
 	});
 
 	it("never erases a member who is no longer down, or a row that is not there", () => {
@@ -398,7 +398,7 @@ describe("follower fate: the crew's members are followers too (p.469)", () => {
 	it("the sheet's Dead strikes the member off, and the fight's roster count follows", async () => {
 		const chat = withChat();
 		const { sheet, actor } = fateSheet({ flags: crewFlags() });
-		const flags = () => actor.flags["stonetop-pwd"];
+		const flags = () => actor.flags["stonetop_pwd"];
 		expect(groupFollowerStanding(flags(), { ftype: "crew" })).toEqual({ standing: 4, size: 6 });
 
 		await sheet._resolveFollowerFate("dead", { name: "Crew member 4", follower: "crew-member", slug: "", index: 1 });
@@ -414,8 +414,8 @@ describe("follower fate: the crew's members are followers too (p.469)", () => {
 		const { sheet, actor } = fateSheet({ flags: crewFlags() });
 		await sheet._resolveFollowerFate("dying", { name: "Eira", follower: "crew-individual", slug: "", index: 1 });
 		await sheet._resolveFollowerFate("deathsdoor", { name: "Eira", follower: "crew-individual", slug: "", index: 1 });
-		expect(actor.flags["stonetop-pwd"].crew.individuals).toHaveLength(2);
-		expect(actor.flags["stonetop-pwd"].crew.size).toBe(6);
+		expect(actor.flags["stonetop_pwd"].crew.individuals).toHaveLength(2);
+		expect(actor.flags["stonetop_pwd"].crew.size).toBe(6);
 	});
 });
 
@@ -439,7 +439,7 @@ describe("SIR, PERMISSION TO DIE, SIR", () => {
 		expect(data.spareDesc).toMatch(/crew's shared Loyalty \(2 held\)/);
 		expect(data.deadDesc).toMatch(/struck off the crew roster/);
 
-		const html = await renderTemplate("systems/stonetop-pwd/templates/dialogs/follower-fate.hbs", data);
+		const html = await renderTemplate("systems/stonetop_pwd/templates/dialogs/follower-fate.hbs", data);
 		expect(html).toMatch(/data-action="spare"/);
 		expect(html).toContain("Sir, Permission to Die, Sir: spend 1 Loyalty, they survive (out of the action)");
 		expect(html).toMatch(/<input type="checkbox" class="stonetop-ff-let-go" checked>/);
@@ -447,7 +447,7 @@ describe("SIR, PERMISSION TO DIE, SIR", () => {
 
 	it("a character without the move sees neither, and a follower with no Loyalty gets no spend", async () => {
 		const plain = fateSheet({ flags: crewFlags() }).sheet._openFollowerFate({ follower: "crew-member", slug: "", index: 1, name: "x" });
-		const plainHtml = await renderTemplate("systems/stonetop-pwd/templates/dialogs/follower-fate.hbs", plain.getData());
+		const plainHtml = await renderTemplate("systems/stonetop_pwd/templates/dialogs/follower-fate.hbs", plain.getData());
 		expect(plainHtml).not.toMatch(/data-action="spare"/);
 		expect(plainHtml).not.toMatch(/stonetop-ff-let-go/);
 
@@ -469,9 +469,9 @@ describe("SIR, PERMISSION TO DIE, SIR", () => {
 		const { sheet, actor } = fateSheet({ flags: crewFlags(), items: [sirMove()] });
 		await sheet._resolveFollowerFate("spare", { name: "Eira", loyalty: 2, follower: "crew-individual", slug: "", index: 1 });
 
-		const crew = actor.flags["stonetop-pwd"].crew;
+		const crew = actor.flags["stonetop_pwd"].crew;
 		expect(crew.loyalty).toBe(1);
-		expect(actor.update).toHaveBeenCalledWith({ "flags.stonetop-pwd.crew.loyalty": 1 }, { stonetopMove: SIR });
+		expect(actor.update).toHaveBeenCalledWith({ "flags.stonetop_pwd.crew.loyalty": 1 }, { stonetopMove: SIR });
 		expect(crew.individuals).toHaveLength(2);
 		expect(crew.individualsHp[1]).toBe(0);
 		expect(chat.mock.calls[0][0].content).toMatch(/Eira<\/strong> survives: out of the action, but alive\. 1 Loyalty spent, 1 left\./);
@@ -481,19 +481,19 @@ describe("SIR, PERMISSION TO DIE, SIR", () => {
 		withChat();
 		const { sheet, actor } = fateSheet({ flags: { customFollowers: { f1: { name: "Andras", loyalty: 1, hpCurrent: 0 } } }, items: [sirMove()] });
 		await sheet._resolveFollowerFate("spare", { name: "Andras", loyalty: 1, follower: "custom", slug: "f1" });
-		expect(actor.flags["stonetop-pwd"].customFollowers.f1.loyalty).toBe(0);
-		expect(actor.flags["stonetop-pwd"].customFollowers.f1.dead).toBeUndefined();
+		expect(actor.flags["stonetop_pwd"].customFollowers.f1.loyalty).toBe(0);
+		expect(actor.flags["stonetop_pwd"].customFollowers.f1.dead).toBeUndefined();
 	});
 
 	it("nothing is spent when the move is not learned or the Loyalty is gone", async () => {
 		const chat = withChat();
 		const off = fateSheet({ flags: crewFlags(), items: [sirMove({ learned: false })] });
 		await off.sheet._resolveFollowerFate("spare", { name: "Eira", follower: "crew-individual", slug: "", index: 1 });
-		expect(off.actor.flags["stonetop-pwd"].crew.loyalty).toBe(2);
+		expect(off.actor.flags["stonetop_pwd"].crew.loyalty).toBe(2);
 
 		const broke = fateSheet({ flags: crewFlags({ loyalty: 0 }), items: [sirMove()] });
 		await broke.sheet._resolveFollowerFate("spare", { name: "Eira", follower: "crew-individual", slug: "", index: 1 });
-		expect(broke.actor.flags["stonetop-pwd"].crew.loyalty).toBe(0);
+		expect(broke.actor.flags["stonetop_pwd"].crew.loyalty).toBe(0);
 		expect(chat).not.toHaveBeenCalled();
 	});
 
@@ -509,7 +509,7 @@ describe("SIR, PERMISSION TO DIE, SIR", () => {
 		expect(card.flags[SYSTEM_ID][XP_MARK_FLAG]).toBe(1);
 		expect(card.content).toMatch(/Eira<\/strong> is dead/);
 		expect(card.content).toMatch(/You let them go, and mark XP\./);
-		expect(actor.flags["stonetop-pwd"].crew.individuals.map(i => i.name)).toEqual(["Aled"]);
+		expect(actor.flags["stonetop_pwd"].crew.individuals.map(i => i.name)).toEqual(["Aled"]);
 	});
 
 	it("no XP when the box is unticked, when the move is not learned, or for any outcome but Dead", async () => {
@@ -531,7 +531,7 @@ describe("SIR, PERMISSION TO DIE, SIR", () => {
 		withChat();
 		const { sheet, actor } = fateSheet({ flags: { customFollowers: { f1: { name: "Andras", loyalty: 1, hpCurrent: 0 } } }, items: [sirMove()], xp: 0 });
 		await sheet._resolveFollowerFate("dead", { name: "Andras", follower: "custom", slug: "f1", letGo: true });
-		expect(actor.flags["stonetop-pwd"].customFollowers.f1.dead).toBe(true);
+		expect(actor.flags["stonetop_pwd"].customFollowers.f1.dead).toBe(true);
 		expect(actor.system.attributes.xp.value).toBe(1);
 	});
 });
@@ -921,13 +921,13 @@ describe("the crew setup dialog's picks", () => {
 		expect(view.instincts).toHaveLength(MARSHAL_CREW.instincts.length);
 		expect(view.ready).toBe(false);
 
-		const html = await renderTemplate("systems/stonetop-pwd/templates/dialogs/crew-setup.hbs", { crewData: view });
+		const html = await renderTemplate("systems/stonetop_pwd/templates/dialogs/crew-setup.hbs", { crewData: view });
 		expect(html).toMatch(/<em>respected<\/em> \(from your background\)/);
 		expect(html).toMatch(/class="stonetop-crew-setup-create[^"]*" disabled/);
 		expect(html).toContain("Create the crew");
 
 		const ready = crewSetup.crewSetupView(MARSHAL_CREW, { ...sel, tags: ["brave", "hardy"], instinct: "a", cost: "b" }, { limit: 2 });
-		const readyHtml = await renderTemplate("systems/stonetop-pwd/templates/dialogs/crew-setup.hbs", { crewData: ready });
+		const readyHtml = await renderTemplate("systems/stonetop_pwd/templates/dialogs/crew-setup.hbs", { crewData: ready });
 		expect(readyHtml).not.toMatch(/class="stonetop-crew-setup-create[^"]*" disabled/);
 		expect(readyHtml).not.toMatch(/from your background/);
 		// Written-in instinct and cost come back in their own fields.
@@ -958,8 +958,8 @@ describe("follower fate: a custom group's members are followers too", () => {
 		expect(fate.FOLLOWER_FATE_TYPES.has("custom-member")).toBe(true);
 		expect(fate.followerFateHpPath("custom-member", "band", "1")).toBe("customFollowers.band.memberHp.1");
 		const { actor } = fateSheet({ flags: bandFlags() });
-		expect(fate.wasStanding(actor.getFlag("stonetop-pwd", fate.followerFateHpPath("custom-member", "band", 1)))).toBe(false);
-		expect(fate.wasStanding(actor.getFlag("stonetop-pwd", fate.followerFateHpPath("custom-member", "band", 3)))).toBe(true);
+		expect(fate.wasStanding(actor.getFlag("stonetop_pwd", fate.followerFateHpPath("custom-member", "band", 1)))).toBe(false);
+		expect(fate.wasStanding(actor.getFlag("stonetop_pwd", fate.followerFateHpPath("custom-member", "band", 3)))).toBe(true);
 		expect(fate.followerFateLoyaltyType("custom-member")).toBe("custom");
 		expect(fate.customMemberFateName(1)).toBe("Member 2");
 	});
@@ -967,9 +967,9 @@ describe("follower fate: a custom group's members are followers too", () => {
 	it("Dead cuts the member's HP and face out of the roster and drops the headcount by one", () => {
 		const update = fate.customMemberDeathUpdate(bandFlags().customFollowers.band, "band", 1);
 		expect(update).toEqual({
-			"flags.stonetop-pwd.customFollowers.band.memberHp":       [4, 3, null],
-			"flags.stonetop-pwd.customFollowers.band.memberPortrait": ["a.webp", "c.webp", "d.webp"],
-			"flags.stonetop-pwd.customFollowers.band.size":           3,
+			"flags.stonetop_pwd.customFollowers.band.memberHp":       [4, 3, null],
+			"flags.stonetop_pwd.customFollowers.band.memberPortrait": ["a.webp", "c.webp", "d.webp"],
+			"flags.stonetop_pwd.customFollowers.band.size":           3,
 		});
 	});
 
@@ -985,19 +985,19 @@ describe("follower fate: a custom group's members are followers too", () => {
 	it("a group down to two keeps both slots, and marks the dead one fallen so they read as dead, not down", () => {
 		const pair = bandFlags({ size: 2, memberHp: [4, 0] }).customFollowers.band;
 		const update = fate.customMemberDeathUpdate(pair, "band", 1);
-		expect(update).toEqual({ "flags.stonetop-pwd.customFollowers.band.memberDead": [null, true] });
+		expect(update).toEqual({ "flags.stonetop_pwd.customFollowers.band.memberDead": [null, true] });
 		expect(fate.customMemberStruckOff(update, "band")).toBe(false);
 		expect(fate.customMemberStruckOff(fate.customMemberDeathUpdate(bandFlags().customFollowers.band, "band", 1), "band")).toBe(true);
 		// A mark already there is kept, the array written whole.
 		expect(fate.customMemberDeathUpdate({ ...pair, memberHp: [0, 0], memberDead: [true] }, "band", 1))
-			.toEqual({ "flags.stonetop-pwd.customFollowers.band.memberDead": [true, true] });
+			.toEqual({ "flags.stonetop_pwd.customFollowers.band.memberDead": [true, true] });
 	});
 
 	it("a cut above the floor moves the fallen marks with the rows", () => {
 		const band = bandFlags({ memberHp: [0, 0, 3, null], memberDead: [true, null, null, true] }).customFollowers.band;
 		expect(fate.customMemberDeathUpdate(band, "band", 1)).toMatchObject({
-			"flags.stonetop-pwd.customFollowers.band.memberHp":   [0, 3, null],
-			"flags.stonetop-pwd.customFollowers.band.memberDead": [true, null, true],
+			"flags.stonetop_pwd.customFollowers.band.memberHp":   [0, 3, null],
+			"flags.stonetop_pwd.customFollowers.band.memberDead": [true, null, true],
 		});
 	});
 
@@ -1008,7 +1008,7 @@ describe("follower fate: a custom group's members are followers too", () => {
 		const stale = bandFlags({ size: 2, memberHp: [4, 3], memberDead: [null, true] });
 		expect(groupFollowerStanding(stale, { ftype: "custom", slug: "band" })).toEqual({ standing: 1, size: 2 });
 		expect(fate.followerReviveUpdate("custom-member", "band", 2, flags, "1"))
-			.toEqual({ "flags.stonetop-pwd.customFollowers.band.memberDead": [null, null] });
+			.toEqual({ "flags.stonetop_pwd.customFollowers.band.memberDead": [null, null] });
 		expect(fate.followerReviveUpdate("custom-member", "band", 0, flags, 1)).toBeNull();
 		expect(fate.followerReviveUpdate("custom-member", "band", 2, flags, 0)).toBeNull();   // not fallen
 	});
@@ -1016,7 +1016,7 @@ describe("follower fate: a custom group's members are followers too", () => {
 	it("the sheet's Dead strikes the member off, and the fight's roster count follows", async () => {
 		const chat = withChat();
 		const { sheet, actor } = fateSheet({ flags: bandFlags() });
-		const flags = () => actor.flags["stonetop-pwd"];
+		const flags = () => actor.flags["stonetop_pwd"];
 		expect(groupFollowerStanding(flags(), { ftype: "custom", slug: "band" })).toEqual({ standing: 3, size: 4 });
 
 		await sheet._resolveFollowerFate("dead", { name: "Member 2", follower: "custom-member", slug: "band", index: 1 });
@@ -1033,12 +1033,12 @@ describe("follower fate: a custom group's members are followers too", () => {
 		const chat = withChat();
 		const { sheet, actor } = fateSheet({ flags: bandFlags({ size: 2, memberHp: [4, 0], memberPortrait: ["a.webp", "b.webp"] }) });
 		await sheet._resolveFollowerFate("dead", { name: "Member 2", follower: "custom-member", slug: "band", index: 1 });
-		const band = actor.flags["stonetop-pwd"].customFollowers.band;
+		const band = actor.flags["stonetop_pwd"].customFollowers.band;
 		expect(band.size).toBe(2);
 		expect(band.memberHp).toEqual([4, 0]);
 		// Marked fallen, so nothing can take them for merely down.
 		expect(band.memberDead).toEqual([null, true]);
-		expect(groupFollowerStanding(actor.flags["stonetop-pwd"], { ftype: "custom", slug: "band" })).toEqual({ standing: 1, size: 2 });
+		expect(groupFollowerStanding(actor.flags["stonetop_pwd"], { ftype: "custom", slug: "band" })).toEqual({ standing: 1, size: 2 });
 		expect(chat.mock.calls[0][0].content).toMatch(/down to two/);
 		expect(chat.mock.calls[0][0].content).toMatch(/marked fallen/);
 	});
@@ -1061,7 +1061,7 @@ describe("follower fate: a custom group's members are followers too", () => {
 		globalThis.ui = { ...(globalThis.ui ?? {}), notifications: { warn } };
 		const { sheet, actor } = fateSheet({ flags: bandFlags({ memberHp: [4, 2, 3, null] }) });
 		await sheet._resolveFollowerFate("dead", { name: "Member 2", follower: "custom-member", slug: "band", index: 1 });
-		expect(actor.flags["stonetop-pwd"].customFollowers.band.size).toBe(4);
+		expect(actor.flags["stonetop_pwd"].customFollowers.band.size).toBe(4);
 		expect(warn).toHaveBeenCalled();
 	});
 
@@ -1078,7 +1078,7 @@ describe("follower fate: a custom group's members are followers too", () => {
 		withChat();
 		const { sheet, actor } = fateSheet({ flags: bandFlags(), items: [sirMove()] });
 		await sheet._resolveFollowerFate("spare", { name: "Member 2", loyalty: 2, follower: "custom-member", slug: "band", index: 1 });
-		const band = actor.flags["stonetop-pwd"].customFollowers.band;
+		const band = actor.flags["stonetop_pwd"].customFollowers.band;
 		expect(band.loyalty).toBe(1);
 		expect(band.memberHp).toEqual([4, 0, 3, null]);
 		expect(band.size).toBe(4);

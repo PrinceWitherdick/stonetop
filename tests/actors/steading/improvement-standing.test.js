@@ -9,7 +9,7 @@ import {
  * on the Assets list, naming the Inn, and the Aurochs Hunt's bookkeeping.
  */
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 /** A steading whose updates land, so a second write reads what the first one wrote. */
 function steadingWith(steading = {}, system = {}) {

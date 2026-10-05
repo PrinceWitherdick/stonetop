@@ -4,7 +4,7 @@ import {
 	registerMapBrightness,
 } from "../../module/hooks/map-brightness.js";
 
-const VILLAGE = { name: "Stonetop — The Village", flags: { "stonetop-pwd": { posterMap: "stonetop-village" } } };
+const VILLAGE = { name: "Stonetop — The Village", flags: { "stonetop_pwd": { posterMap: "stonetop-village" } } };
 const OTHER   = { name: "Goblin Cave", flags: {} };
 
 function board(scene, meshes) {
@@ -93,7 +93,7 @@ describe("registerMapBrightness", () => {
 	let stored;
 	beforeEach(() => {
 		stored = 50;
-		globalThis.game = { settings: { get: () => stored }, system: { id: "stonetop-pwd" } };
+		globalThis.game = { settings: { get: () => stored }, system: { id: "stonetop_pwd" } };
 	});
 	afterEach(() => {
 		delete globalThis.game;
@@ -111,9 +111,9 @@ describe("registerMapBrightness", () => {
 		expect(bg.tint).toBe(0x808080);
 
 		stored = 100;
-		handlers.clientSettingChanged("stonetop-pwd.somethingElse");
+		handlers.clientSettingChanged("stonetop_pwd.somethingElse");
 		expect(bg.tint).toBe(0x808080);
-		handlers.clientSettingChanged("stonetop-pwd.mapBrightness");
+		handlers.clientSettingChanged("stonetop_pwd.mapBrightness");
 		expect(bg.tint).toBe(0xFFFFFF);
 	});
 });

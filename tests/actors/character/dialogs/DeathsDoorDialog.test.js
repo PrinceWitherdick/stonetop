@@ -230,7 +230,7 @@ describe("DeathsDoorDialog: a Battle Joy ends before the roll", () => {
 		const actor = {
 			id: "actor-1", name: "Duvin", type: "character",
 			system: { attributes: { hp: { value: 0 } } },
-			flags: { "stonetop-pwd": { battleJoy: true, deathsDoor: "dying" } },
+			flags: { "stonetop_pwd": { battleJoy: true, deathsDoor: "dying" } },
 			getFlag: (scope, key) => actor.flags[scope]?.[key],
 			unsetFlag: vi.fn(async (scope, key) => { delete actor.flags[scope][key]; }),
 		};
@@ -238,7 +238,7 @@ describe("DeathsDoorDialog: a Battle Joy ends before the roll", () => {
 			_actor: actor,
 			deathsDoorRollOptions: () => ({ penalty: -1 }),
 			// Weakened-style: disadvantage unless the rage is still on.
-			applyDebilityRollMode: (_stat, options) => (actor.flags["stonetop-pwd"].battleJoy ? options : { ...options, rollMode: "dis" }),
+			applyDebilityRollMode: (_stat, options) => (actor.flags["stonetop_pwd"].battleJoy ? options : { ...options, rollMode: "dis" }),
 		});
 		const dialog = makeDialog(character);
 		dialog._stat = "con";
@@ -246,7 +246,7 @@ describe("DeathsDoorDialog: a Battle Joy ends before the roll", () => {
 
 		await dialog._onRoll();
 
-		expect(actor.flags["stonetop-pwd"].battleJoy).toBeUndefined();
+		expect(actor.flags["stonetop_pwd"].battleJoy).toBeUndefined();
 		expect(posted[0].content).toContain("their Battle Joy ends, with no roll");
 		expect(rollStat.mock.calls[0][2]).toMatchObject({ rollMode: "dis", modifier: -1, noXpOnMiss: true });
 	});
@@ -377,7 +377,7 @@ describe("DeathsDoorDialog — the rail through what the insert asks", () => {
 // This window settles the tier the moment they do, so when either is on offer it waits on the counted
 // tier instead, and writes it only once the player accepts (or nothing is left to offer).
 describe("DeathsDoorDialog: Burn Brightly and giving it your all, before the tier lands", () => {
-	const SCOPE = "stonetop-pwd";
+	const SCOPE = "stonetop_pwd";
 	let posted;
 	let deps;
 	let madeDocument = false;
@@ -640,7 +640,7 @@ describe("DeathsDoorDialog: Burn Brightly and giving it your all, before the tie
 });
 
 describe("Death's Door's roll card offers neither boost itself", () => {
-	const SCOPE = "stonetop-pwd";
+	const SCOPE = "stonetop_pwd";
 	const cardOf = move => {
 		const store = { [ROLLED_FLAG]: rolledRecord("", { moveName: move }) };
 		return {
@@ -687,7 +687,7 @@ describe("Death's Door's roll card offers neither boost itself", () => {
 // the roll is said on the actor before the dice (the `deathsDoorRolling` flag), every other owner's window waits
 // on it, and one whose roller has gone can be taken over without the dice going again.
 describe("DeathsDoorDialog: a roll under way, seen from every owner's window", () => {
-	const SCOPE = "stonetop-pwd";
+	const SCOPE = "stonetop_pwd";
 	let world;
 	let saved;
 	let madeDocument = false;

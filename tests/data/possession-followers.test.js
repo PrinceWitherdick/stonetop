@@ -90,7 +90,7 @@ describe("adding the Hounds from the Followers tab", () => {
 	function sheetWithHounds() {
 		const flags = { possessions: { selected: ["hounds"] }, customFollowers: {} };
 		const actor = {
-			flags: { "stonetop-pwd": flags },
+			flags: { "stonetop_pwd": flags },
 			getFlag: (_scope, key) => key.split(".").reduce((o, k) => o?.[k], flags),
 			update: vi.fn(async upd => {
 				for (const [k, v] of Object.entries(upd)) flags.customFollowers[k.split(".").at(-1)] = v;

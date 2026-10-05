@@ -92,7 +92,7 @@ export class AddInventoryItemDialog extends StonetopDialog {
 
 	static get defaultOptions() {
 		return foundry.utils.mergeObject(super.defaultOptions, {
-			template: "systems/stonetop-pwd/templates/dialogs/add-inventory-item.hbs",
+			template: "systems/stonetop_pwd/templates/dialogs/add-inventory-item.hbs",
 			// Left-rail stepped sheet, sized like the custom-move author: a fixed height so moving
 			// between pages never resizes the window (the page column scrolls if one runs long).
 			width: 620,

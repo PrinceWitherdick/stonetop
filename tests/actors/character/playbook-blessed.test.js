@@ -23,7 +23,7 @@ async function sheetEntries(char, level) {
 	return new Map(built.map(e => [e.name, e]));
 }
 
-const traits = actor => actor.getFlag("stonetop-pwd", "possessions.subChoices")?.[POUCH] ?? [];
+const traits = actor => actor.getFlag("stonetop_pwd", "possessions.subChoices")?.[POUCH] ?? [];
 
 describe("the Blessed's move gates, as the sheet reads them", () => {
 	it("starts with Spirit Tongue and Call the Spirits", async () => {
@@ -137,7 +137,7 @@ describe("Wild Soul", () => {
 
 		const souls = actor.items.filter(i => i.name === "Wild Soul");
 		expect(souls).toHaveLength(2);
-		const granted = name => actor.items.find(i => i.name === name).flags["stonetop-pwd"].grantedBy;
+		const granted = name => actor.items.find(i => i.name === name).flags["stonetop_pwd"].grantedBy;
 		expect(granted(first.name)).toMatchObject({ move: "Wild Soul", instanceId: souls[0]._id });
 		expect(granted(again[0].name)).toMatchObject({ move: "Wild Soul", instanceId: souls[1]._id });
 		expect((await char.getLevelUpData()).availableMoves.map(m => m.name)).not.toContain("Wild Soul");

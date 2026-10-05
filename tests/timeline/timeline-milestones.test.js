@@ -7,7 +7,7 @@ import {
 // that must appear, or a change that looks like one and must not: the timeline's whole promise is
 // that it is not the ledger.
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 
 /** A snapshot built the way the watcher builds one, from system data and a flag bag. */
 function snap({ level = 2, wounds = [], deathsDoor = null, insert = null, arcana = {}, custom = {}, companion = "" } = {}) {

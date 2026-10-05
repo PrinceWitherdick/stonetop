@@ -215,7 +215,7 @@ function withWho(entry, who) {
  * before the GM harvests them.
  *
  * ⚠ WHY BOTH COPIES GET WRITTEN. `introductionsAnswers` is a harvested MIRROR of each PC's
- * `flags.stonetop-pwd.intro`: the primary GM's harvest overwrites the setting from the flag
+ * `flags.stonetop_pwd.intro`: the primary GM's harvest overwrites the setting from the flag
  * whenever the two differ (IntroductionsDialog `_mergeActorIntoDraft`). Matching only the setting
  * would therefore hold until the next time anybody opened the introductions, and then be silently
  * undone -- the worst shape a bug can have, because the work looked like it landed.

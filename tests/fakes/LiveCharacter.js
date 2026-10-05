@@ -53,7 +53,7 @@ function makeFlagStore(seed = {}) {
 	const scoped = {};
 	for (const [k, v] of Object.entries(seed)) setPath(scoped, k, v);
 	// Both scopes alias the same object, matching FakeActorBuilder.
-	return { "stonetop-pwd": scoped, stonetop: scoped };
+	return { "stonetop_pwd": scoped, stonetop: scoped };
 }
 
 // A live embedded Item. `data` is a toObject()-style payload ({ name, type, system,
@@ -62,7 +62,7 @@ function makeFlagStore(seed = {}) {
 export function makeLiveItem(data) {
 	const _id = nextId();
 	const flags = makeFlagStore();
-	if (data.flags?.["stonetop-pwd"]) Object.assign(flags["stonetop-pwd"], structuredClone(data.flags["stonetop-pwd"]));
+	if (data.flags?.["stonetop_pwd"]) Object.assign(flags["stonetop_pwd"], structuredClone(data.flags["stonetop_pwd"]));
 	return {
 		_id,
 		get id() { return _id; },
@@ -173,7 +173,7 @@ export function startingMoveItems(playbookName) {
 		.filter(d => d.system?.isStartingMove && !later.has(d.name))
 		.map(d => makeLiveItem({
 			name: d.name, type: "move", system: structuredClone(d.system),
-			flags: first.has(d.name) ? { "stonetop-pwd": { startingChoice: true } } : undefined,
+			flags: first.has(d.name) ? { "stonetop_pwd": { startingChoice: true } } : undefined,
 		}));
 }
 

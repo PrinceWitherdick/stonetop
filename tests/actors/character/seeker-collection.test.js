@@ -22,7 +22,7 @@ const PACK = new Map(loadPlaybookPackDocs().map(doc => [doc.system.slug, doc]));
 const playbookDoc = slug => ({ ...structuredClone(PACK.get(slug)), uuid: `Compendium.test.${slug}` });
 const ARCANA = loadArcanaPackDocs().map(doc => structuredClone(doc.flags.stonetop));
 const card = slug => ARCANA.find(a => a.slug === slug);
-const flag = (actor, key) => actor.getFlag("stonetop-pwd", key);
+const flag = (actor, key) => actor.getFlag("stonetop_pwd", key);
 const arcana = (actor, key) => flag(actor, `arcana.${key}`);
 const has = (actor, key, slug) => (arcana(actor, key) ?? []).includes(slug);
 const ticked = (actor, slug) => Object.entries(arcana(actor, "boxes") ?? {}).filter(([k, v]) => v && k.startsWith(`${slug}:`)).map(([k]) => k).sort();
@@ -180,7 +180,7 @@ describe("a change of playbook away from the Seeker", () => {
 		expect(arcana(actor, "owned").sort()).toEqual(["bow-with-no-string", "corroded-spearhead", "hectumel-codex"]);
 		expect(arcana(actor, "leads") ?? []).toEqual([]);
 		for (const key of ["major", "minorDraw", "minorRoles", "majorMarks"]) expect(arcana(actor, key) ?? undefined).toBeUndefined();
-		await actor.unsetFlag("stonetop-pwd", "arcana.leadBackfilled");
+		await actor.unsetFlag("stonetop_pwd", "arcana.leadBackfilled");
 		await char.ensureSeekerLeadCard();
 		expect(has(actor, "owned", "giant-oak-leaf")).toBe(false);
 	});

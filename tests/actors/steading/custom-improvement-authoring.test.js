@@ -88,7 +88,7 @@ describe("authoring a custom steading improvement", () => {
 		const done = await steading.setImprovementCompleted("custom-roadbuilding", true);
 		const applied = actor.update.mock.calls.at(-1)[0];
 		expect(applied["system.attributes.prosperity.value"]).toBe(1);
-		expect(applied["flags.stonetop-pwd.steading.resources"].map(r => r.name))
+		expect(applied["flags.stonetop_pwd.steading.resources"].map(r => r.name))
 			.toContain("The Maker's Roads");
 		// Said as the transition the write makes, before and after (U4).
 		expect(done.summary).toContain("Prosperity +0 → +1");
@@ -96,18 +96,18 @@ describe("authoring a custom steading improvement", () => {
 
 		// The record of what was applied is what the un-complete reads back, so put the
 		// steading in the state that update would have left it in and toggle it off.
-		const record = applied["flags.stonetop-pwd.steading.improvements"]["custom-roadbuilding"];
+		const record = applied["flags.stonetop_pwd.steading.improvements"]["custom-roadbuilding"];
 		actor.flags.stonetop.steading = {
 			...actor.flags.stonetop.steading,
 			system: { attributes: { prosperity: { value: 1 } } },
-			resources: applied["flags.stonetop-pwd.steading.resources"],
+			resources: applied["flags.stonetop_pwd.steading.resources"],
 			improvements: { "custom-roadbuilding": record },
 		};
 
 		const undone = await steading.setImprovementCompleted("custom-roadbuilding", false);
 		const reverted = actor.update.mock.calls.at(-1)[0];
 		expect(reverted["system.attributes.prosperity.value"]).toBe(0);
-		expect(reverted["flags.stonetop-pwd.steading.resources"].map(r => r.name))
+		expect(reverted["flags.stonetop_pwd.steading.resources"].map(r => r.name))
 			.not.toContain("The Maker's Roads");
 		expect(undone.reverted).toBe(true);
 		// And the revert reads the other way round: what it was, what it goes back to.
@@ -125,11 +125,11 @@ describe("authoring a custom steading improvement", () => {
 
 		await steading.setImprovementCompleted("custom-bell-tower", true);
 		const data = actor.update.mock.calls.at(-1)[0];
-		expect(data["flags.stonetop-pwd.steading.improvements"]["custom-bell-tower"].completed).toBe(true);
+		expect(data["flags.stonetop_pwd.steading.improvements"]["custom-bell-tower"].completed).toBe(true);
 		// No grants means nothing to record and nothing to reverse, so `applied` is written as
 		// null: a completed entry with no `applied` key at all reads as one completed before the
 		// grant engine existed, and an edit that later gave it grants would be presumed applied.
-		expect(data["flags.stonetop-pwd.steading.improvements"]["custom-bell-tower"].applied).toBeNull();
+		expect(data["flags.stonetop_pwd.steading.improvements"]["custom-bell-tower"].applied).toBeNull();
 		expect(data).not.toHaveProperty("system.attributes.prosperity.value");
 	});
 

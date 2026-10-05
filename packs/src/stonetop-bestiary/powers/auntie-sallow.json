@@ -1,7 +1,7 @@
 {
   "name": "Auntie Sallow",
   "type": "monster",
-  "img": "systems/stonetop-pwd/assets/icons/bestiary/fae.svg",
+  "img": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg",
   "system": {
     "attributes": {
       "hp": {
@@ -24,9 +24,9 @@
     "organization": "solitary",
     "size": "large",
     "tags": "solitary, large, fae, magical, stealthy, corrupted, terrifying",
-    "qualities": "<p><strong>@UUID[Compendium.stonetop-pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>. Armor 1 vs. iron (bark); takes +1d4 damage from bronze. Leaches color from her surroundings; knows whatever her moths know.</p>",
+    "qualities": "<p><strong>@UUID[Compendium.stonetop_pwd.stonetop-journal.JournalEntry.Ej5WiMs30baKNXW3]{Fae nature}</strong>. Armor 1 vs. iron (bark); takes +1d4 damage from bronze. Leaches color from her surroundings; knows whatever her moths know.</p>",
     "count": 1,
-    "entry": "Compendium.stonetop-pwd.stonetop-journal.JournalEntry.xkAtN3IG7KgIDQVk",
+    "entry": "Compendium.stonetop_pwd.stonetop-journal.JournalEntry.xkAtN3IG7KgIDQVk",
     "notes": "",
     "creatureType": "fae"
   },
@@ -35,7 +35,7 @@
     "actorLink": false,
     "disposition": -1,
     "texture": {
-      "src": "systems/stonetop-pwd/assets/icons/bestiary/fae.svg"
+      "src": "systems/stonetop_pwd/assets/icons/bestiary/fae.svg"
     }
   },
   "items": [

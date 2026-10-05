@@ -14,7 +14,7 @@ import { FakeMoveRepository } from "../../fakes/FakeMoveRepository.js";
 import { FakePostDeathInsertRepository } from "../../fakes/FakePostDeathInsertRepository.js";
 import { StonetopCharacter } from "../../../module/actors/character/StonetopCharacter.js";
 
-const SCOPE = "stonetop-pwd";
+const SCOPE = "stonetop_pwd";
 const SRC = path.resolve("packs/src/stonetop-items");
 const readJson = rel => JSON.parse(fs.readFileSync(path.join(SRC, rel), "utf8"));
 const movesOf = slug => fs.readdirSync(path.join(SRC, "post-death-moves", slug))

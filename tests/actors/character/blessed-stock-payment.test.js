@@ -17,7 +17,7 @@ const RITES = "Rites of the Land";
 const blessedMove = name => sourceMovesFor("The Blessed").find(d => d.name === name);
 const moveItem = (name, { learned = true } = {}) => makeLiveItem({
 	name, type: "move", system: structuredClone(blessedMove(name).system),
-	flags: learned ? {} : { "stonetop-pwd": { learned: false } },
+	flags: learned ? {} : { "stonetop_pwd": { learned: false } },
 });
 
 /** A Blessed, optionally a Vessel, with `spent` Stock gone from the pouch. */
@@ -102,7 +102,7 @@ describe("the Vessel: 2d4 HP in place of 1 Stock", () => {
 		expect(posted[0].flavor).toContain("HP lost");
 		expect(posted[0].flavor).toContain("in place of 1 Stock");
 		// The pouch was not touched.
-		expect(actor.getFlag("stonetop-pwd", "possessions.uses")[POUCH]).toBe(3);
+		expect(actor.getFlag("stonetop_pwd", "possessions.uses")[POUCH]).toBe(3);
 	});
 
 	// Danu's Grasp charges before it rolls, and its Roll button was simply not built for an
@@ -133,12 +133,12 @@ describe("the Vessel: 2d4 HP in place of 1 Stock", () => {
 		const paid = await sheet._spendStockCost({ amount: 1, label: "Stock" }, pickedPurse("hp"), "Danu's Grasp");
 		expect(paid).toMatchObject({ key: "hp", lost: 4 });
 		expect(built.actor.system.attributes.hp.value).toBe(4);
-		expect(built.actor.getFlag("stonetop-pwd", "possessions.uses")[POUCH]).toBe(1);
+		expect(built.actor.getFlag("stonetop_pwd", "possessions.uses")[POUCH]).toBe(1);
 
 		// With no pick, the pouch pays and no HP is lost.
 		const stock = await sheet._spendStockCost({ amount: 1, label: "Stock" }, null, "Danu's Grasp");
 		expect(stock.key).toBe("stock");
-		expect(built.actor.getFlag("stonetop-pwd", "possessions.uses")[POUCH]).toBe(2);
+		expect(built.actor.getFlag("stonetop_pwd", "possessions.uses")[POUCH]).toBe(2);
 		expect(built.actor.system.attributes.hp.value).toBe(4);
 	});
 });
@@ -159,7 +159,7 @@ describe("the pouch's max, read live", () => {
 describe("a preselected pouch", () => {
 	it("is a purse even when `possessions.selected` never named it", async () => {
 		const { char, actor } = blessed();
-		expect(actor.getFlag("stonetop-pwd", "possessions.selected")).toBeNull();
+		expect(actor.getFlag("stonetop_pwd", "possessions.selected")).toBeNull();
 		expect((await char.stockSources()).map(s => s.key)).toEqual(["stock"]);
 	});
 });

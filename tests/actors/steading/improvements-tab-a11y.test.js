@@ -24,8 +24,8 @@ function actorWith(steading = {}) {
 		id: "st-a11y",
 		type: "stonetop",
 		system: {},
-		flags: { "stonetop-pwd": { steading: structuredClone(steading) } },
-		getFlag: (scope, key) => actor.flags["stonetop-pwd"]?.[key],
+		flags: { "stonetop_pwd": { steading: structuredClone(steading) } },
+		getFlag: (scope, key) => actor.flags["stonetop_pwd"]?.[key],
 		update: vi.fn(() => Promise.resolve()),
 		setFlag: vi.fn(() => Promise.resolve()),
 	};

@@ -14,7 +14,7 @@ const PACK = new Map(loadPlaybookPackDocs().map(doc => [doc.system.slug, doc]));
 const playbookDoc = slug => ({ ...structuredClone(PACK.get(slug)), uuid: `Compendium.test.${slug}` });
 const moveId = (playbook, name) => sourceMovesFor(playbook).find(d => d.name === name)._id;
 const heavyId = name => moveId("The Heavy", name);
-const flag = (actor, key) => actor.getFlag("stonetop-pwd", key);
+const flag = (actor, key) => actor.getFlag("stonetop_pwd", key);
 const itemNamed = (actor, name) => actor.items.find(i => i.name === name);
 const arcanaRepo = () => new FakeArcanaRepository(loadArcanaPackDocs().map(doc => structuredClone(doc.flags.stonetop)));
 
@@ -138,7 +138,7 @@ describe("Armored at the start of play", () => {
 		await onboard(sheet, HEAVY_RUN());
 
 		expect(hauberk(actor)).toEqual({ added: true, carried: true });
-		expect(itemNamed(actor, "Armored").flags["stonetop-pwd"][START_GEAR_FLAG]).toBe("hauberk-iron");
+		expect(itemNamed(actor, "Armored").flags["stonetop_pwd"][START_GEAR_FLAG]).toBe("hauberk-iron");
 	});
 
 	it("gives it once: a re-run of the same choice adds nothing", async () => {
@@ -163,7 +163,7 @@ describe("Armored at the start of play", () => {
 		const { char, actor, sheet } = fresh();
 		await char._inventory.addSpecial("hauberk-iron");
 		await onboard(sheet, HEAVY_RUN());
-		expect(itemNamed(actor, "Armored").flags["stonetop-pwd"][START_GEAR_FLAG]).toBeUndefined();
+		expect(itemNamed(actor, "Armored").flags["stonetop_pwd"][START_GEAR_FLAG]).toBeUndefined();
 
 		await onboard(sheet, HEAVY_RUN({ moveChoices: { 0: heavyId("Uncanny Reflexes") } }));
 
@@ -224,7 +224,7 @@ describe("Armored at the start of play", () => {
 			const { char, actor, sheet } = fresh("the-marshal", "The Marshal");
 			await onboard(sheet, marshalArmored, "the-marshal");
 			const other = actor.items.find(i => i.type === "move" && i.name !== "Armored");
-			await other.setFlag("stonetop-pwd", START_GEAR_FLAG, "hauberk-iron");
+			await other.setFlag("stonetop_pwd", START_GEAR_FLAG, "hauberk-iron");
 
 			await untick(char, actor);
 
