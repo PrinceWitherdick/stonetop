@@ -148,7 +148,7 @@ export function holdCreationFlow(actorId, promise) {
 	const token = {};
 	_pending.set(token, actorId);
 	const release = () => { _pending.delete(token); };
-	Promise.resolve(promise).then(release, release);
+	Promise.resolve(promise).then(release).catch(release);
 	return promise;
 }
 

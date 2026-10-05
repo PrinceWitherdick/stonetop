@@ -3747,8 +3747,9 @@ export class StonetopCharacter {
 		await item.setFlag(STONETOP_SCOPE, START_GEAR_FLAG, slug);
 	}
 
-	// A re-run of onboarding taking back a move taken at the start of play takes back the gear it
-	// gave (_grantStartGear), unless another move still claims it.
+	// A move taken at the start of play takes back the gear it gave (_grantStartGear) when it goes,
+	// whether an onboarding re-run drops it or it is un-ticked (removeMove), unless another move
+	// still claims that gear. Gear the move never recorded (bought, or there before) is never touched.
 	async _releaseStartGear(item) {
 		const slug = item?.flags?.[STONETOP_SCOPE]?.[START_GEAR_FLAG];
 		if (!slug) return;
@@ -4174,6 +4175,9 @@ export class StonetopCharacter {
 		await this._trimMoveMarksOnRemoval([removed, ...orphanItems]);
 		await this._trimCompanionTraitsOnRemoval([removed, ...orphanItems]);
 		await this._releaseGrantedPossession(removed);
+		// Un-ticking Armored taken at the start of play takes back its hauberk, as an onboarding
+		// re-run dropping it does. Read off the snapshots: their startGear flag outlives the delete.
+		for (const gone of [removed, ...orphanItems]) await this._releaseStartGear(gone);
 		await this._clearUnheldInvocations();
 	}
 
