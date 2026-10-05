@@ -12,6 +12,7 @@ import { buildTrackVM, enrichTrackVM } from "../timeline/timeline-view.js";
 import { sortEntries } from "../timeline/timeline-core.js";
 import { worldCustomTags } from "../timeline/timeline-tag-store.js";
 import { adoptInlineViewRoot } from "./inline-page-view.js";
+import { isTimelineShown } from "../settings.js";
 
 export function createStonetopTimelinePageSheetClass(Base) {
 	return class StonetopTimelinePageSheet extends Base {
@@ -34,6 +35,13 @@ export function createStonetopTimelinePageSheetClass(Base) {
 
 		async getData(options = {}) {
 			const context = await super.getData(options);
+			// The GM's switch takes the journal away with the tabs (hooks/feature-switches.js). Its row
+			// is gone from the sidebar, but an @UUID link or a sheet already open can still reach a
+			// page, so the page itself says the timeline is off rather than reading the thread out.
+			if (!isTimelineShown()) {
+				context.stonetop = { off: true };
+				return context;
+			}
 			const vm = buildTrackVM({
 				trackId: this.document.system?.trackId ?? "",
 				name:    this.document.name,

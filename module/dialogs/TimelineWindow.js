@@ -48,7 +48,7 @@ import {
 } from "../timeline/timeline-core.js";
 import { SYSTEM_ID } from "../system-id.js";
 import {
-	getTimelineHiddenSources, getTimelineHiddenTracks, getTimelineOrientation, getTimelineThreadsChosen,
+	getTimelineHiddenSources, getTimelineHiddenTracks, getTimelineOrientation, getTimelineThreadsChosen, isTimelineShown, refuseHiddenFeature,
 	setTimelineHiddenSources, setTimelineHiddenTracks, setTimelineOrientation, setTimelineThreadsChosen,
 } from "../settings.js";
 import {
@@ -745,8 +745,9 @@ export class TimelineWindow extends StonetopDialog {
 	}
 }
 
-/** Open the aggregate, or bring the open one to the front. */
+/** Open the aggregate, or bring the open one to the front. Nothing while the world has it off. */
 export function openTimelineWindow() {
+	if (refuseHiddenFeature("timeline")) return null;
 	return openOrFocus(TIMELINE_WINDOW_ID, () => new TimelineWindow().render(true));
 }
 
@@ -759,7 +760,7 @@ export function openTimelineWindow() {
  * this one rather than a second frame on the same id.
  */
 export function reopenTimelineWindow(key) {
-	if (key !== AGGREGATE_RESTORE_KEY) return null;
+	if (key !== AGGREGATE_RESTORE_KEY || !isTimelineShown()) return null;
 	return openOrFocus(TIMELINE_WINDOW_ID, () => new TimelineWindow());
 }
 

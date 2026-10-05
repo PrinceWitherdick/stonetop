@@ -10,7 +10,7 @@ import { partyFollowersOf } from "../actors/character/follower-roster.js";
 import { sign, rollSeasonsCard, pbtaDiceFormula } from "../utils/roll-engine.js";
 import { normalizeRollMode, wireModePicker } from "./RollDialog.js";
 import { getStonetopSteadingActor, isSteadingActor } from "../utils/world.js";
-import { getSetting, setWorldSetting } from "../settings.js";
+import { getSetting, isTimelineShown, setWorldSetting } from "../settings.js";
 import { capitalizeFirst, escHtml, decodeEntities, stripHtmlToText } from "../utils/strings.js";
 import { portraitOrNone, documentPortraitFrame } from "../utils/portrait-frame.js";
 import { wireAvatarPreview, removeAvatarPreview } from "../utils/avatar-preview.js";
@@ -1054,7 +1054,9 @@ export class ExpeditionDialog extends StepperDialog {
 			// Whether this trip is on the timeline yet, on the homecoming step. It is written by
 			// itself the first time the GM steps in here with Next; this says so, and offers to write
 			// it (again) for a trip reached by the table of contents or recorded before a change.
-			tripTimeline: step.returnTriumphant && game.user?.isGM ? this._tripTimelineContext() : null,
+			// Not while the timeline is switched off: the trip is still written, but there is no
+			// timeline on screen for the note to point at.
+			tripTimeline: step.returnTriumphant && game.user?.isGM && isTimelineShown() ? this._tripTimelineContext() : null,
 			// The exploration moves rail. On EVERY step, not only the ones that reach for a
 			// GM move: it is furniture, and a column that came and went as the reader stepped
 			// would shift the prose sideways under them twice a walkthrough. The list is the

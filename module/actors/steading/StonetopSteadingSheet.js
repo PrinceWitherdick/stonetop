@@ -27,7 +27,7 @@ import {STONETOP_SCOPE, StonetopFlags} from "../character/StonetopFlags.js";
 import {SpecialItemPickerDialog} from "../character/dialogs/SpecialItemPickerDialog.js";
 import {CharacterInventory} from "../character/CharacterInventory.js";
 import {SPECIAL_ITEM_CATALOG} from "../../data/special-items.js";
-import {getRollStatChipsSetting, getOpenSheetsInEditMode, getHoverDescriptionSetting, getSidebarCollapsed, setSidebarCollapsed, getAskRollModeEachRollSetting, isClassicLayout, layoutClasses, stampLayoutClass} from "../../settings.js";
+import {getRollStatChipsSetting, getOpenSheetsInEditMode, getHoverDescriptionSetting, getSidebarCollapsed, setSidebarCollapsed, getAskRollModeEachRollSetting, isClassicLayout, isRelationshipMapShown, isTimelineShown, layoutClasses, stampLayoutClass} from "../../settings.js";
 import {applyLabelTooltips} from "../../utils/label-tooltips.js";
 import {wireSidebarToggle} from "../../utils/sidebar-toggle.js";
 import {promptRoll, promptSurplusRoll, tookOffer, normalizeRollMode} from "../../dialogs/RollDialog.js";
@@ -910,6 +910,18 @@ export function createStonetopSteadingSheetClass(Base) {
 			// tabs, Homefront Moves as a right-hand sidebar) or today's. Client-scoped and per
 			// sheet type — see isClassicLayout in module/settings.js.
 			context.stonetop.classicLayout = isClassicLayout("steading");
+			// The GM's world switches for the Relationship Map and Timeline tabs (module/settings.js).
+			// Off takes the tab out of the rail, and its panel goes with it (utils/mounted-panel-slot.js).
+			context.stonetop.relmapShown = isRelationshipMapShown();
+			context.stonetop.timelineShown = isTimelineShown();
+			// A sheet left on either tab when it goes (its switch, or the classic layout) would
+			// otherwise re-render with `active` naming a tab that is not drawn, and Tabs.activate
+			// shows no body at all. Clamp before the paint, as the NPC sheet does for its own tabs.
+			const drawn = { relmap: context.stonetop.relmapShown, timeline: context.stonetop.timelineShown };
+			const activeTab = this._tabs?.[0]?.active;
+			if (activeTab in drawn && !(drawn[activeTab] && !context.stonetop.classicLayout)) {
+				this._tabs[0].active = "overview";
+			}
 			// Whether the classic moves sidebar is collapsed (defaults to expanded), persisted
 			// per-actor, per-user. Unread by the modern layout, which has no sidebar. The
 			// backing setting is still called `characterSidebarCollapsed`: the name predates the

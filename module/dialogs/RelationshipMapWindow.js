@@ -69,7 +69,7 @@ import { introRegards } from "../relmap/relmap-intros.js";
 // ⚠ NOTHING FROM relmap-intro-match.js OR IntroMatchDialog.js. "Match answers to people" was a
 // button in this window and is gone; what it wrote (the recorded introduction answers, and the
 // player characters' own flags) is no longer reachable from a map.
-import { getObjectSetting } from "../settings.js";
+import { getObjectSetting, isRelationshipMapShown, refuseHiddenFeature } from "../settings.js";
 import { playbookSlug } from "../utils/playbook-slug.js";
 import { isPrimaryGM } from "../utils/primary-gm.js";
 import { pickPersonToAdd, pickPersonToLink } from "./RelationshipLinkDialog.js";
@@ -5786,9 +5786,16 @@ function redrawEdge(parts, { curve, d, anchor, heads: arrows }, board) {
  * toolkit takes the opening size defaultOptions works out. Only finite numbers are honoured, so a
  * partial snapshot (an auto-height window stores no height) falls back per key rather than pinning
  * the window at NaN.
+ *
+ * Nothing at all while the world has the map switched off, whichever door was knocked on: the
+ * macro, a restored window, an `@UUID` link to the entry. One notice says why, except to a window
+ * restored across a reload (`where.restored`, utils/window-restore.js): nobody asked for that one
+ * just now, and a GM who left two boards open would be told twice at load. The timeline's restore
+ * refuses as quietly (reopenTimelineWindow).
  */
 export function openRelationshipMap(entry, where = {}) {
 	if (!entry) return null;
+	if (where?.restored ? !isRelationshipMapShown() : refuseHiddenFeature("relationshipMap")) return null;
 	const geometry = finitePlace(where);
 	// WHICH BOARD TO COME UP ON, where the caller knows. Three of them do: a window restored across
 	// a reload (utils/window-restore.js saved the page it was left on), a click on one of the map's

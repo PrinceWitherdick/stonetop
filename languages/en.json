@@ -930,6 +930,14 @@
         "name": "Guided Monster Builder",
         "hint": "When on (the default), creating a blank Monster from \"Create Actor\" opens a guided worksheet (Book I, \"Dangers\") that walks you through the book's steps and computes HP, Armor, and Damage from your tag picks. Turn off to create a blank stat block instead. Compendium imports, drag-drops, and duplicates are never intercepted."
       },
+      "showRelationshipMap": {
+        "name": "Relationship Map",
+        "hint": "When on (the default), the table shares a relationship map: a tab on the steading sheet, a button in the Journal tab and a hotbar macro. Turn it off to take all three away for everyone. Nothing drawn on the map is lost, and it comes back as it was when you turn it on again."
+      },
+      "showTimeline": {
+        "name": "Timeline",
+        "hint": "When on (the default), the steading and every character have a Timeline tab, and the Chronicle folder holds the Timeline journal. Turn it off to take the tabs and the journal away for everyone. It goes on recording in the background while it is off, so nothing is missing when you turn it on again."
+      },
       "arcanaPlayersSeeBothSides": {
         "name": "Arcana: Players See Both Sides",
         "hint": "A player always sees the back of a card once they've unlocked it (filled every spot). That's their own achievement, no setting needed. This switch is a separate peek: when on, players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Off by default for a more secretive table: an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). Turn on to let players read cards up front. You always see both sides as the GM."
@@ -2401,6 +2409,7 @@
       }
     },
     "relmap": {
+      "disabled": "The relationship map is turned off in this world's settings.",
       "noun": "relationship map",
       "untitled": "Relationship Map",
       "windowTitle": "Relationship maps",
@@ -2714,6 +2723,7 @@
       "followed": "This map's pin names follow the world setting again."
     },
     "timeline": {
+      "disabled": "The timeline is turned off in this world's settings.",
       "windowTitle": "The Timeline",
       "trackTitle": "{name}: the timeline",
       "beforeRecord": "Before the record",

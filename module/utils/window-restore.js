@@ -271,14 +271,19 @@ function _flushNow() {
 
 // Activate the saved active tab(s) on an AppV1 sheet, matched to `_tabs` by index. No-op
 // for a tab already on the saved name (skips a redundant DOM shuffle), and safe when the
-// sheet has fewer tab groups than were saved.
+// sheet has fewer tab groups than were saved. Skips a saved tab the sheet no longer draws (the GM
+// switched the Timeline or Relationship Map off since): activating it would hide every tab body
+// and leave the sheet blank.
 function _applyTabs(app, tabs) {
 	if (!Array.isArray(tabs)) return;
 	const groups = app?._tabs;
 	if (!Array.isArray(groups)) return;
 	tabs.forEach((name, idx) => {
 		const group = groups[idx];
-		if (name && group && group.active !== name) group.activate?.(name);
+		if (!name || !group || group.active === name) return;
+		const nav = group._nav;
+		if (nav?.querySelectorAll && ![...nav.querySelectorAll("[data-tab]")].some(el => el.dataset?.tab === name)) return;
+		group.activate?.(name);
 	});
 }
 
@@ -440,8 +445,11 @@ export async function restoreOpenWindows() {
 				// And the view inside it, by the same road, so the first paint is already where the
 				// reader left it rather than at the start and then jumping.
 				if (saved.view && typeof saved.view === "object") geom.view = saved.view;
+				// `restored` marks the render as this file's, not a reader's click, for a sheet that
+				// would otherwise speak up: the relationship map's bouncer refuses a switched-off map
+				// silently for a restore, where a click is told why (openRelationshipMap).
 				if (_isAppV2(sheet)) sheet.render({ force: true, position: geom });
-				else sheet.render(true, geom);
+				else sheet.render(true, { ...geom, restored: true });
 				if (saved.minimized) sheet.minimize?.();
 			} catch (err) {
 				console.warn("Stonetop | Could not restore window", key, err);

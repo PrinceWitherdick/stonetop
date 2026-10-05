@@ -4,6 +4,7 @@ import { POSTER_MAPS, posterMapSlugOf } from "./book2-art/poster-map-catalog.js"
 import { SYSTEM_ID } from "./system-id.js";
 import { WEATHER_FX_PARTS, WEATHER_FX_SETTING } from "./seasons/weather-fx-parts.js";
 import { isPrimaryGM } from "./utils/primary-gm.js";
+import { localize } from "./utils/i18n.js";
 import { applyTimelineKindColours, normalizeKindColours } from "./timeline/timeline-colours.js";
 
 /**
@@ -349,6 +350,33 @@ export function registerSettings() {
 		config: true,
 		type: Boolean,
 		default: true,
+	});
+
+	// The relationship map and the timeline, each switched off for the whole table at once: the
+	// steading's tab, the Journal sidebar's button and row, the hotbar macro and any window open on
+	// one go with it. Nothing stored is touched, and the timeline goes on recording underneath, so
+	// switching back on finds everything where it was. No reload: hooks/feature-switches.js repaints
+	// what is open. World scope, so only someone with SETTINGS_MODIFY can change it.
+	// ⚠ A NEW KEY, NOT THE OLD "...Enabled" ONE. That was the dark-launch switch the timeline shipped
+	// out from behind, and a world from that release may still hold a `false` under it, which would hide the timeline
+	// from a table that never asked. tests/timeline/timeline-shipped.test.js keeps the name retired.
+	game.settings.register(SYSTEM_ID, "showRelationshipMap", {
+		name: "stonetop.settings.showRelationshipMap.name",
+		hint: "stonetop.settings.showRelationshipMap.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: value => Hooks.callAll(FEATURE_SWITCH_HOOK, "relationshipMap", value),
+	});
+	game.settings.register(SYSTEM_ID, "showTimeline", {
+		name: "stonetop.settings.showTimeline.name",
+		hint: "stonetop.settings.showTimeline.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: value => Hooks.callAll(FEATURE_SWITCH_HOOK, "timeline", value),
 	});
 
 	// Whether players may PEEK at a card's BACK before unlocking it. A card's OWNER always
@@ -2288,6 +2316,36 @@ export function getOpenSheetsInEditMode() {
  */
 export function isFightTabEnabled() {
 	return getBooleanSetting("fightTab", false);
+}
+
+/**
+ * Fired by the two switches below on every client when the GM flips one, with the feature's name
+ * and its new value. A hook rather than an import, so this file never has to load the windows it
+ * closes. See hooks/feature-switches.js.
+ */
+export const FEATURE_SWITCH_HOOK = "stonetopFeatureSwitched";
+
+/** Is the relationship map on in this world? Defaults to yes, unregistered included. */
+export function isRelationshipMapShown() {
+	return getBooleanSetting("showRelationshipMap", true);
+}
+
+/** Is the timeline on in this world? Defaults to yes, unregistered included. */
+export function isTimelineShown() {
+	return getBooleanSetting("showTimeline", true);
+}
+
+/**
+ * The guard every way into a switched-off feature opens with: true, after a notice saying why,
+ * while the GM has it off.
+ *
+ * @param {"relationshipMap"|"timeline"} feature
+ */
+export function refuseHiddenFeature(feature) {
+	const relmap = feature === "relationshipMap";
+	if (relmap ? isRelationshipMapShown() : isTimelineShown()) return false;
+	globalThis.ui?.notifications?.info?.(localize(relmap ? "stonetop.relmap.disabled" : "stonetop.timeline.disabled"));
+	return true;
 }
 
 /** Does this reader want the Fight window to open by itself when a fight starts? Defaults to yes. */

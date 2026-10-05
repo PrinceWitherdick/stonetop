@@ -200,6 +200,34 @@ describe("restoring the edit/lock mode", () => {
 		expect(modeAtRender).toBe(true);
 	});
 
+	// The render is marked as the restore's own, so the relationship map's bouncer can refuse a
+	// switched-off map without a notice (openRelationshipMap).
+	it("marks a restored render as restored, with the geometry", async () => {
+		const sheet = fakeSheet({ uuid: "Actor.mark" });
+		settings.openWindowsState = { "Actor.mark": { left: 10, top: 20 } };
+		await restore();
+		expect(sheet.render).toHaveBeenCalledWith(true, expect.objectContaining({ left: 10, top: 20, restored: true }));
+	});
+
+	// The GM switched the Timeline off since: activating a tab the sheet no longer draws would hide
+	// every tab body and leave the sheet blank, so the sheet stays on the tab it drew.
+	it("skips a saved tab the sheet no longer draws, and switches to one it does", async () => {
+		const nav = names => ({ querySelectorAll: () => names.map(tab => ({ dataset: { tab } })) });
+		const gone = fakeSheet({ uuid: "Actor.gone" });
+		const kept = fakeSheet({ uuid: "Actor.kept" });
+		for (const sheet of [gone, kept]) {
+			sheet._tabs = [{ active: "moves", _nav: nav(["moves", "notes"]), activate: vi.fn() }];
+			sheet.render = vi.fn(() => fire("renderActorSheet", sheet));
+		}
+		settings.openWindowsState = {
+			"Actor.gone": { left: 10, top: 20, tabs: ["timeline"] },
+			"Actor.kept": { left: 10, top: 20, tabs: ["notes"] },
+		};
+		await restore();
+		expect(gone._tabs[0].activate).not.toHaveBeenCalled();
+		expect(kept._tabs[0].activate).toHaveBeenCalledWith("notes");
+	});
+
 	it("leaves a sheet this user cannot edit in play mode", async () => {
 		const sheet = fakeSheet({ uuid: "Actor.readonly", editMode: false, isEditable: false });
 		settings.openWindowsState = { "Actor.readonly": { left: 10, top: 20, editMode: true } };
@@ -353,7 +381,7 @@ describe("the relationship map board", () => {
 		settings.openWindowsState = { "JournalEntry.map1": { left: 10, top: 20, width: 900, height: 700 } };
 		await restoreOpenWindows();
 		await vi.runAllTimersAsync();
-		expect(board.render).toHaveBeenCalledWith(true, { left: 10, top: 20, width: 900, height: 700 });
+		expect(board.render).toHaveBeenCalledWith(true, { left: 10, top: 20, width: 900, height: 700, restored: true });
 	});
 
 	it("drops the board from the snapshot once it is closed", () => {
@@ -391,7 +419,7 @@ describe("the relationship map board", () => {
 		await restoreOpenWindows();
 		await vi.runAllTimersAsync();
 		expect(board.render).toHaveBeenCalledWith(true,
-			{ left: 10, top: 20, width: 900, height: 700, pageId: "page7" });
+			{ left: 10, top: 20, width: 900, height: 700, pageId: "page7", restored: true });
 	});
 
 	// Every other window tracked here has no pages, and must not grow a stray option because one
@@ -417,7 +445,7 @@ describe("the relationship map board", () => {
 		await restoreOpenWindows();
 		await vi.runAllTimersAsync();
 		expect(board.render).toHaveBeenCalledWith(true,
-			{ left: 100, top: 50, width: 800, height: 600, view: { zoom: 1.5, left: 300, top: 40 } });
+			{ left: 100, top: 50, width: 800, height: 600, view: { zoom: 1.5, left: 300, top: 40 }, restored: true });
 	});
 
 	// ⚠ AND THE SAME BOARD MOUNTED INSIDE A SHEET IS NOT A WINDOW AT ALL. The steading sheet's
@@ -505,7 +533,7 @@ describe("a window registered by its kind", () => {
 		settings.openWindowsState = { w1: { "camp:c1:h1": { left: 10, top: 20, width: 900, height: 500 } } };
 		await restore();
 		expect(reopen).toHaveBeenCalledWith("camp:c1:h1");
-		expect(app.render).toHaveBeenCalledWith(true, { left: 10, top: 20, width: 900, height: 500 });
+		expect(app.render).toHaveBeenCalledWith(true, { left: 10, top: 20, width: 900, height: 500, restored: true });
 	});
 
 	it("stays shut when its kind declines it, or fails, and the sheets still come back", async () => {

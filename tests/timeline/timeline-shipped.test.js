@@ -11,6 +11,11 @@ import { readRepo } from "../fakes/css.js";
 //
 // So this pins the shipped state from both sides, and pins that the switch is GONE rather than
 // defaulted on: a switch left lying around is a door somebody turns off again by accident.
+//
+// THE GM HAS A SWITCH AGAIN, ON PURPOSE (user, 2026-10-04): `showTimeline`, which hides the tabs and
+// the journal and leaves the data and the recording alone (hooks/feature-switches.js). It has a NEW
+// key so that a world still holding the dark switch's stored `false` does not wake up with no
+// timeline; the old names stay banned below for exactly that reason.
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -61,11 +66,13 @@ describe("the dark switch is gone", () => {
 		expect(line.match(/^\t*/)[0]).toBe("\t");
 	});
 
-	it("draws the Timeline tab on both sheets in the modern layout", () => {
+	it("draws the Timeline tab on both sheets in the modern layout, while the GM's switch is on", () => {
 		for (const rel of ["templates/actor/character.hbs", "templates/actor/steading.hbs"]) {
-			const lines = readRepo(rel).split("\n").filter(l => l.includes("timeline"));
+			const lines = readRepo(rel).split("\n").filter(l => l.includes('"timeline"') || l.includes("tab-timeline"));
 			expect(lines.length, `${rel} has no timeline tab`).toBeGreaterThanOrEqual(2);
-			for (const l of lines) expect(l.trim().startsWith("{{#unless stonetop.classicLayout}}"), l).toBe(true);
+			for (const l of lines) {
+				expect(l.trim().startsWith("{{#if stonetop.timelineShown}}{{#unless stonetop.classicLayout}}"), l).toBe(true);
+			}
 		}
 	});
 });

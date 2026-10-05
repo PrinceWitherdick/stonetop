@@ -25,7 +25,7 @@ import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, watchFoundryTheme, applySheetTexture, applyNoItalics, getTimelineKindColours, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isFightTabEnabled, getArraySetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, watchFoundryTheme, applySheetTexture, applyNoItalics, getTimelineKindColours, refuseHiddenFeature, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isFightTabEnabled, getArraySetting } from "../settings.js";
 import { applyTimelineKindColours } from "../timeline/timeline-colours.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
@@ -2202,8 +2202,12 @@ function _buildStartupWelcomeContent() {
  * setup (relmap/relmap-make.js), so a world with none is one whose GM deleted that map -- and
  * minting a second "Stonetop" unasked is undoing a decision rather than saving anybody a keystroke.
  * The same question the steading sheet's empty Relationship Map tab asks, through the same call.
+ *
+ * Nothing while the GM has the map switched off, and above all no new map: `openRelationshipMap`
+ * would refuse the board, but only after the name had been asked and the map made.
  */
 async function _openRelationshipMap(which) {
+	if (refuseHiddenFeature("relationshipMap")) return null;
 	const maps = listRelationshipMaps();
 	if (which) {
 		const wanted = maps.find(m => m.id === which || m.name === which);

@@ -1,4 +1,4 @@
-import { registerSettings, getSetting, applyMoveDescriptionBodyClass } from "./module/settings.js";
+import { registerSettings, getSetting, applyMoveDescriptionBodyClass, FEATURE_SWITCH_HOOK } from "./module/settings.js";
 import { createStonetopActorClass } from "./module/actors/StonetopActor.js";
 import { createStonetopItemClass } from "./module/item/StonetopItem.js";
 import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSheet.js";
@@ -70,7 +70,8 @@ import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.
 import { decoratePortraitRow, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
 import { decorateNameRow, onUpdateActorPlaybookName } from "./module/hooks/ActorDirectoryNames.js";
 import { decorateActorDirectoryRows } from "./module/hooks/actor-directory-rows.js";
-import { addOpenMapButton, hideRelationshipMapRows } from "./module/hooks/journal-directory-maps.js";
+import { hideRelationshipMapRows } from "./module/hooks/journal-directory-maps.js";
+import { hideTimelineJournalRow, onFeatureSwitched, syncOpenMapButton } from "./module/hooks/feature-switches.js";
 import { onUpdateCondemned } from "./module/hooks/CondemnedTag.js";
 import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
@@ -738,10 +739,16 @@ Hooks.on("renderDocumentDirectory", (app, element) =>
 // folder with them while nothing else is in it, and one "Relationship Map" button goes at the top of
 // the tab in their place, opening the map exactly as the macro does. Nothing about the document
 // changes. See module/hooks/journal-directory-maps.js.
+//
+// The button only while the GM has the map switched on, and the Timeline journal's row only while
+// the timeline is; flipping either repaints every open sheet and this tab, on every client. See
+// module/hooks/feature-switches.js.
 Hooks.on("renderDocumentDirectory", (app, element) => {
 	hideRelationshipMapRows(app, element);
-	addOpenMapButton(app, element, () => game.stonetop?.openRelationshipMap?.());
+	syncOpenMapButton(app, element, () => game.stonetop?.openRelationshipMap?.());
+	hideTimelineJournalRow(app, element);
 });
+Hooks.on(FEATURE_SWITCH_HOOK, onFeatureSwitched);
 Hooks.on("updateActor", onUpdateActorPortraitFrame);
 Hooks.on("updateActor", onUpdateActorPlaybookName);
 
