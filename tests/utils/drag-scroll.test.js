@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	GLIDING_CLASS, GUTTER_LEFT_VAR, GUTTER_TOP_VAR, GUTTER_X_VAR, GUTTER_Y_VAR, LIFT_PX, PANNABLE_CLASS, PANNING_CLASS, gutterFor, wireDragScroll,
+	GUTTER_LEFT_VAR, GUTTER_TOP_VAR, GUTTER_X_VAR, GUTTER_Y_VAR, LIFT_PX, PANNABLE_CLASS, PANNING_CLASS, gutterFor, wireDragScroll,
 } from "../../module/utils/drag-scroll.js";
 
 // GRAB-AND-THROW ON A REAL SCROLL BOX (the timeline's column). The throw arithmetic is
@@ -181,24 +181,8 @@ describe("wireDragScroll", () => {
 		expect(frames.length).toBe(0);
 	});
 
-	it("says the box is at rest when an unthrown drag is let go, and not for a click", () => {
-		off();
-		const onRest = vi.fn();
-		off = wireDragScroll(box, { onRest });
-		box.emit("pointerdown", { clientX: 100, clientY: 100, target: child() });
-		box.emit("pointerup", { clientX: 100, clientY: 100 });
-		expect(onRest).not.toHaveBeenCalled();
-		box.emit("pointerdown", { clientX: 100, clientY: 100, target: child() });
-		box.emit("pointermove", { clientX: 160, clientY: 100 });
-		expect(onRest).not.toHaveBeenCalled();
-		box.emit("pointerup", { clientX: 160, clientY: 100 });
-		expect(onRest).toHaveBeenCalledTimes(1);
-	});
-
-	it("wears the gliding class while a throw slides, and says at rest only when it dies away", () => {
-		off();
-		const onRest = vi.fn();
-		off = wireDragScroll(box, { onRest });
+	// It stops exactly where the throw dies away: nothing settles it afterwards (timeline-no-snap).
+	it("lets a throw die away on its own, and asks for no frame after", () => {
 		vi.restoreAllMocks();
 		let t = 0;
 		vi.spyOn(globalThis.performance, "now").mockImplementation(() => t);
@@ -206,27 +190,11 @@ describe("wireDragScroll", () => {
 		t = 10; box.emit("pointermove", { clientX: 280, clientY: 100 });
 		t = 20; box.emit("pointermove", { clientX: 260, clientY: 100 });
 		t = 30; box.emit("pointerup", { clientX: 240, clientY: 100 });
-		expect(box.classList.contains(GLIDING_CLASS)).toBe(true);
-		expect(onRest).not.toHaveBeenCalled();
-		for (let i = 0; i < 400 && frames.length; i++) { t += 16; frames.splice(0)[0]?.(); }
-		expect(box.classList.contains(GLIDING_CLASS)).toBe(false);
-		expect(onRest).toHaveBeenCalledTimes(1);
-	});
-
-	it("does not say at rest when a hand catches the sliding box", () => {
-		off();
-		const onRest = vi.fn();
-		off = wireDragScroll(box, { onRest });
-		vi.restoreAllMocks();
-		let t = 0;
-		vi.spyOn(globalThis.performance, "now").mockImplementation(() => t);
-		box.emit("pointerdown", { clientX: 300, clientY: 100, target: child() });
-		t = 10; box.emit("pointermove", { clientX: 280, clientY: 100 });
-		t = 20; box.emit("pointermove", { clientX: 260, clientY: 100 });
-		t = 30; box.emit("pointerup", { clientX: 240, clientY: 100 });
-		box.emit("pointerdown", { clientX: 10, clientY: 10, target: child() });
-		expect(box.classList.contains(GLIDING_CLASS)).toBe(false);
-		expect(onRest).not.toHaveBeenCalled();
+		expect(frames.length).toBe(1);
+		let ran = 0;
+		for (; ran < 400 && frames.length; ran++) { t += 16; frames.splice(0)[0]?.(); }
+		expect(ran, "the glide never died away").toBeLessThan(400);
+		expect(frames.length).toBe(0);
 	});
 
 	it("shows the grab hand only when there is somewhere to go", () => {
@@ -389,6 +357,36 @@ describe("the gutter to drag off into", () => {
 		expect(box.vars[GUTTER_X_VAR]).toBe("450px");
 		expect(box.vars[GUTTER_LEFT_VAR]).toBe("0px");
 		expect(box.scrollLeft).toBe(200);
+		off();
+	});
+
+	// The timeline stops at its foot as a page does (user, 2026-10-05): no room below, the room above
+	// still the host's to keep or pin, and nothing moves on a resize.
+	it("leaves no room below the content when the bottom is pinned", () => {
+		const box = gutteredBox();
+		const off = wireDragScroll(box, { gutter: 0.75, pinBottom: true });
+		expect(box.vars[GUTTER_Y_VAR]).toBe("0px");
+		expect(box.vars[GUTTER_TOP_VAR]).toBe("225px");
+		expect(box.vars[GUTTER_X_VAR]).toBe("300px");
+		expect(box.scrollTop).toBe(225);
+		box.scrollTop = 100;
+		box.clientHeight = 500;
+		observers[0].fn();
+		expect(box.vars[GUTTER_Y_VAR]).toBe("0px");
+		expect(box.vars[GUTTER_TOP_VAR]).toBe("375px");
+		expect(box.scrollTop).toBe(250);
+		off();
+	});
+
+	it("pins top, left and bottom together, leaving only the room to the right", () => {
+		const box = gutteredBox();
+		const off = wireDragScroll(box, { gutter: 0.75, pinTop: true, pinLeft: true, pinBottom: true });
+		expect(box.vars[GUTTER_TOP_VAR]).toBe("0px");
+		expect(box.vars[GUTTER_LEFT_VAR]).toBe("0px");
+		expect(box.vars[GUTTER_Y_VAR]).toBe("0px");
+		expect(box.vars[GUTTER_X_VAR]).toBe("300px");
+		expect(box.scrollLeft).toBe(0);
+		expect(box.scrollTop).toBe(0);
 		off();
 	});
 

@@ -2,16 +2,21 @@
 // (user, 2026-10-03: "a scrubber on the bottom that can slide to different years quickly. When
 // scrubbed, we should center the timeline in the view").
 //
-// Sliding it brings that year into the MIDDLE of the column along the timeline's own axis (across
-// for Horizontal, down for Vertical), and puts the timeline back in the middle the other way too:
-// the drag gutter lets a reader haul it nearly out of sight, and a scrub is how they get it back.
-// It follows the other way as well: drag, throw or zoom the column and the thumb moves to wherever
-// the view is, so it always says where the reader is.
+// Sliding it moves the column along the timeline's own axis (across for Horizontal, down for
+// Vertical), and puts the timeline back in the middle the other way too: the drag gutter lets a
+// reader haul it nearly out of sight, and a scrub is how they get it back. It follows the other way
+// as well: drag, throw or zoom the column and the thumb moves to wherever the view is, so it always
+// says where the reader is.
 //
-// THE THUMB SLIDES, IT DOES NOT SNAP (user, 2026-10-03: "I want to be able to slide in between years
-// as well"). The range's value is a FRACTIONAL index into the stops: 1.5 is halfway from where year 2
-// sits centred to where year 3 does, and the column scrolls to that blend. Only the keyboard steps a
-// whole year at a time, so arrowing along still lands on each one.
+// NOTHING LOCKS (user, 2026-10-04: "lets make the scrubber not lock to any points at all, it's
+// causing issues"). The slider is ONE STRAIGHT LINE from the first year centred in the view to the
+// last year centred: a pixel of thumb is the same stretch of column anywhere along it. It used to
+// run year to year, a separate blend between each pair, and wherever the column's ends held two
+// years to one place the thumb stuck on a tick and jumped. Now the ticks are drawn wherever their
+// year falls along that line and the thumb rests wherever the hand leaves it. Nor is the column
+// settled afterwards: the column snap that eased the board to a whole column once a pan or a slide
+// stopped is gone, since the thumb moved with it, by itself.
+// Only the keyboard steps, to the next year's tick, so arrowing along still lands on each one.
 //
 // ⚠ AN INSTANT JUMP, NOT A GLIDE. The slider fires on every step of the thumb; a smooth scroll per
 // step would leave the column chasing the hand, and its in-between scroll events would pull the thumb
@@ -24,6 +29,9 @@
 /** What every element a year occupies is stamped with, in all four shapes. */
 export const YEAR_ATTR = "data-year";
 
+/** The slider's top value; its bottom is 0. Fine enough that the thumb never moves in visible steps. */
+export const SCRUB_MAX = 1000;
+
 /**
  * How far, in pixels, the column may sit from where the thumb last put it and still be that jump's
  * own echo: reading the place back off it could only nudge the thumb off where the reader's hand put
@@ -32,8 +40,8 @@ export const YEAR_ATTR = "data-year";
 const SCRUB_ECHO_PX = 1;
 
 /**
- * The years a scrubber stops at, oldest first: one per year with anything shown in it. The undated
- * block has no year and no stop.
+ * The years a scrubber marks, oldest first: one per year with anything shown in it. The undated
+ * block has no year and no tick.
  *
  * @param {Array<{year: number, yearLabel: string, undated?: boolean}>} periods  From the view model.
  * @returns {Array<{year: number, label: string}>}
@@ -49,10 +57,11 @@ export function yearStops(periods = []) {
 }
 
 /**
- * Where each stop's tick sits along the slider, as a share of the thumb's travel: 0 for the first
- * year, 1 for the last. The stylesheet turns it into a place on the track (see
- * `.stonetop-timeline-scrub-tick`), allowing for the thumb's width, since the thumb's CENTRE is what
- * stops over a year.
+ * Where each year's tick is first drawn along the slider, as a share of the thumb's travel: evenly
+ * spread, 0 for the first year and 1 for the last. Only a first guess for the page to open with; once
+ * the column is laid out the scrubber moves each tick to where its year really falls (`tickShares`).
+ * The stylesheet turns a share into a place on the track (see `.stonetop-timeline-scrub-tick`),
+ * allowing for the thumb's width, since the thumb's CENTRE is what passes over a year.
  *
  * @param {Array<{year, label}>} stops  From `yearStops`.
  * @returns {Array<{year: number, at: number}>}
@@ -81,60 +90,87 @@ export function centredScroll({ scroll = 0, viewStart = 0, viewSize = 0, spanSta
 	return Math.round(scroll + (spanStart + spanSize / 2) - (viewStart + viewSize / 2));
 }
 
-/** The stops that have a scroll offset, as `[index, offset]` pairs in stop order. */
-function knownTargets(targets) {
-	const points = [];
-	targets.forEach((offset, index) => { if (Number.isFinite(offset)) points.push([index, offset]); });
-	return points;
+/**
+ * The slider's two ends as scroll offsets: the first and last years that are drawn. Null when
+ * fewer than one is.
+ *
+ * @param {Array<number|null>} targets  One scroll offset per year, from `yearTargets`.
+ * @returns {{from: number, to: number}|null}
+ */
+function line(targets) {
+	const known = targets.filter(Number.isFinite);
+	if (!known.length) return null;
+	return { from: known[0], to: known.at(-1) };
 }
 
 /**
- * The scroll offset for a slider value: a whole value is that year's own offset, a fraction the
- * straight blend of the two years either side. A year with nothing drawn (null) is skipped over.
+ * The scroll offset for a slider value: a straight share of the way from the first year's offset to
+ * the last's, wherever the years between fall.
  *
- * @param {Array<number|null>} targets  One scroll offset per stop, from `yearTargets`.
- * @param {number} value  A fractional index into the stops.
+ * @param {Array<number|null>} targets  One scroll offset per year, from `yearTargets`.
+ * @param {number} value  0 to `SCRUB_MAX`.
  * @returns {number|null}  Null when no year is drawn.
  */
 export function scrollForValue(targets = [], value = 0) {
-	const points = knownTargets(targets);
-	if (!points.length) return null;
-	if (value <= points[0][0]) return points[0][1];
-	for (let i = 1; i < points.length; i++) {
-		const [ia, ta] = points[i - 1];
-		const [ib, tb] = points[i];
-		if (value <= ib) return Math.round(ta + (tb - ta) * (value - ia) / (ib - ia));
-	}
-	return points.at(-1)[1];
+	const ends = line(targets);
+	if (!ends) return null;
+	const share = Math.min(1, Math.max(0, value / SCRUB_MAX));
+	return Math.round(ends.from + (ends.to - ends.from) * share);
 }
 
 /**
- * The slider value for a scroll offset: the inverse of `scrollForValue`, so the thumb lands between
- * two ticks as far along as the view is between those two years. -1 when no year is drawn.
+ * The slider value for a scroll offset: the inverse of `scrollForValue`, held to the slider's ends.
+ * -1 when no year is drawn; 0 when the first and last years sit at one offset (there is nowhere to
+ * slide).
  *
- * @param {Array<number|null>} targets  One scroll offset per stop, from `yearTargets`.
+ * @param {Array<number|null>} targets  One scroll offset per year, from `yearTargets`.
  * @param {number} offset  The column's scroll along the timeline's axis.
  */
 export function valueForScroll(targets = [], offset = 0) {
-	const points = knownTargets(targets);
-	if (!points.length) return -1;
-	if (offset <= points[0][1]) return points[0][0];
-	// Scrolled to the far end: the last year, even when the clamp has pinned the one before it there too.
-	if (offset >= points.at(-1)[1]) return points.at(-1)[0];
-	for (let i = 1; i < points.length; i++) {
-		const [ia, ta] = points[i - 1];
-		const [ib, tb] = points[i];
-		if (offset > tb) continue;
-		// Two years the browser's clamp has pinned to one offset: the later one is where it lands.
-		if (tb === ta) return ib;
-		return ia + (ib - ia) * (offset - ta) / (tb - ta);
-	}
-	return points.at(-1)[0];
+	const ends = line(targets);
+	if (!ends) return -1;
+	if (ends.to === ends.from) return 0;
+	const share = (offset - ends.from) / (ends.to - ends.from);
+	return Math.min(1, Math.max(0, share)) * SCRUB_MAX;
 }
 
-/** The whole year a fractional slider value is nearest, for the readout. */
-export function nearestStop(value = 0) {
-	return Math.round(value);
+/**
+ * Where each year's tick belongs along the slider, as a share of the thumb's travel (0 to 1): the
+ * thumb on a tick is that year in the middle of the view. Null for a year with nothing drawn.
+ *
+ * @param {Array<number|null>} targets  One scroll offset per year, from `yearTargets`.
+ * @returns {Array<number|null>}
+ */
+export function tickShares(targets = []) {
+	const ends = line(targets);
+	return targets.map((offset) => {
+		if (!ends || !Number.isFinite(offset)) return null;
+		if (ends.to === ends.from) return 0;
+		return Number(((offset - ends.from) / (ends.to - ends.from)).toFixed(4));
+	});
+}
+
+/**
+ * The year a slider value is nearest, for the readout: the tick closest to the thumb. Two years the
+ * column's end has held to one place share a tick; on the first half of the slider the earlier of
+ * them is named, on the second half the later, so each end names the year that is actually there.
+ *
+ * @param {Array<number|null>} targets  One scroll offset per year, from `yearTargets`.
+ * @param {number} value  0 to `SCRUB_MAX`.
+ * @returns {number}  An index into the years; -1 when none is drawn.
+ */
+export function nearestStop(targets = [], value = 0) {
+	const shares = tickShares(targets);
+	const at = value / SCRUB_MAX;
+	const late = at > 0.5;
+	let best = -1;
+	let gap = Infinity;
+	shares.forEach((share, index) => {
+		if (share === null) return;
+		const d = Math.abs(share - at);
+		if (d < gap || (late && d === gap)) { best = index; gap = d; }
+	});
+	return best;
 }
 
 /**
@@ -197,10 +233,10 @@ function viewRect(scroll) {
 }
 
 /**
- * The scroll offset, along the timeline's axis, that centres each stop's year: null for a year with
- * nothing drawn. Each is held to the column's real scroll range, so the blend between two years runs
- * over offsets the column can actually reach, and the thumb read back off a clamped edge sits on the
- * end tick rather than short of it.
+ * The scroll offset, along the timeline's axis, that centres each year: null for a year with
+ * nothing drawn. Each is held to the column's real scroll range, so the slider's ends are offsets
+ * the column can actually reach, and the thumb read back off a clamped edge sits at the slider's end
+ * rather than short of it.
  *
  * @param {HTMLElement} scroll  The column that scrolls.
  * @param {Array<{year}>} stops
@@ -224,21 +260,21 @@ export function yearTargets(scroll, stops, { horizontal, inset = 0 } = {}) {
 }
 
 /**
- * Bring a slider value into the middle of the column (a year, or a blend of the two either side),
- * and the timeline into the middle the other way (user, 2026-10-03): Horizontal is centred top to
- * bottom whatever the zoom; Vertical is centred side to side when it FITS, and laid against the left
- * edge when it does not. A board of sixteen threads is four windows wide, and its middle is four
- * characters nobody asked for with the seasons off-screen; from the left it opens on the seasons and
- * the first threads.
+ * Move the column to a slider value along the timeline's axis, and the timeline into the middle the
+ * other way (user, 2026-10-03): Horizontal is centred top to bottom whatever the zoom; Vertical is
+ * centred side to side when it FITS, and laid against the left edge when it does not. A board of
+ * sixteen threads is four windows wide, and its middle is four characters nobody asked for with the
+ * seasons off-screen; from the left it opens on the seasons and the first threads.
  *
  * @param {HTMLElement} scroll  The column that scrolls.
  * @param {Array<{year}>} stops
- * @param {number} value  A fractional index into the stops.
- * @param {{horizontal: boolean, picture?: HTMLElement|null, inset?: number}} opts  `picture` is the
- *        timeline itself (the canvas's one child), centred on the cross axis.
+ * @param {number} value  0 to `SCRUB_MAX`.
+ * @param {{horizontal: boolean, picture?: HTMLElement|null, inset?: number, targets?: Array<number|null>}} opts
+ *        `picture` is the timeline itself (the canvas's one child), centred on the cross axis;
+ *        `targets` the years' offsets when the caller has just measured them.
  */
-export function scrubTo(scroll, stops, value, { horizontal, picture = null, inset = 0 } = {}) {
-	const main = scrollForValue(yearTargets(scroll, stops, { horizontal, inset }), value);
+export function scrubTo(scroll, stops, value, { horizontal, picture = null, inset = 0, targets = null } = {}) {
+	const main = scrollForValue(targets ?? yearTargets(scroll, stops, { horizontal, inset }), value);
 	if (main === null) return false;
 	const view = viewRect(scroll);
 	const whole = pictureRect(picture);
@@ -256,11 +292,6 @@ export function scrubTo(scroll, stops, value, { horizontal, picture = null, inse
 	return true;
 }
 
-/** Where along the slider the column is, measured off the live layout: -1 for nowhere. */
-export function valueInView(scroll, stops, { horizontal, inset = 0 } = {}) {
-	return valueForScroll(yearTargets(scroll, stops, { horizontal, inset }), horizontal ? scroll.scrollLeft : scroll.scrollTop);
-}
-
 /** The keys that step the thumb a whole year, and which way. */
 const YEAR_KEYS = { ArrowRight: 1, ArrowUp: 1, PageUp: 1, ArrowLeft: -1, ArrowDown: -1, PageDown: -1 };
 
@@ -268,10 +299,11 @@ const YEAR_KEYS = { ArrowRight: 1, ArrowUp: 1, PageUp: 1, ArrowLeft: -1, ArrowDo
  * Wire a scrubber to its column.
  *
  * @param {HTMLElement} scroll  The column that scrolls.
- * @param {HTMLElement} bar     The scrubber's own element: holds the range input and the year readout.
+ * @param {HTMLElement} bar     The scrubber's own element: holds the range input, its year ticks
+ *                              (`.stonetop-timeline-scrub-tick`, one per year in order) and the
+ *                              year readout.
  * @param {object} opts
- * @param {Array<{year, label}>} opts.stops  From `yearStops`; the range's value is a fractional
- *                                           index into it.
+ * @param {Array<{year, label}>} opts.stops  From `yearStops`.
  * @param {boolean} opts.horizontal
  * @param {string}  [opts.picture]  Selector, inside the column, of the timeline itself.
  * @param {number}  [opts.inset]    Breathing room kept at the column's top (or left) when a year (or a
@@ -282,26 +314,42 @@ export function wireYearScrubber(scroll, bar, { stops = [], horizontal = true, p
 	const range = bar?.querySelector?.("input[type='range']");
 	if (!scroll?.addEventListener || !range || stops.length < 2) return () => {};
 	const readout = bar.querySelector("output");
+	const ticks = [...bar.querySelectorAll(".stonetop-timeline-scrub-tick")];
 	// Where the thumb's own jump left the column, until the column is moved some other way.
 	let wrote = null;
 	let frame = 0;
 
-	const last = stops.length - 1;
+	const measure = () => yearTargets(scroll, stops, { horizontal, inset });
+
+	// Each tick to where its year falls along the slider, which the zoom and the layout move.
+	const placeTicks = (targets) => {
+		tickShares(targets).forEach((share, index) => {
+			const tick = ticks[index];
+			if (!tick) return;
+			tick.hidden = share === null;
+			if (share === null) return;
+			const at = String(share);
+			if (tick.style.getPropertyValue("--at") !== at) tick.style.setProperty("--at", at);
+		});
+	};
 
 	// The readout and the screen reader name the year the thumb is nearest.
-	const show = (value) => {
-		const stop = stops[nearestStop(value)];
+	const show = (value, targets) => {
+		range.value = String(Number(value.toFixed(1)));
+		const stop = stops[nearestStop(targets, value)];
 		if (!stop) return;
-		range.value = String(Number(value.toFixed(3)));
 		range.setAttribute("aria-valuetext", stop.label);
 		if (readout) readout.textContent = stop.label;
 	};
 
-	const go = (value) => {
-		show(value);
+	// `targets` when the caller has just measured the years itself (a year key), so the layout is
+	// not read a second time for the same press.
+	const go = (value, targets = measure()) => {
+		// The column moved before the readout is written, so the layout is read once, not twice.
 		scrubTo(scroll, stops, value, {
-			horizontal, inset, picture: picture ? scroll.querySelector(picture) : null,
+			horizontal, inset, targets, picture: picture ? scroll.querySelector(picture) : null,
 		});
+		show(value, targets);
 		// Read back rather than kept from the write: the column clamps and rounds what it is given.
 		wrote = { left: scroll.scrollLeft, top: scroll.scrollTop };
 	};
@@ -311,28 +359,34 @@ export function wireYearScrubber(scroll, bar, { stops = [], horizontal = true, p
 		&& Math.abs(scroll.scrollLeft - wrote.left) <= SCRUB_ECHO_PX
 		&& Math.abs(scroll.scrollTop - wrote.top) <= SCRUB_ECHO_PX;
 
-	const onInput = () => go(Math.min(last, Math.max(0, Number(range.value) || 0)));
+	const onInput = () => go(Math.min(SCRUB_MAX, Math.max(0, Number(range.value) || 0)));
 
-	// The keyboard steps a WHOLE year, from wherever the thumb was left between two: the next one
-	// along, never a hundredth of the way to it.
+	// The keyboard steps a WHOLE year, from wherever the thumb was left: to the next tick along, never
+	// a hair of the way to it. Years that share a tick are one step.
 	const onKeydown = (event) => {
-		const value = Number(range.value) || 0;
-		let next;
-		if (event.key === "Home") next = 0;
-		else if (event.key === "End") next = last;
-		else if (YEAR_KEYS[event.key] > 0) next = Math.min(last, Math.floor(value + 0.001) + 1);
-		else if (YEAR_KEYS[event.key] < 0) next = Math.max(0, Math.ceil(value - 0.001) - 1);
-		else return;
+		const dir = YEAR_KEYS[event.key];
+		if (event.key !== "Home" && event.key !== "End" && !dir) return;
 		event.preventDefault();
-		go(next);
+		if (event.key === "Home") return go(0);
+		if (event.key === "End") return go(SCRUB_MAX);
+		const value = Number(range.value) || 0;
+		const targets = measure();
+		const marks = tickShares(targets).filter(s => s !== null).map(s => s * SCRUB_MAX);
+		const next = dir > 0
+			? marks.find(m => m > value + 0.5) ?? SCRUB_MAX
+			: marks.findLast(m => m < value - 0.5) ?? 0;
+		go(next, targets);
 	};
 
 	const follow = () => {
 		frame = 0;
+		// The thumb's own jump moved nothing the ticks hang on, so an echo measures nothing.
 		if (scroll.isConnected === false || isEcho()) return;
+		const targets = measure();
+		placeTicks(targets);
 		wrote = null;
-		const value = valueInView(scroll, stops, { horizontal, inset });
-		if (value >= 0 && Math.abs(value - Number(range.value)) > 0.001) show(value);
+		const value = valueForScroll(targets, horizontal ? scroll.scrollLeft : scroll.scrollTop);
+		if (value >= 0 && Math.abs(value - Number(range.value)) > 0.05) show(value, targets);
 	};
 
 	// One read of the layout per frame however many scroll events the frame brought.
@@ -344,7 +398,7 @@ export function wireYearScrubber(scroll, bar, { stops = [], horizontal = true, p
 	range.addEventListener("input", onInput);
 	range.addEventListener("keydown", onKeydown);
 	scroll.addEventListener("scroll", onScroll, { passive: true });
-	// Once now the column has its kept place back, so the thumb opens where the view is.
+	// Once now the column has its kept place back, so the thumb and the ticks open where the view is.
 	onScroll();
 
 	return () => {

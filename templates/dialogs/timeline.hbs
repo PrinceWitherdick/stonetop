@@ -39,13 +39,59 @@
 		{{/if}}
 
 		<div class="stonetop-timeline-toolbar-end">
-			{{!-- The GM's door to the colour each kind wears, for the whole world. --}}
-			{{#if isGM}}
-			<button type="button" class="stonetop-timeline-colours-open" data-timeline-focus="colours"
-			        data-tooltip="{{localize "stonetop.timeline.colours.openTooltip"}}">
-				<i class="fas fa-palette" aria-hidden="true"></i>
-				<span>{{localize "stonetop.timeline.colours.open"}}</span>
-			</button>
+			{{!-- The GM's colour each kind wears, for the whole world: a dropdown under its button, as
+			      Filter is (user, 2026-10-04). One row per kind: the chip as a card prints it, painted
+			      in the colour this page would wear, and the picker beside it. A pick is previewed by
+			      hand as it moves (nothing re-renders, which would shut the picker under the GM's hand)
+			      and written only on Save. The rows come from the window's draft, so a repaint while
+			      the menu is open keeps the picks.
+
+			      The chip's colour is the inline `--tl-kind`, always: the class alone would read the
+			      WORLD'S current token, which still shows a saved repaint after the GM has pressed
+			      Default here. --}}
+			{{#if colours}}
+			<details class="stonetop-timeline-colours-menu"{{#if colours.open}} open{{/if}}>
+				<summary class="stonetop-timeline-colours-open" data-timeline-focus="colours"
+				         data-tooltip="{{localize "stonetop.timeline.colours.openTooltip"}}">
+					<i class="fas fa-palette" aria-hidden="true"></i>
+					<span>{{localize "stonetop.timeline.colours.open"}}</span>
+				</summary>
+				<div class="stonetop-timeline-colours" role="group" aria-label="{{localize "stonetop.timeline.colours.title"}}">
+					<p class="stonetop-timeline-colours-intro">{{localize "stonetop.timeline.colours.intro"}}</p>
+
+					<ul class="stonetop-timeline-colours-list">
+						{{#each colours.rows}}
+						<li class="stonetop-timeline-colours-row stonetop-timeline-kind--{{kind}}" data-kind="{{kind}}" style="--tl-kind: {{colour}};">
+							<span class="stonetop-timeline-colours-chip">
+								<i class="fas {{icon}}" aria-hidden="true"></i>
+								<span>{{label}}</span>
+							</span>
+							<input type="color" class="stonetop-timeline-colours-pick" value="{{value}}"
+							       data-timeline-focus="colour-{{kind}}"
+							       aria-label="{{pickLabel}}" data-tooltip="{{pickLabel}}">
+							<button type="button" class="stonetop-timeline-colours-reset"{{#unless repainted}} hidden{{/unless}}
+							        data-tooltip="{{resetLabel}}" aria-label="{{resetLabel}}">
+								<i class="fas fa-rotate-left" aria-hidden="true"></i>
+								<span>{{localize "stonetop.timeline.colours.reset"}}</span>
+							</button>
+							<p class="stonetop-timeline-colours-note"{{#unless nudged}} hidden{{/unless}}>
+								{{localize "stonetop.timeline.colours.nudged"}}
+							</p>
+						</li>
+						{{/each}}
+					</ul>
+
+					{{!-- Affirmative on the LEFT, which is this system's own button order. --}}
+					<footer class="stonetop-timeline-colours-actions">
+						<button type="button" class="stonetop-cta stonetop-timeline-colours-save" data-timeline-focus="colours-save">
+							{{localize "stonetop.timeline.colours.save"}}
+						</button>
+						<button type="button" class="stonetop-timeline-colours-cancel" data-timeline-focus="colours-cancel">
+							{{localize "stonetop.timeline.colours.cancel"}}
+						</button>
+					</footer>
+				</div>
+			</details>
 			{{/if}}
 
 			{{!-- Which kinds of row this reader wants to see, and on the aggregate which threads. Per
@@ -164,7 +210,9 @@
 
 		{{#if single}}
 			{{#if horizontal}}
-				<ol class="stonetop-timeline-htrack">
+				{{!-- A column per season, and a narrow one before each season that opens a year for
+				      its separator (timeline-hperiod.hbs). --}}
+				<ol class="stonetop-timeline-htrack" style="--timeline-hcols:{{#each timeline.periods}}{{#if startsYear}} auto{{/if}} minmax(15rem, 19rem){{/each}};">
 					{{#each timeline.periods}}{{> "stonetop.timeline-hperiod"}}{{/each}}
 				</ol>
 			{{else}}
@@ -175,12 +223,19 @@
 		{{else}}
 			{{#if horizontal}}
 				{{!-- SWIMLANES: a row per thread, a column per season. One grid, so every season's
-				      column lines up across every thread; the corner, the season heads and the
-				      thread heads are sticky so neither axis scrolls out from under the reader. --}}
-				<div class="stonetop-timeline-swim" style="--timeline-cols: {{timeline.periods.length}};">
-					<span class="stonetop-timeline-swim-corner" aria-hidden="true"></span>
+				      column lines up across every thread. The season heads pin to the top and the
+				      thread names to the left; the corner where they meet is left empty (user,
+				      2026-10-04, twice), so the first season head starts the grid's second column.
+				      A YEAR SEPARATOR opens each year as the year heading does read down (user,
+				      2026-10-04): a narrow column of its own, the year's chip in the heads row and a red
+				      rule down through every thread. `--timeline-swim-cols` gives it the column, and each
+				      thread's row a rule cell in it, so the grid's columns stay one per cell. --}}
+				<div class="stonetop-timeline-swim" style="--timeline-swim-cols: 15rem{{#each timeline.periods}}{{#if startsYear}} auto{{/if}} minmax(15rem, 1fr){{/each}};">
 					{{#each timeline.periods}}
-					<div class="stonetop-timeline-swim-head{{#if startsYear}} stonetop-timeline-swim-head--year-start{{/if}}{{#if seasonClass}} {{seasonClass}}{{/if}}{{#if seasonNotes.length}} stonetop-timeline-head--notes{{/if}}" data-period="{{key}}"{{#unless undated}} data-year="{{year}}"{{/unless}}>
+					{{#if startsYear}}
+					<h2 class="stonetop-timeline-swim-year" data-year="{{year}}"><span class="stonetop-year-chip">{{yearLabel}}</span></h2>
+					{{/if}}
+					<div class="stonetop-timeline-swim-head{{#if seasonClass}} {{seasonClass}}{{/if}}{{#if seasonNotes.length}} stonetop-timeline-head--notes{{/if}}" data-period="{{key}}"{{#unless undated}} data-year="{{year}}"{{/unless}}>
 						{{> "stonetop.timeline-period-head"}}
 					</div>
 					{{/each}}
@@ -190,6 +245,9 @@
 						{{> "stonetop.timeline-lane-head"}}
 					</div>
 					{{#each cells}}
+					{{#if opensYear}}
+					<span class="stonetop-timeline-swim-year-rule" aria-hidden="true"></span>
+					{{/if}}
 					<div class="stonetop-timeline-lane{{#if isEmpty}} stonetop-timeline-lane--empty{{/if}}"
 					     data-track-id="{{trackId}}">
 						<ol class="stonetop-timeline-cards">

@@ -18,7 +18,7 @@ beforeEach(() => {
 	inside = document.querySelector(".inside");
 	outside = document.querySelector(".outside");
 	app = new TimelineWindow();
-	app._wireShowMenuDismiss(menu);
+	app._wireMenuDismiss(menu);
 });
 afterEach(() => {
 	app._unwireShowMenuDismiss?.();
@@ -47,7 +47,7 @@ describe("the Filter menu's outside-press dismiss", () => {
 	it("wires only the newest menu after a repaint", () => {
 		const fresh = menu.cloneNode(true);
 		document.body.append(fresh);
-		app._wireShowMenuDismiss(fresh);
+		app._wireMenuDismiss(fresh);
 		menu.open = true;
 		press(outside);
 		expect(fresh.open).toBe(false);

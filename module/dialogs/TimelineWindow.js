@@ -31,13 +31,13 @@ import { openOrFocus } from "../utils/open-or-focus.js";
 import { registerRestorableWindow } from "../utils/window-restore.js";
 import { openingSize } from "../utils/opening-size.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
+import { playbookTitle } from "../utils/playbook-actors.js";
 import { localize, format } from "../utils/i18n.js";
 import { promptForTimelineEntry } from "./TimelineEntryDialog.js";
 import { pickContentOption } from "./content-picker.js";
 import { bringDialogToFront } from "../utils/front-on-open.js";
 import { escHtml } from "../utils/strings.js";
 import { GUTTER_LEFT_VAR, GUTTER_TOP_VAR, GUTTER_X_VAR, GUTTER_Y_VAR, wireDragScroll } from "../utils/drag-scroll.js";
-import { wireColumnSnap } from "../timeline/timeline-column-snap.js";
 import { clampScale, wireWheelZoom } from "../utils/wheel-zoom-scroll.js";
 import {
 	TIMELINE_JOURNAL_NAME, allTracks, findTimelineJournal, mutateTrack, readTrack, trackDisplayName,
@@ -56,10 +56,12 @@ import {
 } from "../timeline/timeline-view.js";
 import { timelineNow } from "../timeline/timeline-record.js";
 import { worldCustomTags } from "../timeline/timeline-tag-store.js";
-import { openTimelineColours } from "./TimelineColoursDialog.js";
+import { TimelineColoursDraft } from "../timeline/timeline-colours-menu.js";
 import { TIMELINE_TAGS_FLAG } from "../timeline/timeline-tags.js";
 import { FINE_ZOOM_STEP } from "../utils/image-zoom.js";
-import { scrubTicks, wireYearScrubber, yearStops } from "../timeline/timeline-scrub.js";
+import { SCRUB_MAX, scrubTicks, wireYearScrubber, yearStops } from "../timeline/timeline-scrub.js";
+import { fitMenuToTimeline } from "../timeline/timeline-menu-room.js";
+import { onPaletteChange } from "../utils/palette.js";
 
 /**
  * How far past each edge the timeline can be dragged, as a share of the column it is seen in: three
@@ -68,13 +70,9 @@ import { scrubTicks, wireYearScrubber, yearStops } from "../timeline/timeline-sc
  */
 const TIMELINE_DRAG_GUTTER = 0.75;
 
-/**
- * The aggregate's two shapes, whose sticky header row keeps the top edge and whose sticky left
- * column keeps the left edge, with no drag gutter above or left of them: the board's thread names
- * and season cells, the swimlanes' season heads and thread names (user, 2026-10-03: "you can't
- * scroll past the left most season header").
- */
-const TIMELINE_PINNED = ".stonetop-timeline-canvas > :is(.stonetop-timeline-board, .stonetop-timeline-swim)";
+
+/** The toolbar's two dropdowns, the reader's Filter and the GM's Colours. */
+const TIMELINE_MENUS = ".stonetop-timeline-show, .stonetop-timeline-colours-menu";
 
 /**
  * What one wheel notch multiplies the timeline's zoom by: the relationship map's own gentle step,
@@ -119,8 +117,6 @@ export class TimelineWindow extends StonetopDialog {
 		this._syncHooks = [];
 		// Takes the grab-and-throw back off the scroll column a repaint is about to replace.
 		this._unwireDragScroll = null;
-		// Settles a column caught under the pinned head once the board stops (timeline-column-snap.js).
-		this._unwireColumnSnap = null;
 		// The wheel's zoom, kept on the instance so a repaint (anyone's write at the table) leaves the
 		// reader at the size they chose. Every open starts at 1, as the map's board starts fitted.
 		this._zoom = 1;
@@ -133,6 +129,15 @@ export class TimelineWindow extends StonetopDialog {
 		// re-renders the window, and a menu that shut itself after each tick would be a menu you
 		// have to reopen ten times to hide ten things.
 		this._showMenuOpen = false;
+		// The GM's Colours menu, kept the same way, and the picks in it not yet saved: a repaint
+		// while it is open (anyone's write at the table) draws its rows from the draft.
+		this._coloursMenuOpen = false;
+		this._coloursDraft = new TimelineColoursDraft();
+		this._unwireColoursMenuDismiss = null;
+		this._unwireColoursSkinWatch = null;
+		// A sync repaint that came in while the GM had a colour picker in hand, run once they let go
+		// (_syncRepaint).
+		this._repaintHeld = false;
 		// Where the reader was as the window went down; see `restoreView`.
 		this._viewAtMinimize = null;
 	}
@@ -254,6 +259,12 @@ export class TimelineWindow extends StonetopDialog {
 	 * with no page is a column that cannot be written in.
 	 */
 	_tracks() {
+		// A player's thread names their playbook under them ("The Seeker"), as it READS: the
+		// Would-Be Hero's cross-off is honoured. Empty for the steading and anyone without one.
+		return this._bareTracks().map(t => ({ ...t, playbook: playbookTitle(t.actor) }));
+	}
+
+	_bareTracks() {
 		if (!this.isSingleTrack) return allTracks();
 		const track = readTrack(this._trackId);
 		return [{
@@ -339,8 +350,8 @@ export class TimelineWindow extends StonetopDialog {
 			// The aggregate has nowhere further to go, so it does not offer the door to itself.
 			showOpenFull: single,
 			horizontal,
-			// Only a GM can write the world's colours, so only a GM is offered the window.
-			isGM: !!game.user?.isGM,
+			// Only a GM can write the world's colours, so only a GM is offered the menu.
+			colours: game.user?.isGM ? { open: this._coloursMenuOpen, rows: this._coloursDraft.rows() } : null,
 			kinds: kindMenu(hidden, tags),
 			// The aggregate's threads, to hide whole lanes by. Only worth offering with two or more.
 			threads: !single && tracks.length > 1 ? threadMenu(tracks, hiddenTracks) : [],
@@ -348,7 +359,7 @@ export class TimelineWindow extends StonetopDialog {
 			hiddenCountLabel: format("stonetop.timeline.show.hiddenCount", { count: hiddenCount }),
 			showMenuOpen: this._showMenuOpen,
 			scrub: stops.length > 1
-				? { max: stops.length - 1, first: stops[0].label, last: stops.at(-1).label, ticks: scrubTicks(stops) }
+				? { max: SCRUB_MAX, first: stops[0].label, last: stops.at(-1).label, ticks: scrubTicks(stops) }
 				: null,
 			scrollLabel: single
 				? format("stonetop.timeline.trackTitle", { name: this._trackName })
@@ -580,7 +591,7 @@ export class TimelineWindow extends StonetopDialog {
 
 			if (target.closest?.(".stonetop-timeline-show-all")) return this._onShowAll();
 
-			if (target.closest?.(".stonetop-timeline-colours-open")) return openTimelineColours();
+			if (target.closest?.(".stonetop-timeline-colours-menu")) return this._onColoursClick(target);
 
 			const card = target.closest?.("[data-entry-id]");
 			const trackId = target.closest?.("[data-track-id]")?.dataset?.trackId || this._trackId;
@@ -593,40 +604,66 @@ export class TimelineWindow extends StonetopDialog {
 			if (move) return this._onMoveEntry(trackId, entryId, Number(move.dataset.delta));
 		});
 
+		// `input`, not `change`: the chip follows the picker while it is still open.
+		root.addEventListener("input", ev => {
+			const pick = ev.target?.closest?.(".stonetop-timeline-colours-pick");
+			const row = pick?.closest?.("[data-kind]");
+			if (!row) return;
+			this._coloursDraft.pick(row.dataset.kind, pick.value);
+			this._coloursDraft.repaintRow(row);
+		});
+
 		root.addEventListener("change", ev => {
+			// A colour picker's change is the draft's, already taken on `input` above. It is also the
+			// native picker shutting, so a repaint held while it was open can run now.
+			if (ev.target?.closest?.(".stonetop-timeline-colours-menu")) return this._releaseHeldRepaint();
 			const box = ev.target?.closest?.("[data-timeline-source]");
 			if (box) return this._onShowKind(box.dataset.timelineSource, !!box.checked);
 			const thread = ev.target?.closest?.("[data-timeline-thread]");
 			if (thread) this._onShowThread(thread.dataset.timelineThread, !!thread.checked);
 		});
 
+		root.addEventListener("focusout", ev => {
+			if (ev.target?.classList?.contains("stonetop-timeline-colours-pick")) this._releaseHeldRepaint();
+		});
+
 		// `toggle` does not bubble, so it is caught on the way DOWN (capture). Remembered so the
 		// menu stays open across the re-render each tick in it causes.
+		// Each menu, as it opens, is fitted to the room below it (timeline/timeline-menu-room.js): a
+		// sheet's tab cannot be dragged taller to show a menu run off its foot.
 		root.addEventListener("toggle", ev => {
 			if (ev.target?.classList?.contains("stonetop-timeline-show")) this._showMenuOpen = !!ev.target.open;
+			if (ev.target?.classList?.contains("stonetop-timeline-colours-menu")) this._onColoursToggle(ev.target);
+			if (ev.target?.matches?.(TIMELINE_MENUS)) fitMenuToTimeline(ev.target);
 		}, true);
-		this._wireShowMenuDismiss(root.querySelector(".stonetop-timeline-show"));
+		this._wireMenuDismiss(root.querySelector(".stonetop-timeline-show"));
+		this._wireMenuDismiss(root.querySelector(".stonetop-timeline-colours-menu"), "_unwireColoursMenuDismiss");
+		// A menu drawn open was drawn from the draft just now, so it only needs the skin watch back.
+		this._watchColoursSkin(root.querySelector(".stonetop-timeline-colours-menu"));
+		// A menu drawn open (a tick in it repaints the timeline) is fitted now, not on a toggle.
+		for (const menu of root.querySelectorAll(TIMELINE_MENUS)) fitMenuToTimeline(menu);
 
 		// Drag the column about and throw it, as the relationship map's board is (utils/drag-scroll.js).
 		// A fresh column every repaint, so the old one's wiring (and any glide still running on it) goes.
 		// The gutter is empty room past every edge to drag the timeline off into, as the map's board
 		// goes off any side; `.stonetop-timeline-canvas` is what spends it.
-		// When it stops, a column left half under the pinned season (or thread) head is eased out
-		// whole (timeline/timeline-column-snap.js); the drag says when it has let go.
-		this._unwireColumnSnap?.();
-		const columnSnap = wireColumnSnap(root.querySelector(".stonetop-timeline-scroll"));
-		this._unwireColumnSnap = columnSnap.unwire;
+		// It stops where the hand leaves it, a column half under the pinned head or not: nothing
+		// settles it afterwards (user, 2026-10-04: "the scrubber moves by itself after the sliding
+		// stops"; the column snap that eased the board is gone).
 		this._unwireDragScroll?.();
-		// The aggregate's two grids pin a header row to the top (the thread names read down, the season
-		// heads read across) and a column to the left (the board's season cells, the swimlanes' thread
-		// names), so they get no room above or left of them to scroll into. The stylesheet drops the
-		// same shapes' top inset and left pad to match (Down drops every left pad, the swimlanes' own
-		// rule covers Across).
+		// No room above, left of or below the timeline to scroll into, in every shape; only the right
+		// keeps its drag-off room. The aggregate's two grids pin a header row to the top (the thread
+		// names read down, the season heads read across) and a column to the left (the board's season
+		// cells, the swimlanes' thread names), which would otherwise slide off those edges (user,
+		// 2026-10-03: "you can't scroll past the left most season header"); a single thread on a
+		// sheet's tab keeps the same edges as the pop-out does, and both stop at the timeline's foot
+		// (user, 2026-10-05). The stylesheet drops the aggregate's top inset and left pad to match
+		// (Down drops every left pad, the swimlanes' own rule covers Across).
 		this._unwireDragScroll = wireDragScroll(root.querySelector(".stonetop-timeline-scroll"), {
 			gutter: TIMELINE_DRAG_GUTTER,
-			pinTop: !!root.querySelector(TIMELINE_PINNED),
-			pinLeft: !!root.querySelector(TIMELINE_PINNED),
-			onRest: columnSnap.rest,
+			pinTop: true,
+			pinLeft: true,
+			pinBottom: true,
 		});
 		// And the wheel zooms it about the cursor, as the map's wheel zooms the board
 		// (utils/wheel-zoom-scroll.js). The canvas's one child is the picture; the stylesheet spends
@@ -640,8 +677,8 @@ export class TimelineWindow extends StonetopDialog {
 			min: TIMELINE_ZOOM_MIN,
 			max: TIMELINE_ZOOM_MAX,
 		});
-		// The year scrubber: slide to a year and the column centres on it, both ways; move the
-		// column any other way and the thumb follows to the year in the middle of the view.
+		// The year scrubber: slide and the column follows the thumb, free of any stop; move the
+		// column any other way and the thumb follows it.
 		this._unwireScrubber?.();
 		this._unwireScrubber = wireYearScrubber(
 			root.querySelector(".stonetop-timeline-scroll"),
@@ -660,16 +697,17 @@ export class TimelineWindow extends StonetopDialog {
 	}
 
 	/**
-	 * Shut the Filter menu when the reader presses anywhere outside it, as a dropdown does.
+	 * Shut a toolbar menu (Filter, or the GM's Colours) when the reader presses anywhere outside it,
+	 * as a dropdown does. `slot` is the property its unwire is kept in, one per menu.
 	 *
 	 * On the DOCUMENT, in capture, so a press the drag-scroll column (or another window) swallows
-	 * still counts. Shutting it fires `toggle`, which clears `_showMenuOpen` for the next repaint.
-	 * The listener takes itself off once its menu leaves the page: a repaint draws a fresh menu, and
-	 * the sheet-tab panel can be dropped with its sheet without ever passing through `close`.
+	 * still counts. Shutting it fires `toggle`, which clears the menu's open flag for the next
+	 * repaint. The listener takes itself off once its menu leaves the page: a repaint draws a fresh
+	 * menu, and the sheet-tab panel can be dropped with its sheet without ever passing through `close`.
 	 */
-	_wireShowMenuDismiss(menu) {
-		this._unwireShowMenuDismiss?.();
-		this._unwireShowMenuDismiss = null;
+	_wireMenuDismiss(menu, slot = "_unwireShowMenuDismiss") {
+		this[slot]?.();
+		this[slot] = null;
 		if (!menu) return;
 		const onPointerDown = ev => {
 			if (!menu.isConnected) return unwire();
@@ -677,10 +715,69 @@ export class TimelineWindow extends StonetopDialog {
 		};
 		const unwire = () => {
 			document.removeEventListener("pointerdown", onPointerDown, true);
-			if (this._unwireShowMenuDismiss === unwire) this._unwireShowMenuDismiss = null;
+			if (this[slot] === unwire) this[slot] = null;
 		};
 		document.addEventListener("pointerdown", onPointerDown, true);
-		this._unwireShowMenuDismiss = unwire;
+		this[slot] = unwire;
+	}
+
+	/**
+	 * The Colours menu opened or shut. Opening repaints every row from the draft, so a skin changed
+	 * while it was shut shows. Shutting keeps the draft: only Save and Cancel end it.
+	 */
+	_onColoursToggle(menu) {
+		this._coloursMenuOpen = !!menu.open;
+		if (menu.open) this._coloursDraft.repaintAll(menu);
+		this._watchColoursSkin(menu);
+	}
+
+	/**
+	 * While the Colours menu is open, a change of skin (utils/palette.js) repaints its rows, so each
+	 * row previews what THIS page now wears.
+	 */
+	_watchColoursSkin(menu) {
+		this._unwireColoursSkinWatch?.();
+		this._unwireColoursSkinWatch = null;
+		if (!menu?.open) return;
+		const unwire = onPaletteChange(() => {
+			if (menu.isConnected) this._coloursDraft.repaintAll(menu);
+			else this._unwireColoursSkinWatch?.();
+		});
+		this._unwireColoursSkinWatch = () => {
+			unwire();
+			this._unwireColoursSkinWatch = null;
+		};
+	}
+
+	/**
+	 * A press inside the Colours menu: Default on a row, Save, or Cancel. Save and Cancel shut the
+	 * menu and hand the keyboard back to its summary, rather than leave it on a button now hidden.
+	 */
+	async _onColoursClick(target) {
+		const menu = target.closest(".stonetop-timeline-colours-menu");
+		const reset = target.closest(".stonetop-timeline-colours-reset");
+		const row = reset?.closest?.("[data-kind]");
+		if (row) {
+			this._coloursDraft.reset(row.dataset.kind);
+			this._coloursDraft.repaintRow(row, { syncPicker: true });
+			row.querySelector(".stonetop-timeline-colours-pick")?.focus?.();
+			return;
+		}
+		if (target.closest(".stonetop-timeline-colours-save")) {
+			// A write that fails keeps the draft (TimelineColoursDraft#save) and the menu open on it.
+			try {
+				await this._coloursDraft.save();
+			} catch (err) {
+				console.error("Stonetop | could not save the timeline colours", err);
+				globalThis.ui?.notifications?.error?.(localize("stonetop.timeline.colours.saveFailed"));
+				return;
+			}
+		} else if (target.closest(".stonetop-timeline-colours-cancel")) {
+			this._coloursDraft.discard();
+			this._coloursDraft.repaintAll(menu, { syncPicker: true });
+		} else return;
+		menu.open = false;
+		menu.querySelector("summary")?.focus?.();
 	}
 
 	/**
@@ -704,7 +801,7 @@ export class TimelineWindow extends StonetopDialog {
 		const ours = (page) => page?.parent?.name === TIMELINE_JOURNAL_NAME
 			&& page.parent.id === findTimelineJournal()?.id
 			&& (!this.isSingleTrack || this._pageTrackId(page) === this._trackId);
-		const repaint = (page) => { if (ours(page) && this.rendered) this.renderThrottled(); };
+		const repaint = (page) => { if (ours(page)) this._syncRepaint(); };
 
 		for (const hook of ["updateJournalEntryPage", "createJournalEntryPage", "deleteJournalEntryPage"]) {
 			const id = Hooks.on(hook, repaint);
@@ -717,9 +814,30 @@ export class TimelineWindow extends StonetopDialog {
 		// Cheapest test first, as above: almost no journal write touches this flag.
 		const tagsChanged = (journal, changes) => {
 			if (!foundry.utils.hasProperty(changes ?? {}, `flags.${SYSTEM_ID}.${TIMELINE_TAGS_FLAG}`)) return;
-			if (this.rendered && journal?.id === findTimelineJournal()?.id) this.renderThrottled();
+			if (journal?.id === findTimelineJournal()?.id) this._syncRepaint();
 		};
 		this._syncHooks.push(["updateJournalEntry", Hooks.on("updateJournalEntry", tagsChanged)]);
+	}
+
+	/**
+	 * The repaint a write at the table owes, unless the GM has a colour picker from the Colours menu
+	 * in hand: the repaint would replace the `<input type=color>` and shut the native picker under
+	 * them. Held until the picker commits or loses the focus (_releaseHeldRepaint).
+	 */
+	_syncRepaint() {
+		if (!this.rendered) return;
+		const active = globalThis.document?.activeElement;
+		if (active?.classList?.contains("stonetop-timeline-colours-pick") && this.element?.[0]?.contains?.(active)) {
+			this._repaintHeld = true;
+			return;
+		}
+		this.renderThrottled();
+	}
+
+	_releaseHeldRepaint() {
+		if (!this._repaintHeld) return;
+		this._repaintHeld = false;
+		if (this.rendered) this.renderThrottled();
 	}
 
 	_unwireSync() {
@@ -734,13 +852,13 @@ export class TimelineWindow extends StonetopDialog {
 		this._unwireSync();
 		this._unwireDragScroll?.();
 		this._unwireDragScroll = null;
-		this._unwireColumnSnap?.();
-		this._unwireColumnSnap = null;
 		this._unwireWheelZoom?.();
 		this._unwireWheelZoom = null;
 		this._unwireScrubber?.();
 		this._unwireScrubber = null;
 		this._unwireShowMenuDismiss?.();
+		this._unwireColoursMenuDismiss?.();
+		this._unwireColoursSkinWatch?.();
 		return super.close(options);
 	}
 }

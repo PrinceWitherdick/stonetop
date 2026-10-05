@@ -19,9 +19,14 @@
       (the journal page) hands `canEdit` false and gets the words alone. A host with notes wears
       `stonetop-timeline-head--notes`, which turns a pill-shaped heading into a box they fit in.
 
+      THE NAME IS CENTRED ON ITS CAPITALS beside the glyph (user, 2026-10-04: "Summer" sat 1-1.5px
+      low in its chip). The glyph is a flex item, not an inline picture lowered into the line, and
+      the name's own span is trimmed to its cap band (a bare text node is an anonymous flex item,
+      which takes no `text-box`).
+
       Context: one period view-model (timeline-view.js#periodVM). --}}
 <h3 class="stonetop-timeline-period-title{{#if glyphClass}} stonetop-season-entry {{glyphClass}}{{/if}}">
-	{{#if undated}}{{label}}{{else}}{{seasonLabel}}{{/if}}
+	<span class="stonetop-timeline-period-name">{{#if undated}}{{label}}{{else}}{{seasonLabel}}{{/if}}</span>
 </h3>
 {{#unless undated}}
 <span class="stonetop-year-chip">{{yearLabel}}</span>

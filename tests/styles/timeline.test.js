@@ -236,10 +236,11 @@ describe("the aggregate's columns", () => {
 	});
 
 	// User, 2026-10-03: in the vertical layout a year heading is larger than the season headings
-	// under it, and its rule is red, in the red every skin tunes rather than a literal.
-	it("draws the vertical year heading large, over a red rule", () => {
+	// under it, and its rule is red, in the red every skin tunes rather than a literal. 2px wide
+	// (user, 2026-10-04).
+	it("draws the vertical year heading large, over a 2px red rule", () => {
 		expect(parseFloat(value(".stonetop-timeline-year", "font-size"))).toBeGreaterThan(1.3);
-		expect(value(".stonetop-timeline-year::after", "border-top")).toMatch(/solid var\(--st-red-text\)$/);
+		expect(value(".stonetop-timeline-year::after", "border-top")).toBe("2px solid var(--st-red-text)");
 	});
 
 	// User, 2026-10-03: the year rides in the shared year chip, at the heading's own size.
@@ -277,11 +278,23 @@ describe("the aggregate's columns", () => {
 	});
 
 	// User, 2026-10-03: a flat panel-colour strip beside each pinned season cell stood over the
-	// textured paper as "an odd grey column" covering the cards. Only the corner, which sits in the
-	// flat-coloured names row, keeps that mask.
-	it("throws no flat strip beside a pinned season cell", () => {
+	// textured paper as "an odd grey column" covering the cards. The corner lost its strip too
+	// (user, 2026-10-04): it cut the thread names off 10px short of the season column's edge.
+	// User, 2026-10-04: after a snap, rows with empty lanes peeked out from under the season cells.
+	// A flex lane's border is part of its base size, so the empty lane's 2px edge made it wider than
+	// its full neighbours and pushed the row out of line with the names the snap measures. Every lane
+	// carries the edge; only the empty one paints it, and wins the tie by coming later.
+	it("gives every Down lane the empty lane's edge width, so the rows line up with the names", () => {
+		expect(value(".stonetop-timeline-board :where(.stonetop-timeline-lane)", "border-left")).toBe("2px solid transparent");
+		expect(value(".stonetop-timeline-lane--empty", "border-left")).toBe("2px dotted var(--st-card-rule)");
+		const at = sel => CSS.indexOf(`\n${sel} {`);
+		expect(at(".stonetop-timeline-board :where(.stonetop-timeline-lane)")).toBeGreaterThan(-1);
+		expect(at(".stonetop-timeline-lane--empty")).toBeGreaterThan(at(".stonetop-timeline-board :where(.stonetop-timeline-lane)"));
+	});
+
+	it("throws no flat strip beside a pinned season cell or the corner", () => {
 		expect(value(".stonetop-timeline-row-head", "box-shadow")).toBeNull();
-		expect(value(".stonetop-timeline-lane-spacer", "box-shadow")).toBe("10px 0 0 var(--stonetop-bg)");
+		expect(value(".stonetop-timeline-lane-spacer", "box-shadow")).toBeNull();
 	});
 
 	// User, 2026-10-03: in the vertical layout each thread's name sits centred over its column, and
@@ -292,17 +305,43 @@ describe("the aggregate's columns", () => {
 		expect(value(".stonetop-timeline-lane-name", "text-overflow")).toBe("ellipsis");
 	});
 
+	// User, 2026-10-04: the name (and a player's playbook under it) sits centred on the portrait's
+	// middle. One box holds both, because the swimlanes pin a head's children one by one and two
+	// pinned apart would line up by their tops.
+	// User, 2026-10-04: read down, each thread's name is a card of its own, as each season is.
+	it("draws each thread's head as its own card in the vertical layout", () => {
+		const sel = ".stonetop-timeline-lane-heads .stonetop-timeline-lane-head";
+		expect(value(sel, "border")).toBe("2px solid var(--st-card-rule)");
+		expect(value(sel, "border-radius")).toBe("var(--st-radius)");
+		expect(value(sel, "background")).toContain("var(--st-warm-hover-bg)");
+		expect(value(".stonetop-timeline-lane-heads", "border-bottom")).toBeNull();
+	});
+
+	it("centres a thread's words on its portrait, as one box", () => {
+		expect(value(".stonetop-timeline-lane-who", "display")).toBe("flex");
+		expect(value(".stonetop-timeline-lane-who", "align-items")).toBe("center");
+		expect(value(".stonetop-timeline-lane-label", "flex-direction")).toBe("column");
+		expect(value(".stonetop-timeline-lane-playbook", "text-overflow")).toBe("ellipsis");
+	});
+
 	// User, 2026-10-03: a board wider than the window keeps its seasons on screen. The season cell
-	// and the corner above it pin to the left, OPAQUE, under the names row going down.
-	it("pins the season column at the left, opaque, under the names row", () => {
+	// and the corner above it pin to the left, OPAQUE. Going down, the season cells and year chips
+	// pass IN FRONT of the names row (user, 2026-10-04), whose band and corner wear the page's colour
+	// rather than a grey box over it; the cards still pass under it.
+	it("pins the season column at the left, opaque, in front of the names row", () => {
 		for (const sel of [".stonetop-timeline-row-head", ".stonetop-timeline-lane-spacer"]) {
 			expect(value(sel, "position"), sel).toBe("sticky");
 			expect(value(sel, "left"), sel).toBe("0");
 		}
 		expect(value(".stonetop-timeline-row-head", "background")).toContain("var(--stonetop-bg)");
-		expect(value(".stonetop-timeline-lane-spacer", "background")).toBe("var(--stonetop-bg)");
-		expect(Number(value(".stonetop-timeline-lane-heads", "z-index")))
-			.toBeGreaterThan(Number(value(".stonetop-timeline-row-head", "z-index")));
+		expect(value(".stonetop-timeline-lane-spacer", "background")).toBe("var(--st-page)");
+		expect(value(".stonetop-timeline-lane-heads", "background")).toBe("var(--st-page)");
+		const band = Number(value(".stonetop-timeline-lane-heads", "z-index"));
+		expect(band).toBeGreaterThan(0);
+		// The row head's own rule, after the group it shares with the corner (which stays at 1, inside
+		// the band's own stacking context).
+		expect(Number(ownRule(CSS, ".stonetop-timeline-row-head").match(/z-index:\s*(\d+)/)[1])).toBeGreaterThan(band);
+		expect(Number(value(".stonetop-timeline-year-cell", "z-index"))).toBeGreaterThan(band);
 	});
 
 	// User, 2026-10-03: a sticky `left: 0` pins inside any padding, so the lanes showed past the
@@ -373,21 +412,24 @@ describe("the timeline laid across the page", () => {
 	it("keeps the aggregate's header row against the column's top edge", () => {
 		expect(value(".stonetop-timeline-scroll > .stonetop-timeline-canvas:has(> .stonetop-timeline-board, > .stonetop-timeline-swim)", "margin-top"))
 			.toBe("0");
-		expect(readRepo("module/dialogs/TimelineWindow.js"))
-			.toMatch(/pinTop: !!root\.querySelector\(TIMELINE_PINNED\)/);
+		expect(readRepo("module/dialogs/TimelineWindow.js")).toMatch(/pinTop: true/);
 	});
 
 	// The swimlanes' thread names and the board's season cells are sticky at the left, and must never
-	// slide right off that edge: no left pad on the column, no left gutter (user, 2026-10-03).
+	// slide right off that edge: no left pad on the column, no left gutter (user, 2026-10-03). A single
+	// thread, the sheet tabs' only shape, keeps the same two edges too (user, 2026-10-05).
 	it("keeps the aggregate's left column against the column's left edge", () => {
 		expect(value(".stonetop-timeline-scroll:has(> .stonetop-timeline-canvas > .stonetop-timeline-swim)", "padding-left"))
 			.toBe("0");
 		expect(value(".stonetop-timeline:not(.stonetop-timeline--horizontal) .stonetop-timeline-scroll", "padding-left"))
 			.toBe("0");
-		expect(readRepo("module/dialogs/TimelineWindow.js"))
-			.toMatch(/pinLeft: !!root\.querySelector\(TIMELINE_PINNED\)/);
-		expect(readRepo("module/dialogs/TimelineWindow.js"))
-			.toMatch(/TIMELINE_PINNED = "\.stonetop-timeline-canvas > :is\(\.stonetop-timeline-board, \.stonetop-timeline-swim\)"/);
+		expect(readRepo("module/dialogs/TimelineWindow.js")).toMatch(/pinLeft: true/);
+	});
+
+	// Every shape, pop-out and sheet tab alike, stops at the timeline's foot (user, 2026-10-05); only
+	// the right keeps room to drag off into.
+	it("stops the column at the timeline's foot", () => {
+		expect(readRepo("module/dialogs/TimelineWindow.js")).toMatch(/pinBottom: true/);
 	});
 
 	// THE WHEEL'S ZOOM goes on the picture and never on the canvas, whose padding is the drag gutter
@@ -415,10 +457,29 @@ describe("the timeline laid across the page", () => {
 
 	// Sticky cells with no fill let the cards slide visibly underneath them.
 	it("pins the swimlane heads with an opaque fill", () => {
-		for (const sel of [".stonetop-timeline-swim-lane-head", ".stonetop-timeline-swim-corner"]) {
+		for (const sel of [".stonetop-timeline-swim-lane-head", ".stonetop-timeline-swim-head"]) {
 			expect(value(sel, "position"), `${sel} is not pinned`).toBe("sticky");
-			expect(value(sel, "background"), `${sel} has no fill`).toContain("--stonetop-bg");
 		}
+		expect(value(".stonetop-timeline-swim-head", "background")).toContain("--stonetop-bg");
+		expect(value(".stonetop-timeline-swim-lane-head::before", "background")).toContain("--stonetop-bg");
+	});
+
+	// The thread names wear the season heads' box: a 2px edge all round, rounded.
+	it("boxes the swimlane thread names all round, like the season heads", () => {
+		expect(value(".stonetop-timeline-swim-lane-head::before", "border")).toBe("2px solid var(--st-card-rule)");
+		expect(value(".stonetop-timeline-swim-lane-head::before", "border-radius")).toBe("var(--st-radius)");
+	});
+
+	// The season heads showed through the 10px gaps between the names (user, 2026-10-04). The cell
+	// is a page-coloured backing reaching half the row gap each way, and the box sits inside it by
+	// exactly that reach. Never into the column gap: the seasons were cut off short of the box.
+	it("backs the names so nothing shows through the gaps between them", () => {
+		expect(value(".stonetop-timeline-swim", "gap")).toBe("10px");
+		expect(value(".stonetop-timeline-swim-lane-head", "background")).toBe("var(--st-page)");
+		expect(value(".stonetop-timeline-swim-lane-head", "margin-block")).toBe("-5px");
+		expect(value(".stonetop-timeline-swim-lane-head", "margin")).toBeNull();
+		expect(value(".stonetop-timeline-swim-lane-head::before", "inset")).toBe("5px 0");
+		expect(value(".stonetop-timeline-swim-lane-head::before", "z-index")).toBe("-1");
 	});
 
 	// The scroll region is focusable so a keyboard can move it; it must show when it has focus.
@@ -545,5 +606,41 @@ describe("where the block sits", () => {
 	it("sits above the accessibility family, not after it", () => {
 		expect(CSS.indexOf(".stonetop-timeline-mount"))
 			.toBeLessThan(CSS.indexOf(":root.stonetop-no-texture"));
+	});
+});
+
+// Core hands a window's buttons `transition: all 0.5s`, and the wheel's CSS `zoom` changes every
+// metric of every button inside the picture, so each notch set every card's controls animating their
+// size for half a second, laid out again on every frame (a trace of a long campaign: the zoom and the
+// scrolling after it both stuttered on it). Colour only, as `.stonetop-cta` already learned.
+describe("the zoomed picture's buttons", () => {
+	it("transition colour only, never a metric", () => {
+		const body = stripComments(BLOCK).match(/\.stonetop-timeline-card-actions\)\s*button\s*\{([^}]*)\}/)?.[1];
+		expect(body, "the card controls' button rule is missing").toBeTruthy();
+		const transition = body.match(/transition:\s*([^;]+);/)?.[1];
+		expect(transition, "no transition named, so core's `all 0.5s` applies").toBeTruthy();
+		for (const part of transition.split(",")) {
+			expect(part.trim().split(/\s+/)[0]).toMatch(/^(background-color|border-color|color)$/);
+		}
+	});
+});
+
+describe("a season's name centred in its heading", () => {
+	// "Summer" sat off centre in its chip (user, 2026-10-04): the journals' glyph is an inline picture
+	// lowered into the line, which set the line box the word sat in. Here the glyph is a flex item and
+	// the name its own span trimmed to its capitals, as every chip is centred.
+	it("wraps the name in a span of its own", () => {
+		expect(readRepo("templates/dialogs/partials/timeline-period-head.hbs"))
+			.toMatch(/<span class="stonetop-timeline-period-name">\{\{#if undated\}\}\{\{label\}\}\{\{else\}\}\{\{seasonLabel\}\}\{\{\/if\}\}<\/span>/);
+	});
+
+	it("centres the glyph and the trimmed name on one flex line", () => {
+		const title = declarations(CSS, ".stonetop-timeline-period-title");
+		expect(title).toMatch(/display:\s*flex/);
+		expect(title).toMatch(/align-items:\s*center/);
+		expect(declarations(CSS, ".stonetop-timeline-period-title.stonetop-season-entry::before")).toMatch(/margin-right:\s*0/);
+		const name = declarations(CSS, ".stonetop-timeline-period-name");
+		expect(name).toMatch(/text-box:\s*trim-both cap alphabetic/);
+		expect(name).toMatch(/padding:\s*var\(--st-trim-top\) 0 var\(--st-trim-bottom\)/);
 	});
 });

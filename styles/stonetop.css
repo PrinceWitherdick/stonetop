@@ -41579,8 +41579,11 @@ a.stonetop-share-journal > i { margin-right: 3px; }
 /* Every glyph in the strip sits a pixel high in its own em box, so flex centring puts the ink
    above the optical middle of the segment. One nudge for all three, chevrons and scales alike,
    which is also what keeps them level with each other. transform, not an offset or padding, so
-   the box the glyph is centred in does not move and the strip keeps its height. */
-.stonetop-rel-lane-picker .stonetop-rel-lane-btn > i {
+   the box the glyph is centred in does not move and the strip keeps its height.
+   The timeline's layout arrows sit 0.75-1.5px high the same way; the flat right arrow shows it,
+   so both take the nudge to stay level (probe: z:/tmp/foundry-verify/timeline-orient-centre.mjs). */
+.stonetop-rel-lane-picker .stonetop-rel-lane-btn > i,
+.stonetop-timeline-orient-group .stonetop-timeline-orient > i {
 	transform: translateY(1px);
 }
 
@@ -49120,6 +49123,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    Vertical/Horizontal pair wears the segmented strip instead, further down. */
 .stonetop-timeline-open-full,
 .stonetop-timeline-colours-open,
+.stonetop-timeline-colours-cancel,
 .stonetop-timeline-show-summary,
 .stonetop-timeline-show-all {
 	display: inline-flex;
@@ -49138,6 +49142,7 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
 .stonetop-timeline-open-full:hover,
 .stonetop-timeline-colours-open:hover,
+.stonetop-timeline-colours-cancel:hover,
 .stonetop-timeline-show-summary:hover,
 .stonetop-timeline-show-all:hover {
 	border-color: var(--st-slate-hover-border);
@@ -49149,17 +49154,20 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    every <button> slate with a white label at (0,4,1) and its hover at (0,5,1), so the two rules
    above (one class) lost there and the pop-out showed three more slate CTAs beside New Entry.
    Colours only, restated under the themed scope at (0,5,0) and (0,6,0): lifting the rules above
-   instead would also lift their padding over the New Entry sizing further down. The Filter summary
-   is a <summary>, which the themed rule never touches, so it is not repeated here. */
+   instead would also lift their padding over the New Entry sizing further down. The Filter and
+   Colours summaries are <summary>s, which the themed rule never touches, so they are not repeated
+   here; the Colours menu's Default and Cancel are buttons, so they are. */
 :is(.application, .window-app).stonetop-themed .window-content .stonetop-timeline-toolbar
-	:is(.stonetop-timeline-open-full, .stonetop-timeline-colours-open, .stonetop-timeline-show-all) {
+	:is(.stonetop-timeline-open-full, .stonetop-timeline-show-all,
+	    .stonetop-timeline-colours-reset, .stonetop-timeline-colours-cancel) {
 	border: 1px solid var(--st-card-rule);
 	background: transparent;
 	color: var(--st-text-secondary);
 }
 
 :is(.application, .window-app).stonetop-themed .window-content .stonetop-timeline-toolbar
-	:is(.stonetop-timeline-open-full, .stonetop-timeline-colours-open, .stonetop-timeline-show-all):hover {
+	:is(.stonetop-timeline-open-full, .stonetop-timeline-show-all,
+	    .stonetop-timeline-colours-reset, .stonetop-timeline-colours-cancel):hover {
 	border-color: var(--st-slate-hover-border);
 	background: var(--st-slate-hover-bg);
 	color: var(--st-text);
@@ -49178,13 +49186,19 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
    they do in the tab. */
 :is(.application, .window-app).stonetop-themed .window-content .stonetop-timeline
 	:is(.stonetop-timeline-show-kind, .stonetop-timeline-period-title, .stonetop-timeline-year,
+	    .stonetop-timeline-hyear-node, .stonetop-timeline-swim-year,
 	    .stonetop-timeline-card-kills, .stonetop-timeline-card-title, .stonetop-timeline-season-note-title,
 	    .stonetop-timeline-invite-lead) {
 	color: var(--st-text);
 }
 
-:is(.application, .window-app).stonetop-themed .window-content .stonetop-timeline .stonetop-timeline-invite-hint {
+:is(.application, .window-app).stonetop-themed .window-content .stonetop-timeline
+	:is(.stonetop-timeline-invite-hint, .stonetop-timeline-colours-intro) {
 	color: var(--st-text-secondary);
+}
+
+:is(.application, .window-app).stonetop-themed .window-content .stonetop-timeline .stonetop-timeline-colours-note {
+	color: var(--st-text-faint);
 }
 
 :is(.application, .window-app).stonetop-themed .window-content .stonetop-timeline .stonetop-timeline-card-place {
@@ -49286,20 +49300,24 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	border-color: #4f5b66;
 }
 
-/* The Filter menu's summary, while open, still wears the blue pressed ink. */
-.stonetop-timeline-show[open] > .stonetop-timeline-show-summary {
+/* The Filter and Colours menus' summaries, while open, still wear the blue pressed ink. */
+.stonetop-timeline-show[open] > .stonetop-timeline-show-summary,
+.stonetop-timeline-colours-menu[open] > .stonetop-timeline-colours-open {
 	position: relative;
 	border-color: var(--st-blue-border);
 	background: var(--st-blue-bg);
 	color: var(--st-blue-text);
 }
 
-/* The Filter menu: a disclosure, so it opens and shuts from the keyboard with nothing scripted. */
-.stonetop-timeline-show {
+/* The Filter and Colours menus: disclosures, so they open and shut from the keyboard with nothing
+   scripted. Each is the anchor its dropdown hangs from. */
+.stonetop-timeline-show,
+.stonetop-timeline-colours-menu {
 	position: relative;
 }
 
-.stonetop-timeline-show-summary {
+.stonetop-timeline-show-summary,
+.stonetop-timeline-colours-open {
 	list-style: none;
 }
 
@@ -49319,7 +49337,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.stonetop-timeline-show-summary::-webkit-details-marker {
+.stonetop-timeline-show-summary::-webkit-details-marker,
+.stonetop-timeline-colours-open::-webkit-details-marker {
 	display: none;
 }
 
@@ -49327,7 +49346,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	font-weight: 600;
 }
 
-.stonetop-timeline-show-menu {
+.stonetop-timeline-show-menu,
+.stonetop-timeline-colours {
 	position: absolute;
 	top: calc(100% + 4px);
 	right: 0;
@@ -49341,6 +49361,16 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	border-radius: var(--st-radius);
 	background: var(--stonetop-bg);
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+	/* No taller than the room below it in the timeline, measured as it opens
+	   (timeline/timeline-menu-room.js): a sheet's tab clips a menu run past its foot, and cannot be
+	   dragged taller the way the pop-out can. Never under 10em, where a menu would be all scrollbar. */
+	max-height: max(10em, var(--timeline-menu-room, 100vh));
+}
+
+/* The Filter menu scrolls whole. The Colours menu scrolls only its rows (below), so Save and Cancel
+   stay in reach. */
+.stonetop-timeline-show-menu {
+	overflow-y: auto;
 }
 
 .stonetop-timeline-show-kind {
@@ -49513,12 +49543,14 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
 /* THE YEAR SCRUBBER (timeline/timeline-scrub.js): the year in view in words, then the slider between
    the first and last years. The readout is held to one width so a long year name ("Year
-   Twenty-Seven") never shoves the slider sideways under the hand as it drags. */
+   Twenty-Seven") never shoves the slider sideways under the hand as it drags. The right side keeps
+   a wider margin so the window's resize grip in the bottom-right corner never sits over the last
+   year's label. */
 .stonetop-timeline-scrub {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 6px 12px;
+	padding: 6px 36px 6px 12px;
 	border-top: 1px solid var(--st-card-rule);
 }
 
@@ -49558,8 +49590,9 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	pointer-events: none;
 }
 
-/* THE THUMB'S CENTRE IS WHAT STOPS OVER A YEAR, and it travels half a thumb in from each end. So a
-   tick sits half a thumb in, plus its share (`--at`, timeline-scrub.js#scrubTicks) of what is left.
+/* THE THUMB'S CENTRE IS WHAT PASSES OVER A YEAR, and it travels half a thumb in from each end. So a
+   tick sits half a thumb in, plus its share (`--at`, timeline-scrub.js#tickShares, set live as the
+   layout moves) of what is left.
    The thumb's width is pinned below so this sum cannot drift from what core draws. */
 .stonetop-timeline-scrub-tick {
 	position: absolute;
@@ -49665,9 +49698,31 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	color: var(--st-text);
 }
 
+/* The season's name CENTRED ON ITS CAPITALS beside its glyph (user, 2026-10-04: "Summer" sat 1-1.5px
+   low in every season chip). The journals' glyph is an inline picture lowered 0.45em into the line,
+   which set the line box the word then sat low in. Here it is a flex item centred with the name,
+   and the name is trimmed to its cap band (see the Chip centring tokens in :root), so both centre
+   on what the eye reads. Height kept: the 1.5em glyph is the taller of the two either way. */
+.stonetop-timeline-period-title {
+	display: flex;
+	align-items: center;
+	gap: 0.4em;
+}
+
+.stonetop-timeline-period-title.stonetop-season-entry::before {
+	flex: none;
+	margin-right: 0;
+}
+
+.stonetop-timeline-period-name {
+	text-box: trim-both cap alphabetic;
+	padding: var(--st-trim-top) 0 var(--st-trim-bottom);
+}
+
 /* A YEAR, opening the seasons that belong to it: the campaign reads in years first and seasons
    within them. The rule runs out to the edge so the break is seen before the words are read.
-   Only the vertical shapes draw this heading (across the page a year opens on the axis instead).
+   Only the vertical shapes draw this heading (across the page each year opens with a separator
+   column instead, `.stonetop-timeline-hyear` and `.stonetop-timeline-swim-year`).
    Larger than the type scale's top step and ruled in red (user, 2026-10-03), so a year break is
    unmistakable among the season headings beneath it; `--st-red-text` is the red every skin tunes. */
 .stonetop-timeline-year {
@@ -49681,10 +49736,11 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 	color: var(--st-text);
 }
 
+/* 2px (user, 2026-10-04), the width of the Across separators' rules. */
 .stonetop-timeline-year::after {
 	content: "";
 	flex: 1 1 auto;
-	border-top: 1px solid var(--st-red-text);
+	border-top: 2px solid var(--st-red-text);
 }
 
 /* The year itself rides in the shared year chip (user, 2026-10-03), the same stadium the season
@@ -49710,7 +49766,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 .stonetop-timeline-year-cell {
 	position: sticky;
 	left: 0;
-	z-index: 1;
+	/* In front of the names row, with the season cells (3, below). */
+	z-index: 3;
 	display: flex;
 	justify-content: center;
 }
@@ -49911,7 +49968,11 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
    size and painted 0.5 to 1.8px high depending on it (FA7 ink sits high in its em box). At 13px
    the pen and the cross land within half a device pixel at every root and scale. The chevrons
    are lopsided in FA's own artwork, the up one high and the down one low by about a pixel each
-   way, so each is moved back by one. Probe: z:/tmp/foundry-verify/timeline-actions-centre.mjs. */
+   way, so each is moved back by one. Probe: z:/tmp/foundry-verify/timeline-actions-centre.mjs.
+   ⚠ COLOUR-ONLY TRANSITION, for the reason `.stonetop-cta` gives: core hands a window's buttons
+   `transition: all 0.5s`, and the wheel's `zoom` changes every metric these buttons have, so each
+   notch set four buttons per card animating their size for half a second, laid out again every
+   frame (a trace of a long campaign: ~50ms of restyle per frame after each notch). */
 :is(.stonetop-timeline-card-actions,
     :is(.application, .window-app).stonetop-themed .window-content .stonetop-timeline-card-actions) button {
 	display: inline-flex;
@@ -49925,6 +49986,7 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	border-radius: var(--st-radius-sm);
 	background: transparent;
 	color: var(--st-text-muted);
+	transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .stonetop-timeline-card-actions button > i {
@@ -49974,14 +50036,17 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 .stonetop-timeline-lane-heads {
 	position: sticky;
 	top: 0;
-	/* Over the season cells pinned at the left (below), which pass under it going down. */
+	/* Over the cards, which pass under it going down; UNDER the season cells and year chips pinned
+	   at the left (3, below), which pass in front of it (user, 2026-10-04). */
 	z-index: 2;
 	/* Even above and below, so the names sit centred in the band (user, 2026-10-03). The row pins
 	   flush to the column's top edge (no top gutter, below), so a bottom-only pad left them riding
-	   high. */
+	   high. No rule under the band: each name is a card of its own now (below), and the cards are
+	   what part the heads from the seasons. The band stays opaque, so the cards sliding up under it
+	   are hidden in the gaps between the names too. The PAGE's colour, not the panel's (user,
+	   2026-10-04): a grey band, and the grey corner in it, read as a box over the paper. */
 	padding-block: 6px;
-	border-bottom: 1px solid var(--st-card-rule);
-	background: var(--stonetop-bg);
+	background: var(--st-page);
 }
 
 .stonetop-timeline-lane-head {
@@ -49992,21 +50057,53 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	gap: 6px;
 }
 
+/* The portrait and the words as ONE box, the words centred on the portrait's middle (user,
+   2026-10-04), whether they are one line or two. `min-width: 0` down the chain is what lets a long
+   name still ellipsize rather than push the box past its lane. */
+.stonetop-timeline-lane-who {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	max-width: 100%;
+}
+
+/* Two sizes up from the first cut (user, 2026-10-04), so a face reads at a glance. */
 .stonetop-timeline-lane-portrait {
-	width: 26px;
-	height: 26px;
+	flex: 0 0 auto;
+	width: 44px;
+	height: 44px;
 	border-radius: 999px;
 	object-fit: cover;
 	border: 1px solid var(--st-card-rule);
 }
 
-.stonetop-timeline-lane-name {
-	font-family: var(--font-stonetop);
-	font-size: var(--st-fs-sm);
-	color: var(--st-text);
+.stonetop-timeline-lane-label {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	line-height: 1.15;
+}
+
+.stonetop-timeline-lane-name,
+.stonetop-timeline-lane-playbook {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.stonetop-timeline-lane-name {
+	font-family: var(--font-stonetop);
+	font-size: var(--st-fs-xl);
+	font-weight: 700;
+	color: var(--st-text);
+}
+
+/* A player's playbook under their name ("The Seeker"): quieter, as the epithet reads in the
+   steading's roster. */
+.stonetop-timeline-lane-playbook {
+	font-size: var(--st-fs-base);
+	color: var(--st-text-secondary);
 }
 
 /* The season's own cell, at the head of its row. The neutral warm wash is the undated row's;
@@ -50029,10 +50126,10 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
    Nothing to cover on its left: Down's column has no side padding (above), so the cell pins flush
    to the window's edge (user, 2026-10-03).
 
-   Only the corner throws the panel colour over the 10px gap on its right, because the names row it
-   sits in is that same flat colour. A season cell does NOT: there the gap is over the textured
-   paper, so a flat strip read as an odd grey column standing over the cards (user, 2026-10-03);
-   the cards simply pass under the cell's own edge instead. */
+   Neither throws the panel colour over the 10px gap on its right. On a season cell that strip read
+   as an odd grey column standing over the cards (user, 2026-10-03); on the corner it cut the thread
+   names off 10px short of the season column's edge (user, 2026-10-04). Names and cards simply pass
+   under each cell's own edge. */
 .stonetop-timeline-row-head,
 .stonetop-timeline-lane-spacer {
 	position: sticky;
@@ -50040,9 +50137,15 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	z-index: 1;
 }
 
+/* THE ROW HEADS GO IN FRONT OF THE NAMES ROW (user, 2026-10-04), as across the page the column heads
+   go under the row heads. Over the band's 2, so a season cell scrolled up passes over the names row
+   and its corner rather than under them. */
+.stonetop-timeline-row-head {
+	z-index: 3;
+}
+
 .stonetop-timeline-lane-spacer {
-	background: var(--stonetop-bg);
-	box-shadow: 10px 0 0 var(--stonetop-bg);
+	background: var(--st-page);
 }
 
 .stonetop-timeline-lane {
@@ -50064,11 +50167,27 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	min-width: var(--timeline-board-min);
 }
 
+/* EVERY LANE CARRIES THE EMPTY LANE'S 2px EDGE, clear unless it is empty (below). A `flex: 1 1 0`
+   item's border is part of its base size, so an empty lane's dotted edge made it 2px wider than a
+   full one beside it, and a row with some empty lanes stood up to 2.5px out of line with the names
+   above, and peeked out from under the season cells (user, 2026-10-04). `:where()` keeps this at one class, so
+   the empty lane's own rule, later, still paints its edge dotted. */
+.stonetop-timeline-board :where(.stonetop-timeline-lane) {
+	border-left: 2px solid transparent;
+}
+
 /* A thread's name sits CENTRED over its column (user, 2026-10-03), so it reads as the column's
    title rather than hugging the left edge. A name too long for the lane still ellipsizes: the
-   name's `overflow: hidden` lets it shrink, so centring never pushes it out past either side. */
+   name's `overflow: hidden` lets it shrink, so centring never pushes it out past either side.
+   EACH NAME IS ITS OWN CARD, as each season is down the left (user, 2026-10-04): the same padding,
+   corners and warm wash as a season's cell, with the card rule for its edge, since a thread has no
+   season colour to wear. */
 .stonetop-timeline-lane-heads .stonetop-timeline-lane-head {
 	justify-content: center;
+	padding: 8px 10px;
+	border: 2px solid var(--st-card-rule);
+	border-radius: var(--st-radius);
+	background: linear-gradient(var(--st-warm-hover-bg), var(--st-warm-hover-bg)), var(--stonetop-bg);
 }
 
 /* An empty lane is drawn rather than dropped: a blank cell under a name is how the reader
@@ -50101,8 +50220,9 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	min-height: 100%;
 	display: grid;
 	grid-template-rows: auto auto auto;
+	/* The template lists every column: a season's, and a narrow one for each year's separator. */
+	grid-template-columns: var(--timeline-hcols, none);
 	grid-auto-flow: column;
-	grid-auto-columns: minmax(15rem, 19rem);
 	align-content: center;
 	column-gap: 0;
 }
@@ -50116,7 +50236,8 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 }
 
 /* The node: the season's own heading, pinned ON the line. The line is this node's rule, run out
-   over the column's padding so it meets the next one with no gap. */
+   over the column's padding so it meets the next one with no gap.
+   Clipped top and bottom (never sideways, where the line runs out) for the stalk below. */
 .stonetop-timeline-hnode {
 	grid-row: 2;
 	position: relative;
@@ -50124,6 +50245,8 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	align-items: center;
 	justify-content: center;
 	padding: 8px 0;
+	overflow-x: visible;
+	overflow-y: clip;
 }
 
 .stonetop-timeline-hnode::before {
@@ -50147,20 +50270,37 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	background: var(--stonetop-bg);
 }
 
-/* The season that opens a year: a tick across the line and a warmer node, so the years read at a
-   glance along it. */
-.stonetop-timeline-hperiod--year-start .stonetop-timeline-hnode::after {
-	content: "";
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	left: -8px;
-	border-left: 3px solid var(--st-text-secondary);
+/* A YEAR SEPARATOR, before the season that opens the year (user, 2026-10-04: "year separators like
+   the vertical does"): a column of its own, the year's chip sitting ON the axis, so the line runs
+   on through the year into its first season.
+   NO RED RULE (user, 2026-10-04): this shape is only ever a sheet's tab, one thread, where every
+   season's own chip already names its year. The pop-out's swimlanes keep theirs. */
+.stonetop-timeline-hyear {
+	grid-row: 1 / -1;
+	display: grid;
+	grid-template-rows: subgrid;
+	padding: 0 8px;
 }
 
-.stonetop-timeline-hperiod--year-start .stonetop-timeline-hhead {
-	border-color: var(--st-text-secondary);
-	background: linear-gradient(var(--st-warm-hover-bg), var(--st-warm-hover-bg)), var(--stonetop-bg);
+.stonetop-timeline-hyear-node {
+	grid-row: 2;
+	grid-column: 1;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+}
+
+/* The axis, run through the separator's column as a season node runs it through its own. */
+.stonetop-timeline-hyear-node::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: -8px;
+	right: -8px;
+	border-top: 3px solid var(--st-card-rule);
+	transform: translateY(-50%);
 }
 
 /* The cards, on a short stalk down to (or up from) the line. No spine and no dots: the line is
@@ -50183,16 +50323,28 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	padding: 16px 0 0;
 }
 
-.stonetop-timeline-hcards:not(:empty)::after {
+/* The stalk, in two pieces that meet at the node row's edge: the cards' own 16px, and the rest of
+   the way to the chip from the chip itself (user, 2026-10-04: it stopped short of Spring). A node
+   is centred in a row as tall as the TALLEST node, and a season holding its record is far taller
+   than a bare chip, so the gap is unknown; the chip's piece is overlong and the node's clip cuts
+   it at the row's edge. Only for a season with cards (`--cards`): an empty list drew a stalk to
+   nothing. */
+.stonetop-timeline-hperiod--cards .stonetop-timeline-hcards::after,
+.stonetop-timeline-hperiod--cards .stonetop-timeline-hhead::before {
 	content: "";
 	position: absolute;
 	left: 50%;
-	height: 16px;
 	border-left: 2px solid var(--st-card-rule);
+	transform: translateX(-50%);
 }
+
+.stonetop-timeline-hperiod--cards .stonetop-timeline-hcards::after { height: 16px; }
+.stonetop-timeline-hperiod--cards .stonetop-timeline-hhead::before { height: 100vh; }
 
 .stonetop-timeline-hperiod--above .stonetop-timeline-hcards::after { bottom: 0; }
 .stonetop-timeline-hperiod--below .stonetop-timeline-hcards::after { top: 0; }
+.stonetop-timeline-hperiod--above .stonetop-timeline-hhead::before { bottom: 100%; }
+.stonetop-timeline-hperiod--below .stonetop-timeline-hhead::before { top: 100%; }
 
 .stonetop-timeline-hcards .stonetop-timeline-card::before {
 	content: none;
@@ -50204,12 +50356,13 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
    opaque fill or the cards slide visibly underneath them. */
 .stonetop-timeline-swim {
 	display: grid;
-	grid-template-columns: 11rem repeat(var(--timeline-cols, 1), minmax(15rem, 1fr));
+	/* The template lists every column: the thread names, a season's, and a narrow one for each
+	   year's separator. */
+	grid-template-columns: var(--timeline-swim-cols);
 	gap: 10px;
 	align-items: start;
 }
 
-.stonetop-timeline-swim-corner,
 .stonetop-timeline-swim-head {
 	position: sticky;
 	top: 0;
@@ -50217,10 +50370,11 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	background: var(--stonetop-bg);
 }
 
-.stonetop-timeline-swim-corner {
-	left: 0;
-	z-index: 3;
-	align-self: stretch;
+/* NO CORNER CELL (user, 2026-10-04: an "empty grey square" over the thread names; tried again
+   labelled "Time", and taken out again). The heads row starts in the second column, over the
+   seasons, and the first column's top is left bare. */
+.stonetop-timeline-swim > :first-child {
+	grid-column-start: 2;
 }
 
 .stonetop-timeline-swim-head {
@@ -50232,8 +50386,60 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	background: linear-gradient(var(--st-warm-hover-bg), var(--st-warm-hover-bg)), var(--stonetop-bg);
 }
 
-.stonetop-timeline-swim-head--year-start {
-	border-left: 4px solid var(--st-text-secondary);
+/* A YEAR SEPARATOR, before the season that opens the year (user, 2026-10-04), as the year heading
+   opens it read down: the year's chip pinned in the heads row, and a red rule from under it down
+   through every thread. Each thread's row has a rule cell in the column (the template), drawn up
+   over the row gap above it so the rule never breaks between threads.
+   NO PANEL FILL (user, same day): the cell is taller than its chip, so a fill showed as a grey box
+   round it. The chip keeps its own opaque fill.
+   The rule starts under the chip, never above it (user, same day), EVEN SCROLLED DOWN (user,
+   2026-10-04): the threads' rule cells slide up under this pinned cell and showed through above
+   the chip. So the cell has a backing in the PAGE's own colour, the thread names' (`--st-page`),
+   which hides them without reading as a box; below the chip its own `::after` carries the rule on.
+   Same 2px red as the single track's (`.stonetop-timeline-hyear`). */
+.stonetop-timeline-swim-year {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin: 0;
+	padding-top: 8px;
+	background: var(--st-page);
+}
+
+.stonetop-timeline-swim-year::after {
+	content: "";
+	flex: 1 1 auto;
+	border-left: 2px solid var(--st-red-border);
+}
+
+.stonetop-timeline-swim-year-rule {
+	align-self: stretch;
+	justify-self: center;
+	margin-top: -10px;
+	border-left: 2px solid var(--st-red-border);
+}
+
+/* The separators' type and chip: the vertical year heading's (`.stonetop-timeline-year`), at its
+   size and in full ink, on an opaque fill so the rule passing behind does not strike it through. */
+.stonetop-timeline-hyear-node,
+.stonetop-timeline-swim-year {
+	border: none;
+	font-family: var(--font-stonetop);
+	font-size: 1.7em;
+	color: var(--st-text);
+}
+
+:is(.stonetop-timeline-hyear-node, .stonetop-timeline-swim-year) .stonetop-year-chip {
+	position: relative;
+	z-index: 1;
+	background: linear-gradient(var(--st-card-fill), var(--st-card-fill)), var(--stonetop-bg);
+	padding-inline: 0.55em;
+	font-size: inherit;
+	color: var(--st-text);
 }
 
 /* -- The season headings, each in its season's colour ---------------------------
@@ -50262,11 +50468,6 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	width: fit-content;
 	padding: 4px 12px;
 	border-radius: 999px;
-}
-
-/* The year still opens its column on the swimlanes with the heavier left edge. */
-.stonetop-timeline-swim-head--year-start.stonetop-timeline-season {
-	border-left: 4px solid var(--st-text-secondary);
 }
 
 /* The year chip keeps the plain panel under its words: its secondary ink loses too much on a tint. */
@@ -50335,15 +50536,38 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 }
 
 /* The name at the TOP of its lane, level with the first card, rather than floating mid-row where a
-   long lane puts it a screen away from the season it starts in. */
+   long lane puts it a screen away from the season it starts in.
+   A BOX ALL ROUND, as the season heads wear (user, 2026-10-04): the same 2px edge and radius, in
+   the cards' neutral rule, since a thread has no season colour. */
+/* OVER THE HEADS ROW (user, 2026-10-04: "the column headers should always go under the row
+   headers"). Scrolled sideways, the season heads and year separators (2) pass under the names. */
+/* NOTHING PEEKS BETWEEN THE NAMES (user, same day: the season heads showed through the grid's gaps
+   between them). The cell is a backing in the page's own colour, reaching half the 10px row gap up
+   and down (so two neighbours meet), and the name's box is drawn inside it by `::before`. NOT into
+   the column gap on the right (user, same day): the seasons sliding under were cut off that much
+   before the box's edge. The padding is the box's own (8px 8px 6px 12px inside a 2px edge) plus that
+   reach. `::before` at -1 paints over the backing and under the name, as the cell's z-index makes it
+   a stacking context.
+   Pinned at the left only. Scrolled down, a name goes up and off with its lane (user, 2026-10-04):
+   it does not stick under the season heads while its box shrinks round it. */
 .stonetop-timeline-swim-lane-head {
 	position: sticky;
 	left: 0;
-	z-index: 1;
+	z-index: 3;
 	align-self: stretch;
 	align-items: flex-start;
-	padding: 8px 8px 6px 12px;
-	border-right: 1px solid var(--st-card-rule);
+	margin-block: -5px;
+	padding: 15px 10px 13px 14px;
+	background: var(--st-page);
+}
+
+.stonetop-timeline-swim-lane-head::before {
+	content: "";
+	position: absolute;
+	inset: 5px 0;
+	z-index: -1;
+	border: 2px solid var(--st-card-rule);
+	border-radius: var(--st-radius);
 	background: var(--stonetop-bg);
 }
 
@@ -50560,15 +50784,17 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	margin-top: 4px;
 }
 
-/* -- The GM's colours window ---------------------------------------------------------------
-   One row per kind: the chip as a card prints it (rim and glyph in the colour, word in full ink),
-   the picker, and Default once the kind is repainted. The row's `--tl-kind` is set inline by the
-   dialog, so the chip shows what THIS page will wear, nudges and all. */
+/* -- The GM's Colours menu ------------------------------------------------------------------
+   The dropdown under the toolbar's Colours button; its box is the Filter menu's (above). One row per
+   kind: the chip as a card prints it (rim and glyph in the colour, word in full ink), the picker,
+   and Default once the kind is repainted. The row's `--tl-kind` is set inline by the timeline, so
+   the chip shows what THIS page will wear, nudges and all. Capped to the host's width so a narrow
+   sheet tab does not push it off the left edge. */
 .stonetop-timeline-colours {
-	display: flex;
-	flex-direction: column;
 	gap: 10px;
-	padding: 4px 2px;
+	width: 24em;
+	max-width: calc(100vw - 32px);
+	box-sizing: border-box;
 }
 
 .stonetop-timeline-colours-intro {
@@ -50584,6 +50810,15 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	margin: 0;
 	padding: 0;
 	list-style: none;
+	/* The part that gives way when the menu is capped to its room (the Filter menu's box, above). */
+	flex: 0 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.stonetop-timeline-colours-intro,
+.stonetop-timeline-colours-actions {
+	flex: none;
 }
 
 .stonetop-timeline-colours-row {

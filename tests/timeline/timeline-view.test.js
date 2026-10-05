@@ -289,6 +289,15 @@ describe("the aggregate laid across the page", () => {
 		expect(vm.swimlanes[1].cells[1]).toBe(vm.periods[1].lanes[1]);
 	});
 
+	// Each cell carries whether its season opens a year, so the swimlanes draw the year's rule
+	// before it without indexing the periods from inside the cells.
+	it("marks each cell with whether its season opens a year", () => {
+		const vm = buildAggregateVM(tracks);
+		for (const lane of vm.swimlanes) {
+			expect(lane.cells.map(c => c.opensYear)).toEqual(vm.periods.map(p => p.startsYear));
+		}
+	});
+
 	// User, 2026-10-03: what a Seasons Change recorded prints INSIDE its season's heading, not as a
 	// card under it that only said the season's name again. It is still a stored row, so the GM can
 	// rewrite or remove it from there.
@@ -374,6 +383,14 @@ describe("buildAggregateVM", () => {
 		const vm = buildAggregateVM([...tracks, { trackId: "pc-kefta", name: "Kefta", entries: [] }]);
 		expect(vm.tracks.map(t => t.trackId)).toContain("pc-kefta");
 		expect(vm.periods[0].lanes.map(l => l.trackId)).toContain("pc-kefta");
+	});
+
+	// User, 2026-10-04: a player's name heads their thread with their playbook under it. The window
+	// reads it off the actor; the steading has none, so its head stays one line.
+	it("carries each thread's playbook to its head, empty where there is none", () => {
+		const vm = buildAggregateVM([tracks[0], { ...tracks[1], playbook: "The Seeker" }]);
+		expect(vm.tracks.map(t => t.playbook)).toEqual(["", "The Seeker"]);
+		expect(vm.swimlanes[1].playbook).toBe("The Seeker");
 	});
 
 	it("asks per track whether this reader may edit it", () => {

@@ -2,10 +2,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { readCss, readRepo } from "../fakes/css.js";
 
-// THE YEAR SCRUBBER: one stop per year shown, a slide centres the column on that year (and the
-// timeline the other way), and moving the column moves the thumb to the year in the middle.
+// THE YEAR SCRUBBER: one tick per year shown, the slider ONE STRAIGHT LINE from the first year
+// centred to the last (user, 2026-10-04: "not lock to any points at all"), the timeline centred the
+// other way, and moving the column moves the thumb to match.
 
-const { yearStops, scrubTicks, centredScroll, pictureRect, scrollForValue, valueForScroll, wireYearScrubber } = await import("../../module/timeline/timeline-scrub.js");
+const {
+	SCRUB_MAX, yearStops, scrubTicks, centredScroll, pictureRect, scrollForValue, valueForScroll,
+	tickShares, nearestStop, wireYearScrubber,
+} = await import("../../module/timeline/timeline-scrub.js");
 
 describe("yearStops", () => {
 	it("gives one stop per year, oldest first, and none for the undated block", () => {
@@ -20,7 +24,7 @@ describe("yearStops", () => {
 });
 
 describe("scrubTicks", () => {
-	it("places a tick per year as its share of the thumb's travel, first at 0 and last at 1", () => {
+	it("spreads the ticks evenly for the page to open with, first at 0 and last at 1", () => {
 		const stops = [1, 2, 3, 4].map(year => ({ year, label: `Year ${year}` }));
 		expect(scrubTicks(stops).map(t => t.at)).toEqual([0, 0.3333, 0.6667, 1]);
 	});
@@ -73,30 +77,53 @@ describe("pictureRect", () => {
 });
 
 describe("scrollForValue", () => {
-	it("blends the offsets of the years either side of a fractional value, skipping years with nothing drawn", () => {
-		const targets = [0, 400, null, 1000];
+	it("runs in one straight line from the first year's offset to the last's, whatever lies between", () => {
+		const targets = [0, 100, null, 800];
+		expect(SCRUB_MAX).toBe(1000);
 		expect(scrollForValue(targets, 0)).toBe(0);
-		expect(scrollForValue(targets, 1)).toBe(400);
-		expect(scrollForValue(targets, 0.25)).toBe(100);
-		// Year 3 has nothing drawn: 1..3 runs straight from 400 to 1000.
-		expect(scrollForValue(targets, 2)).toBe(700);
-		expect(scrollForValue(targets, 9)).toBe(1000);
+		// Halfway along the slider is halfway along the column, not halfway between two ticks.
+		expect(scrollForValue(targets, 500)).toBe(400);
+		expect(scrollForValue(targets, 437)).toBe(350);
+		expect(scrollForValue(targets, 1000)).toBe(800);
+		expect(scrollForValue(targets, 5000)).toBe(800);
 		expect(scrollForValue([null], 0)).toBeNull();
 	});
 });
 
 describe("valueForScroll", () => {
-	it("is the inverse: a scroll between two years' offsets puts the thumb as far between their ticks", () => {
-		const targets = [0, 400, null, 1000];
-		expect(valueForScroll(targets, 100)).toBe(0.25);
-		expect(valueForScroll(targets, 700)).toBe(2);
+	it("is the inverse, held to the slider's ends", () => {
+		const targets = [0, 100, null, 800];
+		expect(valueForScroll(targets, 400)).toBe(500);
+		expect(valueForScroll(targets, 100)).toBe(125);
 		expect(valueForScroll(targets, -50)).toBe(0);
-		expect(valueForScroll(targets, 5000)).toBe(3);
+		expect(valueForScroll(targets, 5000)).toBe(1000);
 		expect(valueForScroll([null], 10)).toBe(-1);
 	});
 
-	it("puts the thumb on the later of two years the scroll range has clamped to one offset", () => {
-		expect(valueForScroll([0, 600, 600], 600)).toBe(2);
+	it("never sticks on a tick where the column's end holds two years to one place", () => {
+		// The old year-to-year blend jumped the thumb to the later year here; a straight line cannot.
+		expect(valueForScroll([0, 600, 600], 300)).toBe(500);
+		expect(valueForScroll([0, 600, 600], 599)).toBeCloseTo(998.33, 1);
+		expect(valueForScroll([300, 300], 300)).toBe(0);
+	});
+});
+
+describe("tickShares", () => {
+	it("puts each year's tick where it falls along the line", () => {
+		expect(tickShares([0, 100, null, 800])).toEqual([0, 0.125, null, 1]);
+	});
+});
+
+describe("nearestStop", () => {
+	it("names the year whose tick is closest to the thumb", () => {
+		expect(nearestStop([0, 100, 800], 500)).toBe(1);
+		expect(nearestStop([0, 100, 800], 700)).toBe(2);
+	});
+
+	it("names the year that is really at each end when two share a tick", () => {
+		expect(nearestStop([0, 0, 800], 0)).toBe(0);
+		expect(nearestStop([0, 800, 800], 1000)).toBe(2);
+		expect(nearestStop([null], 0)).toBe(-1);
 	});
 });
 
@@ -108,24 +135,27 @@ describe("wireYearScrubber", () => {
 		document.body.innerHTML = `
 			<div class="scroll">
 				<div class="canvas"><ol class="pic">
-					<li data-year="1"></li><li data-year="2"></li><li data-year="2"></li>
+					<li data-year="1"></li><li data-year="2"></li><li data-year="3"></li>
 				</ol></div>
 			</div>
-			<footer class="bar"><output></output><input type="range" min="0" max="1" step="any" value="0"></footer>`;
+			<footer class="bar"><output></output>
+				<ol><li class="stonetop-timeline-scrub-tick"></li><li class="stonetop-timeline-scrub-tick"></li><li class="stonetop-timeline-scrub-tick"></li></ol>
+				<input type="range" min="0" max="1000" step="any" value="0"></footer>`;
 		scroll = document.querySelector(".scroll");
 		bar = document.querySelector(".bar");
 		range = bar.querySelector("input");
-		// A 1000x600 view; the picture is drawn as if scrollLeft/Top were 0: year 1 at 0..400,
-		// year 2 at 400..1600, everything 0..300 tall.
+		// A 1000x600 view; the picture is drawn as if scrollLeft/Top were 0: year 1 at 0..400
+		// (centres at -300, held to 0), year 2 at 400..800 (centres at 100), year 3 at 800..2400
+		// (wider than the view: laid from its start, 800). Everything 0..300 tall.
 		const at = (x, y, w, h) => () => rect(x - scroll.scrollLeft, y - scroll.scrollTop, w, h);
 		Object.defineProperty(scroll, "clientWidth", { value: 1000 });
 		Object.defineProperty(scroll, "clientHeight", { value: 600 });
 		scroll.getBoundingClientRect = () => rect(0, 0, 1000, 600);
-		const [y1, y2a, y2b] = scroll.querySelectorAll("li");
+		const [y1, y2, y3] = scroll.querySelectorAll("li");
 		y1.getBoundingClientRect = at(0, 0, 400, 300);
-		y2a.getBoundingClientRect = at(400, 0, 400, 300);
-		y2b.getBoundingClientRect = at(800, 0, 800, 300);
-		scroll.querySelector(".pic").getBoundingClientRect = at(0, 0, 1600, 300);
+		y2.getBoundingClientRect = at(400, 0, 400, 300);
+		y3.getBoundingClientRect = at(800, 0, 1600, 300);
+		scroll.querySelector(".pic").getBoundingClientRect = at(0, 0, 2400, 300);
 		vi.stubGlobal("requestAnimationFrame", (fn) => { fn(); return 0; });
 	});
 	afterEach(() => {
@@ -134,84 +164,79 @@ describe("wireYearScrubber", () => {
 		document.body.innerHTML = "";
 	});
 
-	const stops = [{ year: 1, label: "Year One" }, { year: 2, label: "Year Two" }];
+	const stops = [{ year: 1, label: "Year One" }, { year: 2, label: "Year Two" }, { year: 3, label: "Year Three" }];
+	const slide = (value) => { range.value = String(value); range.dispatchEvent(new Event("input")); };
+	const ticks = () => [...bar.querySelectorAll("li")].map(li => li.style.getPropertyValue("--at"));
 
-	it("centres the column on the year slid to, and the timeline the other way", () => {
+	it("moves each tick to where its year falls along the line", () => {
+		unwire = wireYearScrubber(scroll, bar, { stops, horizontal: true });
+		expect(ticks()).toEqual(["0", "0.125", "1"]);
+	});
+
+	it("scrolls in a straight line with the thumb, and centres the timeline the other way", () => {
 		unwire = wireYearScrubber(scroll, bar, { stops, horizontal: true, picture: ".pic" });
-		range.value = "1";
-		range.dispatchEvent(new Event("input"));
-		// Year 2 spans 400..1600 (1200 wide, wider than the view): laid against the left edge.
+		slide(500);
 		expect(scroll.scrollLeft).toBe(400);
 		// The picture is 300 tall in a 600 view: centred, so 150 above it.
 		expect(scroll.scrollTop).toBe(-150);
 		expect(bar.querySelector("output").textContent).toBe("Year Two");
-		expect(range.getAttribute("aria-valuetext")).toBe("Year Two");
+		slide(1000);
+		expect(scroll.scrollLeft).toBe(800);
+		expect(bar.querySelector("output").textContent).toBe("Year Three");
+		expect(range.getAttribute("aria-valuetext")).toBe("Year Three");
 	});
 
-	it("scrolls part of the way between two years when the thumb is left between their ticks", () => {
+	it("moves the thumb with the column, anywhere along it", () => {
 		unwire = wireYearScrubber(scroll, bar, { stops, horizontal: true });
-		// Year 1 centres at -300, held to 0; year 2 lies from 400. Halfway is 200.
-		range.value = "0.5";
-		range.dispatchEvent(new Event("input"));
-		expect(scroll.scrollLeft).toBe(200);
-		range.value = "0.4";
-		range.dispatchEvent(new Event("input"));
-		expect(scroll.scrollLeft).toBe(160);
-		expect(bar.querySelector("output").textContent).toBe("Year One");
-	});
-
-	it("moves the thumb to where the view is, between ticks too, as the column scrolls", () => {
-		unwire = wireYearScrubber(scroll, bar, { stops, horizontal: true });
-		scroll.scrollLeft = 300;
+		scroll.scrollLeft = 200;
 		scroll.dispatchEvent(new Event("scroll"));
-		expect(range.value).toBe("0.75");
-		expect(bar.querySelector("output").textContent).toBe("Year Two");
-		scroll.scrollLeft = 400;
+		expect(range.value).toBe("250");
+		scroll.scrollLeft = 800;
 		scroll.dispatchEvent(new Event("scroll"));
-		expect(range.value).toBe("1");
+		expect(range.value).toBe("1000");
 	});
 
-	it("ignores the scroll its own jump fires, but follows the column moved straight after it", () => {
+	it("leaves the thumb where the hand put it, and follows the next move", () => {
 		unwire = wireYearScrubber(scroll, bar, { stops, horizontal: true });
-		range.value = "0.4";
-		range.dispatchEvent(new Event("input"));
-		expect(scroll.scrollLeft).toBe(160);
+		slide(437);
+		expect(scroll.scrollLeft).toBe(350);
 		// The jump's echo: the thumb stays where the hand put it, not where the place reads back.
 		scroll.dispatchEvent(new Event("scroll"));
-		expect(range.value).toBe("0.4");
-		// A wheel turn at once after: no quiet spell swallows it.
-		scroll.scrollLeft = 400;
+		expect(range.value).toBe("437");
+		// A wheel turn at once after.
+		scroll.scrollLeft = 800;
 		scroll.dispatchEvent(new Event("scroll"));
-		expect(range.value).toBe("1");
+		expect(range.value).toBe("1000");
 	});
 
-	it("steps a whole year at a time from the keyboard, from wherever the thumb was left", () => {
+	it("steps to the next year's tick from the keyboard, from wherever the thumb was left", () => {
 		unwire = wireYearScrubber(scroll, bar, { stops, horizontal: true });
-		range.value = "0.4";
 		const key = (k) => range.dispatchEvent(new KeyboardEvent("keydown", { key: k, cancelable: true }));
+		range.value = "300";
 		key("ArrowRight");
-		expect(range.value).toBe("1");
-		expect(scroll.scrollLeft).toBe(400);
-		range.value = "0.4";
+		expect(range.value).toBe("1000");
+		expect(scroll.scrollLeft).toBe(800);
+		range.value = "300";
 		key("ArrowLeft");
+		expect(range.value).toBe("125");
+		expect(scroll.scrollLeft).toBe(100);
+		key("Home");
 		expect(range.value).toBe("0");
 		key("End");
-		expect(range.value).toBe("1");
+		expect(range.value).toBe("1000");
 	});
 
 	it("Vertical: lays a timeline wider than the view against the left edge rather than centring it", () => {
-		// Read down, the picture (1600 wide) is wider than the 1000 view: from the left, less the inset.
+		// Read down, the picture (2400 wide) is wider than the 1000 view: from the left, less the inset.
 		unwire = wireYearScrubber(scroll, bar, { stops, horizontal: false, picture: ".pic", inset: 12 });
 		scroll.scrollLeft = 500;
-		range.value = "0";
-		range.dispatchEvent(new Event("input"));
+		slide(0);
 		expect(scroll.scrollLeft).toBe(-12);
 	});
 
 	it("wires nothing for fewer than two years", () => {
 		unwire = wireYearScrubber(scroll, bar, { stops: stops.slice(0, 1), horizontal: true });
-		range.value = "1";
-		range.dispatchEvent(new Event("input"));
+		slide(1000);
 		expect(scroll.scrollLeft).toBe(0);
 	});
 });

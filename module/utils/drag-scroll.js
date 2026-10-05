@@ -35,12 +35,6 @@ export const DRAG_SCROLL_CONTROLS = [
 export const PANNING_CLASS = "stonetop-drag-scroll--panning";
 /** Worn while the box has somewhere to go, so the grab cursor only promises what it can do. */
 export const PANNABLE_CLASS = "stonetop-drag-scroll--pannable";
-/**
- * Worn while a throw is still sliding the box. The browser's `scrollend` fires between the glide's
- * frames as readily as at its end, so anything that waits for the box to come to rest (the timeline's
- * column snap) asks this, and PANNING_CLASS, before it believes one.
- */
-export const GLIDING_CLASS = "stonetop-drag-scroll--gliding";
 
 /**
  * The custom properties a GUTTER is handed to the stylesheet through, in pixels: how much empty room
@@ -48,10 +42,11 @@ export const GLIDING_CLASS = "stonetop-drag-scroll--gliding";
  * only the host knows which element is the content.
  */
 export const GUTTER_X_VAR = "--drag-scroll-gutter-x";
+/** The room BELOW the content: 0 when the host pins its bottom (`pinBottom`). */
 export const GUTTER_Y_VAR = "--drag-scroll-gutter-y";
 /**
  * The room ABOVE the content, on its own: the same as the y gutter unless the host pins its top
- * (`pinTop`), when it is 0. The y gutter is then the room below only.
+ * (`pinTop`), when it is 0, or its bottom (`pinBottom`), when the y gutter is.
  */
 export const GUTTER_TOP_VAR = "--drag-scroll-gutter-top";
 /**
@@ -102,12 +97,11 @@ export function gutterFor(box, screen = {}, share = 0) {
  * @param {boolean} [opts.pinLeft]  No gutter LEFT of the content, for a host whose left column is a
  *                                  sticky header (user, 2026-10-03: "we shouldn't be able to scroll to
  *                                  the left past the left edge of the player column names").
- * @param {() => void} [opts.onRest]  Called once the hand has let the box go and it has stopped: at
- *                                  the release of a drag that was not thrown, or when a throw dies
- *                                  away. NOT when a hand catches a sliding box: that hand is still on it.
+ * @param {boolean} [opts.pinBottom]  No gutter BELOW the content: the box stops at its foot, as a
+ *                                  page does (user, 2026-10-05, the timeline).
  * @returns {() => void}  Takes every listener back off and stops any glide.
  */
-export function wireDragScroll(el, { controls = DRAG_SCROLL_CONTROLS, gutter: gutterShare = 0, pinTop = false, pinLeft = false, onRest = null } = {}) {
+export function wireDragScroll(el, { controls = DRAG_SCROLL_CONTROLS, gutter: gutterShare = 0, pinTop = false, pinLeft = false, pinBottom = false } = {}) {
 	if (!el?.addEventListener) return () => {};
 
 	let press = null;        // { id, button, x, y, left, top, lifted }
@@ -131,11 +125,8 @@ export function wireDragScroll(el, { controls = DRAG_SCROLL_CONTROLS, gutter: gu
 		if (glideId) globalThis.cancelAnimationFrame?.(glideId);
 		glideId = 0;
 		glide = null;
-		el.classList?.remove(GLIDING_CLASS);
 		return running;
 	};
-
-	const rest = () => { if (typeof onRest === "function") onRest(); };
 
 	const glideFrame = () => {
 		glideId = 0;
@@ -154,7 +145,7 @@ export function wireDragScroll(el, { controls = DRAG_SCROLL_CONTROLS, gutter: gu
 		if (Math.abs(el.scrollLeft - wantLeft) >= 1) glide.velocity.x = 0;
 		if (Math.abs(el.scrollTop - wantTop) >= 1) glide.velocity.y = 0;
 		if (worthGliding(glide.velocity)) askFrame();
-		else { stopGlide(); rest(); }
+		else stopGlide();
 	};
 
 	const askFrame = () => {
@@ -162,14 +153,11 @@ export function wireDragScroll(el, { controls = DRAG_SCROLL_CONTROLS, gutter: gu
 		glideId = globalThis.requestAnimationFrame(glideFrame);
 	};
 
-	/** Whether a throw was taken up; one that was not leaves the box already at rest. */
 	const startGlide = (velocity) => {
-		if (!worthGliding(velocity) || prefersReducedMotion()) return false;
-		if (typeof globalThis.requestAnimationFrame !== "function") return false;
+		if (!worthGliding(velocity) || prefersReducedMotion()) return;
+		if (typeof globalThis.requestAnimationFrame !== "function") return;
 		glide = { velocity: { ...velocity }, at: now() };
-		el.classList?.add(GLIDING_CLASS);
 		askFrame();
-		return true;
 	};
 
 	// A press on the box's OWN scrollbar is the reader dragging the thumb, which already scrolls;
@@ -231,7 +219,7 @@ export function wireDragScroll(el, { controls = DRAG_SCROLL_CONTROLS, gutter: gu
 			if (button === 0) swallowClick = true;
 			else swallowMenu = true;
 			mark(ev);
-			if (!startGlide(throwVelocity(marks, now()))) rest();
+			startGlide(throwVelocity(marks, now()));
 		}
 		marks = [];
 	};
@@ -312,7 +300,7 @@ export function wireDragScroll(el, { controls = DRAG_SCROLL_CONTROLS, gutter: gu
 			{ width: win?.innerWidth, height: win?.innerHeight },
 			gutterShare,
 		);
-		const next = { ...measured, top: pinTop ? 0 : measured.y, left: pinLeft ? 0 : measured.x };
+		const next = { ...measured, y: pinBottom ? 0 : measured.y, top: pinTop ? 0 : measured.y, left: pinLeft ? 0 : measured.x };
 		const dx = next.left - gutter.left;
 		const dy = next.top - gutter.top;
 		const grew = next.y !== gutter.y || next.x !== gutter.x;

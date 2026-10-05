@@ -393,10 +393,16 @@ export function buildAggregateVM(allTracks = [], opts = {}) {
 		}),
 	})));
 
+	// Read across, a cell opens the year its season does: the swimlanes draw that year's rule before it.
+	for (const period of periods) {
+		for (const lane of period.lanes) lane.opensYear = period.startsYear;
+	}
+
 	const heads = tracks.map(t => ({
 		trackId:  t.trackId,
 		name:     t.name,
 		portrait: t.actor?.img ?? "",
+		playbook: t.playbook ?? "",
 		count:    laneFacts.get(t.trackId)?.count ?? 0,
 	}));
 

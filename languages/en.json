@@ -2851,6 +2851,7 @@
         "resetTooltip": "Put {kind} back to its default colour",
         "nudged": "Adjusted so it can be read on this page.",
         "save": "Save colours",
+        "saveFailed": "The timeline colours could not be saved. Your choices are still in the Colours menu, so you can try Save again.",
         "cancel": "Cancel"
       },
       "kills": {
