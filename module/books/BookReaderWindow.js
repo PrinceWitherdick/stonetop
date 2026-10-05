@@ -26,6 +26,7 @@ import {
 import { showBookToPlayers } from "./book-broadcast.js";
 import { markBookReaderOpen, markBookReaderClosed } from "./reader-resume.js";
 import { mountBookmarksTab } from "./reader-bookmarks-tab.js";
+import { isDarkPalette, onPaletteChange } from "../utils/palette.js";
 
 const TEMPLATE = "systems/stonetop-pwd/templates/dialogs/book-reader.hbs";
 
@@ -97,6 +98,39 @@ const EMPTY_SIDEBAR_TABS_STYLE = "stonetop-empty-sidebar-tabs";
 const EMPTY_SIDEBAR_TABS_CSS = "#viewAttachments[disabled], #viewLayers[disabled] { display: none; }";
 
 /**
+ * A dark palette turns the book's white pages down, as it does the GM Toolkit's Core Loop
+ * flowcharts (the `--st-book-page-brightness` token in the stylesheet's DARK PALETTE section),
+ * and puts the viewer's own chrome in its dark scheme.
+ *
+ * The frame is its own document, so neither the palette's class on the game's root nor the token
+ * declared under it reaches in. The rule goes in once, reading the same token off the frame's own
+ * root, and `_syncPageDim` copies the resolved value across, along with pdf.js's own `is-dark`
+ * switch for the toolbar, sidebar and the grey around the pages. Out of a dark palette both come
+ * off, and the viewer follows the system's light or dark scheme as it always has.
+ */
+const PAGE_DIM_STYLE = "stonetop-page-dim";
+const PAGE_DIM_PROPERTY = "--st-book-page-brightness";
+
+// Under `is-dark` only, so a light palette's pages carry no filter at all.
+const PAGE_DIM_CSS = `:root.is-dark .pdfViewer .page, :root.is-dark #thumbnailView .thumbnailImage { filter: brightness(var(${PAGE_DIM_PROPERTY}, 1)); }`;
+
+/**
+ * Put a `<style>` into the frame's document once. Guarded on the id because a frame that reloads
+ * gets a fresh document to write into, and one that somehow does not must not collect a second
+ * copy of the same rule. False when there is no head to put it in yet.
+ */
+function ensureFrameStyle(doc, id, css) {
+	if (!doc?.head) return false;
+	if (!doc.getElementById(id)) {
+		const style = doc.createElement("style");
+		style.id = id;
+		style.textContent = css;
+		doc.head.append(style);
+	}
+	return true;
+}
+
+/**
  * `WheelEvent.DOM_DELTA_PIXEL`, spelled out.
  *
  * Written as the number rather than read off the global, because this class is constructed in
@@ -158,6 +192,10 @@ export class BookReaderWindow extends StonetopDialog {
 		// The reader's own bookmarks tab, once it is in the frame's sidebar. Held so a reload can
 		// take the old one down and a close can unsubscribe the last one.
 		this._bookmarksTab = null;
+		// Takes the palette watch off, so a reader who switches to or from a dark palette with a
+		// book open sees its pages follow. Set up on the first frame load.
+		this._unwatchPalette = null;
+		this._dimFrame = null;
 	}
 
 	static get defaultOptions() {
@@ -304,6 +342,8 @@ export class BookReaderWindow extends StonetopDialog {
 		// lose.
 		try { this._hideEmptySidebarTabs(frame); }
 		catch (err) { console.warn("Stonetop | Could not tidy the book's sidebar.", err); }
+		try { this._watchPageDim(frame); }
+		catch (err) { console.warn("Stonetop | Could not dim the book's pages.", err); }
 		try {
 			const app = frame.contentWindow?.PDFViewerApplication;
 			if (!app) return;
@@ -409,16 +449,34 @@ export class BookReaderWindow extends StonetopDialog {
 	 * Off the DOCUMENT rather than the viewer, so it does not wait on `initializedPromise`: the
 	 * buttons are in viewer.html from the start and the rule above is written against a state
 	 * pdf.js reaches later, so the stylesheet can go in as soon as there is a head to put it in.
-	 * Guarded on the id because a frame that reloads gets a fresh document to write into, and one
-	 * that somehow does not must not collect a second copy of the same rule.
 	 */
 	_hideEmptySidebarTabs(frame) {
+		ensureFrameStyle(frame?.contentDocument, EMPTY_SIDEBAR_TABS_STYLE, EMPTY_SIDEBAR_TABS_CSS);
+	}
+
+	/**
+	 * Keep the frame's pages in step with the palette: now, and on every change of it
+	 * (utils/palette.js). One watch per window, aimed at whichever frame loaded last.
+	 */
+	_watchPageDim(frame) {
+		this._dimFrame = frame;
+		this._syncPageDim(frame);
+		this._unwatchPalette ??= onPaletteChange(() => {
+			try { this._syncPageDim(this._dimFrame); }
+			catch (_) { /* the frame is mid-reload; its load event syncs it again */ }
+		});
+	}
+
+	_syncPageDim(frame) {
 		const doc = frame?.contentDocument;
-		if (!doc?.head || doc.getElementById(EMPTY_SIDEBAR_TABS_STYLE)) return;
-		const style = doc.createElement("style");
-		style.id = EMPTY_SIDEBAR_TABS_STYLE;
-		style.textContent = EMPTY_SIDEBAR_TABS_CSS;
-		doc.head.append(style);
+		if (!ensureFrameStyle(doc, PAGE_DIM_STYLE, PAGE_DIM_CSS)) return;
+		const root = globalThis.document?.documentElement;
+		const dark = isDarkPalette(root);
+		// Read resolved, because the token is declared in the stylesheet rather than inline.
+		const dim = dark ? globalThis.getComputedStyle?.(root)?.getPropertyValue(PAGE_DIM_PROPERTY)?.trim() : "";
+		if (dim) doc.documentElement.style.setProperty(PAGE_DIM_PROPERTY, dim);
+		else doc.documentElement.style.removeProperty(PAGE_DIM_PROPERTY);
+		doc.documentElement.classList?.toggle("is-dark", dark);
 	}
 
 	/**
@@ -533,6 +591,9 @@ export class BookReaderWindow extends StonetopDialog {
 		// whole mechanism: a browser reload never reaches here, so a record still standing is
 		// the evidence that the window was open when the page went away.
 		markBookReaderClosed(this._book);
+		this._unwatchPalette?.();
+		this._unwatchPalette = null;
+		this._dimFrame = null;
 		return super.close(options);
 	}
 }

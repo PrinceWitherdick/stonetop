@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	CURRENT_SEASON_KEY,
 	CURRENT_YEAR_KEY,
@@ -99,6 +99,22 @@ describe("recordCurrentSeason", () => {
 		const actor = fakeSteading();
 		await recordCurrentSeason(actor, "harvest", 2);
 		expect(readCurrentSeason(actor)).toBeNull();
+	});
+
+	// A turned season makes the posted weather stale, so the map is put back in step at once
+	// rather than at the next pause or settings change. Only when the clock actually moved.
+	it("refreshes the canvas weather when the clock moves, and only then", async () => {
+		const refreshWeatherFx = vi.fn();
+		vi.stubGlobal("game", { stonetop: { refreshWeatherFx } });
+		try {
+			const actor = fakeSteading({ season: "winter", year: 2 });
+			await recordCurrentSeason(actor, "summer", 1, { advanceOnly: true });
+			expect(refreshWeatherFx).not.toHaveBeenCalled();
+			await recordCurrentSeason(actor, "spring", 3);
+			expect(refreshWeatherFx).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 
 	it("survives no actor at all", async () => {

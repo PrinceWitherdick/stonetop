@@ -7,11 +7,14 @@ import {
 	moveTierRows,
 	moveTiersHtml,
 	parseTiersFromProse,
+	remarkRolledTier,
 	splitClauses,
 	stripTierProse,
 } from "../../module/utils/move-tiers.js";
 import { declarations, readCss, readRepo } from "../fakes/css.js";
 import { MOVE_TIERS_CLASS } from "../../module/utils/move-results.js";
+import { parseArcanumMoves } from "../../module/data/arcana-moves.js";
+import { decodeEntities, splitPickList } from "../../module/utils/strings.js";
 
 // The shipped moveResults for the moves each case is drawn from, verbatim from
 // packs/src/stonetop-items — the transform is only ever as good as the pairing of a
@@ -725,12 +728,45 @@ describe("markRolledTier", () => {
 	// loop beside it, which would take two thirds of a move's printed text off the card.
 	it("is moved, not re-hidden, when the GM shifts a landed card", () => {
 		const boot = readRepo("stonetop.js");
-		// Selected off the shared constants rather than a retyped selector, so this asserts the
-		// shift handler finds the ladder and re-stamps it — not how the string was spelled.
-		expect(boot).toContain("ul.${MOVE_TIERS_CLASS}[${ROLLED_TIER_ATTR}]");
-		expect(boot).toContain("ladder.setAttribute(ROLLED_TIER_ATTR, activeTier)");
+		// The shift handler hands its counted tier to the one function below, which a test can drive.
+		const shiftAt = boot.indexOf("function _shiftRollCardFlavor");
+		const shift = boot.slice(shiftAt, boot.indexOf("\n}\n", shiftAt));
+		expect(shift).toContain("remarkRolledTier(wrapper, activeTier)");
 		// And it must NOT be swept into the hide/show loop beside it.
 		expect(boot).not.toContain(`${MOVE_TIERS_CLASS} [hidden]`);
+	});
+});
+
+// The ladder step of stonetop.js#_shiftRollCardFlavor, driven directly: a card element with a
+// stamped ladder, re-stamped with the tier the rewritten total counts as.
+describe("remarkRolledTier", () => {
+	const SELECTOR = `.stonetop-roll-card ul.${MOVE_TIERS_CLASS}[data-rolled-tier]`;
+	const card = (stamped) => {
+		const ladder = { attrs: { "data-rolled-tier": stamped }, setAttribute(k, v) { this.attrs[k] = v; } };
+		return { ladder, root: { querySelector: sel => (sel === SELECTOR && stamped ? ladder : null) } };
+	};
+
+	it("moves the mark to the rung the new total counts as", () => {
+		const { ladder, root } = card("partial");
+		expect(remarkRolledTier(root, "success")).toBe(true);
+		expect(ladder.attrs["data-rolled-tier"]).toBe("success");
+		remarkRolledTier(root, "failure");
+		expect(ladder.attrs["data-rolled-tier"]).toBe("failure");
+	});
+
+	// A Shift that lands a 12+ is a strong hit on the ladder: three rungs, no fourth.
+	it("marks the 10+ row for a 12+", () => {
+		const { ladder, root } = card("partial");
+		remarkRolledTier(root, "critical");
+		expect(ladder.attrs["data-rolled-tier"]).toBe("success");
+	});
+
+	it("leaves a card with no stamped ladder, and an unknown tier, alone", () => {
+		expect(remarkRolledTier(card(null).root, "success")).toBe(false);
+		const { ladder, root } = card("partial");
+		expect(remarkRolledTier(root, "")).toBe(false);
+		expect(ladder.attrs["data-rolled-tier"]).toBe("partial");
+		expect(remarkRolledTier(null, "success")).toBe(false);
 	});
 });
 
@@ -740,5 +776,255 @@ describe("the ladder's rows name their rung", () => {
 		const html = moveTiersHtml(KNOW_THINGS);
 		expect(html).toContain('class="stonetop-move-tier stonetop-move-tier--success" data-tier="success"');
 		expect(html).toContain('data-tier="failure"');
+	});
+});
+
+// ── The shipped moves the 2026-10-02 parser audit found laid out wrong, read from the pack
+//    source itself so a pack edit or a parser change is checked against the real text. ──
+const packDoc = rel => JSON.parse(readRepo(`packs/src/${rel}`));
+const itemMove = rel => packDoc(`stonetop-items/${rel}`).system;
+const mystery = (file, name) => parseArcanumMoves(packDoc(`stonetop-arcana/major/${file}`).flags.stonetop.back.description)
+	.find(m => m.name === name);
+const condensedMove = file => packDoc(`stonetop-arcana/minor/${file}`).flags.stonetop.back.move;
+// A body's ladder rows by rung, as plain text, and everything outside the ladder as plain text.
+const plain = html => decodeEntities(text(html));
+const rowsOf = html => Object.fromEntries([...html.matchAll(/data-tier="(\w+)"[\s\S]*?tier-text">([\s\S]*?)<\/span><\/li>/g)]
+	.map(([, key, row]) => [key, plain(row)]));
+// The ladder and the shared option list under it are both the ladder's; everything else is prose.
+const outsideLadder = html => plain(html
+	.replace(/<ul class="stonetop-move-tiers"[\s\S]*?<\/span><\/li><\/ul>/, " ")
+	.replace(/<ul class="stonetop-move-shared-options">[\s\S]*?<\/ul>/, " "));
+const sharedOf = html => [...(html.match(/<ul class="stonetop-move-shared-options">([\s\S]*?)<\/ul>/)?.[1] ?? "")
+	.matchAll(/<li>([\s\S]*?)<\/li>/g)].map(([, li]) => plain(li));
+
+describe("a description that makes more than one roll", () => {
+	// Merged, the four seasons' rolls read "pick 1 seasonal gain; pick 2 seasonal gains; …" on
+	// one 10+ row with no season left to say which was which.
+	it("keeps the Seasons Change's season-labelled stored rows instead of merging its prose", () => {
+		const { description, moveResults } = itemMove("homefront-moves/seasons-change.json");
+		expect(parseTiersFromProse(description)).toBeNull();
+		const rows = rowsOf(moveBodyHtml(description, moveResults));
+		expect(rows.success).toMatch(/^Spring\/Autumn: pick 1 seasonal gain\. Summer: pick 2/);
+		expect(rows.failure).toContain("Winter:");
+	});
+
+	it("leaves the Humble Broom's two lullaby rolls as written", () => {
+		const { description } = condensedMove("humble-broom.json");
+		expect(moveBodyHtml(description, null)).toBe(description);
+	});
+
+	it("still reads one roll whose text only mentions another result", () => {
+		const { description } = itemMove("expedition-moves/struggle-as-one.json");
+		expect(parseTiersFromProse(description)).not.toBeNull();
+	});
+});
+
+describe("a rung's own sentences stay on its row", () => {
+	// A paragraph that OPENS with the tier is that rung's paragraph.
+	it("keeps Bodysnatcher's 6- caveat on the 6- row", () => {
+		const { description, moveResults } = itemMove("post-death-moves/ghost/bodysnatcher.json");
+		const html = moveBodyHtml(description, moveResults);
+		expect(rowsOf(html).failure).toContain("You'll never be able to possess them again.");
+		expect(outsideLadder(html)).not.toContain("never be able to possess them");
+	});
+
+	// Mid-paragraph, the stored 7-9 is what says the sentences are the 7-9's.
+	it("keeps Deploy's who-chooses sentences on the 7-9 row", () => {
+		const { description, moveResults } = itemMove("homefront-moves/deploy.json");
+		const html = moveBodyHtml(description, moveResults);
+		expect(rowsOf(html).partial).toContain("If the steading is acting from a position of strength, you choose. Otherwise, the GM chooses.");
+		expect(outsideLadder(html)).not.toContain("position of strength");
+	});
+
+	it("keeps the steading sheet's Deploy 7-9 sentences together, a tier-opened paragraph", () => {
+		const desc = "<p>Roll <strong>+Defenses</strong>.</p><p><strong>On a 10+:</strong> it goes well.</p>"
+			+ "<p><strong>On a 7-9:</strong> it works, but someone picks 1. If the steading is strong, you choose. Otherwise, the GM chooses.</p>";
+		const html = moveBodyHtml(desc, null);
+		expect(rowsOf(html).partial).toBe("It works, but someone picks 1. If the steading is strong, you choose. Otherwise, the GM chooses.");
+	});
+
+	it("keeps an option list that follows a rung's colon on that rung (Siphon)", () => {
+		const { description } = mystery("hungering-maw-of-hlad.json", "SIPHON");
+		const html = moveBodyHtml(description, null);
+		expect(rowsOf(html).partial).toContain("The ring eats at your life-force");
+		expect(outsideLadder(html)).not.toContain("The ring eats");
+	});
+
+	it("never presents Suffering Unleashed's 6- penalties as unconditional", () => {
+		const { description } = mystery("redwood-effigy.json", "SUFFERING UNLEASHED");
+		const html = moveBodyHtml(description, null);
+		expect(outsideLadder(html)).not.toContain("You fully suffer the unleashed harm");
+		expect(sharedOf(html)).toContain("Mark a consequence");
+	});
+
+	it("keeps a clause that opens on a number with its rung (Whispering Word)", () => {
+		const { description } = condensedMove("whispering-word.json");
+		const html = moveBodyHtml(description, null);
+		expect(outsideLadder(html)).not.toContain("1d4 other objects");
+		expect(sharedOf(html)).toContain("1d4 other objects are also unmade");
+	});
+
+	// And the two kinds of sentence that must NOT be pulled onto a rung.
+	it("leaves Defend's spend menu where it was written", () => {
+		const { description, moveResults } = itemMove("basic-moves/defend.json");
+		expect(outsideLadder(moveBodyHtml(description, moveResults))).toContain("You can spend Readiness 1-for-1 to");
+	});
+
+	it("leaves the Stretched Vellum's general sentences in the prose when no stored row vouches for them", () => {
+		const { description } = condensedMove("stretched-vellum.json");
+		expect(outsideLadder(moveBodyHtml(description, null))).toContain("If your roll equals or exceeds the target's current HP");
+	});
+});
+
+describe("joining a rung's fragments", () => {
+	it("settles Bark an Order's 7+ colon before the 10+ sentence", () => {
+		const { description, moveResults } = itemMove("playbook-moves/the-heavy/bark-an-order.json");
+		expect(rowsOf(moveBodyHtml(description, moveResults)).success)
+			.toBe("They must choose 1. You can sense which one they're about to do and act first if you like; gain advantage if you do.");
+	});
+
+	it("keeps Trade & Barter's two 7-9 cases apart", () => {
+		const { description, moveResults } = itemMove("homefront-moves/trade-and-barter.json");
+		const rows = rowsOf(moveBodyHtml(description, moveResults));
+		expect(rows.partial).toBe("When you're trying to buy, the GM picks 1. When you're looking to sell: you can sell it now, but you won't get its full worth.");
+		expect(rows.failure).toContain("you'll need to travel to __ or wait until next season");
+	});
+
+	it("lets Danu's Grasp's 10+ restate the 7-9 rather than follow the 7+", () => {
+		const { description, moveResults } = itemMove("playbook-moves/the-blessed/danus-grasp.json");
+		expect(rowsOf(moveBodyHtml(description, moveResults)).success).toBe("As a 7-9, but both apply.");
+	});
+});
+
+describe("an inline option list shared by the rungs", () => {
+	it("lists the Patch of Rainbow Moss's options once, under the rows that pick from them", () => {
+		const { description } = condensedMove("patch-of-rainbow-moss.json");
+		const html = moveBodyHtml(description, null);
+		const rows = rowsOf(html);
+		expect(rows.success).toBe("Pick 3.");
+		expect(rows.partial).toBe("Pick 1.");
+		expect(sharedOf(html)).toHaveLength(4);
+		expect(html.indexOf("stonetop-move-shared-options")).toBeGreaterThan(html.indexOf("stonetop-move-tiers"));
+	});
+
+	it("reads \"GM picks 1\" as a count too (Metal Puzzle Box)", () => {
+		const { description } = condensedMove("metal-puzzle-box.json");
+		expect(sharedOf(moveBodyHtml(description, null))).toContain("Elements run amok");
+	});
+
+	it("drops the \"from\" that pointed at the list (Wolf Pelt)", () => {
+		const { description } = condensedMove("wolf-pelt.json");
+		expect(rowsOf(moveBodyHtml(description, null)).partial).toMatch(/Also pick 2\.$/);
+	});
+
+	it("leaves a list that is one rung's own on that rung (Siphon)", () => {
+		const { description } = mystery("hungering-maw-of-hlad.json", "SIPHON");
+		expect(sharedOf(moveBodyHtml(description, null))).toEqual([]);
+	});
+});
+
+describe("the Wolf Pelt", () => {
+	// Book II prints "on a 10+, also pick 1"; the card had "on a 6+".
+	it("prints its strong hit as a 10+ on both sides of the card", () => {
+		const back = packDoc("stonetop-arcana/minor/wolf-pelt.json").flags.stonetop.back;
+		expect(back.description).toContain("<strong>on a 10+</strong>, also pick 1");
+		expect(back.move.description).toContain("On 10+, also pick 1");
+		expect(back.description + back.move.description).not.toMatch(/on (?:a )?6\+/i);
+	});
+
+	it("reads the condensed move's article-less tiers", () => {
+		const rows = rowsOf(moveBodyHtml(condensedMove("wolf-pelt.json").description, null));
+		expect(Object.keys(rows)).toEqual(["success", "partial", "failure"]);
+		expect(rows.success).toContain("You corner your prey");
+	});
+});
+
+describe("where the ladder sits", () => {
+	it("puts Urges' ladder before its second trigger, not after it", () => {
+		const { description, moveResults } = itemMove("post-death-moves/thrall/urges.json");
+		const html = moveBodyHtml(description, moveResults);
+		expect(html.indexOf("stonetop-move-tiers")).toBeLessThan(html.indexOf("without being compelled"));
+	});
+
+	it("puts Dark Succor's ladder before its \"Regardless\"", () => {
+		const { description } = itemMove("post-death-moves/thrall/dark-succor.json");
+		const html = moveBodyHtml(description, null);
+		expect(html.indexOf("stonetop-move-tiers")).toBeLessThan(html.indexOf("Regardless, reset your Favor"));
+	});
+
+	// A lead-in the cut left standing still owns the list under it.
+	it("keeps Defend's spend menu with its list, the ladder after both", () => {
+		const { description, moveResults } = itemMove("basic-moves/defend.json");
+		const html = moveBodyHtml(description, moveResults);
+		const ladder = html.indexOf("stonetop-move-tiers");
+		expect(html.indexOf("Strike back at an attacker")).toBeLessThan(ladder);
+		expect(ladder).toBeLessThan(html.indexOf("When you go on the offense"));
+	});
+
+	it("still goes last when no tier was in the prose (Borrow Power)", () => {
+		const { description, moveResults } = itemMove("playbook-moves/the-blessed/borrow-power.json");
+		expect(moveBodyHtml(description, moveResults)).toMatch(/<\/ul>$/);
+	});
+});
+
+describe("tier heads in other spellings", () => {
+	const keys = desc => Object.keys(parseTiersFromProse(desc) ?? {});
+	const rows = desc => Object.fromEntries(Object.entries(parseTiersFromProse(desc) ?? {}).map(([k, v]) => [k, v.value]));
+
+	it("reads numeric entities as the dashes and spaces they are", () => {
+		expect(rows("<p>Roll +WIS: on a 10+, A; on a 7&#8211;9, B; on a 6&#8211;, C.</p>"))
+			.toEqual({ success: "A.", partial: "B.", failure: "C." });
+		expect(keys("<p>Roll +WIS: on&#160;a 10+, A; on&#160;a 7-9, B.</p>")).toEqual(["success", "partial"]);
+	});
+
+	it("maps a range by the rungs it covers, so a 10-11 is the strong hit", () => {
+		expect(rows("<p>Roll +STR: on a 10-11, you win; on a 7-9, partial; on a 6-, lose.</p>"))
+			.toEqual({ success: "You win.", partial: "Partial.", failure: "Lose." });
+	});
+
+	it("ends a rung at a 12+ line, which stays in the prose", () => {
+		const desc = "<p>Roll +STR: on a 10+, you win; on a 7-9, you mostly win; on a 12+, you also gain glory.</p>";
+		expect(rows(desc).partial).toBe("You mostly win.");
+		expect(text(moveBodyHtml(desc, null))).toContain("On a 12+, you also gain glory.");
+	});
+
+	it("reads \"6 or less\" and a hit named in words", () => {
+		expect(rows("<p>Roll +WIS: on a 10+, A; on a 7-9, B; on a 6 or less, C.</p>").failure).toBe("C.");
+		expect(rows("<p>Roll +DEX: on a hit, you escape; on a miss, you're caught.</p>"))
+			.toEqual({ success: "You escape.", partial: "You escape.", failure: "You're caught." });
+	});
+
+	it("splits tiers written as one comma run", () => {
+		expect(rows("<p>Roll +CON: on a 10+ pick 1, on a 7-9 pick 2, on a 6- all three.</p>"))
+			.toEqual({ success: "Pick 1.", partial: "Pick 2.", failure: "All three." });
+	});
+
+	it("keeps an abbreviation's lower case when a rung is joined across it", () => {
+		expect(rows("<p>Roll +WIS: on a 10+, you gain a tool, e.g. a rope; on a 7-9, B.</p>").success)
+			.toBe("You gain a tool, e.g. a rope.");
+	});
+
+	// Only the colon that led into a cut tier is settled to a full stop.
+	it("leaves an ordinary mid-prose colon alone", () => {
+		const html = moveBodyHtml("<p>Steer clear: they bite. Roll +CON: on a 10+, A; on a 7-9, B.</p>", null);
+		expect(text(html)).toContain("Steer clear: they bite. Roll +CON:");
+	});
+});
+
+// One pick-list parser (strings.js#splitPickList): a rung's own grammar is a mode of it, so a
+// separator the outcome grammar knows splits a rung's list too.
+describe("splitPickList's rung grammar", () => {
+	it("reads a rung's ;-separated list, its count-naming lead-in and its trailing 'from'", () => {
+		expect(splitPickList("pick 1: a; b; or c.", { rung: true })).toEqual({ intro: "pick 1:", options: ["a", "b", "c"] });
+		expect(splitPickList("also pick 2 from: x / y", { rung: true })).toEqual({ intro: "also pick 2 from:", options: ["x", "y"] });
+	});
+
+	it("splits on the outcome grammar's OR too, which the rung's own parser once missed", () => {
+		expect(splitPickList("choose 1: hold fast OR give ground", { rung: true })?.options).toEqual(["hold fast", "give ground"]);
+		expect(splitPickList("choose 1: hold fast OR give ground")?.options).toEqual(["hold fast", "give ground"]);
+	});
+
+	it("leaves the outcome grammar as it was: a ';' is prose there", () => {
+		expect(splitPickList("pick 1: a; b")).toBeNull();
 	});
 });

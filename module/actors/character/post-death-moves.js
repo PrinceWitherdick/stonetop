@@ -61,6 +61,17 @@ export function planLoreMoveSync({ entries = [], owned = [], isMarked }) {
  * as the post-death move it is, with the lore option it belongs to so the sync can find it again.
  */
 export function loreMoveItemData(def) {
+	const data = postDeathMoveItemData(def);
+	data.system.loreOption = def.loreOption;
+	return data;
+}
+
+/**
+ * The Item a post-death pack move is created as: the move whole (its roll, its outcomes, its track),
+ * as a post-death move. An insert's own moves (Undying, Urges) are made this way, and a lore option's
+ * move is this plus its lore option (loreMoveItemData).
+ */
+export function postDeathMoveItemData(def) {
 	const res = def.resource;
 	return {
 		name: def.name,
@@ -69,7 +80,6 @@ export function loreMoveItemData(def) {
 			moveType:    "post-death",
 			rollType:    def.rollType ?? "",
 			description: def.description ?? "",
-			loreOption:  def.loreOption,
 			...(def.moveResults ? { moveResults: def.moveResults } : {}),
 			// Written back out of the ResourceDef as the plain record a pack move stores, so the owned
 			// copy's track is the pack's (Poltergeist's four Fury and its "Spend 1 to" hover).

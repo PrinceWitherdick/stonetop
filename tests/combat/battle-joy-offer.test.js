@@ -390,7 +390,8 @@ describe("the Battle Joy roll card's buttons", () => {
 		const { duvin, message } = rolled({ hp: 7 });
 		expect(await settleBattleJoyResult(message, duvin, "regain")).toBe(true);
 		expect(duvin.typedActor.restoreHp).toHaveBeenCalledWith(10, "Battle Joy");
-		expect(posted.at(-1).flavor).toContain("Duvin regains 3 HP (now 10)");
+		expect(posted.at(-1).flavor).toContain("stonetop-roll-card");
+		expect(posted.at(-1).flavor).toContain("HP 7 → 10");
 		expect(message.flags[SYSTEM_ID][BATTLE_JOY_RESULT_FLAG]).toBe("regain");
 		// A second press, or a reload, finds it spent.
 		expect(await settleBattleJoyResult(message, duvin, "regain")).toBe(false);

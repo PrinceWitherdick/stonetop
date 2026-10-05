@@ -51,9 +51,14 @@ export function mountedPanelSlot({ field, tab, mountSel, build }) {
 	 */
 	function sync(sheet, root) {
 		const mount = root?.querySelector?.(mountSel);
-		// No mount at all is the classic layout, which does not carry these tabs. See the guards in
-		// character.hbs and steading.hbs, and `classic-layout-must-stay-the-old-layout`.
-		if (!mount) return;
+		// No mount at all is the classic layout, which does not carry these tabs, or a world whose GM
+		// has switched the feature off. See the guards in character.hbs and steading.hbs, and
+		// `classic-layout-must-stay-the-old-layout`. A panel built before the tab went is closed
+		// here, or its journal hooks would outlive it.
+		if (!mount) {
+			close(sheet);
+			return;
+		}
 
 		const panel = sheet?.[field];
 		const body = panel?.element?.[0];

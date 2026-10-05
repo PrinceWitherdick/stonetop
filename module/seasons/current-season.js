@@ -2,6 +2,21 @@ import { SEASON_IDS, seasonLabel } from "./seasons-change-reminders.js";
 import { yearLabel } from "./seasons-chronicle.js";
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 import { seasonLogUpdate } from "../timeline/timeline-seasons.js";
+import { localize } from "../utils/i18n.js";
+
+/**
+ * What a season of the campaign is called, on the timeline and wherever else it is dated: the
+ * season, then the year it belongs to.
+ *
+ * The season leads because a run of blocks is read down a column and the season is what changes
+ * between neighbours; the year is the constant that only sometimes moves. `yearLabel` is the same
+ * function the Seasons Change journal titles its pages with, so a reader looking at both sees one
+ * naming scheme rather than two.
+ */
+export function periodLabel({ season, year } = {}) {
+	if (!season) return localize("stonetop.timeline.beforeRecord");
+	return `${seasonLabel(season)}, ${yearLabel(year)}`;
+}
 
 // ── The steading's clock ──────────────────────────────────────────────────────
 // The Seasons Change move is the campaign's calendar: each run names the season that
@@ -187,6 +202,9 @@ export async function recordCurrentSeason(actor, season, year, { advanceOnly = f
 	if (advancesYear(actor, wantYear)) flags[CURRENT_YEAR_KEY] = wantYear;
 	if (!Object.keys(flags).length) return;
 	await actor.update({ flags: { [STONETOP_SCOPE]: flags } });
+	// A turned season makes the posted weather stale, and stale weather stays off the map.
+	// Reached through game.stonetop (as settings.js does) since current-weather reads this module.
+	if (flags[CURRENT_SEASON_KEY]) await globalThis.game?.stonetop?.refreshWeatherFx?.();
 }
 
 /**

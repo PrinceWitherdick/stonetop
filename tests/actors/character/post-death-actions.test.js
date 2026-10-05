@@ -11,7 +11,7 @@ import {
 	moveActionsFor, runPostDeathAction, loseHp, tierDamageButtons, pressCardButton,
 	POLTERGEIST, RED_WRATH, TORMENTS_BLESSING,
 } from "../../../module/actors/character/post-death-actions.js";
-import { loreMoveItemData } from "../../../module/actors/character/post-death-moves.js";
+import { loreMoveItemData, postDeathMoveItemData } from "../../../module/actors/character/post-death-moves.js";
 import { MoveDefinition } from "../../../module/model/MoveDefinition.js";
 import { makeLiveActor, makeLiveItem } from "../../fakes/LiveCharacter.js";
 import { FakeRepositoryFactory } from "../../fakes/FakeRepositoryFactory.js";
@@ -23,10 +23,7 @@ const shipped = (slug, file) => JSON.parse(fs.readFileSync(path.join(SRC, slug, 
 
 // A lore move as the sync creates it, and an insert's own move as setPostDeathInsert does.
 const loreItem = (slug, file) => makeLiveItem(loreMoveItemData(new MoveDefinition(shipped(slug, file))));
-const insertItem = (slug, file) => {
-	const raw = shipped(slug, file);
-	return makeLiveItem({ name: raw.name, type: "move", system: { moveType: "post-death", rollType: raw.system.rollType ?? "", description: raw.system.description } });
-};
+const insertItem = (slug, file) => makeLiveItem(postDeathMoveItemData(new MoveDefinition(shipped(slug, file))));
 
 let rolls;
 let posted;

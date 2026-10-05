@@ -10,6 +10,21 @@
 import { makeGmPrepPageStore } from "../journal/gm-prep-page-store.js";
 import { SITE_PAIR_LISTS, cleanLines, keyedRows, shapePairList } from "./site-schema.js";
 
+/** What a random-table face left blank is saved as. */
+export const BLANK_FACE = "(nothing)";
+
+/**
+ * A random table's faces as saved: every face kept, a blank one written as BLANK_FACE.
+ *
+ * NOT cleanLines. Dropping a blank face shrank the die and renumbered every row after it, so a
+ * table the wizard showed as 1d6 with "4 Bears" on it was saved as 1d5 with the bears on 3. A
+ * table with no face written at all has no rows, so a blank table is still nothing.
+ */
+export function tableFaces(rows) {
+	const faces = (Array.isArray(rows) ? rows : []).map(s => String(s ?? "").trim());
+	return faces.some(Boolean) ? faces.map(f => f || BLANK_FACE) : [];
+}
+
 /** Normalize a creator/editor payload into the site page's system data. */
 export function shapeSiteSystem(seed = {}) {
 	return {
@@ -38,7 +53,7 @@ export function shapeSiteSystem(seed = {}) {
 		// A table with a caption but no rows is still worth keeping (it's a note to fill in);
 		// one with neither is not.
 		randomTables: (Array.isArray(seed.randomTables) ? seed.randomTables : [])
-			.map(t => ({ caption: String(t?.caption ?? "").trim(), rows: cleanLines(t?.rows) }))
+			.map(t => ({ caption: String(t?.caption ?? "").trim(), rows: tableFaces(t?.rows) }))
 			.filter(t => t.caption || t.rows.length),
 	};
 }

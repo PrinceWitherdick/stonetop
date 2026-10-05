@@ -63,3 +63,37 @@ describe("an oathbreaker", () => {
 		expect(foeAdvantage(hafgan, [brennanToken], { clash: true })).toBe(HERO_MOVES.RELENTLESS);
 	});
 });
+
+// Who a row binds, for the advantage. A row linked to an actor binds that actor (and, laid from the
+// sidebar, every token of it); laid through one unlinked token it binds that token alone; only a
+// name-only row is matched by spelling. These targets resolve to nothing, so only the token's own
+// name, actor id and uuid are asked.
+describe("who an oath binds", () => {
+	const guardToken = (token, actorId) => ({ uuid: `Scene.s.Token.${token}`, name: "Guard", actorId });
+
+	it("does not bind a second actor who merely shares a linked row's name", () => {
+		const hafgan = judge([{ id: "o1", name: "Guard", uuid: "Actor.g1", broken: true }]);
+		expect(oathbreakerAgainst(hafgan, [guardToken("t1", "g1")])).toBe(BINDING_ARBITRATION);
+		expect(oathbreakerAgainst(hafgan, [guardToken("t2", "g2")])).toBeNull();
+	});
+
+	it("binds every token of an actor sworn from the sidebar", () => {
+		const hafgan = judge([{ id: "o1", name: "Bandit", uuid: "Actor.bandit", broken: true }]);
+		expect(oathbreakerAgainst(hafgan, [guardToken("ta", "bandit")])).toBe(BINDING_ARBITRATION);
+		expect(oathbreakerAgainst(hafgan, [guardToken("tb", "bandit")])).toBe(BINDING_ARBITRATION);
+	});
+
+	it("binds only the token an oath was sworn through", () => {
+		const hafgan = judge([{ id: "o1", name: "Bandit", uuid: "Scene.s.Token.ta.Actor.bandit", broken: true }]);
+		expect(oathbreakerAgainst(hafgan, [guardToken("ta", "bandit")])).toBe(BINDING_ARBITRATION);
+		expect(oathbreakerAgainst(hafgan, [guardToken("tb", "bandit")])).toBeNull();
+	});
+
+	it("needs only one of a person's oaths broken", () => {
+		const hafgan = judge([
+			{ id: "o1", name: "Guard", uuid: "Actor.g1", note: "kept", broken: false },
+			{ id: "o2", name: "Guard", uuid: "Actor.g1", note: "broken", broken: true },
+		]);
+		expect(oathbreakerAgainst(hafgan, [guardToken("t1", "g1")])).toBe(BINDING_ARBITRATION);
+	});
+});

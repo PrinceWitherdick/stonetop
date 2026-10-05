@@ -5,10 +5,12 @@ import { TIER_LABELS } from "../utils/move-results.js";
 // running the factory, and that window still has to be told which trip to switch to.
 import { findOpenApp } from "../utils/open-windows.js";
 import { crewExists, customGroupPresent, customGroupSize } from "../utils/crew.js";
+import { followerInParty } from "../actors/character/follower-party.js";
+import { partyFollowersOf } from "../actors/character/follower-roster.js";
 import { sign, rollSeasonsCard, pbtaDiceFormula } from "../utils/roll-engine.js";
 import { normalizeRollMode, wireModePicker } from "./RollDialog.js";
 import { getStonetopSteadingActor, isSteadingActor } from "../utils/world.js";
-import { getSetting, setWorldSetting } from "../settings.js";
+import { getSetting, isTimelineShown, setWorldSetting } from "../settings.js";
 import { capitalizeFirst, escHtml, decodeEntities, stripHtmlToText } from "../utils/strings.js";
 import { portraitOrNone, documentPortraitFrame } from "../utils/portrait-frame.js";
 import { wireAvatarPreview, removeAvatarPreview } from "../utils/avatar-preview.js";
@@ -32,9 +34,10 @@ import {
 	mergeLogs,
 	sameLog,
 } from "../utils/expedition-log-core.js";
-import { StonetopSteading } from "../actors/steading/StonetopSteading.js";
+import { StonetopSteading, isHerdAsset } from "../actors/steading/StonetopSteading.js";
+import { askHorsesFromHerd, herdHorsesLabel, herdHorsesIn, herdHorsesOnLine } from "../actors/steading/herd-requisition.js";
 import { openReturnTriumphant } from "../actors/steading/return-triumphant.js";
-import { STEADING_MOVE, improvementQuestions } from "../actors/steading/improvement-rolls.js";
+import { STEADING_MOVE, improvementQuestions, askedAdvantageAnswers, herdCountAnswer } from "../actors/steading/improvement-rolls.js";
 import { settleSteadingRoll } from "../actors/steading/steading-roll.js";
 import { worldLogisticsNames } from "../actors/character/logistics.js";
 import { assetTakenLabel } from "../utils/requisition-asset.js";
@@ -79,6 +82,7 @@ import {
 import { drawnOn, offMapNote, routePath, tierDraws, tierDrawing, tierDrawingEnds } from "../utils/route-path.js";
 import { posterSceneFor } from "../book2-art/poster-map-catalog.js";
 import { format, localize } from "../utils/i18n.js";
+import { periodLabel } from "../seasons/current-season.js";
 import { loadGatedClause, overLoadGate } from "../actors/character/load-gates.js";
 import {
 	clearRouteOnScene, offMapNames, routeFlagTouched, sceneRouteCheck, sceneRouteRefusal,
@@ -151,6 +155,9 @@ function _carriesLoad(actor) {
 	return actor?.type === "character" || isSteadingActor(actor);
 }
 
+/** The built-in followers a load row is drawn for off their card, and the tag each row wears. */
+const BUILT_IN_LOAD_TAGS = Object.freeze({ "animal-companion": "animal companion", "initiate": "initiate", "beast": "beast" });
+
 /**
  * The tag a returned PC wears on their load row: `{ kind, label }`, or null for the living.
  *
@@ -197,8 +204,8 @@ const RESUME_KEY = "expedition";
 //
 // The chapter's weather section is NOT a step either. It taught nothing this
 // walkthrough has to walk you through, and every tool it pointed at is a click
-// away without it: the seasonal table is the Weather picker's whole window (hotbar
-// slot 4, and the glyph beside the steading's clock), and the hoped-for-weather
+// away without it: the seasonal table is the Weather picker's whole window (the
+// weather in the time banner, and the glyph beside the steading's clock), and the hoped-for-weather
 // oracle is a Die of Fate roll. A step per section of the chapter was making the
 // rail long enough to read as a chore.
 //
@@ -869,6 +876,7 @@ export class ExpeditionDialog extends StepperDialog {
 		// the move's whole effect is on the steading — so there is no re-render here; the
 		// walkthrough it opens repaints whatever steading sheet happens to be showing.
 		html.find(".stonetop-exp-triumph-btn").on("click", () => this._returnTriumphant());
+		html.find(".stonetop-exp-timeline-btn").on("click", ev => this._guardBusy(ev, () => this._recordTrip()));
 		// Route step: pick a place off the map or the list, or change which map is showing. The
 		// same binder the popout uses, because it is the same partial (dialogs/journey-controls.js).
 		const journeyHandlers = {
@@ -962,6 +970,7 @@ export class ExpeditionDialog extends StepperDialog {
 		const nav  = this._stepNav();
 		const step = nav.step;
 		const roll = step.roll ? this._rolls[this._rollKey(step.key)] ?? null : null;
+		const reqQuestions = step.roll === "requisition" ? this._requisitionQuestions() : null;
 		const { currentId, list } = this._log();
 		// The trip being walked, found once and then read for both the banner and the bar.
 		//
@@ -1009,14 +1018,14 @@ export class ExpeditionDialog extends StepperDialog {
 			showRoll:  step.roll === "requisition",
 			roll,
 			fortunesLabel: step.roll === "requisition" ? this._fortunesLabel() : null,
-			// The Herd of Horses question, once the steading has one (improvement-rolls.js).
-			herdShare: step.roll === "requisition" ? this._herdShareQuestion() : "",
-			// The Marshal's Logistics, ticked, once any character has it learned.
-			reqLogistics: step.roll === "requisition" ? this._logisticsQuestion() : "",
-			// How the GM is rolling it, and any advantage the steading is holding for its next
-			// +Fortunes roll, which this roll will spend.
+			// The Herd of Horses count, the asked advantages, the Marshal's Logistics (ticked) and
+			// any advantage the steading is holding for its next +Fortunes roll, which this spends.
+			reqHerdCount:  reqQuestions?.herdCount ?? null,
+			reqLogistics:  reqQuestions?.logistics ?? "",
+			reqAdvantages: reqQuestions?.advantages ?? [],
+			reqHeld:       reqQuestions?.held ?? "",
+			// How the GM is rolling it.
 			reqMode:   step.roll === "requisition" ? this._requisitionMode() : null,
-			reqHeld:   step.roll === "requisition" ? this._steadingWrapper()?.steading.fortunesAdvantage?.()?.source ?? "" : "",
 			showTiers: !!step.showTiers,
 			tiers:     step.showTiers
 				? _REQ_TIERS.map(t => ({ ...t, label: _REQ_RESULT[t.key].label, isActive: roll?.tier === t.key }))
@@ -1042,6 +1051,12 @@ export class ExpeditionDialog extends StepperDialog {
 			returnTriumphant: step.returnTriumphant && game.user?.isGM
 				? { hasSteading: !!getStonetopSteadingActor(), body: step.triumphBody ?? "" }
 				: null,
+			// Whether this trip is on the timeline yet, on the homecoming step. It is written by
+			// itself the first time the GM steps in here with Next; this says so, and offers to write
+			// it (again) for a trip reached by the table of contents or recorded before a change.
+			// Not while the timeline is switched off: the trip is still written, but there is no
+			// timeline on screen for the note to point at.
+			tripTimeline: step.returnTriumphant && game.user?.isGM && isTimelineShown() ? this._tripTimelineContext() : null,
 			// The exploration moves rail. On EVERY step, not only the ones that reach for a
 			// GM move: it is furniture, and a column that came and went as the reader stepped
 			// would shift the prose sideways under them twice a walkthrough. The list is the
@@ -1506,17 +1521,22 @@ export class ExpeditionDialog extends StepperDialog {
 	_buildAssetPicker() {
 		const found = this._steadingWrapper();
 		if (!found) return { hasSteading: false, hasRows: false, rows: [], takenCount: 0 };
-		const tripId = this._currentExpedition()?.id ?? null;
+		const trip = this._currentExpedition();
+		const tripId = trip?.id ?? null;
 		// The steading is the record of where a communal asset actually IS, so which of them this
 		// trip is holding is its question to answer rather than a predicate spelled again here.
 		const ourIndexes = new Set(found.steading.getAssetsOnExpedition(tripId).map(a => a.index));
+		// The herd is never marked out itself (only horses leave it), so whether this trip has some
+		// is read off the trip's own lines.
+		const herdHorses = herdHorsesIn(trip?.requisitioned);
 
 		const rows = found.steading.getNamedAssets().map(asset => {
-			const ours      = ourIndexes.has(asset.index);
+			const herd      = isHerdAsset(asset);
+			const ours      = herd ? herdHorses > 0 : ourIndexes.has(asset.index);
 			const elsewhere = !!asset.takenBy && !ours;
 			return {
 				index:      asset.index,
-				name:       asset.name,
+				name:       herd && ours ? `${asset.name} (${herdHorses} with this trip)` : asset.name,
 				ours, elsewhere,
 				// What a click on this row means, decided here: one of ours is sent home.
 				take:       !ours,
@@ -1549,11 +1569,24 @@ export class ExpeditionDialog extends StepperDialog {
 	// Two assets clicked inside one round trip each started from the same snapshot, and the
 	// second write put back the list without the first. Queued (utils/turn-queue.js), each click
 	// starts from what the one before it left.
-	_toggleRequisitionedAsset(index, take) {
-		return inTurn("expedition-log", () => this._writeRequisitionedAsset(index, take));
+	//
+	// The Herd of Horses' row is the one asset not lent out whole: how many horses go is asked
+	// first (askHorsesFromHerd, the user's ruling), outside the queue so a window left open does
+	// not hold every other click, and that many leave the herd's count. Its row shows ticked while
+	// the trip has horses from it, and a click then puts them all back in the herd.
+	async _toggleRequisitionedAsset(index, take) {
+		let herdCount = 0;
+		const found = this._steadingWrapper();
+		const asset = found?.steading.getNamedAssets().find(a => a.index === index);
+		const herd = !!asset && isHerdAsset(asset);
+		if (take && herd) {
+			herdCount = await askHorsesFromHerd({ cap: found.steading.herdRequisitionCap(), preset: herdCountAnswer(this.element?.[0]), who: "this expedition" });
+			if (!herdCount) return;
+		}
+		return inTurn("expedition-log", () => this._writeRequisitionedAsset(index, take, { herdCount, herd }));
 	}
 
-	async _writeRequisitionedAsset(index, take) {
+	async _writeRequisitionedAsset(index, take, { herdCount = 0, herd = false } = {}) {
 		if (!Number.isInteger(index)) return;
 		const found = this._steadingWrapper();
 		if (!found) {
@@ -1562,7 +1595,8 @@ export class ExpeditionDialog extends StepperDialog {
 		}
 		const { log: before, entry: trip } = ensureCurrent(this._log(), () => this._newExpedition());
 		const minted = !this._log().list.some(e => e.id === trip.id);
-		const name = found.steading.getNamedAssets().find(a => a.index === index)?.name ?? "";
+		// `let`: horses taken from the herd are recorded as how many went, not as the herd.
+		let name = found.steading.getNamedAssets().find(a => a.index === index)?.name ?? "";
 
 		// KEYED ON THE NAME, WHICH IS ALSO THE WHOLE OF WHAT THE RECORD IS FOR. An asset's index is
 		// its POSITION in the steading's `assets` array, and the steading sheet's delete splices
@@ -1581,7 +1615,16 @@ export class ExpeditionDialog extends StepperDialog {
 		// predicate that then matched every nameless record would clear the trip's whole list.
 		const sameAsset = r => !!name && String(r?.name ?? "") === name;
 		try {
-			if (take) {
+			if (take && herdCount) {
+				const taken = await found.steading.requisitionFromHerd(herdCount, { stonetopMove: "Requisition" });
+				if (!taken) return;
+				herdCount = taken;
+				name = herdHorsesLabel(taken);
+			} else if (herd) {
+				// Every horse this trip took from the herd goes back to it.
+				const back = herdHorsesIn((before.list.find(e => e.id === trip.id) ?? trip).requisitioned);
+				if (back) await found.steading.returnToHerd(back, { stonetopMove: "Requisition" });
+			} else if (take) {
 				const title = expeditionLabel(trip, before.list.findIndex(e => e.id === trip.id));
 				const ok = await found.steading.setAssetTaken(index, { expedition: { id: trip.id, title } });
 				if (!ok) return;
@@ -1608,7 +1651,10 @@ export class ExpeditionDialog extends StepperDialog {
 		const record = Array.isArray(entry.requisitioned) ? entry.requisitioned : [];
 		// An asset returned from the steading sheet and then taken again here would otherwise be
 		// recorded twice on the one trip.
-		if (take) entry.requisitioned = record.some(sameAsset) ? record : [...record, { name }];
+		// Horses from the herd are always a fresh line: a second "2 horses from the herd" is two more.
+		if (take && herdCount) entry.requisitioned = [...record, { name, herd: herdCount }];
+		else if (take) entry.requisitioned = record.some(sameAsset) ? record : [...record, { name }];
+		else if (herd) entry.requisitioned = record.filter(r => !herdHorsesOnLine(r));
 		else entry.requisitioned = record.filter(r => !sameAsset(r));
 
 		await this._persistLog(log);
@@ -1621,9 +1667,11 @@ export class ExpeditionDialog extends StepperDialog {
 	 * Make the Return Triumphant move (Book I p.339) from the last step of the walkthrough.
 	 *
 	 * Hands straight off to the shared walkthrough the steading sheet's move card opens
-	 * (actors/steading/return-triumphant.js). Nothing of the expedition is recorded: the move's
-	 * whole effect is a debility cleared, or a point of Fortunes, on the steading — and that is
-	 * already written down where it belongs, on the sheet, in its ledger, attributed to the move.
+	 * (actors/steading/return-triumphant.js). The move's effect is a debility cleared, or a point of
+	 * Fortunes, on the steading, written down where it belongs: on the sheet, in its ledger,
+	 * attributed to the move. The one mark it leaves on the trip, that its timeline row says they
+	 * came home in triumph, the move makes itself once it has been made (a cancelled window makes
+	 * none), so it lands the same from the steading sheet as from here.
 	 */
 	_returnTriumphant() {
 		const found = this._steadingWrapper();
@@ -1631,7 +1679,62 @@ export class ExpeditionDialog extends StepperDialog {
 			ui.notifications?.warn?.("No steading sheet in this world to Return Triumphant to.");
 			return;
 		}
-		openReturnTriumphant(found.steading);
+		openReturnTriumphant(found.steading, { fromWalkthrough: true });
+	}
+
+	// ── The trip, on the timeline ──────────────────────────────────────────────────
+	//
+	// See timeline/timeline-expedition.js, and the writer beside it. Driven by NEXT only (StepperDialog's
+	// `_onStepEntered`, `via: "next"`): stepping into Running the Journey stamps when they set out,
+	// stepping into the homecoming writes the rows. Back, the table of contents and a reload's restore
+	// only move the reader, and must not make a trip happen.
+
+	_onStepEntered(key, { via }) {
+		if (via !== "next" || !game.user?.isGM) return;
+		return this._noteTripStep(key).catch(err => warn("could not note the trip on the timeline", err));
+	}
+
+	async _noteTripStep(key) {
+		const trip = this._currentExpedition();
+		if (key === "running" && !trip?.setOut) {
+			const { timelineNow } = await import("../timeline/timeline-record.js");
+			const { log, entry } = ensureCurrent(this._log(), () => this._newExpedition());
+			entry.setOut = timelineNow();
+			await this._persistLog(log);
+		}
+		if (key === "home" && !trip?.timelineRecorded) await this._recordTrip();
+	}
+
+	/**
+	 * This window's copy of the log, as the trip's timeline writer reads and writes it
+	 * (timeline/timeline-expedition-record.js `tripLogStore`). Through the draft and `_persistLog`,
+	 * so a write made while the window is up, by the move as much as by the window, lands in the
+	 * copy the window's next save sends. The redraw rides on the write, so the homecoming's "on the
+	 * timeline since" note moves whichever of them made it.
+	 */
+	tripLogStore() {
+		return {
+			read:    () => this._log(),
+			write:   async log => { await this._persistLog(log); this.render(false); },
+			newTrip: () => this._newExpedition(),
+		};
+	}
+
+	/** Write (or rewrite) this trip's row on the timeline. GM-only; see the writer. */
+	async _recordTrip() {
+		const { recordTrip } = await import("../timeline/timeline-expedition-record.js");
+		await recordTrip({ store: this.tripLogStore() });
+	}
+
+	/** The homecoming step's note: whether this trip is on the timeline yet, and when. */
+	_tripTimelineContext() {
+		const recorded = this._currentExpedition()?.timelineRecorded ?? null;
+		return {
+			note: recorded?.season
+				? format("stonetop.timeline.expedition.recorded", { when: periodLabel(recorded) })
+				: localize("stonetop.timeline.expedition.notYet"),
+			button: localize(recorded ? "stonetop.timeline.expedition.again" : "stonetop.timeline.expedition.record"),
+		};
 	}
 
 	/**
@@ -1686,13 +1789,13 @@ export class ExpeditionDialog extends StepperDialog {
 		const fortunes = this._steadingFortunes();
 		const found = this._steadingWrapper();
 		const root = this.element?.[0];
-		const herdShare = !!root?.querySelector?.('[name="herdShare"]')?.checked;
+		const herdCount = herdCountAnswer(this.element?.[0]);
 		const logistics = !!root?.querySelector?.('[name="logistics"]')?.checked;
 		const terms = found
 			? await settleSteadingRoll(found.steading, {
 				moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes",
 				chosenMode: this._requisitionMode(),
-				answers: { herdShare, logistics },
+				answers: { herdCount, logistics, ...askedAdvantageAnswers(root) },
 				canSpend: !!found.actor.isOwner,
 			})
 			: { rollMode: this._requisitionMode(), missAsPartial: "", conditionNotes: [], spend: () => {} };
@@ -1709,19 +1812,30 @@ export class ExpeditionDialog extends StepperDialog {
 		this.render(false);
 	}
 
-	/** "Requisitioning half the herd or less", asked only once the steading has a Herd of Horses. */
-	_herdShareQuestion() {
-		const found = this._steadingWrapper();
-		if (!found) return "";
-		return improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
-			has: slug => found.steading.improvementCompleted(slug),
-		}).find(q => q.name === "herdShare")?.label ?? "";
-	}
-
-	/** The Marshal's Logistics ("when you Requisition, you have advantage"), asked once anyone has it learned. */
-	_logisticsQuestion() {
-		return improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", { logistics: worldLogisticsNames() })
-			.find(q => q.name === "logistics")?.label ?? "";
+	/**
+	 * What the Requisition step asks (improvement-rolls.js#improvementQuestions), built once:
+	 *  - `herdCount`: "requisitioning half the herd or less", once the steading has a Herd of Horses,
+	 *    as a COUNT of horses, `{label, max}`, or null. The roll reads it against the herd, and the
+	 *    asset picker offers it again as how many to take;
+	 *  - `advantages`: an improvement's asked advantage (a `rollAdvantage` grant with an `ask`), unticked;
+	 *  - `logistics`: the Marshal's Logistics ("when you Requisition, you have advantage"), asked once
+	 *    anyone has it learned, or "";
+	 *  - `held`: the advantage the steading is holding for its next +Fortunes roll, which this spends.
+	 */
+	_requisitionQuestions() {
+		const steading = this._steadingWrapper()?.steading ?? null;
+		const questions = improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
+			rules: steading?.improvementRules() ?? [],
+			herd: steading?.improvementCompleted("herdOfHorses") ? steading.getHerd() : null,
+			logistics: worldLogisticsNames(),
+		});
+		const herd = steading ? questions.find(q => q.name === "herdCount") : null;
+		return {
+			herdCount: herd ? { label: herd.label, max: herd.max ?? 0 } : null,
+			advantages: questions.filter(q => q.name.startsWith("advantage-")).map(({ name, label }) => ({ name, label })),
+			logistics: questions.find(q => q.name === "logistics")?.label ?? "",
+			held: steading?.fortunesAdvantage?.()?.source ?? "",
+		};
 	}
 
 	// ── The route (journey step) ─────────────────────────────────────────────────
@@ -2983,7 +3097,10 @@ export class ExpeditionDialog extends StepperDialog {
 		// The readout is GM-only and lives on one step. Off that step there is nothing on screen
 		// to keep honest, and a player never builds it at all.
 		if (!game.user?.isGM || this._stepNav().step?.key !== "outfit") return;
-		const onActor = actor => { if (_carriesLoad(actor)) this._loadChanged(); };
+		// The ledger's own bookkeeping write follows each real change and never moves the load.
+		const onActor = (actor, _changed, options) => {
+			if (!options?.stonetopLedgerWrite && _carriesLoad(actor)) this._loadChanged();
+		};
 		const onItem  = item  => { if (_carriesLoad(item?.parent)) this._loadChanged(); };
 		this._loadHooks = [
 			["updateActor", Hooks.on("updateActor", onActor)],
@@ -3434,9 +3551,13 @@ export class ExpeditionDialog extends StepperDialog {
 		// Only on-trip PCs need a snapshot, and each is a full character build — run them
 		// concurrently rather than awaiting one heavy build per PC in series (this re-runs
 		// on every Outfit render, including each party-toggle click).
+		// And each one's party followers (follower-roster.js), which reads which built-in followers
+		// they have from their flags and playbook. Both batches at once.
 		const onTrip = pcs.filter(({ actor }) => !out[actor.id]);
-		const snaps  = await Promise.all(onTrip.map(({ actor }) =>
-			Promise.resolve(actor.typedActor?.buildSnapshot?.()).catch(() => null)));
+		const [snaps, partyFollowers] = await Promise.all([
+			Promise.all(onTrip.map(({ actor }) => Promise.resolve(actor.typedActor?.buildSnapshot?.()).catch(() => null))),
+			Promise.all(onTrip.map(({ actor }) => partyFollowersOf(actor))),
+		]);
 
 		const rows = [];
 		onTrip.forEach(({ actor, undeadKind }, i) => {
@@ -3448,7 +3569,7 @@ export class ExpeditionDialog extends StepperDialog {
 			const over   = !!load?.loadLevelOverloaded;
 
 			rows.push(this._pcRow(actor, snap, tier, over, Number(load?.totalMarks) || 0, limits, undeadKind));
-			for (const fol of this._partyFollowersOf(actor)) rows.push(fol);
+			for (const fol of this._partyFollowersOf(actor, partyFollowers[i])) rows.push(fol);
 		});
 
 		// Summary counts every laden member (PCs + followers): heavy and overloaded are
@@ -3517,21 +3638,36 @@ export class ExpeditionDialog extends StepperDialog {
 			});
 	}
 
-	// A PC's followers, each as a load row: the Marshal's crew (whose gear pips carry
-	// weights) plus any custom followers marked "in the party" (the Followers-tab
-	// toggle). A follower's load is its ✓ gear marks (Book I p.472), bucketed by the
-	// standard caps: nothing raises a follower's.
-	_partyFollowersOf(actor) {
+	// A PC's followers travelling with the party (the toggle every follower card carries,
+	// follower-party.js), each as a load row: the crew (whose gear pips carry weights), the
+	// animal companion, initiates and beasts (their ✓ gear checklist), and custom followers. A
+	// follower's load is its ✓ gear marks (Book I p.472), bucketed by the standard caps: nothing
+	// raises a follower's. `followers` are the PC's party followers (follower-roster.js
+	// #partyFollowersOf); without them only the crew and custom followers can be read.
+	_partyFollowersOf(actor, followers = null) {
 		const rows = [];
-		const crew = this._crewRow(actor);
+		const crew = followerInParty(actor, "crew") ? this._crewRow(actor) : null;
 		if (crew) rows.push(crew);
+		for (const fol of (Array.isArray(followers) ? followers : [])) {
+			if (!BUILT_IN_LOAD_TAGS[fol?.ftype] || !fol.party || fol.dead) continue;
+			rows.push(this._builtInFollowerRow(fol));
+		}
 		const map = actor.getFlag?.(SYSTEM_ID, "customFollowers") ?? {};
-		for (const f of Object.values(map)
-			.filter(f => f?.party)
-			.sort((a, b) => (Number(a?.order) || 0) - (Number(b?.order) || 0))) {
+		for (const [, f] of Object.entries(map)
+			.filter(([slug, f]) => followerInParty(actor, "custom", slug) && !f?.dead)
+			.sort(([, a], [, b]) => (Number(a?.order) || 0) - (Number(b?.order) || 0))) {
 			rows.push(this._followerRow(f));
 		}
 		return rows;
+	}
+
+	// An animal companion's, an initiate's or a beast's load row, off its follower record: the ✓ gear
+	// checklist and the face on its detail flags, where the Followers tab's card reads them, and a
+	// custom follower's are counted the same way.
+	_builtInFollowerRow(fol) {
+		const d = fol.details ?? {};
+		const marks = (Array.isArray(d.gear) ? d.gear : []).filter(g => g?.checked).length;
+		return this._makeFollowerRow(fol.name, marks, BUILT_IN_LOAD_TAGS[fol.ftype], d);
 	}
 
 	// The Marshal's crew, if this PC has one. Its ◇ load is the sum of filled gear pips

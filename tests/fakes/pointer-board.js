@@ -121,7 +121,7 @@ export function walk(nodes, sel, out = []) {
  * The globals are installed here and taken back by `destroy`, so a file that forgets the teardown
  * cannot leak a `document` into the suites that run after it.
  */
-export function pointerBoard({ nodes = ["n1", "n2"], edges = ["e1"] } = {}) {
+export function pointerBoard({ nodes = ["n1", "n2"], edges = ["e1"], groups = [] } = {}) {
 	const frames = [];
 	const previous = {
 		document: globalThis.document,
@@ -201,8 +201,20 @@ export function pointerBoard({ nodes = ["n1", "n2"], edges = ["e1"] } = {}) {
 	const tiebar = boardEl({ cls: ["stonetop-relmap-tiebar"], parent: view });
 	tiebar.hidden = true;
 
+	// A GROUP, as the board partial prints one: the outline's paths in a layer of their own, the
+	// invisible wide one among them the only thing there a click can land on, and the NAME, a
+	// `div role="button"` on the board itself carrying the group's id. Only on a board asked for them.
+	const groupLayer = groups.length ? boardEl({ cls: ["stonetop-relmap-groups"], parent: board }) : null;
+	const outlines = {};
+	for (const id of groups) {
+		const g = boardEl({ cls: ["stonetop-relmap-group"], dataset: { relmapGroupShape: id }, parent: groupLayer });
+		g.hit = boardEl({ cls: ["stonetop-relmap-group-hit"], dataset: { relmapGroupHit: id }, parent: g });
+		g.name = boardEl({ cls: ["stonetop-relmap-group-name"], dataset: { relmapGroup: id }, parent: board });
+		outlines[id] = g;
+	}
+
 	return {
-		root, view, board, portraits, captions, strokes, tiebar,
+		root, view, board, portraits, captions, strokes, tiebar, outlines,
 		/** Where `elementsFromPoint` will say the cursor is, topmost first. */
 		setHits(list) { hits = list; },
 		/** Run every frame queued so far, the way one paint would. */

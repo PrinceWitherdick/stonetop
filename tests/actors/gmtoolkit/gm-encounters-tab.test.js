@@ -1114,14 +1114,14 @@ describe("the Encounters tab: notes, used and delete", () => {
 	it("boxes the notes the way the character sheet boxes its own", () => {
 		const box = declarations(CSS, ".stonetop-gm-encounter-notes");
 		const reference = declarations(CSS, ".stonetop .character-notes-editor .editor-content");
-		for (const decl of ["background: rgba(255, 255, 255, 0.28)", "border: 1px solid rgba(0, 0, 0, 0.22)"]) {
+		for (const decl of ["background: rgb(var(--st-paper-rgb) / 0.28)", "border: 1px solid rgb(var(--st-ink-rgb) / 0.22)"]) {
 			expect(reference).toContain(decl);
 			expect(box).toContain(decl);
 		}
 		// And it brightens with the block, as that one brightens with its editor host.
 		const hover = declarations(CSS, ".stonetop-gm-encounter-notes-block:hover .stonetop-gm-encounter-notes");
-		expect(hover).toMatch(/background:\s*rgba\(255, 255, 255, 0\.5\)/);
-		expect(hover).toMatch(/border-color:\s*rgba\(0, 0, 0, 0\.4\)/);
+		expect(hover).toMatch(/background:\s*rgb\(var\(--st-paper-rgb\) \/ 0\.5\)/);
+		expect(hover).toMatch(/border-color:\s*rgb\(var\(--st-ink-rgb\) \/ 0\.4\)/);
 	});
 
 	// No heading: the box and its corner control are what say "notes", exactly as they do on the

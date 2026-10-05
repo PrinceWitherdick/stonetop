@@ -71,15 +71,25 @@ describe("mixing the table's hours with its days", () => {
 	it("keeps the two apart instead of rounding one into the other", () => {
 		// Ruined Tower back to Marshedge: 8-10 hours to Stonetop, then 10 days on. Neither number
 		// is rewritten in terms of the other.
+		// Ruined Tower to Marshedge: 5-6 hours to the Crossroads, then 10 days on down the Highway.
+		// Neither number is rewritten in terms of the other.
 		const route = to(from("the-ruined-tower"), "marshedge");
-		expect(route.legs.map(l => l.to)).toEqual(["the-crossroads", "stonetop", "marshedge"]);
-		expect(route.total).toEqual({ days: { min: 10, max: 10 }, hours: { min: 8, max: 10 } });
-		expect(formatTravelTime(route.total)).toBe("10 days and 8–10 hours");
+		expect(route.legs.map(l => l.to)).toEqual(["the-crossroads", "marshedge"]);
+		expect(route.total).toEqual({ days: { min: 10, max: 10 }, hours: { min: 5, max: 6 } });
+		expect(formatTravelTime(route.total)).toBe("10 days and 5–6 hours");
 	});
 
 	it("still answers the checklist's day count, rolling the part-day up", () => {
 		const route = to(from("the-ruined-tower"), "marshedge");
 		expect(atLeastDays(route.total)).toBe(11);
+	});
+
+	// Hour-legs chain, and they chain into days: the Maw is 5-7 hours from Stonetop and Marshedge
+	// 10 days on from there. The comment over `oneUnit` used to claim neither could happen.
+	it("chains the table's hours into its days where a route needs both", () => {
+		const route = to(from("the-maw"), "marshedge");
+		expect(route.total).toEqual({ days: { min: 10, max: 10 }, hours: { min: 5, max: 7 } });
+		expect(chartBlankValue("days", route)).toBe("11");
 	});
 
 	it("does not invent a day count for an afternoon's walk", () => {
@@ -239,7 +249,8 @@ describe("filling the Chart a Course blanks", () => {
 
 	// The tick and the fill ask ONE question, because a box ticked over a requirement still
 	// reading "at least ___ days" tells the GM the answer was worked out and then declines to say
-	// what it is. Five of the eighteen destinations from Stonetop are measured only in hours.
+	// what it is. Four of the eighteen destinations from Stonetop are measured only in hours short
+	// of a day's march; the Ruined Tower's 8-10 hours are a day (see the next block).
 	it("answers the tick and the text from the same predicate, for every destination", () => {
 		const routes = from();
 		const hourly = [];
@@ -254,8 +265,22 @@ describe("filling the Chart a Course blanks", () => {
 			if (chartBlankValue("days", route) === null) hourly.push(slug);
 		}
 		expect(hourly.sort()).toEqual([
-			"cave-bears-den", "the-crossroads", "the-maw", "the-red-grove", "the-ruined-tower",
+			"cave-bears-den", "the-crossroads", "the-maw", "the-red-grove",
 		]);
+	});
+
+	// User ruling 2026-10-02. Book II p.334 writes the Ruined Tower's own Chart a Course as "It'll
+	// take at least a day each way", for a walk the table prices at 3-4 + 5-6 hours; Book I p.305
+	// has the GM jot "at least 1 day there and back" for the cave bears. A trip in hours that can
+	// run to a full day's march (MARCH_HOURS) fills the blank with a day.
+	it("calls a trip in hours that can run to a day's march a day", () => {
+		const tower = to(from(), "the-ruined-tower");
+		expect(tower.total.days.max).toBe(0);
+		expect(tower.total.hours.max).toBeGreaterThanOrEqual(MARCH_HOURS);
+		expect(chartBlankValue("days", tower)).toBe("1");
+		expect(fillChartBlank(DAYS, "days", tower)).not.toBe(DAYS);
+		// One that cannot is still not a day.
+		expect(chartBlankValue("days", to(from(), "the-maw"))).toBeNull();
 	});
 });
 
@@ -493,8 +518,11 @@ describe("solving from a mark on the map", () => {
 	// names. Said in one unit it is an answer a GM can read at a glance.
 	it("says a total in one unit when a measured walk would otherwise be stapled to printed days", () => {
 		const route = journeyRoute({ origin: inTheFlats, destination: "marshedge" });
+		// Onto the Highway at the Crossroads (the ruling legs in data/travel-times.js), not back
+		// through Stonetop first.
+		expect(route.legs.map(l => l.to)).toEqual(["the-crossroads", "marshedge"]);
 		expect(route.total.hours).toEqual({ min: 0, max: 0 });
-		expect(formatTravelTime(route.total)).toBe("11–12 days");
+		expect(formatTravelTime(route.total)).toBe("11 days");
 		// And the Chart a Course blank counts from it exactly as it always did.
 		expect(chartBlankValue("days", route)).toBe("11");
 	});
@@ -508,8 +536,9 @@ describe("solving from a mark on the map", () => {
 		const route = journeyRoute({ origin: inTheFlats, destination: "the-maw" });
 		expect(route.total.days).toEqual({ min: 0, max: 0 });
 		expect(formatTravelTime(route.total)).toBe("12–18 hours");
-		// Measured only in hours, so there is no day count for the blank to take.
-		expect(chartBlankValue("days", route)).toBeNull();
+		// Said in hours, but twelve of them is more than a day's march, so the Chart a Course blank
+		// still counts the days it costs (user ruling, 2026-10-02).
+		expect(chartBlankValue("days", route)).toBe("2");
 	});
 
 	// A way laid out by hand from a mark: the first leg is measured off the map like any other
@@ -559,5 +588,110 @@ describe("solving from a mark on the map", () => {
 		expect(nowhere.start).toEqual({ slug: null, tier: null, fx: null, fy: null });
 		expect(normalizeJourney(nowhere)).toEqual(nowhere);
 		expect(journeyKey(normalizeJourney(nowhere))).toBe(journeyKey(nowhere));
+	});
+});
+
+// ── Audit fixes, 2026-10-02 ──────────────────────────────────────────────────
+
+describe("the roads from the Crossroads (Book II p.270, p.26)", () => {
+	// The West Road crosses the Highway at the Crossroads, so every road journey out of Stonetop
+	// passes it. Routed only through Stonetop, a party at the Crossroads walked back home first.
+	it("goes on down the Highway from the Crossroads instead of back through Stonetop", () => {
+		const route = to(from("the-crossroads"), "marshedge");
+		expect(route.legs.map(l => l.to)).toEqual(["marshedge"]);
+		expect(formatTravelTime(route.total)).toBe("10 days");
+		expect(chartBlankValue("firstTravel", route)).toBeNull();
+	});
+
+	it("never sends a trip from the Ruined Tower back through Stonetop to reach a road", () => {
+		const route = to(from("the-ruined-tower"), "gordins-delve");
+		expect(route.legs.map(l => l.to)).toEqual(["the-crossroads", "gordins-delve"]);
+		expect(chartBlankValue("firstTravel", route)).toBe("the Crossroads");
+	});
+
+	it("winds on from the Foothills to Barrier Pass in three days", () => {
+		const route = to(from("the-foothills"), "barrier-pass");
+		expect(route.legs.map(l => l.to)).toEqual(["barrier-pass"]);
+		expect(route.total.days).toEqual({ min: 3, max: 3 });
+	});
+
+	it("keeps the printed five days from Stonetop to Barrier Pass, which the Foothills only tie", () => {
+		const route = to(from(), "barrier-pass");
+		expect(route.legs.map(l => l.to)).toEqual(["barrier-pass"]);
+		expect(route.legs[0].via).toBe("the Roads");
+	});
+});
+
+describe("a drawn leg between two places the table prices only by way of others", () => {
+	it("takes the book's forty days to Lygos, not a ruler's fourteen", () => {
+		const route = journeyRoute(drawnTrip([{ slug: "lygos" }]));
+		expect(route.legs).toHaveLength(1);
+		expect(route.legs[0].time).toBe("40 days");
+		expect(route.estimated).toBe(false);
+		expect(routePhrase(route)).toBe("at least 40 days");
+		expect(chartBlankValue("firstTravel", route)).toBe("Marshedge");
+	});
+
+	it("takes Tor's Fist by the Foothills, and says so", () => {
+		const route = journeyRoute(drawnTrip([{ slug: "tors-fist" }], { destination: "tors-fist" }));
+		expect(route.legs[0].time).toBe("7 days");
+		expect(route.legs[0].via).toBe("the Foothills");
+		expect(stopsAlongTheWay(route)).toEqual(["the Foothills"]);
+		expect(chartBlankValue("days", route)).toBe("7");
+	});
+});
+
+describe("a drawn leg to a place the map shows only by its edge arrow", () => {
+	// The arrow is at the border, and Lygos is most of thirty days past it.
+	it("adds the book's journey past the edge to the walk to the arrow", () => {
+		const route = journeyRoute(drawnTrip([{ slug: "marshedge" }, { fx: 0.8, fy: 0.8 }, { slug: "lygos" }]));
+		expect(route.estimated).toBe(true);
+		expect(atLeastDays(route.total)).toBeGreaterThanOrEqual(40);
+	});
+
+	it("does the same for Gordin's Delve off the Vicinity's west edge", () => {
+		const route = journeyRoute(drawnTrip(
+			[{ fx: 0.6, fy: 0.6 }, { slug: "gordins-delve" }], { tier: "vicinity", destination: null },
+		));
+		expect(atLeastDays(route.total)).toBeGreaterThanOrEqual(4);
+	});
+});
+
+describe("a drawn way that stays where it is", () => {
+	it("prices the same place twice as no leg at all", () => {
+		const route = journeyRoute(drawnTrip([{ slug: "marshedge" }, { slug: "marshedge" }]));
+		expect(route.legs).toHaveLength(1);
+		expect(route.estimated).toBe(false);
+		expect(routePhrase(route)).toBe("at least 10 days");
+	});
+
+	it("is no route when it only goes back to where it set out", () => {
+		expect(journeyRoute(drawnTrip([{ slug: "stonetop" }], { tier: "vicinity" }))).toBeNull();
+	});
+});
+
+describe("a hand-placed start standing on a pin or an arrow", () => {
+	const { fx, fy } = TRAVEL_PLACES.find(p => p.slug === "stonetop").spots.vicinity;
+	const onStonetop = { tier: "vicinity", fx, fy };
+
+	it("sets out from the place it stands on, not via the next one along", () => {
+		const route = journeyRoute({ origin: onStonetop, destination: "marshedge" });
+		expect(route.legs).toHaveLength(1);
+		expect(route.legs[0].time).toBe("10 days");
+		expect(route.legs[0].from).toBeNull();
+		expect(routePhrase(route)).toBe("at least 10 days");
+	});
+
+	it("has no journey to the place it is standing in", () => {
+		expect(journeyRoute({ origin: onStonetop, destination: "stonetop" })).toBeNull();
+	});
+
+	// Camped beside "To Gordin's Delve", most of a day down the West Road: joined only to lettered
+	// places, the party was sent back east to the Crossroads and then the full printed 4 days.
+	it("joins the road at an edge arrow rather than walking back to a lettered place", () => {
+		const route = journeyRoute({ origin: { tier: "vicinity", fx: 0.14, fy: 0.63 }, destination: "gordins-delve" });
+		expect(route.legs).toHaveLength(1);
+		expect(route.legs.some(l => l.to === "stonetop" || l.to === "the-crossroads")).toBe(false);
+		expect(route.total.days.max).toBeLessThanOrEqual(4);
 	});
 });

@@ -71,6 +71,37 @@ describe("CharacterLedger", () => {
 		]);
 	});
 
+	// A record stored with no id is written back with the stand-in id it reads with
+	// (wound-record.js#normalizeWoundList): that is the same wound, not a removal and an addition.
+	it("matches a blank-id wound to the stand-in id its first write persists", async () => {
+		const actor = makeActor({ attributes: { wounds: [
+			{ id: "", text: "Old gash", status: "problematic", healed: false },
+		] } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"system.attributes.wounds": [
+				{ id: "wound-0", text: "Old gash", status: "stabilized", healed: false },
+			],
+		});
+		expect(entries.map(e => e.action)).toEqual(['Wound stabilized: "Old gash"']);
+	});
+
+	// Every follower card's "in the party" toggle (follower-party.js) is quiet, as the custom card's
+	// always was: where a follower travels is a card setting, not a move made.
+	it("files no row for any follower's party toggle", async () => {
+		const actor = makeActor({}, { "stonetop-pwd": { animalCompanion: { name: "Wolf", loyalty: 1 }, crew: { name: "The Wolves" } } });
+		const entries = await CharacterLedger.entriesForActorUpdate(actor, {
+			"flags.stonetop-pwd.animalCompanion.party": false,
+			"flags.stonetop-pwd.crew.party": false,
+			"flags.stonetop-pwd.initiatesParty.enfys": true,
+			"flags.stonetop-pwd.beastParty.ox": true,
+			"flags.stonetop-pwd.customFollowers.hound.party": true,
+		});
+		expect(entries).toEqual([]);
+		// The companion's own tracks still speak.
+		const loyalty = await CharacterLedger.entriesForActorUpdate(actor, { "flags.stonetop-pwd.animalCompanion.loyalty": 2 });
+		expect(loyalty.length).toBeGreaterThan(0);
+	});
+
 	it("records a wound healed to a scar", async () => {
 		const actor = makeActor({ attributes: { wounds: [
 			{ id: "w1", text: "Gash", status: "stabilized", healed: false },
@@ -1109,5 +1140,76 @@ describe("CharacterLedger item batches", () => {
 			);
 			expect(entries.map(e => e.action)).toEqual(["Appearance set to built like a barn door"]);
 		});
+	});
+
+	// #1: v14 sends a deletion as a ForcedDeletion at the plain path, which used to reach the
+	// label tables as a "value" and file "changed from changed to changed" or "[object Object]".
+	describe("a v14 deletion", () => {
+		const FD = () => new foundry.data.operators.ForcedDeletion();
+		const flag = (path) => `flags.${SYSTEM_ID}.${path}`;
+		const actor = () => makeActor({}, { [SYSTEM_ID]: {
+			inventory: { checked: { sword: true }, regularPool: 3, smallPool: 2, resources: { rope: 1 } },
+			possessions: { uses: { cloak: 2 } },
+			initiateDetails: { aled: "eager" },
+			lore: { texts: { "relic:origin": "Found in the barrow" } },
+			moves: { backgroundAnswers: { "Well Versed": { label: "Well Versed in", value: "the Fae" } } },
+		} });
+
+		it("files nothing for resetSelections' four unsets", async () => {
+			const entries = await CharacterLedger.entriesForActorUpdate(actor(), {
+				[flag("inventory.checked")]: FD(), [flag("inventory.regularPool")]: FD(),
+				[flag("inventory.smallPool")]: FD(), [flag("inventory.resources")]: FD(),
+			});
+			expect(entries).toEqual([]);
+		});
+
+		it("files nothing for other unsets, and never [object Object]", async () => {
+			const entries = await CharacterLedger.entriesForActorUpdate(actor(), {
+				[flag("possessions.uses.cloak")]: FD(), [flag("initiateDetails.aled")]: FD(),
+			});
+			expect(entries).toEqual([]);
+		});
+
+		it("says a withdrawn answer was cleared, in either core's spelling", async () => {
+			const v14 = await CharacterLedger.entriesForActorUpdate(actor(), {
+				[flag("moves.backgroundAnswers.Well Versed")]: FD(),
+				[flag("lore.texts.relic:origin")]: FD(),
+			});
+			const v13 = await CharacterLedger.entriesForActorUpdate(actor(), {
+				[flag("moves.backgroundAnswers.-=Well Versed")]: null,
+			});
+			expect(v14.map(e => e.action)).toEqual(["Well Versed answer cleared", "Lore: Relic: answer cleared"]);
+			expect(v13.map(e => e.action)).toEqual(["Well Versed answer cleared"]);
+		});
+	});
+
+	// #2: setBackgroundAnswer stores `{label, value}`, which flattens into two leaves.
+	it("records a background answer once, from its value, not its label", async () => {
+		const entries = await CharacterLedger.entriesForActorUpdate(makeActor(), {
+			[`flags.${SYSTEM_ID}.moves.backgroundAnswers.Well Versed`]: { label: "Well Versed in (pick 1) the Fae, the Things Below", value: "the Things Below" },
+		});
+		expect(entries.map(e => e.action)).toEqual(["Well Versed answered: “the Things Below”"]);
+	});
+
+	// #21a: the permanent max-HP adjustment is a delta and reads as one.
+	it("words the permanent max-HP adjustment as a signed change", async () => {
+		const up = await CharacterLedger.entriesForActorUpdate(
+			makeActor({ attributes: { hp: { value: 20, max: 20, adjustment: 0 } } }),
+			{ "system.attributes.hp.adjustment": 4, "system.attributes.hp.max": 24 },
+		);
+		const down = await CharacterLedger.entriesForActorUpdate(
+			makeActor({ attributes: { hp: { value: 20, max: 24, adjustment: 4 } } }),
+			{ "system.attributes.hp.adjustment": 2, "system.attributes.hp.max": 22 },
+		);
+		expect(up.map(e => e.action)).toEqual(["Max HP (permanent) +4"]);
+		expect(down.map(e => e.action)).toEqual(["Max HP (permanent) -2"]);
+		expect(ledgerNoun(up[0].action)).toBe("Max HP (permanent)");
+	});
+
+	// #21b: an edit to an owned item, diffed before it lands.
+	it("names an item rename by the item's kind, and an edit by the item", () => {
+		const item = { id: "m1", name: "Bulwark", type: "move", system: { moveType: "other", description: "<p>a</p>" } };
+		const entries = CharacterLedger.entriesForUpdatedItems([{ item, change: { name: "Bulwark II", system: { description: "<p>b</p>" } } }]);
+		expect(entries.map(e => e.action)).toEqual(["Move renamed from Bulwark to Bulwark II", "Bulwark II edited: description"]);
 	});
 });

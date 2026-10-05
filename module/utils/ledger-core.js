@@ -11,7 +11,8 @@
  * {@link appendLedgerEntries} for the rest.
  */
 import { stripHtmlToText } from "./strings.js";
-import { SYSTEM_ID } from "../system-id.js";
+import { deletionEntry, isForcedDeletion, replacementEntry, serverNow } from "./foundry-compat.js";
+import { SYSTEM_ID, isCutOver } from "../system-id.js";
 
 export const LEDGER_SCOPE = SYSTEM_ID;
 export const LEDGER_KEY = "ledger";
@@ -19,6 +20,10 @@ export const LEDGER_KEY = "ledger";
 export const LEDGER_MAX_ENTRIES = 300;
 
 export const LEDGER_FLAG_PATH = `flags.${LEDGER_SCOPE}.${LEDGER_KEY}`;
+
+// Every write the ledger makes to its own flag carries `stonetopLedgerWrite: true` (beside the
+// `stonetopLedger` kill switch, which other quiet writes share), so a hook can tell the ledger's
+// bookkeeping, which nothing on a sheet draws, from a quiet change that is on the sheet.
 
 /**
  * True when `path` addresses the ledger flag itself. Every diff skips these: writing the
@@ -50,6 +55,10 @@ export function normalizeFlagPath(path) {
 export function getActorProperty(actor, path) {
 	const value = foundry.utils.getProperty(actor, path);
 	if (value !== undefined) return value;
+	// A cut-over actor's active scope is authoritative on its own (system-id.js#isCutOver). The
+	// migration leaves the old scope in place, so falling back there read a key the system had
+	// since DELETED as still holding its pre-migration value.
+	if (isCutOver(actor)) return undefined;
 	if (String(path).startsWith(`flags.${LEDGER_SCOPE}.`)) {
 		return foundry.utils.getProperty(actor, path.replace(`flags.${LEDGER_SCOPE}.`, "flags.stonetop."));
 	}
@@ -59,7 +68,7 @@ export function getActorProperty(actor, path) {
 // ── Value formatting ────────────────────────────────────────────────────────
 
 export function isBlank(v) {
-	return v === undefined || v === null || v === "";
+	return v === undefined || v === null || v === "" || isForcedDeletion(v);
 }
 
 // Longest a single value may run inside a ledger action before it is elided. A rich-text
@@ -140,9 +149,43 @@ const MERGE_WINDOW_MS = 60_000;
 // so without a cap a long burst would keep growing the ledger flag.
 const LIST_RUN_MAX_ITEMS = 24;
 
-/** A "5 → 6 → 7 collapses to 5 → 7" run: consecutive changes to one numeric/scalar field. */
-export function numericMerge(label, key, oldValue, newValue) {
-	return { kind: "numeric", key, label, from: oldValue ?? null, to: newValue ?? null };
+/**
+ * A "5 → 6 → 7 collapses to 5 → 7" run: consecutive changes to one numeric/scalar field.
+ * `style` picks how the folded run is worded (see numericAction): the default "changed from",
+ * "delta" for a signed change, "rename" for a name.
+ */
+export function numericMerge(label, key, oldValue, newValue, style) {
+	return { kind: "numeric", key, label, from: oldValue ?? null, to: newValue ?? null, ...(style ? { style } : {}) };
+}
+
+/** "Max HP (permanent) +4": a stored delta reported as the change it made, signed. */
+export function deltaAction(label, from, to) {
+	const d = (Number(to) || 0) - (Number(from) || 0);
+	return `${label} ${d < 0 ? "-" : "+"}${Math.abs(d)}`;
+}
+
+/** One change to a field that stores a signed DELTA, worded as that delta and run-merged. */
+export function deltaEntry(label, oldValue, newValue, key) {
+	return { action: deltaAction(label, oldValue, newValue), merge: numericMerge(label, key, oldValue, newValue, "delta") };
+}
+
+/** The action a numeric run reads as, in the wording its `style` asks for. */
+export function numericAction(merge) {
+	if (merge?.style === "delta") return deltaAction(merge.label, merge.from, merge.to);
+	if (merge?.style === "rename") return `${merge.label} renamed from ${formatValue(merge.from)} to ${formatValue(merge.to)}`;
+	return actionForField(merge?.label, merge?.from, merge?.to);
+}
+
+// Ceiling on the field names one edit run names; past it the run closes, as a list run does.
+const EDIT_RUN_MAX_FIELDS = 8;
+
+/** "Longsword edited: description, uses": several edits to one thing fold into one line. */
+export function editMerge(subject, key, fields) {
+	return { kind: "edit", key, label: subject, items: [...fields] };
+}
+
+export function editAction(subject, fields) {
+	return `${subject} edited: ${truncateValue(fields.join(", "))}`;
 }
 
 /** An "A, then B, then C collapses to A, B, C" run: repeated picks that accumulate into a list. */
@@ -207,7 +250,15 @@ function mergeInto(previous, entry) {
 		// rather than logging a no-op "changed from 3 to 3".
 		const merge = { ...a, to: b.to };
 		if (formatValue(merge.from) === formatValue(merge.to)) return DROP_PAIR;
-		return { ...previous, timestamp: entry.timestamp, merge, action: actionForField(a.label, merge.from, merge.to) };
+		return { ...previous, timestamp: entry.timestamp, merge, action: numericAction(merge) };
+	}
+
+	if (a.kind === "edit") {
+		const items = [...a.items];
+		for (const item of b.items) if (!items.includes(item)) items.push(item);
+		if (items.length > EDIT_RUN_MAX_FIELDS) return null;
+		const merge = { ...a, items };
+		return { ...previous, timestamp: entry.timestamp, merge, action: editAction(a.label, items) };
 	}
 
 	if (a.kind === "list") {
@@ -263,36 +314,166 @@ const LEDGER_VERB_MARKERS = [
 	" learned",
 	" removed",
 	" added",
+	" answered",
+	" recorded",
+	" healed",
+	" reopened",
+	" became",
+	" stabilized",
+	" gained",
+	" identified",
+	" chosen",
+	" carried",
+	" set down",
+	" updated",
+	" edited",
+	" written",
 ];
 
 /**
  * Derive the "noun" (subject) of a ledger action string — the phrase before its
  * verb — so entries can be grouped and filtered. e.g. "HP changed from 5 to 3"
  * → "HP", "Longsword selected" → "Longsword", "Asset added: Wagon" → "Asset".
- * Falls back to the whole (trimmed) action when no known verb is present.
+ *
+ * Verbs are looked for only BEFORE the first quotation mark: a quoted value is somebody's own
+ * words, and a wound written as "Arm marked by fire" cut the subject mid-quote. With no verb,
+ * a colon ends the subject ("Minor arcanum (found): The Key"), and a trailing signed number is
+ * dropped ("Max HP (permanent) +4"), so neither leaves a one-off subject per entry.
+ * Falls back to the whole (trimmed) action when none of that applies.
  */
 export function ledgerNoun(action) {
 	const text = String(action ?? "").trim();
 	if (!text) return "";
-	let cut = text.length;
+	const quote = text.search(/[“"]/);
+	const head = quote >= 0 ? text.slice(0, quote) : text;
+	let cut = head.length;
 	for (const marker of LEDGER_VERB_MARKERS) {
-		const idx = text.indexOf(marker);
+		const idx = head.indexOf(marker);
 		if (idx >= 0 && idx < cut) cut = idx;
+	}
+	if (cut === head.length) {
+		const colon = head.indexOf(":");
+		if (colon > 0) cut = colon;
+		else {
+			const signed = head.match(/^(.*\S)\s+[+-]\d+$/);
+			if (signed) cut = signed[1].length;
+		}
 	}
 	return text.slice(0, cut).trim() || text;
 }
 
+/**
+ * The subject an entry is filed under: the one stamped when it was written (appendLedgerEntries),
+ * else, for an entry written before subjects were stamped, the one its action reads as.
+ */
+export function ledgerSubject(entry) {
+	return String(entry?.subject ?? "").trim() || ledgerNoun(entry?.action);
+}
+
 // ── Storage ─────────────────────────────────────────────────────────────────
 
-/** Stored entries, newest first. */
+// ONE FLAG KEY PER ENTRY, keyed by the entry's id: `flags.<scope>.ledger.<id>`. The ledger used to
+// be one ARRAY, written back whole on every change, and arrays replace on merge: two clients
+// appending inside one round trip each wrote back the array they had read, and the later write
+// erased the other's entry. Keyed, each append writes only its own keys, which the server merges.
+//
+// A world written before this holds the old array. It still reads (getLedgerEntries takes either
+// shape), and the next write converts it whole, with a forced REPLACEMENT so the array is not
+// merged into the object.
+
+/** A stored id that is safe as one flag-path segment: no dots, nothing expandObject would split. */
+const SAFE_LEDGER_ID = /^[A-Za-z0-9_-]+$/;
+
+function newLedgerId() {
+	return globalThis.foundry?.utils?.randomID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+}
+
+const isLedgerEntry = (e) => !!e && typeof e === "object" && !Array.isArray(e) && typeof e.action === "string";
+
+function rawLedger(actor) {
+	return actor?.getFlag?.(LEDGER_SCOPE, LEDGER_KEY);
+}
+
+const isKeyedLedger = (raw) => !!raw && typeof raw === "object" && !Array.isArray(raw);
+
+/**
+ * Newest first: by timestamp, then by `seq` (the order within one write, where every entry
+ * shares a timestamp). The sort is stable, so legacy array entries with neither keep the order
+ * they were stored in.
+ */
+export function sortLedgerEntries(entries) {
+	return [...entries].sort((a, b) =>
+		((Number(b.timestamp) || 0) - (Number(a.timestamp) || 0))
+		|| ((Number(b.seq) || 0) - (Number(a.seq) || 0)));
+}
+
+/** Stored entries, newest first, from either storage shape. */
 export function getLedgerEntries(actor) {
-	return actor?.getFlag?.(LEDGER_SCOPE, LEDGER_KEY) ?? [];
+	const raw = rawLedger(actor);
+	if (Array.isArray(raw)) return sortLedgerEntries(raw.filter(isLedgerEntry));
+	if (!isKeyedLedger(raw)) return [];
+	// The key is the id: an entry is addressed by it, so it wins over any `id` field inside.
+	return sortLedgerEntries(Object.entries(raw)
+		.filter(([, entry]) => isLedgerEntry(entry))
+		.map(([key, entry]) => (entry.id === key ? entry : { ...entry, id: key })));
+}
+
+/**
+ * The update that makes the stored ledger read as `next` (newest first).
+ *
+ * Keyed storage: sets each entry in `write`, deletes every stored id `next` no longer holds, and
+ * touches nothing else, so a concurrent append from another client survives. Legacy array (or
+ * anything else): the whole of `next` replaces it as the keyed form, with ids made unique and
+ * path-safe and `seq` stamped from position so entries sharing a timestamp keep their order.
+ */
+function ledgerWriteData(raw, current, next, write) {
+	// Nothing stored yet is the keyed form, empty: a first write needs no replacement, and two
+	// clients making the first writes at once must not replace each other.
+	if (raw == null || isKeyedLedger(raw)) {
+		const keep = new Set(next.map(e => e.id));
+		const data = {};
+		for (const entry of write) if (keep.has(entry.id)) data[`${LEDGER_FLAG_PATH}.${entry.id}`] = entry;
+		for (const entry of current) {
+			if (keep.has(entry.id)) continue;
+			const [key, value] = deletionEntry(`${LEDGER_FLAG_PATH}.${entry.id}`);
+			data[key] = value;
+		}
+		return data;
+	}
+	const seen = new Set();
+	const keyed = {};
+	next.forEach((entry, index) => {
+		const id = SAFE_LEDGER_ID.test(String(entry.id ?? "")) && !seen.has(entry.id) ? entry.id : newLedgerId();
+		seen.add(id);
+		keyed[id] = { ...entry, id, seq: next.length - index };
+	});
+	const [key, value] = replacementEntry(LEDGER_FLAG_PATH, keyed);
+	return { [key]: value };
+}
+
+/** Whether the GM wrote `entry`: `byGM` when stamped, else the author's role, else no. */
+function writtenByGM(entry) {
+	if (typeof entry?.byGM === "boolean") return entry.byGM;
+	if (!entry?.userId) return false;
+	return !!globalThis.game?.users?.get?.(entry.userId)?.isGM;
+}
+
+/**
+ * May `user` delete `entry` from `actor`'s ledger? Owners may, except that only a GM may delete an
+ * entry a GM wrote: a player cannot quietly erase the record of what the GM did to their sheet.
+ * A legacy entry with no recorded author stays deletable by its owners.
+ */
+export function canDeleteLedgerEntry(actor, entry, user = globalThis.game?.user) {
+	if (user?.isGM) return true;
+	if (actor?.isOwner === false) return false;
+	return !writtenByGM(entry);
 }
 
 /**
  * One promise chain per actor, so two ledger writes for the same actor can never interleave.
  *
- * Both writers below are read-whole-array / write-whole-array, and they are driven from
+ * Both writers below read the stored entries and decide what to write from them (the head a run
+ * folds into, the oldest entries a trim drops), and they are driven from
  * StonetopActor#_onUpdate, which fires once per actor update. Several places deliberately fire
  * CONCURRENT updates on a single actor — CharacterArcana's `Promise.all` of three setFlags,
  * CharacterInventory.resetSelections' four unsetFlags. Each of those flag writes survives on its
@@ -307,8 +488,15 @@ export function getLedgerEntries(actor) {
  */
 const _ledgerWrites = new Map();
 
+/** How many actors have a ledger write in flight on this client. For tests: idle is zero. */
+export function pendingLedgerWrites() {
+	return _ledgerWrites.size;
+}
+
 function _serializeLedgerWrite(actor, work) {
-	const key = actor?.id ?? actor?.uuid;
+	// The uuid first: every unlinked token of one NPC shares its base actor's id, but each keeps a
+	// ledger of its own.
+	const key = actor?.uuid ?? actor?.id;
 	// No identity to key a chain on (some test fakes): run unserialized rather than
 	// funnelling every such actor through one shared chain.
 	if (!key) return work();
@@ -348,17 +536,26 @@ export async function appendLedgerEntries(actor, entries, {
 } = {}) {
 	if (!actor || !entries?.length) return;
 	const user = userId ? globalThis.game?.users?.get?.(userId) : null;
-	// Reversed at the end: callers hand entries over in the order they happened, while both
-	// storage and mergeRuns are newest-first. Without the flip a single update carrying several
-	// entries was walked backwards — a list run accumulated its items in reverse ("Appearance
-	// set to <4th>, <3rd>, …"), and the entry nearest the stored head was the one that happened
-	// LAST, so a change that should have folded into the stored run found a sibling in the way.
+	// The server's clock: each client's own `Date.now()` interleaved a GM's rows and a player's wrongly.
+	const now = serverNow();
+	// Kept in the order they happened: callers hand entries over chronologically, while both
+	// storage and mergeRuns are newest-first. Flipped inside the queue, once the stored head is
+	// known (see headRunFirst). Walked backwards, a list run accumulated its items in reverse
+	// ("Appearance set to <4th>, <3rd>, …").
 	const stamped = entries.map(entry => ({
-		id: globalThis.foundry?.utils?.randomID?.() ?? `${Date.now()}-${Math.random()}`,
-		timestamp: Date.now(),
+		id: newLedgerId(),
+		timestamp: now,
 		userId: userId ?? null,
 		userName: user?.name ?? globalThis.game?.user?.name ?? "Unknown",
+		// Whether the author is a GM, fixed at the time of writing: only a GM may delete it
+		// (canDeleteLedgerEntry), even after that user is demoted or deleted.
+		byGM: !!(user ?? (userId === globalThis.game?.user?.id ? globalThis.game?.user : null))?.isGM,
 		action: entry.action,
+		// What the change is TO, for the filter dropdown's subjects (ledgerSubject). Stamped here,
+		// once, rather than parsed out of the sentence on every read: a builder that knows its
+		// subject says so (an item named "Cloak marked with the Rime sigil" is not "Cloak"), and the
+		// rest is read as it is worded now, so a run that rewords the action later keeps it.
+		subject: String(entry.subject ?? "").trim() || ledgerNoun(entry.action),
 		// Name of the move that caused this change, when the change was a move's automated
 		// effect (e.g. "+1 XP on a miss" → the rolled move). null for plain sheet edits.
 		move: entry.move ?? null,
@@ -367,34 +564,63 @@ export async function appendLedgerEntries(actor, entries, {
 		// Run descriptor (see mergeRuns): present only on entries that can absorb a
 		// following change to the same subject.
 		...(entry.merge ? { merge: entry.merge } : {}),
-	})).reverse();
+	}));
 
 	// Stamping happens above, OUTSIDE the queue, so `timestamp` records when the change
 	// happened rather than when its turn to write came up. Only the read-merge-write below
 	// has to be serialized.
 	return _serializeLedgerWrite(actor, async () => {
+		const raw = rawLedger(actor);
 		const current = getLedgerEntries(actor);
+		const head = current[0];
 
 		// Fold runs across the new entries and the single newest stored entry, so a burst that
 		// arrives as several updates (four appearance lines, a climb from level 1 to 34) lands
 		// as one entry. Only the head is offered for merging — older history is never rewritten.
-		const merged = mergeRuns(stamped.concat(current.slice(0, 1)));
+		const merged = mergeRuns([...headRunFirst(stamped, head)].reverse().concat(head ? [head] : []));
+		// One write's entries share a timestamp; `seq` is what keeps them in order once stored, and
+		// it counts on from the head's so a second write in the same millisecond still sorts above.
+		// A head that nothing folded into comes back as the same object, and is not rewritten.
+		const base = Number(head?.seq) || 0;
+		const written = merged.map((entry, index) => (entry === head ? entry : { ...entry, seq: base + merged.length - index }));
+		const next = written.concat(current.slice(1)).slice(0, LEDGER_MAX_ENTRIES);
 
-		await actor.update({
-			[LEDGER_FLAG_PATH]: merged.concat(current.slice(1)).slice(0, LEDGER_MAX_ENTRIES),
-		}, { stonetopLedger: true, render: false });
+		await actor.update(
+			ledgerWriteData(raw, current, next, written.filter(entry => entry !== head)),
+			{ stonetopLedger: true, stonetopLedgerWrite: true, render: false },
+		);
 	});
 }
 
-/** Drop the entries whose ids are in `ids`. */
-export async function deleteLedgerEntries(actor, ids) {
-	if (!actor || !ids?.size) return;
-	// Same chain as the appends: a delete that read the array before a concurrent append wrote
-	// it would put the appended entries straight back.
+/**
+ * One update's entries, with those that continue the stored head's run moved to the front.
+ *
+ * Entries from one update happened together, so their order among themselves is only the order
+ * the diff walked the paths in. mergeRuns folds only ADJACENT entries, so when one update wrote
+ * Level and then XP, the XP entry found the Level entry between it and the stored XP run and
+ * started a second XP line. Putting the run's continuation first lets it fold.
+ */
+function headRunFirst(chronological, head) {
+	const run = head?.merge;
+	if (!run) return chronological;
+	const continues = (e) => e.merge?.kind === run.kind && e.merge?.key === run.key;
+	return [...chronological.filter(continues), ...chronological.filter(e => !continues(e))];
+}
+
+/**
+ * Drop the entries whose ids are in `ids`, of those `user` may delete (canDeleteLedgerEntry).
+ * @returns {Promise<string[]>} the ids actually deleted
+ */
+export async function deleteLedgerEntries(actor, ids, { user = globalThis.game?.user } = {}) {
+	if (!actor || !ids?.size) return [];
+	// Same chain as the appends: a delete that read the stored entries before a concurrent append
+	// wrote would decide its trim from a stale list.
 	return _serializeLedgerWrite(actor, async () => {
+		const raw = rawLedger(actor);
 		const current = getLedgerEntries(actor);
-		await actor.update({
-			[LEDGER_FLAG_PATH]: current.filter(e => !ids.has(e.id)),
-		}, { stonetopLedger: true });
+		const doomed = new Set(current.filter(e => ids.has(e.id) && canDeleteLedgerEntry(actor, e, user)).map(e => e.id));
+		if (!doomed.size) return [];
+		await actor.update(ledgerWriteData(raw, current, current.filter(e => !doomed.has(e.id)), []), { stonetopLedger: true, stonetopLedgerWrite: true });
+		return [...doomed];
 	});
 }

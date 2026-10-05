@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { readRepo as read } from "../../fakes/css.js";
 import {
 	autumnHarvest, winterConsumption, seasonalYields, militiaTactics, builtOnTheFields,
-	SEASONAL_YIELDS, MILITIA_SEASON_STEP,
+	MILITIA_SEASON_STEP,
 } from "../../../module/actors/steading/season-effects.js";
-import { IMPROVEMENT_DEFINITIONS } from "../../../module/actors/steading/StonetopSteading.js";
+import { IMPROVEMENT_DEFINITIONS, IMPROVEMENT_GRANTS, builtInImprovementRules } from "../../../module/actors/steading/StonetopSteading.js";
+import { yieldStepKey } from "../../../module/actors/steading/improvement-rules.js";
 
 // ── What the improvements do when the season turns ──────────────────────────────
 // Ten of the book's improvements end in a seasonal "Henceforth…", and the Seasons Change window
@@ -13,79 +14,81 @@ import { IMPROVEMENT_DEFINITIONS } from "../../../module/actors/steading/Stoneto
 //
 // These are the book's own arithmetic, so each case below is a printed line and its result.
 
-const having = (...slugs) => slug => slugs.includes(slug);
+// The rules list (improvement-rules.js) for these book improvements, built: what the window hands in.
+const having = (...slugs) => builtInImprovementRules(slugs);
+const lapsed = (...slugs) => builtInImprovementRules(slugs, { requirementsMet: () => false });
 
 describe("autumnHarvest", () => {
 	it("is a plain 1d4 for a steading with none of them", () => {
-		expect(autumnHarvest({ has: having() }).formula).toBe("1d4");
+		expect(autumnHarvest({ rules: having() }).formula).toBe("1d4");
 	});
 
 	// "when the autumn harvest is complete, gain +1d4 Surplus"
 	it("adds Greater Harvest's second die", () => {
-		expect(autumnHarvest({ has: having("greaterHarvest") }).formula).toBe("1d4 + 1d4");
+		expect(autumnHarvest({ rules: having("greaterHarvest") }).formula).toBe("1d4 + 1d4");
 	});
 
 	// "when the autumn harvest is complete, the steading generates +1 Surplus"
 	it("adds the Mill's flat Surplus", () => {
-		expect(autumnHarvest({ has: having("mill") }).formula).toBe("1d4 + 1");
+		expect(autumnHarvest({ rules: having("mill") }).formula).toBe("1d4 + 1");
 	});
 
 	it("stacks them, because both fire off the same completed harvest", () => {
-		expect(autumnHarvest({ has: having("greaterHarvest", "mill") }).formula).toBe("1d4 + 1d4 + 1");
+		expect(autumnHarvest({ rules: having("greaterHarvest", "mill") }).formula).toBe("1d4 + 1d4 + 1");
 	});
 
 	// "Building on parts of the fields, resulting in −1 Surplus generated with each autumn's
 	// harvest" — a cost of one of the two ways Additional Housing can be BUILT, so it rides on
 	// the requirement box that records the choice and not on the improvement being finished.
 	it("takes the fields' penalty only when that requirement was the one taken", () => {
-		expect(autumnHarvest({ has: having("additionalHousing"), builtOnTheFields: true }).formula).toBe("1d4 - 1");
-		expect(autumnHarvest({ has: having("additionalHousing"), builtOnTheFields: false }).formula).toBe("1d4");
+		expect(autumnHarvest({ rules: having("additionalHousing"), builtOnTheFields: true }).formula).toBe("1d4 - 1");
+		expect(autumnHarvest({ rules: having("additionalHousing"), builtOnTheFields: false }).formula).toBe("1d4");
 	});
 
 	// The box is meaningless without the improvement: a half-ticked requirement is a plan.
 	it("ignores the fields when the housing was never built", () => {
-		expect(autumnHarvest({ has: having(), builtOnTheFields: true }).formula).toBe("1d4");
+		expect(autumnHarvest({ rules: having(), builtOnTheFields: true }).formula).toBe("1d4");
 	});
 
 	// A Mill and the fields cancel, and the formula must not come out as "1d4 + 0" or "1d4 - 0".
 	it("writes no tail at all when the flat modifiers cancel", () => {
-		expect(autumnHarvest({ has: having("mill", "additionalHousing"), builtOnTheFields: true }).formula).toBe("1d4");
+		expect(autumnHarvest({ rules: having("mill", "additionalHousing"), builtOnTheFields: true }).formula).toBe("1d4");
 	});
 
 	// The window prints these under the button. A single-part harvest has nothing to explain.
 	it("names each contribution, so the dice are never just asserted", () => {
-		const { parts } = autumnHarvest({ has: having("greaterHarvest", "mill") });
+		const { parts } = autumnHarvest({ rules: having("greaterHarvest", "mill") });
 		expect(parts.map(p => p.label)).toEqual(["Harvest", "Greater Harvest", "Mill"]);
-		expect(autumnHarvest({ has: having() }).parts).toHaveLength(1);
+		expect(autumnHarvest({ rules: having() }).parts).toHaveLength(1);
 	});
 });
 
 describe("winterConsumption", () => {
 	it("is 1d4+Population for a steading with none of them", () => {
-		expect(winterConsumption({ population: 2, has: having() }).formula).toBe("1d4 + 2");
-		expect(winterConsumption({ population: -1, has: having() }).formula).toBe("1d4 - 1");
-		expect(winterConsumption({ population: 0, has: having() }).formula).toBe("1d4");
+		expect(winterConsumption({ population: 2, rules: having() }).formula).toBe("1d4 + 2");
+		expect(winterConsumption({ population: -1, rules: having() }).formula).toBe("1d4 - 1");
+		expect(winterConsumption({ population: 0, rules: having() }).formula).toBe("1d4");
 	});
 
 	// "roll 2d6+Population to consume Surplus instead of 1d4+Population"
 	it("swaps the dice for a Township", () => {
-		expect(winterConsumption({ population: 1, has: having("township") }).formula).toBe("2d6 + 1");
+		expect(winterConsumption({ population: 1, rules: having("township") }).formula).toBe("2d6 + 1");
 	});
 
 	// "when you consume Surplus in winter, consider Population to be 1 lower than it is"
 	it("counts Population a point lower with Additional Housing", () => {
-		expect(winterConsumption({ population: 3, has: having("additionalHousing") }).formula).toBe("1d4 + 2");
+		expect(winterConsumption({ population: 3, rules: having("additionalHousing") }).formula).toBe("1d4 + 2");
 	});
 
 	// "when winter grips the land, the steading consumes 1 less Surplus than normal"
 	it("takes one off the total behind a Stone Wall", () => {
-		expect(winterConsumption({ population: 2, has: having("stoneWall") }).formula).toBe("1d4 + 1");
+		expect(winterConsumption({ population: 2, rules: having("stoneWall") }).formula).toBe("1d4 + 1");
 	});
 
 	it("applies all three at once", () => {
 		const all = having("township", "additionalHousing", "stoneWall");
 		// 2d6, Population 3 counted as 2, then one off for the wall.
-		expect(winterConsumption({ population: 3, has: all }).formula).toBe("2d6 + 1");
+		expect(winterConsumption({ population: 3, rules: all }).formula).toBe("2d6 + 1");
 	});
 
 	// Winter's second bite — the 7-9's "consume 1d4+Population more Surplus before winter ends".
@@ -93,36 +96,36 @@ describe("winterConsumption", () => {
 	// ROLLED. The wall's flat −1 does not, or one wall pays twice for one winter.
 	it("carries the dice and the Population rule to winter's second bite, but not the wall", () => {
 		const all = having("township", "additionalHousing", "stoneWall");
-		expect(winterConsumption({ population: 3, has: all, second: true }).formula).toBe("2d6 + 2");
-		expect(winterConsumption({ population: 2, has: having("stoneWall"), second: true }).formula).toBe("1d4 + 2");
+		expect(winterConsumption({ population: 3, rules: all, second: true }).formula).toBe("2d6 + 2");
+		expect(winterConsumption({ population: 2, rules: having("stoneWall"), second: true }).formula).toBe("1d4 + 2");
 	});
 
 	it("names each rewrite, and says nothing for a plain winter", () => {
-		expect(winterConsumption({ population: 1, has: having("township") }).parts.map(p => p.label))
+		expect(winterConsumption({ population: 1, rules: having("township") }).parts.map(p => p.label))
 			.toEqual(["Winter", "Township"]);
-		expect(winterConsumption({ population: 1, has: having() }).parts).toHaveLength(1);
-		expect(winterConsumption({ population: 1, has: having(), size: "village" }).parts).toHaveLength(1);
+		expect(winterConsumption({ population: 1, rules: having() }).parts).toHaveLength(1);
+		expect(winterConsumption({ population: 1, rules: having(), size: "village" }).parts).toHaveLength(1);
 	});
 
 	// "If Stonetop has shrunk to a hamlet, it consumes only 1d2 + Population. If it has grown to
 	// a town, it consumes 2d6 + Population." (Book I p. 518; the Size table on p. 509)
 	it("rolls the dice for the steading's Size", () => {
-		expect(winterConsumption({ population: 1, has: having(), size: "hamlet" }).formula).toBe("1d2 + 1");
-		expect(winterConsumption({ population: 1, has: having(), size: "village" }).formula).toBe("1d4 + 1");
-		expect(winterConsumption({ population: 1, has: having(), size: "town" }).formula).toBe("2d6 + 1");
+		expect(winterConsumption({ population: 1, rules: having(), size: "hamlet" }).formula).toBe("1d2 + 1");
+		expect(winterConsumption({ population: 1, rules: having(), size: "village" }).formula).toBe("1d4 + 1");
+		expect(winterConsumption({ population: 1, rules: having(), size: "town" }).formula).toBe("2d6 + 1");
 		// The book leaves a city's Surplus to the table; it rolls a town's rather than nothing.
-		expect(winterConsumption({ population: 1, has: having(), size: "city" }).formula).toBe("2d6 + 1");
-		expect(winterConsumption({ population: 1, has: having(), size: "hamlet" }).parts.map(p => p.label))
+		expect(winterConsumption({ population: 1, rules: having(), size: "city" }).formula).toBe("2d6 + 1");
+		expect(winterConsumption({ population: 1, rules: having(), size: "hamlet" }).parts.map(p => p.label))
 			.toEqual(["Winter", "A hamlet"]);
 	});
 
 	// The Township makes the steading a town; a Size radio never moved still rolls a town's dice.
 	it("lets the Township win over a Size that disagrees", () => {
-		expect(winterConsumption({ population: 0, has: having("township"), size: "village" }).formula).toBe("2d6");
+		expect(winterConsumption({ population: 0, rules: having("township"), size: "village" }).formula).toBe("2d6");
 	});
 
 	it("carries the Size to winter's second bite", () => {
-		expect(winterConsumption({ population: 0, has: having(), size: "hamlet", second: true }).formula).toBe("1d2");
+		expect(winterConsumption({ population: 0, rules: having(), size: "hamlet", second: true }).formula).toBe("1d2");
 	});
 });
 
@@ -130,20 +133,21 @@ describe("seasonalYields", () => {
 	const all = having("market", "township", "harnessingStream", "raincatching");
 
 	it("offers only what this season's rules name", () => {
-		const keyed = season => seasonalYields({ seasonId: season, population: 1, has: all }).map(y => y.key);
-		expect(keyed("spring")).toEqual(["marketYield", "townshipYield", "streamYield"]);
-		expect(keyed("summer")).toEqual(["marketYield", "townshipYield", "raincatchingYield"]);
+		const keyed = season => seasonalYields({ seasonId: season, population: 1, rules: all }).map(y => y.key);
+		// In the improvements' own order (the Improvements tab's), the step keys they always had.
+		expect(keyed("spring")).toEqual(["streamYield", "marketYield", "townshipYield"]);
+		expect(keyed("summer")).toEqual(["marketYield", "raincatchingYield", "townshipYield"]);
 		expect(keyed("autumn")).toEqual(["marketYield"]);
 		expect(keyed("winter")).toEqual([]);
 	});
 
 	it("offers nothing an unbuilt improvement would bring", () => {
-		expect(seasonalYields({ seasonId: "spring", population: 2, has: having() })).toEqual([]);
+		expect(seasonalYields({ seasonId: "spring", population: 2, rules: having() })).toEqual([]);
 	});
 
 	// "the town generates Surplus equal to Population+1"
 	it("scales the Township with Population, and floors it at nothing", () => {
-		const amount = population => seasonalYields({ seasonId: "spring", population, has: having("township") })[0].amount;
+		const amount = population => seasonalYields({ seasonId: "spring", population, rules: having("township") })[0].amount;
 		expect(amount(2)).toBe(3);
 		expect(amount(0)).toBe(1);
 		// A negative yield would be Surplus the season quietly took away, which no line describes.
@@ -152,29 +156,41 @@ describe("seasonalYields", () => {
 
 	// "and Population is +1 or better" — a condition this window CAN check, so it does.
 	it("blocks the Market below Population +1, and says why rather than vanishing", () => {
-		const [row] = seasonalYields({ seasonId: "spring", population: 0, has: having("market") });
+		const [row] = seasonalYields({ seasonId: "spring", population: 0, rules: having("market") });
 		expect(row.blocked).toBe(true);
 		expect(row.amount).toBe(0);
 		expect(row.unmet).toContain("+1");
 	});
 
+	// Book I p. 158 (PDF 80): "...and the market is active, and Population is +1 or better". A
+	// Market that has ceased to meet its requirements is not active.
+	it("blocks a lapsed Market whatever its Population, and says it is not active", () => {
+		const [row] = seasonalYields({ seasonId: "summer", population: 2, rules: lapsed("market") });
+		expect(row).toMatchObject({ key: "marketYield", blocked: true, amount: 0 });
+		expect(row.unmet).toMatch(/not active/);
+		// Only the Market asks: the Township's yield has no such clause.
+		const town = seasonalYields({ seasonId: "summer", population: 2, rules: lapsed("township") });
+		expect(town[0].blocked).toBe(false);
+	});
+
 	// The two that wait on a roll this window cannot read. Their buttons say the condition rather
 	// than pretending to know the tier, exactly as winter's debt button does.
 	it("marks the two that wait on a 7+ with Fortunes", () => {
-		const rows = seasonalYields({ seasonId: "spring", population: 2, has: all });
+		const rows = seasonalYields({ seasonId: "spring", population: 2, rules: all });
 		expect(rows.find(r => r.key === "streamYield").needsHit).toBe(true);
 		expect(rows.find(r => r.key === "marketYield").needsHit).toBe(false);
 	});
 
-	// The card goes in front of the table, so each row carries the printed line it implements.
-	it("carries the book's own wording on every row", () => {
-		for (const y of SEASONAL_YIELDS) expect(y.rule, y.key).toMatch(/Surplus/);
+	// The card goes in front of the table, so each row says what it pays and when.
+	it("says on every row what it generates", () => {
+		for (const y of seasonalYields({ seasonId: "spring", population: 2, rules: all })) expect(y.rule, y.key).toMatch(/Surplus/);
 	});
 
 	// Each yield is its own step, so a GM who took the Market's, closed the window and came back
 	// for the Township's finds one spent and one waiting rather than the whole block gone.
 	it("gives every yield a step key of its own", () => {
-		const keys = SEASONAL_YIELDS.map(y => y.key);
+		const keys = Object.keys(IMPROVEMENT_GRANTS).filter(slug => IMPROVEMENT_GRANTS[slug].seasonalYield).map(yieldStepKey);
+		expect(keys).toEqual(["streamYield", "marketYield", "raincatchingYield", "townshipYield"]);
 		expect(new Set(keys).size).toBe(keys.length);
 		expect(keys).not.toContain(MILITIA_SEASON_STEP);
 	});
@@ -232,9 +248,10 @@ describe("how the seasonal effects are wired", () => {
 	const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
 
 	it("rolls the harvest and the consumption from the builders, not from a literal", () => {
-		expect(SHEET).toContain("autumnHarvest({ has: slug => this._hasImprovement(slug), builtOnTheFields: this._builtOnTheFields() })");
-		expect(SHEET).toContain("const harvest = this._harvestRoll();");
-		expect(SHEET).toContain("winterConsumption({ population, has, size })");
+		expect(SHEET).toContain("autumnHarvest({ rules, builtOnTheFields: this._builtOnTheFields() })");
+		expect(SHEET).toContain("_harvestRoll(rules = this._improvementRules())");
+		expect(SHEET).toContain("const harvest = this._harvestRoll(rules);");
+		expect(SHEET).toContain("winterConsumption({ population, rules, size })");
 		// Both are written onto their button, so the label and the roll cannot disagree.
 		expect(SHEET).toContain(`data-action="roll-surplus" data-formula=`);
 		expect(SHEET).toContain(`data-action="roll-consumption" data-formula=`);
@@ -265,10 +282,17 @@ describe("how the seasonal effects are wired", () => {
 		expect(body).toContain(`_onImprovementReq("wellTrainedMilitia"`);
 	});
 
-	it("hands the Inn's questions to the table on the Inn's own ladder", () => {
+	// Book I p. 158: "Henceforth, when the seasons change, whoever is friendliest rolls +Fortunes".
+	// With the move, so off the Fortunes the season opened with, and once a season (a re-post
+	// stays possible, for a lost card).
+	it("hands the Inn's questions to the table on the Inn's own ladder, once a season", () => {
 		const at = SHEET.indexOf(`data-action='ask-friendliest'`);
 		expect(at).toBeGreaterThan(-1);
-		expect(SHEET.slice(at, at + 500)).toContain(`table: "inn"`);
+		const body = SHEET.slice(at, at + 1400);
+		expect(body).toContain(`table: "inn"`);
+		expect(body).toContain("steading.openingFortunes(year, seasonId) ?? steading.getStatValue(\"fortunes\")");
+		expect(body).toContain("setSeasonStepApplied(INN_ROLL_SEASON_STEP, year, seasonId)");
+		expect(body).toContain("Post the Inn's card again");
 	});
 });
 
@@ -292,9 +316,11 @@ describe("every improvement with a seasonal rule reaches the window", () => {
 	// spring line instead of a step, for the reason written beside it in the sheet.
 	const EXCUSED = new Set();
 
-	// The slugs the window reaches, and HOW: through the yield table, through one of the two
-	// formula builders, or by name in the sheet's own blocks.
-	const viaYield = new Set(SEASONAL_YIELDS.map(y => y.slug));
+	// The slugs the window reaches, and HOW: through a seasonal grant the window's readers ask for
+	// (a yield, a harvest or winter rewrite, an upkeep), or by name in the sheet's own blocks.
+	const SEASONAL_GRANTS = ["seasonalYield", "harvestBonus", "winterConsumption", "winterPopulation", "upkeep"];
+	const viaYield = new Set(Object.keys(IMPROVEMENT_GRANTS)
+		.filter(slug => SEASONAL_GRANTS.some(key => IMPROVEMENT_GRANTS[slug][key])));
 
 	it("names every seasonal improvement somewhere the window can act on it", () => {
 		const seasonal = IMPROVEMENT_DEFINITIONS
@@ -306,14 +332,14 @@ describe("every improvement with a seasonal rule reaches the window", () => {
 			expect(seasonal, slug).toContain(slug);
 		}
 
-		// Three ways to be reached, and nothing else counts: a row in the yield table, a rewrite
-		// inside one of the formula builders, or a block in the window gated on the improvement.
+		// The ways to be reached, and nothing else counts: a seasonal grant on the improvement,
+		// a bespoke rewrite inside one of the formula builders, or a block in the window gated on it.
 		// A passing mention of the slug anywhere in the sheet does NOT count, or the improvement
 		// cards themselves would satisfy this for every slug in the book.
 		const EFFECTS = read("module/actors/steading/season-effects.js");
 		const missing = seasonal.filter(slug =>
 			!EXCUSED.has(slug) && !viaYield.has(slug)
-			&& !EFFECTS.includes(`has("${slug}")`)
+			&& !EFFECTS.includes(`rulesHas(rules)("${slug}")`)
 			&& !SHEET.includes(`_hasImprovement("${slug}")`));
 		expect(missing).toEqual([]);
 	});

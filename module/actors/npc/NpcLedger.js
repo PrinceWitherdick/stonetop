@@ -12,6 +12,7 @@ import {
 	appendLedgerEntries, deleteLedgerEntries, getLedgerEntries,
 	isBlank, valuesEqual, actionForField, coalesceEntries, scalarEntry,
 } from "../../utils/ledger-core.js";
+import { deletionTarget } from "../../utils/foundry-compat.js";
 import { stripHtmlToText as stripHtml } from "../../utils/strings.js";
 import { heartsLabel } from "../../utils/heart-words.js";
 
@@ -46,7 +47,8 @@ const RICH_TEXT_LABELS = {
 	"system.notes":       "Notes",
 };
 
-const IMPRESSIONS_PREFIX  = "system.impressions.";
+const IMPRESSIONS_PATH    = "system.impressions";
+const IMPRESSIONS_PREFIX  = `${IMPRESSIONS_PATH}.`;
 const RELATIONSHIPS_PREFIX = "system.relationships.";
 
 // Blank ↔ content ↔ content transitions for a rich-text field, without dumping the HTML.
@@ -107,6 +109,23 @@ function actorUpdateEntries(actor, changed) {
 	const entries = [];
 	for (const [path, newValue] of Object.entries(flat)) {
 		if (!path || isLedgerPath(path)) continue;
+		// A deletion in either core's spelling is not a value to report (see CharacterLedger).
+		if (deletionTarget(path, newValue) !== null) continue;
+
+		// The impressions are an ArrayField, and core casts the sheet's `system.impressions.<n>`
+		// inputs into ONE whole array before any hook sees the update. So the write that actually
+		// arrives is this path, which no prefix below matches: every impression edit went unlogged.
+		// It is a fixed set of slots, so a slot-by-slot diff is the right reading.
+		if (path === IMPRESSIONS_PATH) {
+			const before = Array.isArray(actor.system?.impressions) ? actor.system.impressions : [];
+			const after  = Array.isArray(newValue) ? newValue : [];
+			for (let i = 0; i < Math.max(before.length, after.length); i++) {
+				if (valuesEqual(before[i], after[i])) continue;
+				const entry = impressionEntry(before[i], after[i]);
+				if (entry) entries.push({ category: "relations", ...entry });
+			}
+			continue;
+		}
 
 		if (path.startsWith(IMPRESSIONS_PREFIX)) {
 			const idx = Number(path.slice(IMPRESSIONS_PREFIX.length).split(".")[0]);
@@ -163,9 +182,9 @@ export class NpcLedger {
 		await appendLedgerEntries(actor, entries, options);
 	}
 
-	static async deleteEntries(actor, ids) {
-		if (actor?.type !== "npc") return;
-		await deleteLedgerEntries(actor, ids);
+	static async deleteEntries(actor, ids, options) {
+		if (actor?.type !== "npc") return [];
+		return deleteLedgerEntries(actor, ids, options);
 	}
 
 	static entriesForActorUpdate(actor, changed) {

@@ -51,7 +51,7 @@ export function buildMoveTierResults({ success = "", partial = "", failure = "" 
 /**
  * Read the roll-type + tier text out of raw move-authoring dialog input, shared by every
  * move builder (custom moves, love letters). `allowedTypes` is the builder's whitelist of
- * roll types (the six stats for love letters, the wider custom set otherwise); an input
+ * roll types (the six stats and Fortunes for love letters, the wider custom set otherwise); an input
  * outside it collapses to "" (a no-roll move). Returns `{ rollType, success, partial,
  * failure }` with the tier strings trimmed.
  */

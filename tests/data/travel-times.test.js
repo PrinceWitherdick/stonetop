@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import {
-	TRAVEL_PLACES, TRAVEL_LEGS, TRAVEL_MAPS, TRAVEL_EXITS, ROAD_BENDS,
+	TRAVEL_PLACES, TRAVEL_LEGS, BOOK_LEGS, TRAVEL_MAPS, TRAVEL_EXITS, ROAD_BENDS,
 	MAP_CAPTIONS, MAP_FRAMES, FULL_FRAME, BEYOND_TIER,
 	travelPlace, homePlace, placesOnMap, placesBeyond, exitsOnMap, roadBendsBetween,
 	spotPercent, percentSpot, frameFor, frameFitsImage,
@@ -84,25 +84,96 @@ function packLegs() {
 	return legs;
 }
 
+/** A leg reduced to what the table says about it, for comparing tables. */
+const legShape = leg => ({
+	from: leg.from, to: leg.to, min: leg.min, max: leg.max, unit: leg.unit,
+	via: leg.via ?? null,
+});
+
+/**
+ * The Setting Overview's "Travel Times" page, read back as legs. It is the same table set as one
+ * `<h3>` and `<table>` per block, with the place names wrapped in gazetteer links and typographic
+ * apostrophes, so both are taken off before the names are looked up.
+ */
+function overviewLegs() {
+	const content = JSON.parse(fs.readFileSync(SETTING_OVERVIEW, "utf8")).pages
+		.find(p => p.name === "Travel Times").text.content;
+	const plain = html => html
+		.replace(/@UUID\[[^\]]*\]\{([^}]*)\}/g, "$1")
+		.replace(/<[^>]+>/g, "")
+		.replace(/’/g, "'")
+		.replace(/\s+/g, " ")
+		.trim();
+	const slugs = slugByTableName();
+	const legs = [];
+	for (const [, heading, body] of content.matchAll(/<h3>([\s\S]*?)<\/h3><table>([\s\S]*?)<\/table>/g)) {
+		const title = plain(/<em>([\s\S]*?)<\/em>/.exec(heading)?.[1] ?? "").replace(/^\(|\)$/g, "");
+		const block = BLOCKS[title];
+		expect(block, `unrecognised Setting Overview block "${title}"`).toBeTruthy();
+		for (const [, row] of body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)) {
+			const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(m => plain(m[1]));
+			if (cells.length !== 2) continue;                 // the <thead> row is all <th>
+			const slug = slugs.get(cells[0]);
+			expect(slug, `no travel place matches the Setting Overview row "${cells[0]}"`).toBeTruthy();
+			const span = parseSpan(cells[1]);
+			legs.push(block.destination
+				? { from: slug, to: block.destination, ...span, via: block.via ?? null }
+				: { from: block.origin, to: slug, ...span, via: block.via ?? null });
+		}
+	}
+	return legs;
+}
+
 describe("TRAVEL_LEGS mirrors the travel-times table Chart a Course ships", () => {
 	const rows = packLegs();
 
+	// The book's rows only. The `ruling` legs are not in the table, which is what marks them.
 	it("reads every row of the shipped table", () => {
-		expect(rows).toHaveLength(TRAVEL_LEGS.length);
+		expect(rows).toHaveLength(BOOK_LEGS.length);
 	});
 
 	it("matches the shipped table leg for leg", () => {
-		const shape = leg => ({
-			from: leg.from, to: leg.to, min: leg.min, max: leg.max, unit: leg.unit,
-			via: leg.via ?? null,
-		});
-		expect(TRAVEL_LEGS.map(shape)).toEqual(rows.map(shape));
+		expect(BOOK_LEGS.map(legShape)).toEqual(rows.map(legShape));
+	});
+
+	// The Setting Overview prints the same table a second time, and nothing used to check its
+	// numbers: it had lost the Steplands block and the Tor's Fist block, four rows of nineteen.
+	it("is printed whole and the same on the Setting Overview's Travel Times page", () => {
+		expect(overviewLegs().map(legShape)).toEqual(rows.map(legShape));
 	});
 
 	it("prints Marshedge to Lygos as 30 days, the row the whole feature hangs on", () => {
 		expect(rows).toEqual(expect.arrayContaining([
 			expect.objectContaining({ from: "marshedge", to: "lygos", min: 30, max: 30, unit: "days" }),
 		]));
+	});
+});
+
+// User ruling 2026-10-02. Book II p.270: the West Road crosses the Highway at the Crossroads, so
+// every road journey out of Stonetop passes it; p.26: Barrier Pass is reached "after winding
+// through the Foothills". The Crossroads gets Stonetop's road times as an "at least" floor.
+describe("the legs the books imply and the table does not print", () => {
+	const rulings = TRAVEL_LEGS.filter(leg => leg.ruling);
+
+	it("gives the Crossroads every road time Stonetop has, at the same floor", () => {
+		const roads = BOOK_LEGS.filter(leg => leg.from === "stonetop" && leg.via === "the Roads"
+			&& leg.to !== "the-crossroads");
+		for (const road of roads) {
+			expect(rulings, road.to).toContainEqual(expect.objectContaining({
+				from: "the-crossroads", to: road.to, min: road.min, max: road.max, unit: road.unit,
+			}));
+		}
+	});
+
+	it("winds from the Foothills to Barrier Pass in three days", () => {
+		expect(rulings).toContainEqual(expect.objectContaining({
+			from: "the-foothills", to: "barrier-pass", min: 3, max: 3, unit: "days",
+		}));
+	});
+
+	it("adds nothing else", () => {
+		expect(rulings).toHaveLength(7);
+		expect(BOOK_LEGS).toHaveLength(19);
 	});
 });
 
@@ -423,8 +494,8 @@ describe("gazetteer links", () => {
 		);
 		const ours = TRAVEL_PLACES.filter(p => p.journalId).map(p => p.journalId);
 		expect(ours.length).toBeGreaterThan(10);
-		// Stonetop, Blackwater Lake and the Crossroads are not rows on that page, so it cannot
-		// vouch for them; everything it DOES link must agree with us.
+		// Stonetop and the Crossroads are not linked on that page (nor is Tor's Fist, which has no
+		// entry), so it cannot vouch for them; everything it DOES link must agree with us.
 		const overlap = ours.filter(id => linked.has(id));
 		expect(overlap.length).toBeGreaterThanOrEqual(linked.size);
 	});

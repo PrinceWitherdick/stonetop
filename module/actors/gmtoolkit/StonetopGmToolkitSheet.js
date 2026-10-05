@@ -527,6 +527,8 @@ export function createStonetopGmToolkitSheetClass(Base) {
 						src: diagram.dataset.src,
 						title: diagram.dataset.caption,
 						key: diagram.dataset.slug,
+						// A white book page: a dark palette turns it down.
+						classes: ["stonetop-image-zoom--book-page"],
 					});
 					return;
 				}

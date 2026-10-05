@@ -47,11 +47,14 @@ describe("the stored list", () => {
 	});
 
 	// This drives an advantage claim, so a hand-edited world holding the string "false" must not
-	// read as "they broke it"... and any truthy junk must land as a hard boolean either way.
-	it("coerces broken to a hard boolean", () => {
-		expect(readOaths([{ name: "a", broken: "false" }])[0].broken).toBe(true);
+	// read as "they broke it"; only an explicit yes does, and it lands as a hard boolean.
+	it("coerces broken to a hard boolean, reading only an explicit yes as broken", () => {
+		expect(readOaths([{ name: "a", broken: "false" }])[0].broken).toBe(false);
+		expect(readOaths([{ name: "a", broken: "no" }])[0].broken).toBe(false);
 		expect(readOaths([{ name: "a", broken: 0 }])[0].broken).toBe(false);
 		expect(readOaths([{ name: "a", broken: 1 }])[0].broken).toBe(true);
+		expect(readOaths([{ name: "a", broken: "true" }])[0].broken).toBe(true);
+		expect(readOaths([{ name: "a", broken: true }])[0].broken).toBe(true);
 	});
 
 	it("survives garbage and drops nameless rows", () => {
@@ -63,9 +66,17 @@ describe("the stored list", () => {
 		expect(readOaths([{ name: "One" }])[0].id).toBe("oath-0");
 	});
 
-	it("refuses a second oath from the same person", () => {
-		const { entries } = addOath([], { name: "Gethin" }, () => "o");
-		expect(addOath(entries, { name: "gethin" }).added).toBeNull();
+	// The user's ruling: one row per oath. "When you bear witness to someone's promise or oath" is
+	// per promise, and one person can swear several and break only one of them.
+	it("keeps a second oath from the same person as its own row", () => {
+		let n = 0;
+		const id = () => `o${n++}`;
+		const first = addOath([], { name: "Gethin", uuid: "Actor.g", note: "to bring the herd back" }, id).entries;
+		const second = addOath(first, { name: "gethin", uuid: "Actor.g", note: "to wed Aeronwen" }, id);
+		expect(second.added).toMatchObject({ id: "o1", note: "to wed Aeronwen" });
+		expect(second.entries).toHaveLength(2);
+		expect(addOath(second.entries, { name: "Gethin" }, id).entries).toHaveLength(3);
+		expect(addOath(second.entries, { name: "  " }, id).added).toBeNull();
 	});
 
 	it("releases one row by its own handle", () => {

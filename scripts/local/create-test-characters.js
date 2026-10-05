@@ -51,6 +51,12 @@
 //             rows the map fills in for itself) and home again, and one still out on a way the
 //             GM drew by hand, holding two of the village's communal assets — which are struck
 //             through on the steading sheet and tagged with the trip that took them.
+//             Lays a THREE-YEAR history on the Timeline (Spring, Year One to Spring, Year
+//             Three): a Seasons Change for every season (gains, Surplus and notes, printed in
+//             the season's heading) and typed rows on Stonetop's own thread, and level-ups,
+//             kills, the trip home, a site visit, a follower and the Graveyard's deaths on each
+//             character's, and moves the steading's clock on to Year Three to match (its season
+//             kept, and a clock already past Year Three left alone).
 //             Seeds the steading "Stonetop" (the world's required
 //             singleton) with a thematic set of test Residents, Neighbors, and Players (the
 //             created PCs) so the steading sheet's member tables aren't empty — each resident
@@ -120,7 +126,14 @@
 //             (which read as green wherever they are read), all four directions, all three
 //             strokes, and the caption size at every rung of its ladder plus one off it, one past
 //             the ceiling, one under the floor and one stored as the base, which reads back as no
-//             size at all. It arrives HIDDEN from the players, which is how every board made with
+//             size at all. All three boards also carry NAMED GROUPS, an outline round some
+//             people and what they are ("The shield wall", "From beyond the valley"): both
+//             shapes, an overlap, groups nested inside groups (one of them a single person), a
+//             group of actorless circles, and on the Test board a shape nobody offers, an
+//             over-long name, a retired ink, two groups of the same people, a membership key for
+//             somebody taken off the map and a group with nobody left in it. The party (on the
+//             party and Test boards) is seated in a fixed order so each group is round people
+//             who sit side by side. The Test board arrives HIDDEN from the players, which is how every board made with
 //             "+" arrives and the only fixture the eye in the strip has. What is NOT seeded here is
 //             the party board's introductions lines: the window draws those itself the first time
 //             the map is opened, which is the pass worth watching happen. The singleton actor itself is
@@ -144,8 +157,10 @@
 //             removes the world Moves/Items/Monsters and the
 //             example NPC (and their now-empty folders), sends home every steading asset a test
 //             trip was holding (matched by trip id, so the GM's own requisitions are untouched),
-//             unmarks the seeded debility while it is still the only one marked, and prunes the
-//             matching Chronicle pages.
+//             unmarks the seeded debility while it is still the only one marked, takes the
+//             seeded rows off Stonetop's Timeline thread (the table's own rows stay), and prunes
+//             the matching Chronicle pages, the test characters' Timeline threads among them. The
+//             clock stays in Year Three, like the season it was left in.
 
 (async () => {
   // Re-entrancy guard: a double-click on the hotbar — or clicking the macro again while
@@ -1049,7 +1064,10 @@
   //     autumn  5   both out
   //     winter  7   the widest it ever gets: the herd's feed and winter's debt together
   // The clock is seeded to spring because that is the case the tray shipped with, and only on
-  // a world that has never turned a season: a steading mid-campaign keeps its own.
+  // a world that has never turned a season: a steading mid-campaign keeps its own SEASON. Its
+  // YEAR is another matter: the timeline below is three years long, so a clock still in its
+  // first or second year is moved on to the third (same season), which is the one way the
+  // seeded history can sit in the past rather than run on ahead of the header.
   //
   // TO SEE ANOTHER SEASON'S TRAY, turn the season and RE-RUN THIS MACRO. Three of the held
   // states expire by ceasing to match the clock rather than by being cleared, so the seed made
@@ -1157,6 +1175,339 @@
 <tr><td>6-</td><td>Hardship comes — mark a debility.</td></tr>
 </tbody>
 </table>`;
+
+  // ── A three-year timeline (Spring, Year One to Spring, Year Three) ─────
+  // The Timeline (one `timeline` page per track in The Chronicle: Stonetop's own thread and one per
+  // character) is otherwise only ever written AS THINGS HAPPEN, so a test world opens on a few rows
+  // all dated the moment the macro ran. This lays a campaign's worth of history under it: nine
+  // seasons, each kind of row the timeline knows (typed, Seasons Change, level-up, kills, expedition,
+  // site visit, death, follower), on every thread at once, so the Vertical and Horizontal layouts, the year
+  // headings, the kill chip and the Show filter all have something to sort.
+  //
+  // THE CLOCK IS MOVED TO MATCH: the hold-tray block raises the steading to Year Three (keeping its
+  // season), so the history is behind the header rather than ahead of it. See TEST_TIMELINE_YEARS.
+  //
+  // THE STORY HANGS TOGETHER with the rest of the fixture: the harvest raid the war-stories answer
+  // remembers ("late in the harvest two winters ago"), the barrow that is the first seeded site, the
+  // trip home from Blackwater Lake, the Wandering Tower trip still out this spring, the Graveyard's
+  // four deaths, and the notes on each character's sheet.
+  //
+  // WRITTEN THROUGH THE SYSTEM'S OWN STORE (macroModules.timeline), in turn with the system's own
+  // writers, because the system is recording on the same pages while this runs: a level climbed, a
+  // follower named, a death. Rows those writes already made carry the same KEY as the seeded one
+  // (`levelup:4`, `death:mortal`, `follower:gain:<id>`) and are RE-DATED into the history rather than
+  // written twice; anything else the system recorded on a test character (an arcanum found on the Max
+  // Level path) is spread across the nine seasons, so no one season holds a pile of them.
+  //
+  // EVERY ROW THIS WRITES HAS AN ID STARTING TEST_TIMELINE_ID. That is how the re-run takes the
+  // history back off Stonetop's thread, which is the world's and is never deleted, while leaving every
+  // row the table wrote there; the characters' pages go whole, with the characters.
+  const TEST_TIMELINE_YEARS   = 3;
+  const TEST_TIMELINE_SEASONS = ["spring", "summer", "autumn", "winter"];
+  const TEST_TIMELINE_ID      = "testTimeline";
+  // A season of the history by its index: 0 is Spring of Year One, TEST_TIMELINE_LAST is Spring of
+  // Year Three, the season the clock is raised into.
+  const TEST_TIMELINE_LAST = (TEST_TIMELINE_YEARS - 1) * TEST_TIMELINE_SEASONS.length;
+  const timelinePeriod = p => ({
+    season: TEST_TIMELINE_SEASONS[p % TEST_TIMELINE_SEASONS.length],
+    year:   1 + Math.floor(p / TEST_TIMELINE_SEASONS.length),
+  });
+
+  // Stonetop's own thread. `turned` is every Seasons Change, worded by the system's own
+  // seasonEntryBody, which the timeline prints in that season's HEADING rather than as a card. The
+  // first is session zero's Let Spring Burst Forth, which records Spring of Year One the same way
+  // (gains, and the GM's hook as its note). `gains` are SEASONAL_GAINS names
+  // (dialogs/spring-burst-data.js) and agree with the story: none in the raid autumn, two in the
+  // best harvest, and a bounty's Surplus counted in its season's change. So the headings differ:
+  // no gains, one, two; Surplus up, down and unmoved; and one `title` a GM rewrote, which is the
+  // one case where the heading prints a title under the season's name.
+  // `rows` are what the table would have typed there.
+  const TEST_TIMELINE_STEADING = {
+    turned: [
+      { p: 0, surplus:  0, gains: ["Interesting news"],
+        notes: "A hawk took a crow over the standing stones at the thaw. Someone has half a map to the old barrow." },
+      { p: 1, surplus:  1, gains: ["Tor's blessing"],
+        notes: "The barley came up thick and the herds fattened on the high pasture." },
+      { p: 2, surplus: -1, gains: [],
+        notes: "Half the harvest was in before the raid. The rest was trampled." },
+      { p: 3, surplus: -1, gains: ["Valuable insight"],
+        notes: "A hungry winter. The well froze to the bottom, and nobody starved.\nThe raider we kept talked, come midwinter: they came for the barrow, not the barley." },
+      { p: 4, surplus:  1, gains: ["Trade opportunity"],
+        notes: "Seed corn traded up from Marshedge, and the fields went in on time." },
+      { p: 5, surplus:  1, gains: ["Interesting news", "Unexpected bounty"],
+        notes: "A Steplands trader with word of standing stones at Blackwater Lake, and salt to pay for his keep." },
+      { p: 6, surplus:  2, gains: ["Tor's blessing", "Unexpected bounty"],
+        notes: "The best harvest anyone remembers, and the expedition home before the frosts." },
+      { p: 7, surplus:  0, gains: [], title: "The Elder's winter",
+        notes: "Hafgan the Elder died in the deep of it." },
+      { p: 8, surplus:  1, gains: ["Population boom"],
+        notes: "The thaw, and singing from out on the Flats. Two Hillfolk families came down to settle by the mill." },
+    ],
+    rows: [
+      { p: 0, title: "The first spring", place: "Stonetop",
+        body: "<p>The thaw came late. The village named the ones who would go beyond the stones when going was needed.</p>" },
+      { p: 2, title: "Raiders at the harvest", place: "Stonetop",
+        body: "<p>Down out of the high country in the grey hour before dawn, with the last of the barley barely in. The fighting did not stop until the sun was well up.</p>" },
+      { p: 3, title: "The longest night", place: "Stonetop",
+        body: "<p>The elders kept the longhouse fire lit until dawn, and the whole village slept around it.</p>" },
+      { p: 5, title: "Midsummer at the shrine",
+        body: "<p>Aerin walked the miller's boy up to the shrine, as promised. Half the village followed.</p>" },
+      { p: 7, title: "Hafgan laid under the cairn", place: "Stonetop",
+        body: "<p>The Judge before Bartholomew made his last ruling and stepped through the Last Door. They buried him facing the road.</p>" },
+      { p: 8, title: "The tower sings again", place: "The Flats",
+        body: "<p>Three nights of singing from out on the Flats. A party set out on the third day of the thaw and is not home yet.</p>" },
+    ],
+  };
+
+  // Each living character's own rows, keyed by the SHORT playbook slug like PRESET and TEST_PC_NOTES
+  // (and written to agree with those notes). Three each, in different seasons, so the Horizontal layout's
+  // lanes are not all stepping in time.
+  const TEST_TIMELINE_PC_ROWS = {
+    blessed: [
+      { p: 1, title: "Took up the rites", body: "<p>The old herbwife taught them. A season's labour owed for it.</p>" },
+      { p: 5, title: "Walked the miller's boy to the shrine", place: "The shrine" },
+      { p: 8, title: "Paid the herbwife her season" },
+    ],
+    fox: [
+      { p: 0, title: "Half a map to the barrow", body: "<p>Copied by candlelight until the candle guttered.</p>" },
+      { p: 2, title: "Came out of the raid with the captain's purse" },
+      { p: 7, title: "Cased the reeve's strongbox", body: "<p>Not yet.</p>" },
+    ],
+    heavy: [
+      { p: 2, title: "Broke the axe on the raider captain's shield", place: "Stonetop" },
+      { p: 3, title: "Three days at the smith's bellows", body: "<p>For the favour of the re-hafting.</p>" },
+      { p: 6, title: "Carried Yannic over the last ford" },
+    ],
+    judge: [
+      { p: 1, title: "Heard the boundary-stone dispute", place: "The north field" },
+      { p: 7, title: "Took up Hafgan's chain of office" },
+      { p: 8, title: "Let Coria's watch scheme stand a season", body: "<p>Wisdom or overreach. A season will say which.</p>" },
+    ],
+    lightbearer: [
+      { p: 0, title: "Lit Helior's flame on the hill", place: "Stonetop" },
+      { p: 4, title: "Carried the lantern into the barrow" },
+      { p: 7, title: "Traded for lamp oil", place: "Marshedge" },
+    ],
+    marshal: [
+      { p: 2, title: "Held the wall at the harvest raid", place: "Stonetop" },
+      { p: 3, title: "Doubled the watch on the Maker's Road" },
+      { p: 5, title: "Drilled the militia twice a week, not once" },
+    ],
+    ranger: [
+      { p: 1, title: "The bees swarmed early", body: "<p>A warm, hungry summer coming.</p>" },
+      { p: 4, title: "Fresh sign by the old ford", body: "<p>Something large. Not a bear.</p>" },
+      { p: 6, title: "Read the weather home before the frosts" },
+    ],
+    seeker: [
+      { p: 4, title: "Rubbed the glyphs from the barrow lintel" },
+      { p: 6, title: "A rubbing from the stones at the lake", place: "Blackwater Lake" },
+      { p: 8, title: "A dialect, not a cipher", body: "<p>Probably.</p>" },
+    ],
+    "would-be-hero": [
+      { p: 0, title: "Swore to win a name" },
+      { p: 2, title: "Stood in the line at the raid, and stayed standing", place: "Stonetop" },
+      { p: 5, title: "Asked Brakkos to spar", body: "<p>Did not cry. Much.</p>" },
+    ],
+  };
+
+  // The Graveyard, keyed by GRAVEYARD's names: one row from life, and the season each one died in
+  // (and, for three of them, came back in, as GRAVEYARD's `fate` says).
+  const TEST_TIMELINE_GRAVES = {
+    "Duvin Ash-Hand":   { died: 6, row: { p: 2, title: "Held the ford in the harvest raid" },
+                          kills: { 2: ["Hillfolk raider", "Hillfolk raider"], 6: ["Crinwin"] } },
+    "Nesta Fell":       { died: 3, row: { p: 1, title: "Carried word across the gorge bridge" } },
+    "Emrys Tal":        { died: 4, row: { p: 2, title: "Heard a name in the smoke after the raid" } },
+    "Hafgan the Elder": { died: 7, row: { p: 0, title: "Opened the spring moot", place: "Stonetop" } },
+  };
+
+  // The trip that is HOME (TEST_EXPEDITIONS by title): set out in the second summer, back in the
+  // autumn. The one still out has no row yet, which is what a trip that is still out looks like.
+  const TEST_TIMELINE_TRIPS = {
+    "North to Blackwater Lake": { setOut: 5, home: 6, place: "Blackwater Lake", triumphant: true },
+  };
+  // The first seeded site, visited in the second spring by three of the party (short slugs).
+  const TEST_TIMELINE_SITE = { name: "The Barrow Beneath the Black Water", p: 4, party: ["seeker", "lightbearer", "fox"] };
+
+  // Kills: everyone in the harvest raid, half the party on the way to the lake, and one more fight
+  // of their own, varied by roster slot so the totals differ.
+  const timelineKillsFor = slot => {
+    const kills = { 2: Array(1 + (slot % 3)).fill("Hillfolk raider") };
+    if (slot % 2 === 0) kills[6] = ["Fen wolf"];
+    // Can land on the lake season, and then joins that row rather than replacing it.
+    const own = 3 + (slot % 5);
+    kills[own] = [...(kills[own] ?? []), ...(slot % 3 === 0 ? ["Crinwin"] : ["Bandit", "Bandit"])];
+    return kills;
+  };
+
+  /**
+   * Write one track's seeded rows, through the system's store, in one write.
+   *
+   * `rows` are complete entries in reading order (season/year included). A row whose `key` is
+   * already on the page (a live milestone) is patched with the fields in its `refresh` rather than
+   * added again. With `spread`, every other system-written row on the page that the seed does not
+   * name is re-dated to the period `spread(entry, k)` answers.
+   */
+  const seedTimelineTrack = async (tl, track, rows, { spread = null } = {}) => {
+    if (!track) return null;
+    const seededKeys = new Set(rows.map(r => r.key).filter(Boolean));
+    const makeId = () => `${TEST_TIMELINE_ID}${foundry.utils.randomID(8)}`;
+    const now = Date.now();
+    const done = await tl.mutateTrack(track, (stored) => {
+      let entries = tl.readEntries(stored);
+      let moved = false;
+      rows.forEach((row, i) => {
+        // A Seasons Change the table really recorded for this season stands in for ours.
+        if (row.source === "season" && entries.some(e => e.source === "season" && e.season === row.season && e.year === row.year)) return;
+        const { refresh = [], ...fields } = row;
+        const result = tl.upsertByKey(entries, { createdAt: now + i, authorId: game.user.id, ...fields }, { refresh, makeId });
+        entries = result.entries;
+        moved ||= Boolean(result.added || result.changed);
+      });
+      if (spread) {
+        entries
+          .filter(e => e.source !== "hand" && !seededKeys.has(e.key) && !e.id.startsWith(TEST_TIMELINE_ID))
+          .forEach((e, k) => {
+            const result = tl.patchEntry(entries, e.id, timelinePeriod(spread(e, k)));
+            entries = result.entries;
+            moved ||= Boolean(result.changed);
+          });
+      }
+      return { entries, changed: moved || null };
+    }, { create: true });
+    return done?.page ?? tl.findTrackPage(track.trackId);
+  };
+
+  /**
+   * Take every seeded row back off Stonetop's thread, and only those (by TEST_TIMELINE_ID). Run by
+   * the cleanup and again before every seed, so a world whose test characters were deleted by hand
+   * (which skips the cleanup) still never gets the steading's history twice.
+   */
+  const clearTestTimelineRows = async (tl, steading) => {
+    const track = steading ? tl.trackForActor(steading) : null;
+    if (!track) return 0;
+    const done = await tl.mutateTrack(track, (stored) => {
+      let entries = tl.readEntries(stored);
+      const ours = entries.filter(e => e.id.startsWith(TEST_TIMELINE_ID));
+      for (const e of ours) entries = tl.removeEntry(entries, e.id).entries;
+      return { entries, removed: ours.length ? ours : null };
+    });
+    return done?.moved?.length ?? 0;
+  };
+
+  /**
+   * The whole history: Stonetop's thread, every living character's, and the Graveyard's. Answers
+   * how many tracks were written, or 0 when the system has no timeline to hand the macro.
+   */
+  const seedTestTimeline = async ({ steading, pcs, pcSlugs, graves, trips, sitePages }) => {
+    const tl = await game.stonetop?.macroModules?.timeline?.();
+    if (!tl) {
+      ui.notifications.warn("[TEST] This system build hands the macro no timeline, so no history was seeded.");
+      return 0;
+    }
+    const at = (p, row) => ({ ...timelinePeriod(p), ...row });
+    const typed = (p, row, key) => at(p, { source: "hand", key, title: row.title, place: row.place ?? "", body: row.body ?? "" });
+    const killRows = (kills, tag) => Object.entries(kills)
+      .map(([p, foes]) => at(Number(p), { source: "kills", key: `test:kills:${tag}:${p}`, title: "", foes }));
+    const byPeriod = list => list.sort((a, b) => (a.year - b.year)
+      || (TEST_TIMELINE_SEASONS.indexOf(a.season) - TEST_TIMELINE_SEASONS.indexOf(b.season)));
+    const redate = { refresh: ["season", "year"] };
+    const level = n => game.i18n.format("stonetop.timeline.milestone.levelup", { level: n });
+
+    // Who went where, worked out once and put on every thread it touches.
+    const trip = trips.find(t => TEST_TIMELINE_TRIPS[t.title]);
+    const tripSeed = trip ? TEST_TIMELINE_TRIPS[trip.title] : null;
+    const tripRow = trip ? at(tripSeed.home, tl.expeditionMilestone({
+      tripId: trip.id, label: trip.title, place: tripSeed.place, triumphant: tripSeed.triumphant,
+      setOut: timelinePeriod(tripSeed.setOut), partyNames: pcs.map(a => a.name),
+    })) : null;
+    const sitePage = (sitePages ?? []).find(p => p.name === TEST_TIMELINE_SITE.name);
+    const siteWhen = timelinePeriod(TEST_TIMELINE_SITE.p);
+    const siteParty = new Set(pcs.filter(a => TEST_TIMELINE_SITE.party.includes(pcSlugs.get(a.id))).map(a => a.id));
+    const siteRow = sitePage ? tl.siteVisitMilestone(sitePage, siteWhen) : null;
+    // The card's "Visited …" line reads the page, not the timeline.
+    if (sitePage) await sitePage.setFlag(FLAG_SCOPE, tl.SITE_VISITS_FLAG, [siteWhen]);
+
+    let tracks = 0;
+    const steadingTrack = steading ? tl.trackForActor(steading) : null;
+    if (steadingTrack) {
+      const rows = [
+        ...TEST_TIMELINE_STEADING.turned.map(t => at(t.p, {
+          source: "season", key: `test:season:${t.p}`, title: t.title ?? tl.seasonLabel(timelinePeriod(t.p).season),
+          body: tl.seasonEntryBody({ gainNames: t.gains, surplusChange: t.surplus, notes: t.notes }),
+        })),
+        ...TEST_TIMELINE_STEADING.rows.map((r, n) => typed(r.p, r, `test:steading:${n}`)),
+        ...(tripRow ? [tripRow] : []),
+        ...(siteRow ? [siteRow] : []),
+      ];
+      await clearTestTimelineRows(tl, steading);
+      if (await seedTimelineTrack(tl, steadingTrack, byPeriod(rows))) tracks++;
+    }
+
+    const markPage = async page => {
+      if (page && !page.getFlag(FLAG_SCOPE, TEST_FLAG)) await page.setFlag(FLAG_SCOPE, TEST_FLAG, true);
+    };
+    const followerRows = (actor, p) => Object.entries(actor.getFlag(FLAG_SCOPE, "customFollowers") ?? {})
+      .filter(([, card]) => card?.name)
+      .map(([id, card]) => at(p, {
+        source: "follower", key: `follower:gain:${id}`, ...redate,
+        title: game.i18n.format("stonetop.timeline.milestone.followerGained", { name: card.name }),
+      }));
+
+    for (const [slot, actor] of pcs.entries()) {
+      const slug = pcSlugs.get(actor.id);
+      // Level-ups spread evenly over the eight seasons after the first, so a maxed character reaches
+      // the top in the third spring and a 1st-level one simply has none.
+      const top = Math.trunc(Number(actor.system?.attributes?.level?.value) || 1);
+      const levels = [];
+      for (let n = 2; n <= top; n++) {
+        levels.push(at(1 + Math.floor((n - 2) * (TEST_TIMELINE_LAST - 1) / Math.max(1, top - 2)),
+          { source: "levelup", key: `levelup:${n}`, title: level(n), ...redate }));
+      }
+      const rows = [
+        ...(TEST_TIMELINE_PC_ROWS[slug] ?? []).map((r, n) => typed(r.p, r, `test:pc:${n}`)),
+        ...levels,
+        ...killRows(timelineKillsFor(slot), slot),
+        ...followerRows(actor, 1 + (slot % 4)),
+        ...(tripRow ? [tripRow] : []),
+        ...(siteRow && siteParty.has(actor.id) ? [siteRow] : []),
+      ];
+      // A Seeker's major arcanum is who they are from the first page; anything else the system
+      // recorded (the Max Level scatter's arcana) is dealt across the seasons by slot.
+      const page = await seedTimelineTrack(tl, tl.trackForActor(actor), byPeriod(rows), {
+        spread: (e, k) => (e.key === "arcana:major" ? 0 : 1 + ((slot + k * 3) % TEST_TIMELINE_LAST)),
+      });
+      await markPage(page);
+      if (page) tracks++;
+    }
+
+    for (const [slot, actor] of graves.entries()) {
+      const grave = TEST_TIMELINE_GRAVES[actor.name];
+      const fate = GRAVEYARD.find(g => g.name === actor.name)?.fate;
+      if (!grave) continue;
+      // The death the system already recorded, if it did, is keyed by what they were when they
+      // died (`death:mortal`, or the insert's slug); seeding under any other key would be a second
+      // "Died" in the same season.
+      const deathKey = tl.readEntries(tl.findTrackPage(actor.id)?.system?.entries)
+        .find(e => e.key.startsWith("death:"))?.key ?? "death:mortal";
+      const rows = [
+        typed(grave.row.p, grave.row, "test:grave:0"),
+        ...killRows(grave.kills ?? {}, `grave${slot}`),
+        ...followerRows(actor, Math.min(grave.row.p + 1, grave.died)),
+        at(grave.died, { source: "death", key: deathKey, title: game.i18n.localize("stonetop.timeline.milestone.death"), ...redate }),
+        ...(fate && fate !== "dead" ? [at(grave.died, {
+          source: "death", key: `insert:${fate}`, title: game.i18n.localize(`stonetop.timeline.milestone.insert.${fate}`), ...redate,
+        })] : []),
+      ];
+      // Whatever else the system wrote while they were being buried (a death keyed by the insert
+      // they came back as) belongs to the season they died in; anything else, to before it.
+      const page = await seedTimelineTrack(tl, tl.trackForActor(actor), byPeriod(rows), {
+        spread: (e, k) => (e.source === "death" ? grave.died : Math.min(1 + k, grave.died)),
+      });
+      await markPage(page);
+      if (page) tracks++;
+    }
+    return tracks;
+  };
 
   // ── Steading test threats (Book I, "Threats") ──────────────────────────
   // Three demonstration threats seeded into the steading's Threats tab, so the GM Threats
@@ -2165,20 +2516,41 @@
       if (returnable.length) console.log(`[TEST] Returned ${returnable.length} requisitioned asset(s) to the steading.`);
     }
 
+    // Take the seeded history back off Stonetop's own thread, which is the world's: only the rows
+    // the seed wrote go (by id), and every row the table wrote stays. The test characters' threads
+    // go whole, in the prune just below.
+    const tlCleanup = await game.stonetop?.macroModules?.timeline?.();
+    const steadingTl = game.actors.find(a => a.type === "stonetop" || a.system?.customType === "stonetop");
+    const tlRowsCleared = tlCleanup ? await clearTestTimelineRows(tlCleanup, steadingTl) : 0;
+    if (tlRowsCleared) console.log(`[TEST] Took ${tlRowsCleared} seeded row(s) off Stonetop's timeline.`);
+
     // Prune the matching Chronicle pages (the test PCs + the example expedition) so the
     // compiled Chronicle keeps no stale test content. Pages carry the stable chronicleKey
     // the compiler stamps: the actor id, or "expedition:<id>". The Chronicle is a "The
     // Chronicle" journal FOLDER holding "Player Introductions" + "Expeditions"; an empty
     // journal (no real pages left) is removed, and an empty folder with it. Real pages
     // (other PCs, Spring Burst) aren't in killKeys, so they're left untouched.
-    const killKeys = new Set([...existing.map(a => a.id), ...testExpIds.map(id => `expedition:${id}`)]);
+    //
+    // The Timeline journal lives in that folder too, one page per thread keyed
+    // "timeline:<actor id>", so a test character's thread goes with them. A thread page the
+    // seed STAMPED with the test flag goes even when its character is already gone (deleted by
+    // hand), since the timeline keeps a deleted character's page on purpose.
+    const killKeys = new Set([
+      ...existing.map(a => a.id),
+      ...existing.map(a => `timeline:${a.id}`),
+      ...testExpIds.map(id => `expedition:${id}`),
+    ]);
     const pruneJournal = async (journal) => {
       if (!journal) return;
       const pageIds = (journal.pages ?? [])
-        .filter(p => killKeys.has(p.getFlag?.(FLAG_SCOPE, "chronicleKey")))
+        .filter(p => killKeys.has(p.getFlag?.(FLAG_SCOPE, "chronicleKey"))
+          || (p.type === "timeline" && p.getFlag?.(FLAG_SCOPE, TEST_FLAG)))
         .map(p => p.id);
       if (pageIds.length) await journal.deleteEmbeddedDocuments("JournalEntryPage", pageIds);
-      if (!journal.pages?.size) await journal.delete();
+      // The Timeline journal keeps the world's custom tags as a flag, so it stays even with no
+      // pages left: deleting it would take every tag the table made with it.
+      const holdsTags = tlCleanup?.TIMELINE_TAGS_FLAG && journal.getFlag?.(FLAG_SCOPE, tlCleanup.TIMELINE_TAGS_FLAG);
+      if (!journal.pages?.size && !holdsTags) await journal.delete();
     };
     const folder = game.folders?.find(f => f.type === "JournalEntry" && f.name === "The Chronicle");
     if (folder) {
@@ -2265,7 +2637,7 @@
     // folder goes with it, but only if that map was the last thing in it.
     const testMaps = [];
     let testMapPages = 0;
-    const emptiedGraph = { version: RELMAP_VERSION, shape: "ring", nodes: {}, edges: {} };
+    const emptiedGraph = { version: RELMAP_VERSION, shape: "ring", nodes: {}, edges: {}, groups: {} };
     for (const j of [...(game.journal?.contents ?? [])]) {
       if (!j.getFlag(FLAG_SCOPE, "relationshipMap")) continue;
       if (j.getFlag(FLAG_SCOPE, TEST_FLAG)) {
@@ -3739,7 +4111,15 @@
   // ⚠ THE CAPTION IS NOT TRIMMED HERE, and that is on purpose: one fixture below is deliberately
   // longer than RELMAP_LABEL_MAX so the "trim on the way out" rule has something to be seen
   // doing. Names and notes ARE trimmed, to the bounds the store keeps (120 / 480).
-  const relBoardGraph = (cast, links) => {
+  //
+  // `groups` name their members by the same cast keys, stored the way the store keeps them: one
+  // `members.<nodeId>: true` LEAF per person (module/relmap/relmap-store.js `groupMembersPatch`).
+  // A member who is not on this board is dropped, exactly as a link end is. `ghosts: n` adds n
+  // membership keys for node ids that stand NOWHERE on the board, which is what taking somebody
+  // off the map leaves behind on purpose (`dropNodePatch` does not touch groups, so an undo puts
+  // them back in their groups for free) and what `normalizeGraph` filters out on every read. A
+  // group's NAME and SHAPE are not gated here either, for the caption's reason.
+  const relBoardGraph = (cast, links, groupDefs = []) => {
     const seats = relRingsLayout(cast.length);
     const ids = new Map();
     const nodes = {};
@@ -3777,8 +4157,39 @@
         note:   String(link.note ?? "").slice(0, 480),
       };
     }
+    const groups = {};
+    for (const def of groupDefs) {
+      const members = {};
+      for (const key of def.members ?? []) {
+        const id = ids.get(key);
+        if (id) members[id] = true;
+      }
+      for (let k = 0; k < (def.ghosts ?? 0); k++) members[foundry.utils.randomID()] = true;
+      // A group nobody on this board is in is dropped here, unless it was MEANT to be one: a group
+      // made of ghosts alone is its own fixture (stored, read back empty, drawn as nothing).
+      if (!Object.keys(members).length) continue;
+      groups[foundry.utils.randomID()] = {
+        name:  String(def.name ?? ""),
+        shape: def.shape ?? "box",       // box | oval; anything else reads as a box
+        ink:   def.ink   ?? "slate",     // one of RELMAP_INKS, or a #rrggbb of the reader's own
+        members,
+      };
+    }
     // `shape` is what Tidy up last put this board into, and a ring is what was actually laid.
-    return { version: RELMAP_VERSION, shape: "ring", nodes, edges };
+    return { version: RELMAP_VERSION, shape: "ring", nodes, edges, groups };
+  };
+
+  // THE ORDER THE PARTY IS SEATED IN, on the party board and the Test board alike. A group's outline
+  // is worked out from where its members stand, so a group of two people seated on opposite sides of
+  // the ring is an outline the width of the board drawn over everybody between them. Seating the
+  // party in this order puts every group below round people who sit SIDE BY SIDE (the ring runs
+  // clockwise from twelve o'clock and closes back on itself, so Pim sits next to Sael), and leaves
+  // the one board-wide group on the Test board as a fixture of its own rather than an accident. A
+  // player character not named here is seated after everyone who is.
+  const RELMAP_PARTY_SEATS = ["Sael", "Aerin", "Old Bartholomew", "Maelis", "Quill", "Wren", "Coria", "Brakkos", "Pim"];
+  const relPartySeat = (name) => {
+    const at = RELMAP_PARTY_SEATS.indexOf(name);
+    return at < 0 ? RELMAP_PARTY_SEATS.length : at;
   };
 
   // Who stands on the map's own board. Residents first (they are the village board's own cast and
@@ -3964,6 +4375,71 @@
     { a: "Pim",     b: "Wren",    label: "two of two, pointing back",       ink: "rust",   dir: "a-b",  note: "Drawn from the other end, so the pair's two heads arrive at opposite portraits." },
   ];
 
+  // ── Named groups: an outline round some people, and what they are ─────
+  // A group is a name, a shape (box or oval), an ink, and WHO IS IN IT. Its outline is never stored:
+  // the board wraps it round wherever its members stand (`groupOutline` in relmap-geometry.js), so
+  // every group below is round people who sit next to each other in the seating order, or the
+  // outline would be drawn across the whole board. See RELMAP_PARTY_SEATS for the party's order;
+  // the village board seats RELMAP_HOME_CAST in the order it is written.
+  //
+  // Between the three boards these reach: both shapes; an overlap (one person in two groups that
+  // are not one inside the other); NESTING, where an outer outline is drawn round the inner OUTLINES
+  // rather than merely round the same faces; a group of one; a group of actorless circles; people in
+  // no group at all; and, on the Test board, everything a group can hold that the group bar would
+  // never write.
+
+  // The village board. Clockwise from twelve: Maeve, Pell, Tobin | Tovia, Ennis | Yannic (in nothing)
+  // | Bronwen, Vahid | Gethin, Tierney, Brogan, Caradoc | the four PCs | the two plain circles.
+  const RELMAP_HOME_GROUPS = [
+    // Tobin is in both of the first two, which is the overlap: neither group is inside the other.
+    { name: "Pell's family, by blood and by raising", shape: "oval", ink: "rose",   members: ["Maeve", "Pell", "Tobin"] },
+    { name: "The trades on the square",               shape: "box",  ink: "ochre",  members: ["Tobin", "Tovia", "Ennis"] },
+    { name: "Where every rumour goes",                shape: "oval", ink: "indigo", members: ["Bronwen", "Vahid"] },
+    // One outer group holding two inner ones side by side, one of them a group of a single person.
+    { name: "From beyond the valley",                 shape: "box",  ink: "plum",   members: ["Gethin Iron-Hand", "Tierney", "Brogan", "Caradoc"] },
+    { name: "The Hillfolk",                           shape: "oval", ink: "crimson", members: ["Gethin Iron-Hand"] },
+    { name: "Marshedge's own",                        shape: "box",  ink: "slate",  members: ["Tierney", "Brogan"] },
+    { name: "Those who go out past the Wall",         shape: "oval", ink: "green",  members: ["Wren", "Brakkos", "Quill", "Coria"] },
+    // Two circles with no actor behind them, so the outline has nothing to resolve a portrait from.
+    { name: "Not a person among them",                shape: "box",  ink: "rust",   members: ["The Cult of the Black Water", "Marshedge"] },
+  ];
+
+  // The party board. Sael, Aerin, Old Bartholomew | Maelis, Quill (in nothing) | Wren, Coria,
+  // Brakkos, Pim. Coria is in two groups; "Handfasted" sits inside "Who answer to a god".
+  const RELMAP_PARTY_GROUPS = [
+    { name: "Handfasted",                             shape: "oval", ink: "rose",   members: ["Sael", "Aerin"] },
+    { name: "Who answer to a god",                    shape: "box",  ink: "ochre",  members: ["Sael", "Aerin", "Old Bartholomew"] },
+    { name: "Read the ground the same way",           shape: "oval", ink: "green",  members: ["Wren", "Coria"] },
+    { name: "The shield wall",                        shape: "box",  ink: "rust",   members: ["Coria", "Brakkos", "Pim"] },
+  ];
+
+  // The Test board, a legend again: each group's name says what it is. WHAT IS DELIBERATELY OUT OF
+  // BOUNDS, for the reasons the lines above are:
+  //   * a shape nobody offers ("hexagon"), read as a box, on a group whose two members sit on
+  //     opposite sides of the ring, so its outline crosses everyone between them (who must NOT dim
+  //     when it is lit: a lit group rings its members and leaves everyone else alone);
+  //   * a name of 71 characters, over the 60 a name may be drawn at, on that same group;
+  //   * a group drawn in "sage", read as green, as a line in that colour is;
+  //   * a membership key for somebody no longer on the board (`ghosts`), and a group made of nothing
+  //     else, which is stored, read back empty, and draws no outline at all;
+  //   * the same two people in two groups, which is a TIE the board breaks by id so the two still
+  //     draw as two outlines rather than one on top of the other. The second of them has no name.
+  const RELMAP_TEST_GROUPS = [
+    // Three deep: each outline round the one inside it, a step clear of its line and name.
+    { name: "one person, an oval",                    shape: "oval", ink: "rose",   members: ["Sael"] },
+    { name: "a box round the oval",                   shape: "box",  ink: "ochre",  members: ["Sael", "Aerin"] },
+    { name: "an oval round the box: three deep",      shape: "oval", ink: "indigo", members: ["Sael", "Aerin", "Old Bartholomew"] },
+    // An overlap at Quill, and the box carries a member who has been taken off the map.
+    { name: "a box, and one member taken off the map", shape: "box", ink: "plum",   members: ["Maelis", "Quill"], ghosts: 1 },
+    { name: "an oval sharing Quill with the box",     shape: "oval", ink: "crimson", members: ["Quill", "Wren"] },
+    // The tie: the same two people, twice. Colours of the reader's own, as a line may carry.
+    { name: "the same two, in a colour of the reader's own", shape: "box", ink: "#0f5f6b", members: ["Coria", "Brakkos"] },
+    { name: "",                                       shape: "oval", ink: "#7a1f5c", members: ["Coria", "Brakkos"] },
+    { name: "sage, a colour no longer offered, read as green", shape: "oval", ink: "sage", members: ["Pim"] },
+    { name: "a shape nobody offered, read as a box, round two people the board apart", shape: "hexagon", ink: "slate", members: ["Old Bartholomew", "Brakkos"] },
+    { name: "nobody left standing in it: stored, and drawn as nothing", ink: "rust", members: [], ghosts: 2 },
+  ];
+
   // Build all three boards and file them as one map. Returns what was written, or null when there is
   // no party to put on it (a run that created nothing has no map worth making).
   //
@@ -3989,19 +4465,21 @@
     };
 
     const homeCast  = RELMAP_HOME_CAST.map(castRow).filter(Boolean);
-    const partyCast = pcs.map(pc => ({ key: pc.name, uuid: pc.uuid, name: pc.name, img: pc.img ?? "", note: "" }));
+    // Seated in RELMAP_PARTY_SEATS order, so every party group is round neighbours.
+    const seatedPcs = [...pcs].sort((a, b) => relPartySeat(a.name) - relPartySeat(b.name));
+    const partyCast = seatedPcs.map(pc => ({ key: pc.name, uuid: pc.uuid, name: pc.name, img: pc.img ?? "", note: "" }));
     if (!partyCast.length) return null;
 
-    const homeGraph  = relBoardGraph(homeCast, RELMAP_HOME_LINKS);
-    const partyGraph = relBoardGraph(partyCast, RELMAP_PARTY_LINKS);
+    const homeGraph  = relBoardGraph(homeCast, RELMAP_HOME_LINKS, RELMAP_HOME_GROUPS);
+    const partyGraph = relBoardGraph(partyCast, RELMAP_PARTY_LINKS, RELMAP_PARTY_GROUPS);
     // The Test board seats the SAME cast as the party board and shares nothing else with it: its
     // own node ids, its own ring, its own lines. Built from a second copy of the cast rather than
     // from the party graph, because two boards holding the same person are two nodes — that is
     // what makes a board a board (see the header of module/relmap/relmap-doc.js) — and reusing the
     // party's ids would draw the Test board's lines onto portraits that are not on it.
     const testGraph  = relBoardGraph(
-      pcs.map(pc => ({ key: pc.name, uuid: pc.uuid, name: pc.name, img: pc.img ?? "", note: "" })),
-      RELMAP_TEST_LINKS);
+      seatedPcs.map(pc => ({ key: pc.name, uuid: pc.uuid, name: pc.name, img: pc.img ?? "", note: "" })),
+      RELMAP_TEST_LINKS, RELMAP_TEST_GROUPS);
 
     // The village board's ledger: every RESIDENT this board has been handed, by the identity the
     // store recognises a person by (their uuid). Only residents, because only residents are what
@@ -4146,11 +4624,15 @@
     await writeBoard(partyPage,   partyGraph, { relationshipPartyBoard: true });
     await writeBoard(testPage,    testGraph);
 
-    const count = (graph) => ({ people: Object.keys(graph.nodes).length, lines: Object.keys(graph.edges).length });
+    const count = (graph) => ({
+      people: Object.keys(graph.nodes).length,
+      lines:  Object.keys(graph.edges).length,
+      groups: Object.keys(graph.groups ?? {}).length,
+    });
     const home = count(homeGraph);
     const party = count(partyGraph);
     const test = count(testGraph);
-    console.log(`[TEST] Relationship map "${entry.name}" (${made ? "created: this world had no map at all" : "the world's own, written into rather than duplicated"}): ${home.people} people and ${home.lines} lines on the village board, ${party.people} and ${party.lines} on "${RELMAP_PARTY_PAGE}", ${test.people} and ${test.lines} on "${RELMAP_TEST_PAGE}" (hidden from the players until the eye is pressed). The introductions lines are seeded by the window on first open.`);
+    console.log(`[TEST] Relationship map "${entry.name}" (${made ? "created: this world had no map at all" : "the world's own, written into rather than duplicated"}): ${home.people} people, ${home.lines} lines and ${home.groups} groups on the village board, ${party.people}, ${party.lines} and ${party.groups} on "${RELMAP_PARTY_PAGE}", ${test.people}, ${test.lines} and ${test.groups} on "${RELMAP_TEST_PAGE}" (hidden from the players until the eye is pressed). The introductions lines are seeded by the window on first open.`);
     return { entry, home, party, test };
   };
 
@@ -4261,11 +4743,14 @@
   if (!pcFolder) pcFolder = await Folder.create({ name: "PCs", type: "Actor" });
 
   const created = [];
+  // Each character's SHORT playbook slug, the key the timeline's per-playbook rows are written under.
+  const createdSlugs = new Map();
   for (const pbDoc of playbookDocs) {
     const sel = buildSelections(pbDoc);
 
     const actor = await Actor.create({ name: sel.name, type: "character", folder: pcFolder.id });
     await actor.setFlag(FLAG_SCOPE, TEST_FLAG, true);
+    createdSlugs.set(actor.id, (pbDoc.system?.slug ?? "").replace(/^the-/, ""));
 
     const sheet = actor.sheet;
     await sheet._applyPlaybookSelections(pbDoc, sel);
@@ -4636,23 +5121,32 @@
     // and why no season shows all nine). Three are state the steading simply holds, one more is
     // stored, and the rest are seasonal obligations that show while unpaid.
     //
-    // THE CLOCK IS ONLY STAMPED WHEN NOTHING IS STAMPED, on the same rule as the Notes, the
+    // THE SEASON IS ONLY STAMPED WHEN NOTHING IS STAMPED, on the same rule as the Notes, the
     // settlement standings and the debility below: a steading mid-campaign is playing in a
     // season of its own and rewinding it is not ours to do. On a fresh test world that means
     // spring and its six; on a world already in autumn it means five, correctly, because both
     // of autumn's neighbours have a bill autumn does not. The console line below says which
     // case it was, and names the chips, so a missing one never has to look like a bug.
+    //
+    // THE YEAR IS RAISED TO THE THIRD, NEVER LOWERED. The timeline seeded at the end of this run
+    // is Spring of Year One through Spring of Year Three (TEST_TIMELINE_YEARS), and a clock behind
+    // that would date the campaign's own history in its future. A clock already past it is left
+    // where it is. The picker's year moves by the same amount, so a winter the clock is in keeps
+    // the year-ahead default a completed winter gives it (seasons/current-season.js).
     const stampedSeason = steading.getFlag(FLAG_SCOPE, "seasonsCurrent");
-    const holdYear      = Number(steading.getFlag(FLAG_SCOPE, "seasonsCurrentYear")) || 1;
+    const pickerYear    = Number(steading.getFlag(FLAG_SCOPE, "seasonsCurrentYear")) || 1;
     const clockSeeded   = !stampedSeason?.season;
-    if (clockSeeded) {
+    const stampedYear   = clockSeeded ? pickerYear : (Number(stampedSeason.year) || 1);
+    const holdSeason    = clockSeeded ? TEST_HOLD_SEASON : stampedSeason.season;
+    const holdYear      = Math.max(stampedYear, TEST_TIMELINE_YEARS);
+    const clockRaised   = !clockSeeded && holdYear !== stampedYear;
+    if (clockSeeded || clockRaised) {
       await steading.update({
-        [`flags.${FLAG_SCOPE}.seasonsCurrent`]:     { season: TEST_HOLD_SEASON, year: holdYear },
-        [`flags.${FLAG_SCOPE}.seasonsCurrentYear`]: holdYear,
+        [`flags.${FLAG_SCOPE}.seasonsCurrent`]:     { season: holdSeason, year: holdYear },
+        [`flags.${FLAG_SCOPE}.seasonsCurrentYear`]: pickerYear + (holdYear - stampedYear),
       });
     }
-    const holdSeason = clockSeeded ? TEST_HOLD_SEASON : stampedSeason.season;
-    const holdStamp  = `${clockSeeded ? holdYear : (Number(stampedSeason.year) || holdYear)}:${holdSeason}`;
+    const holdStamp  = `${holdYear}:${holdSeason}`;
 
     // The four the steading HOLDS. The muster takes the "+1 Defenses as long as the muster
     // holds" pick, because that is the half with a revert to exercise: standing it down from
@@ -4851,7 +5345,9 @@
     const holdChips = [...HOLD_ALWAYS, ...(HOLD_SEASONAL[holdSeason] ?? [])]
       .filter(chip => !(musterNote && chip.startsWith("the muster")));
     console.log(`[TEST] Hold tray: ${holdChips.length} chips lit (${holdChips.join(", ")}). `
-      + `${clockSeeded ? `Clock stamped ${TEST_HOLD_SEASON}, year ${holdYear}.` : `Left the GM's clock at ${holdSeason}.`} `
+      + `${clockSeeded ? `Clock stamped ${TEST_HOLD_SEASON}, year ${holdYear}.`
+          : clockRaised ? `Clock moved on to ${holdSeason}, year ${holdYear}, so the ${TEST_TIMELINE_YEARS}-year timeline is behind it.`
+          : `Left the GM's clock at ${holdSeason}, year ${holdYear}.`} `
       + `No season lights every chip: the weapons' bill is spring, the herd's growth and the militia's drills are summer, and the herd's feed and winter's debt are both winter. `
       + `Turn the season and re-run to fill the tray for the season you land in.`
       + `${musterNote}`
@@ -4951,6 +5447,17 @@
     console.log(`[TEST] Seeded the GM Toolkit "${expeditions.toolkit.name}" with ${expeditions.added} prepped expedition(s) holding ${expeditions.entries} collected row(s), ${expeditions.bound} bound to a logged trip${expeditions.kept ? `, alongside ${expeditions.kept} the GM had already prepped` : ""}.`);
   }
 
+  // ── The three-year timeline ────────────────────────────────────────────
+  // After the trips are logged (the expedition row is keyed by a trip id), after the sites are
+  // seeded (a visit is keyed by a page id), and after the steading block has raised the clock to
+  // the third year, so the whole history sits behind the header.
+  const timelineTracks = await seedTestTimeline({
+    steading, pcs: created, pcSlugs: createdSlugs, graves: buried, trips: examples, sitePages: testSitePages,
+  });
+  if (timelineTracks) {
+    console.log(`[TEST] Timeline: ${TEST_TIMELINE_YEARS} years of history (Spring, Year One to Spring, Year ${TEST_TIMELINE_YEARS}) on ${timelineTracks} thread(s). Open it with game.stonetop.openTimeline().`);
+  }
+
   // ── The relationship map ("Stonetop") ────────────────────────────────────
   // LAST OF THE DOCUMENT PASSES, because every portrait on the board is a POINTER at an actor:
   // the party, the residents and neighbours, and the example NPC all have to exist before a node
@@ -4967,7 +5474,7 @@
   // is somehow run before onReady wires up the API.)
   await game.stonetop?.saveChronicle?.();
 
-  ui.notifications.info(`[TEST] Done: ${playbookDocs.length} characters${maxLevel ? " (maxed to level " + (created[0]?.system?.attributes?.level?.value ?? "?") + "+, arcana scattered)" : ""}, ${buried.length} in the Graveyard (1st level, whatever the roster did), each with a test custom move + follower, ${TEST_WORLD_MOVES.length} world moves, ${TEST_WORLD_ITEMS.length} world items + ${TEST_TREASURES.length} treasures, ${homebrewArcana ? `${homebrewArcana} homebrew example arcana on the Seeker, ` : ""}${TEST_MONSTERS.length} monsters and one example NPC, ${steading ? `${testVillagers.length} resident/neighbor NPCs, seeded steading members, Notes + ${TEST_THREATS.length} threats + ${TEST_SITES.length} sites (both pinned on the books' maps), settlement standings, ` : ""}${wonders ? `${wonders.added} "I wonder..." questions on the GM Toolkit, ` : ""}${encounters ? `${encounters.added} prepared encounters (${encounters.entries} collected rows), ` : ""}${expeditions ? `${expeditions.added} prepped expeditions (${expeditions.bound} bound to a logged trip), ` : ""}${relCount} relationship ratings, ${brandCount} Condemn brands on the Judge, ${relmap ? `a relationship map (${relmap.home.people} people and ${relmap.home.lines} lines on the village board, ${relmap.party.people} and ${relmap.party.lines} on the party board, ${relmap.test.people} and ${relmap.test.lines} on the hidden "Test" board), ` : ""} introductions answers, ${examples.length} example expeditions${tripKit.taken ? ` (${tripKit.taken} steading asset${tripKit.taken === 1 ? "" : "s"} requisitioned, ${tripKit.held} still out)` : ""}, and the compiled Chronicle.`);
+  ui.notifications.info(`[TEST] Done: ${playbookDocs.length} characters${maxLevel ? " (maxed to level " + (created[0]?.system?.attributes?.level?.value ?? "?") + "+, arcana scattered)" : ""}, ${buried.length} in the Graveyard (1st level, whatever the roster did), each with a test custom move + follower, ${TEST_WORLD_MOVES.length} world moves, ${TEST_WORLD_ITEMS.length} world items + ${TEST_TREASURES.length} treasures, ${homebrewArcana ? `${homebrewArcana} homebrew example arcana on the Seeker, ` : ""}${TEST_MONSTERS.length} monsters and one example NPC, ${steading ? `${testVillagers.length} resident/neighbor NPCs, seeded steading members, Notes + ${TEST_THREATS.length} threats + ${TEST_SITES.length} sites (both pinned on the books' maps), settlement standings, ` : ""}${wonders ? `${wonders.added} "I wonder..." questions on the GM Toolkit, ` : ""}${encounters ? `${encounters.added} prepared encounters (${encounters.entries} collected rows), ` : ""}${expeditions ? `${expeditions.added} prepped expeditions (${expeditions.bound} bound to a logged trip), ` : ""}${timelineTracks ? `a ${TEST_TIMELINE_YEARS}-year timeline on ${timelineTracks} threads, ` : ""}${relCount} relationship ratings, ${brandCount} Condemn brands on the Judge, ${relmap ? `a relationship map (${relmap.home.people} people and ${relmap.home.lines} lines on the village board, ${relmap.party.people} and ${relmap.party.lines} on the party board, ${relmap.test.people} and ${relmap.test.lines} on the hidden "Test" board), ` : ""} introductions answers, ${examples.length} example expeditions${tripKit.taken ? ` (${tripKit.taken} steading asset${tripKit.taken === 1 ? "" : "s"} requisitioned, ${tripKit.held} still out)` : ""}, and the compiled Chronicle.`);
   } finally {
     globalThis.__stonetopTestFixturesRunning = false;
   }

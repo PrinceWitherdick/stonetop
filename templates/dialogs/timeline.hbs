@@ -1,21 +1,29 @@
-{{!-- THE TIMELINE, IN BOTH ITS SHAPES.
+{{!-- THE TIMELINE, IN ALL ITS SHAPES.
 
       ONE TEMPLATE, because the tab, the pop-out window and the aggregate are one class in three
-      hosts (see TimelineWindow). `single` draws one thread down a spine; its absence draws one row
-      per season with a lane per thread, which is the aggregate. The CARDS are the same partial either way, which is what
-      stops an entry reading one way here and another way there.
+      hosts (see TimelineWindow). Two questions pick the shape:
+        • `single`: one thread, or every thread side by side (the aggregate);
+        • `horizontal`: across the page (the default), slide-deck style -- one axis with the seasons
+          strung along it, a year opening wherever the year moves on -- or down it.
+      The CARDS are the same partial in all four, which is what stops an entry reading one way here
+      and another way there.
 
-      ⚠ THE SEASON IS NAMED, NOT COLOURED, on both sides. The four `--stonetop-season-*-ink` tokens
-      belong to the steading header's clock and a test counts every read of them in the stylesheet.
+      ⚠ EVERY SEASON HEADING WEARS `seasonClass`, the timeline's OWN season colour (user's call,
+      2026-10-01). Never the four `--stonetop-season-*-ink` tokens: those belong to the steading
+      header's clock and a test counts every read of them in the stylesheet.
 
       `data-track-id` on a lane and on the New Entry button is what the delegated listener reads to
       know which thread a click belongs to; in single-track mode it falls back to the panel's own
-      track, so the attribute is not repeated on every card. --}}
-<div class="stonetop-timeline">
+      track, so the attribute is not repeated on every card.
+
+      `data-timeline-focus` names each toolbar control across redraws: every write anyone at the
+      table makes repaints this, and the keyboard must come back to where the reader left it. --}}
+<div class="stonetop-timeline{{#if horizontal}} stonetop-timeline--horizontal{{/if}}"{{#unless single}} style="--timeline-lanes: {{timeline.tracks.length}};"{{/unless}}>
 
 	<header class="stonetop-timeline-toolbar">
 		{{#if canEdit}}
 		<button type="button" class="stonetop-cta stonetop-timeline-new" data-track-id="{{trackId}}"
+		        data-timeline-focus="new"
 		        data-tooltip="{{localize "stonetop.timeline.newEntryTooltip"}}">
 			<i class="fas fa-feather-pointed" aria-hidden="true"></i>
 			<span>{{localize "stonetop.timeline.newEntry"}}</span>
@@ -23,25 +31,153 @@
 		{{/if}}
 
 		{{#if showOpenFull}}
-		<button type="button" class="stonetop-timeline-open-full"
+		<button type="button" class="stonetop-timeline-open-full" data-timeline-focus="open-full"
 		        data-tooltip="{{localize "stonetop.timeline.openFullTooltip"}}">
 			<i class="fas fa-layer-group" aria-hidden="true"></i>
 			<span>{{localize "stonetop.timeline.openFull"}}</span>
 		</button>
 		{{/if}}
 
-		{{!-- Fold in what the system already recorded. The label says what pressing it WILL do, not
-		      what the current state is, which is the house shape for a toggle that is a button
-		      rather than a checkbox; `aria-pressed` carries the state for a screen reader. --}}
-		<button type="button" class="stonetop-timeline-auto-toggle{{#if autoRows}} is-on{{/if}}"
-		        aria-pressed="{{#if autoRows}}true{{else}}false{{/if}}"
-		        data-tooltip="{{localize "stonetop.timeline.auto.tooltip"}}">
-			<i class="fas fa-scroll" aria-hidden="true"></i>
-			<span>{{autoRowsLabel}}</span>
-		</button>
+		<div class="stonetop-timeline-toolbar-end">
+			{{!-- The GM's colour each kind wears, for the whole world: a dropdown under its button, as
+			      Filter is (user, 2026-10-04). One row per kind: the chip as a card prints it, painted
+			      in the colour this page would wear, and the picker beside it. A pick is previewed by
+			      hand as it moves (nothing re-renders, which would shut the picker under the GM's hand)
+			      and written only on Save. The rows come from the window's draft, so a repaint while
+			      the menu is open keeps the picks.
+
+			      The chip's colour is the inline `--tl-kind`, always: the class alone would read the
+			      WORLD'S current token, which still shows a saved repaint after the GM has pressed
+			      Default here. --}}
+			{{#if colours}}
+			<details class="stonetop-timeline-colours-menu"{{#if colours.open}} open{{/if}}>
+				<summary class="stonetop-timeline-colours-open" data-timeline-focus="colours"
+				         data-tooltip="{{localize "stonetop.timeline.colours.openTooltip"}}">
+					<i class="fas fa-palette" aria-hidden="true"></i>
+					<span>{{localize "stonetop.timeline.colours.open"}}</span>
+				</summary>
+				<div class="stonetop-timeline-colours" role="group" aria-label="{{localize "stonetop.timeline.colours.title"}}">
+					<p class="stonetop-timeline-colours-intro">{{localize "stonetop.timeline.colours.intro"}}</p>
+
+					<ul class="stonetop-timeline-colours-list">
+						{{#each colours.rows}}
+						<li class="stonetop-timeline-colours-row stonetop-timeline-kind--{{kind}}" data-kind="{{kind}}" style="--tl-kind: {{colour}};">
+							<span class="stonetop-timeline-colours-chip">
+								<i class="fas {{icon}}" aria-hidden="true"></i>
+								<span>{{label}}</span>
+							</span>
+							<input type="color" class="stonetop-timeline-colours-pick" value="{{value}}"
+							       data-timeline-focus="colour-{{kind}}"
+							       aria-label="{{pickLabel}}" data-tooltip="{{pickLabel}}">
+							<button type="button" class="stonetop-timeline-colours-reset"{{#unless repainted}} hidden{{/unless}}
+							        data-tooltip="{{resetLabel}}" aria-label="{{resetLabel}}">
+								<i class="fas fa-rotate-left" aria-hidden="true"></i>
+								<span>{{localize "stonetop.timeline.colours.reset"}}</span>
+							</button>
+							<p class="stonetop-timeline-colours-note"{{#unless nudged}} hidden{{/unless}}>
+								{{localize "stonetop.timeline.colours.nudged"}}
+							</p>
+						</li>
+						{{/each}}
+					</ul>
+
+					{{!-- Affirmative on the LEFT, which is this system's own button order. --}}
+					<footer class="stonetop-timeline-colours-actions">
+						<button type="button" class="stonetop-cta stonetop-timeline-colours-save" data-timeline-focus="colours-save">
+							{{localize "stonetop.timeline.colours.save"}}
+						</button>
+						<button type="button" class="stonetop-timeline-colours-cancel" data-timeline-focus="colours-cancel">
+							{{localize "stonetop.timeline.colours.cancel"}}
+						</button>
+					</footer>
+				</div>
+			</details>
+			{{/if}}
+
+			{{!-- Which kinds of row this reader wants to see, and on the aggregate which threads. Per
+			      reader, and it hides; it never deletes. The count on the summary says something is
+			      hidden even with the menu shut. Each section is a named group, its visible heading
+			      hidden from a screen reader so it is not read twice (no ids: the tab and the pop-out
+			      can both be open). On the aggregate the two sections sit SIDE BY SIDE (user, 2026-10-03):
+			      the threads (the people) on the left, the kinds of entry on the right, Show all under
+			      both. --}}
+			<details class="stonetop-timeline-show"{{#if showMenuOpen}} open{{/if}}>
+				<summary class="stonetop-timeline-show-summary" data-timeline-focus="show-summary">
+					<i class="fas fa-filter" aria-hidden="true"></i>
+					<span>{{localize "stonetop.timeline.show.label"}}</span>
+					{{#if hiddenCount}}<span class="stonetop-timeline-show-count">{{hiddenCountLabel}}</span>{{/if}}
+				</summary>
+				<div class="stonetop-timeline-show-menu">
+					{{#if threads.length}}
+					<div class="stonetop-timeline-show-columns">
+					<div class="stonetop-timeline-show-group" role="group" aria-label="{{localize "stonetop.timeline.show.threads"}}">
+						<span class="stonetop-timeline-show-heading" aria-hidden="true">{{localize "stonetop.timeline.show.threads"}}</span>
+						{{#each threads}}
+						<label class="stonetop-timeline-show-kind stonetop-timeline-show-thread">
+							<input type="checkbox" class="stonetop-timeline-show-check" data-timeline-thread="{{trackId}}"
+							       data-timeline-focus="thread-{{trackId}}"{{#if shown}} checked{{/if}}>
+							<i class="fas {{icon}}" aria-hidden="true"></i>
+							<span>{{label}}</span>
+						</label>
+						{{/each}}
+					</div>
+					<div class="stonetop-timeline-show-group" role="group" aria-label="{{localize "stonetop.timeline.show.kinds"}}">
+						<span class="stonetop-timeline-show-heading" aria-hidden="true">{{localize "stonetop.timeline.show.kinds"}}</span>
+					{{/if}}
+					{{#each kinds}}
+					<label class="stonetop-timeline-show-kind stonetop-timeline-kind--{{kind}}"{{#if style}} style="{{style}}"{{/if}}>
+						<input type="checkbox" class="stonetop-timeline-show-check" data-timeline-source="{{source}}"
+						       data-timeline-focus="show-{{source}}"{{#if shown}} checked{{/if}}>
+						<i class="fas {{icon}}" aria-hidden="true"></i>
+						<span>{{label}}</span>
+					</label>
+					{{/each}}
+					{{#if threads.length}}</div></div>{{/if}}
+					<button type="button" class="stonetop-timeline-show-all" data-timeline-focus="show-all">
+						{{localize "stonetop.timeline.show.all"}}
+					</button>
+				</div>
+			</details>
+
+			{{!-- Vertical or horizontal. TWO buttons, each saying what it is and whether it is pressed,
+			      rather than one whose label flips: a pressed-state button must keep its name, and both
+			      ways in stay on screen whichever is current. The visible "Layout:" caption is for the
+			      eye; the group's own label already says it to a screen reader, so the caption is
+			      hidden from one rather than read twice. No id to point at: the tab and the pop-out
+			      can both be open. The buttons are arrows only (user's call, 2026-10-03): the word
+			      rides on `aria-label`, the sentence on the tooltip. --}}
+			<div class="stonetop-timeline-layout">
+				<span class="stonetop-timeline-layout-caption" aria-hidden="true">{{localize "stonetop.timeline.layout.caption"}}</span>
+				{{!-- The same segmented strip as the relationship sheets' Table/Board toggle, so the two
+				      "which way is this laid out" controls read as one kind of thing. Pressed is stamped
+				      as `aria-pressed` and the fill hangs off that: every press re-renders. --}}
+				<div class="stonetop-segmented-picker stonetop-timeline-orient-group" role="group" aria-label="{{localize "stonetop.timeline.layout.label"}}">
+					<button type="button" class="stonetop-segmented-picker-option stonetop-timeline-orient" data-orientation="horizontal"
+					        data-timeline-focus="orient-horizontal"
+					        aria-pressed="{{#if horizontal}}true{{else}}false{{/if}}"
+					        aria-label="{{localize "stonetop.timeline.layout.horizontal"}}"
+					        data-tooltip="{{localize "stonetop.timeline.layout.horizontalTooltip"}}">
+						<i class="fas fa-arrow-right-long" aria-hidden="true"></i>
+					</button>
+					<button type="button" class="stonetop-segmented-picker-option stonetop-timeline-orient" data-orientation="vertical"
+					        data-timeline-focus="orient-vertical"
+					        aria-pressed="{{#if horizontal}}false{{else}}true{{/if}}"
+					        aria-label="{{localize "stonetop.timeline.layout.vertical"}}"
+					        data-tooltip="{{localize "stonetop.timeline.layout.verticalTooltip"}}">
+						<i class="fas fa-arrow-down-long" aria-hidden="true"></i>
+					</button>
+				</div>
+			</div>
+		</div>
 	</header>
 
-	<div class="stonetop-timeline-scroll">
+	{{!-- Focusable, so a keyboard can scroll it -- across as well as down -- and named, so a screen
+	      reader says what it has landed in. --}}
+	<div class="stonetop-timeline-scroll" tabindex="0" role="region" aria-label="{{scrollLabel}}">
+	{{!-- The CANVAS: everything below, padded on every side by the empty room the timeline can be
+	      dragged off into (utils/drag-scroll.js sizes it; the stylesheet spends it). Not re-indented
+	      under it, so the shapes below read as they always did. --}}
+	<div class="stonetop-timeline-canvas">
 
 		{{!-- A thread with no page yet reads differently from an empty one: the first is waiting on
 		      a GM opening the world, the second on the reader picking up a pen. --}}
@@ -52,7 +188,7 @@
 		</div>
 		{{else}}
 
-		{{!-- Nothing written yet reads the same in both shapes, so it is asked ONCE, above the
+		{{!-- Nothing written yet reads the same in every shape, so it is asked ONCE, above the
 		      branch that picks between them. --}}
 		{{#if timeline.isEmpty}}
 		<div class="stonetop-timeline-invite">
@@ -61,36 +197,57 @@
 			<p class="stonetop-timeline-invite-hint">{{localize "stonetop.timeline.empty.hint"}}</p>
 			{{/if}}
 		</div>
+		{{else if timeline.allHidden}}
+		{{!-- Something IS written; the reader's own Filter menu is hiding all of it. Saying so, with
+		      the way back on the same screen, is what stops this reading as a lost record. --}}
+		<div class="stonetop-timeline-invite">
+			<p class="stonetop-timeline-invite-lead">{{localize "stonetop.timeline.allHidden.lead"}}</p>
+			<button type="button" class="stonetop-timeline-show-all" data-timeline-focus="show-all-invite">
+				{{localize "stonetop.timeline.show.all"}}
+			</button>
+		</div>
 		{{else}}
 
 		{{#if single}}
-			<div class="stonetop-timeline-spine">
-				{{#each timeline.periods}}{{> "stonetop.timeline-period"}}{{/each}}
-			</div>
-		{{else}}
-			<div class="stonetop-timeline-board">
-
-				{{!-- The thread names, once, as the board's own header row. Repeating them in every
-				      season is what would make a long campaign unreadable. --}}
-				<div class="stonetop-timeline-lane-heads">
-					<span class="stonetop-timeline-lane-spacer" aria-hidden="true"></span>
-					{{#each timeline.tracks}}
-					<div class="stonetop-timeline-lane-head" data-track-id="{{trackId}}">
-						{{#if portrait}}
-						<img class="stonetop-timeline-lane-portrait" src="{{portrait}}" alt="" draggable="false">
-						{{/if}}
-						<span class="stonetop-timeline-lane-name">{{name}}</span>
-					</div>
-					{{/each}}
+			{{#if horizontal}}
+				{{!-- A column per season, and a narrow one before each season that opens a year for
+				      its separator (timeline-hperiod.hbs). --}}
+				<ol class="stonetop-timeline-htrack" style="--timeline-hcols:{{#each timeline.periods}}{{#if startsYear}} auto{{/if}} minmax(15rem, 19rem){{/each}};">
+					{{#each timeline.periods}}{{> "stonetop.timeline-hperiod"}}{{/each}}
+				</ol>
+			{{else}}
+				<div class="stonetop-timeline-spine">
+					{{#each timeline.periods}}{{> "stonetop.timeline-period"}}{{/each}}
 				</div>
-
-				{{#each timeline.periods}}
-				<div class="stonetop-timeline-row" data-period="{{key}}">
-					<div class="stonetop-timeline-row-head">
+			{{/if}}
+		{{else}}
+			{{#if horizontal}}
+				{{!-- SWIMLANES: a row per thread, a column per season. One grid, so every season's
+				      column lines up across every thread. The season heads pin to the top and the
+				      thread names to the left; the corner where they meet is left empty (user,
+				      2026-10-04, twice), so the first season head starts the grid's second column.
+				      A YEAR SEPARATOR opens each year as the year heading does read down (user,
+				      2026-10-04): a narrow column of its own, the year's chip in the heads row and a red
+				      rule down through every thread. `--timeline-swim-cols` gives it the column, and each
+				      thread's row a rule cell in it, so the grid's columns stay one per cell. --}}
+				<div class="stonetop-timeline-swim" style="--timeline-swim-cols: 15rem{{#each timeline.periods}}{{#if startsYear}} auto{{/if}} minmax(15rem, 1fr){{/each}};">
+					{{#each timeline.periods}}
+					{{#if startsYear}}
+					<h2 class="stonetop-timeline-swim-year" data-year="{{year}}"><span class="stonetop-year-chip">{{yearLabel}}</span></h2>
+					{{/if}}
+					<div class="stonetop-timeline-swim-head{{#if seasonClass}} {{seasonClass}}{{/if}}{{#if seasonNotes.length}} stonetop-timeline-head--notes{{/if}}" data-period="{{key}}"{{#unless undated}} data-year="{{year}}"{{/unless}}>
 						{{> "stonetop.timeline-period-head"}}
 					</div>
+					{{/each}}
 
-					{{#each lanes}}
+					{{#each timeline.swimlanes}}
+					<div class="stonetop-timeline-lane-head stonetop-timeline-swim-lane-head" data-track-id="{{trackId}}">
+						{{> "stonetop.timeline-lane-head"}}
+					</div>
+					{{#each cells}}
+					{{#if opensYear}}
+					<span class="stonetop-timeline-swim-year-rule" aria-hidden="true"></span>
+					{{/if}}
 					<div class="stonetop-timeline-lane{{#if isEmpty}} stonetop-timeline-lane--empty{{/if}}"
 					     data-track-id="{{trackId}}">
 						<ol class="stonetop-timeline-cards">
@@ -98,13 +255,72 @@
 						</ol>
 					</div>
 					{{/each}}
+					{{/each}}
 				</div>
-				{{/each}}
+			{{else}}
+				<div class="stonetop-timeline-board">
 
-			</div>
+					{{!-- The thread names, once, as the board's own header row. Repeating them in every
+					      season is what would make a long campaign unreadable. --}}
+					<div class="stonetop-timeline-lane-heads">
+						<span class="stonetop-timeline-lane-spacer" aria-hidden="true"></span>
+						{{#each timeline.tracks}}
+						<div class="stonetop-timeline-lane-head" data-track-id="{{trackId}}">
+							{{> "stonetop.timeline-lane-head"}}
+						</div>
+						{{/each}}
+					</div>
+
+					{{#each timeline.periods}}
+					{{#if startsYear}}
+					<h2 class="stonetop-timeline-year" data-year="{{year}}"><span class="stonetop-timeline-year-cell"><span class="stonetop-year-chip">{{yearLabel}}</span></span></h2>
+					{{/if}}
+					<div class="stonetop-timeline-row" data-period="{{key}}"{{#unless undated}} data-year="{{year}}"{{/unless}}>
+						<div class="stonetop-timeline-row-head{{#if seasonClass}} {{seasonClass}}{{/if}}{{#if seasonNotes.length}} stonetop-timeline-head--notes{{/if}}">
+							{{> "stonetop.timeline-period-head"}}
+						</div>
+
+						{{#each lanes}}
+						<div class="stonetop-timeline-lane{{#if isEmpty}} stonetop-timeline-lane--empty{{/if}}"
+						     data-track-id="{{trackId}}">
+							<ol class="stonetop-timeline-cards">
+								{{#each entries}}{{> "stonetop.timeline-card"}}{{/each}}
+							</ol>
+						</div>
+						{{/each}}
+					</div>
+					{{/each}}
+
+				</div>
+			{{/if}}
 		{{/if}}
 
 		{{/if}}
 		{{/unless}}
+	</div>{{!-- /canvas --}}
 	</div>
+
+	{{!-- THE YEAR SCRUBBER (timeline/timeline-scrub.js): slide to a year and the column centres on
+	      it; move the column and the thumb follows. One tick per year shown, the thumb free to rest
+	      between them, and only when there are two or more to slide between. The year in view is printed in words beside it, so the thumb's
+	      place is never the only thing saying where the reader is. --}}
+	{{#if scrub}}
+	<footer class="stonetop-timeline-scrub">
+		<output class="stonetop-timeline-scrub-year" aria-hidden="true">{{scrub.first}}</output>
+		<span class="stonetop-timeline-scrub-end" aria-hidden="true">{{scrub.first}}</span>
+		{{!-- A tick behind the slider at every year's stop, so the reader sees where the years lie
+		      before they reach for the thumb. For the eye only: the slider already says each year. --}}
+		<div class="stonetop-timeline-scrub-track">
+			<ol class="stonetop-timeline-scrub-ticks" aria-hidden="true">
+				{{#each scrub.ticks}}<li class="stonetop-timeline-scrub-tick" style="--at: {{at}};"></li>{{/each}}
+			</ol>
+			<input type="range" class="stonetop-timeline-scrub-range" min="0" max="{{scrub.max}}" step="any" value="0"
+			       data-timeline-focus="scrub"
+			       aria-label="{{localize "stonetop.timeline.scrub.label"}}"
+			       aria-valuetext="{{scrub.first}}"
+			       data-tooltip="{{localize "stonetop.timeline.scrub.tooltip"}}">
+		</div>
+		<span class="stonetop-timeline-scrub-end" aria-hidden="true">{{scrub.last}}</span>
+	</footer>
+	{{/if}}
 </div>

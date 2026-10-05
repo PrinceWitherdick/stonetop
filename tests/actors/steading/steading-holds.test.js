@@ -52,7 +52,7 @@ describe("steadingHolds", () => {
 		const all = steadingHolds({
 			fortunesAdvantage: { source: "x" }, muster: { defenses: false }, torsBlessing: true,
 			herdAdvance: true, innGathering: true, standingWatch: true, weaponsUpkeep: true,
-			militiaTraining: true, harvest: true,
+			militiaTraining: true, harvest: true, upkeep: { items: [{ label: "Logging Camp", surplus: 1 }] },
 			herdFeed: { needed: 2, surplus: 4 }, winterDebt: { amount: 3, surplus: 4 },
 			disasterOwed: { cause: "a failed harvest" },
 		});
@@ -263,8 +263,8 @@ describe("how the tray is wired", () => {
 	// Before a world's first Seasons Change nothing has turned, so no upkeep can be overdue.
 	it("does not dun a steading whose clock has never been stamped", () => {
 		const at = STEADING.indexOf("holdsView()");
-		const body = STEADING.slice(at, at + 2000);
-		expect(body).toContain("!!seasonId");
-		expect(body).toContain('seasonId === "spring"');
+		const body = STEADING.slice(at, at + 2400);
+		expect(body).toContain("const owed = seasonId");
+		expect(body).toContain("upkeepsDue(this.improvementRules(), seasonId)");
 	});
 });

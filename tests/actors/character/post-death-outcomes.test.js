@@ -199,7 +199,11 @@ describe("pressing an outcome", () => {
 		const { actor, char } = makeUndead("ghost", { counts: { "consequences:specter": 1 }, hp: 12 });
 		await runPostDeathOutcome(char, "regain-d8", { source: "SPECTER" });
 		expect(actor.system.attributes.hp.value).toBe(16);
-		expect(toMessage.mock.calls[0][0].flavor).toContain("rolled 7");
+		// On the house roll card, not core's bare dice block: the total, and where HP went.
+		const flavor = toMessage.mock.calls[0][0].flavor;
+		expect(flavor).toContain("stonetop-roll-card");
+		expect(flavor).toContain(">7<");
+		expect(flavor).toContain("HP 12 → 16");
 		// The dice card says it; no second card.
 		expect(ChatMessage.create).not.toHaveBeenCalled();
 	});

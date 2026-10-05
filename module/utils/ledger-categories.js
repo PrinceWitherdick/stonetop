@@ -10,7 +10,7 @@
 // over the action string. The fallback is why the legacy phrasings ("Items undefined ◇",
 // "Arcana changed from …", "Lore set to 1") still appear in the tables below: those strings are
 // sitting in live ledgers and should land in the right group.
-import { ledgerNoun, LEDGER_SCOPE } from "./ledger-core.js";
+import { ledgerNoun, ledgerSubject, LEDGER_SCOPE } from "./ledger-core.js";
 
 /** Display order of the dropdown's groups. Only groups with entries are rendered. */
 export const LEDGER_CATEGORIES = [
@@ -216,7 +216,7 @@ export function categoryForEntry(entry) {
 export function ledgerCategoryGroups(entries) {
 	const groups = new Map();
 	for (const entry of entries ?? []) {
-		const noun = ledgerNoun(entry?.action);
+		const noun = ledgerSubject(entry);
 		if (!noun) continue;
 		const id = categoryForEntry(entry);
 		if (!groups.has(id)) groups.set(id, { id, label: ledgerCategoryLabel(id), count: 0, nouns: new Set() });

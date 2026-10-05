@@ -512,7 +512,7 @@
 						<strong class="stonetop-onboarding-card-title">{{name}}</strong>
 					</div>
 					{{#if description}}
-					<div class="stonetop-onboarding-card-desc">{{{moveBody description}}}</div>
+					<div class="stonetop-onboarding-card-desc">{{{moveBody description moveResults}}}</div>
 					{{/if}}
 				</label>
 				{{/each}}
@@ -548,7 +548,7 @@
 					<strong class="stonetop-onboarding-card-title">{{name}}</strong>
 				</div>
 				{{#if description}}
-				<div class="stonetop-onboarding-card-desc">{{{moveBody description}}}</div>
+				<div class="stonetop-onboarding-card-desc">{{{moveBody description moveResults}}}</div>
 				{{/if}}
 				{{#if statChoice}}
 				{{!-- Inline "+1 to which stat?" picker (Improved Stat). stopPropagation keeps a
@@ -1104,6 +1104,18 @@
 
 	{{!-- Footer --}}
 	<footer class="stonetop-onboarding-footer">
+		{{!-- The last page names the earlier pages left unfinished (Skip). A flag, never a
+		      block: Create Character stays live, and each name jumps back to its page. --}}
+		{{#if skippedSteps.length}}
+		<div class="stonetop-onboarding-skipped" role="note">
+			<p class="stonetop-onboarding-skipped-lead"><strong>Not finished yet:</strong> you can create the character now and fill these in on the sheet, or go back to them.</p>
+			<ul class="stonetop-onboarding-skipped-list">
+				{{#each skippedSteps}}
+				<li><button type="button" class="stonetop-onboarding-skipped-jump" data-step-index="{{index}}">{{label}}</button></li>
+				{{/each}}
+			</ul>
+		</div>
+		{{/if}}
 		<div class="stonetop-onboarding-footer-nav">
 			{{#if showBack}}
 			{{#if isFirst}}

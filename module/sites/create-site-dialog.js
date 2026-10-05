@@ -1,8 +1,9 @@
 import { StepperDialog } from "../dialogs/StepperDialog.js";
 import {
 	SITE_MANNERS, REGIONS, siteManner, region, visibleTables, pickLines,
-	rollOnTable, againSpec, claimedAfter, combinableRows, combineMax, maxExtraPicks,
-	splitCombined, joinCombined,
+	regionTables, regionPickLines, REGION_TABLE_PREFIX,
+	rollOnTable, againPool, againSpec, claimedAfter, combineMax, maxExtraPicks,
+	slotPool, findRow, currentPickText, splitCombined, joinCombined,
 	SITE_STORY_QUESTIONS, SITE_CONNECTIONS, SITE_QUESTION_PROMPTS,
 	SITE_DANGER_KINDS, SITE_DISCOVERY_KINDS, AREA_DETAIL_PROMPTS,
 	SITE_LAYOUT_TIPS, SITE_REVIEW_CHECKS,
@@ -224,7 +225,7 @@ export class CreateSiteDialog extends StepperDialog {
 		this._page = page;
 		this._sel = page ? this._seedFromPage(page) : {
 			name: "", why: "", description: "",
-			manner: "", picks: {}, regionId: "", terrain: [],
+			manner: "", picks: {}, regionId: "", terrain: [], regionPicks: {},
 			connections: [], questions: [], timeline: [],
 			denizens: [], dangers: [], discoveries: [],
 			outside: [], inside: [],
@@ -256,13 +257,26 @@ export class CreateSiteDialog extends StepperDialog {
 	_seedFromPage(page) {
 		const sys = page.system ?? {};
 		const manner = siteManner(sys.manner ?? "");
+		const reg = region(String(sys.regionId ?? ""));
+		// Each answer comes back in its row's CURRENT wording, so a page saved before a row was
+		// reworded (the roll-again instructions that moved off the text) re-opens on that row
+		// rather than on an empty control. An answer no row carries is kept exactly as written.
+		const current = (rows, value) => splitCombined(value).map(v => currentPickText(rows, v));
 		const picks = {};
+		const regionPicks = {};
 		for (const p of sys.picks ?? []) {
+			const key = String(p?.key ?? "");
+			// A region's further table (the Ruined Tower's building and purpose).
+			if (key.startsWith(REGION_TABLE_PREFIX)) {
+				const sub = reg?.tables?.find(t => REGION_TABLE_PREFIX + t.key === key);
+				if (sub) regionPicks[sub.key] = current(sub.rows, p?.value);
+				continue;
+			}
 			// Match on the table's id; fall back to its label for a page written before picks
 			// carried a key. A pick whose table has since gone is dropped.
 			const table = manner?.tables.find(t => t.key === p?.key) ?? manner?.tables.find(t => t.label === p?.label);
 			// Split back into the rows combined into it, so each lands in its own field.
-			if (table) picks[table.key] = splitCombined(p?.value);
+			if (table) picks[table.key] = current(table.rows, p?.value);
 		}
 		// Read back UNTRIMMED and with blank rows kept: this is the editor re-opening, so a row the
 		// GM half-filled is theirs to finish, not ours to drop. The shaper applies that rule once,
@@ -279,7 +293,8 @@ export class CreateSiteDialog extends StepperDialog {
 			manner: manner?.id ?? "",
 			picks,
 			regionId: String(sys.regionId ?? ""),
-			terrain: splitCombined(sys.terrain),
+			terrain: reg ? current(reg.terrain.rows, sys.terrain) : splitCombined(sys.terrain),
+			regionPicks,
 			...Object.fromEntries(SITE_LINE_LISTS.map(list => [list, [...(sys[list] ?? [])].map(String)])),
 			...Object.fromEntries(Object.entries(SITE_PAIR_LISTS).map(([list, { keys }]) => [list, pairs(sys[list], keys)])),
 			// Held as ranged rows while editing ({text, span}); expanded back to one row per
@@ -317,6 +332,10 @@ export class CreateSiteDialog extends StepperDialog {
 			ctx.regionNote = chosenRegion?.note ?? "";
 			ctx.regionPage = chosenRegion?.page ?? "";
 			ctx.terrainPick = this._pickSlots(TERRAIN_KEY);
+			// The further tables a terrain answer has opened (the Ruined Tower's building, then its
+			// purpose), through the same controls under their own reserved keys.
+			ctx.terrainTables = regionTables(chosenRegion, sel.terrain, sel.regionPicks)
+				.map(t => ({ note: t.note ?? "", ...this._pickSlots(REGION_TABLE_PREFIX + t.key) }));
 		}
 		if (step.key === "story") {
 			ctx.connectionRows = this._lineRows("connections");
@@ -381,6 +400,7 @@ export class CreateSiteDialog extends StepperDialog {
 	 * which is the one thing about terrain that really is different.
 	 */
 	_pickTarget(key) {
+		if (String(key).startsWith(REGION_TABLE_PREFIX)) return this._regionTarget(key);
 		const terrain = key === TERRAIN_KEY;
 		const table = terrain ? region(this._sel.regionId)?.terrain : this._manner?.tables.find(t => t.key === key);
 		if (!table) return null;
@@ -390,6 +410,19 @@ export class CreateSiteDialog extends StepperDialog {
 			key, table, rows: table.rows, combine: combineMax(table), label: table.label, die: table.die,
 			values: Array.isArray(cur) ? cur : splitCombined(cur),
 			set: terrain ? (v) => { this._sel.terrain = v; } : (v) => { this._sel.picks[key] = v; },
+		};
+	}
+
+	/** `_pickTarget` for one of the region's further tables, or null while it is not open. */
+	_regionTarget(key) {
+		const sub = String(key).slice(REGION_TABLE_PREFIX.length);
+		const picks = (this._sel.regionPicks ??= {});
+		const table = regionTables(region(this._sel.regionId), this._sel.terrain, picks).find(t => t.key === sub);
+		if (!table) return null;
+		return {
+			key, table, rows: table.rows, combine: combineMax(table), label: table.label, die: table.die,
+			values: Array.isArray(picks[sub]) ? picks[sub] : splitCombined(picks[sub]),
+			set: (v) => { picks[sub] = v; },
 		};
 	}
 
@@ -410,12 +443,17 @@ export class CreateSiteDialog extends StepperDialog {
 		const target = this._pickTarget(key);
 		if (!target) return { key, slots: [], canAdd: false };
 		const { rows, table, combine, values, label, die } = target;
-		const spec = againSpec(rows.find(r => r.text === values[0]));
-		const pool = combinableRows(rows, spec?.max ?? 0);
 		// The row's own sub-die rolls AND the table's free combines; see `maxExtraPicks` for why
 		// those add rather than compete.
 		const maxExtras = maxExtraPicks(table, rows, values);
-		const options = (list, value) => list.map(r => ({ text: r.text, selected: r.text === value }));
+		// An answer no row carries (reworded since it was saved, or written in by hand) is offered
+		// as it stands and kept selected. A select with nothing selected reads as unanswered while
+		// the answer rides along unseen, and picking anything at all would silently replace it.
+		const options = (list, value) => {
+			const out = list.map(r => ({ text: r.text, selected: r.text === value }));
+			if (value && !out.some(o => o.selected)) out.push({ text: value, selected: true });
+			return out;
+		};
 		const hint = combineHint(combine);
 		const slots = [{
 			key, slot: 0, label,
@@ -426,7 +464,8 @@ export class CreateSiteDialog extends StepperDialog {
 		for (let i = 1; i < values.length; i++) {
 			slots.push({
 				key, slot: i, extra: true, label: "combined with", hint: "", rollTip: "Roll again",
-				rows: options(pool, values[i]),
+				// The sub-die of the row that owns THIS slot, or the whole table for a free combine.
+				rows: options(slotPool(rows, values, i), values[i]),
 			});
 		}
 		// `label`, `die` and `combine` are NOT republished here. Everything a slot needs rides on
@@ -496,7 +535,6 @@ export class CreateSiteDialog extends StepperDialog {
 	// A compact summary of the site-to-be, shown on the final step.
 	_previewCard() {
 		const sel = this._sel;
-		const manner = this._manner;
 		// Counted off the SHAPER's output rather than off `_sel` with a second set of filters.
 		// The shaper decides what actually gets saved — it keeps an area that has only contents or
 		// exits, and a table that has only a caption — so any other reckoning of "empty" tells the
@@ -509,7 +547,7 @@ export class CreateSiteDialog extends StepperDialog {
 			foundation,
 			why:         shaped.why,
 			description: shaped.description.trim(),
-			picks:       pickLines(manner, sel.picks),
+			picks:       this._pickLines(),
 			counts:      _countLines(shaped),
 			areas: shaped.areas.map(a => a.title).filter(Boolean),
 		};
@@ -561,20 +599,8 @@ export class CreateSiteDialog extends StepperDialog {
 			target.set(next);
 			this.render(false);
 		});
-		// Roll every table of the manner, in order, so a branch table's result opens the
-		// right branch before its own tables are rolled.
 		html.find(".stonetop-cs-roll-all").on("click", () => {
-			const manner = this._manner;
-			if (!manner) return;
-			this._sel.picks = {};
-			// Bounded by the table count: each pass rolls the first not-yet-picked visible
-			// table, which is how a branch opened mid-way still gets filled.
-			for (let i = 0; i < manner.tables.length; i++) {
-				const next = visibleTables(manner, this._sel.picks).find(t => !splitCombined(this._sel.picks[t.key]).length);
-				if (!next) break;
-				// Through _setPick, so a rolled "and roll again" row is followed up here too.
-				this._setPick(next.key, 0, rollOnTable(next.rows)?.text ?? "");
-			}
+			this._rollAll();
 			this.render(false);
 		});
 
@@ -582,6 +608,7 @@ export class CreateSiteDialog extends StepperDialog {
 		html.find(".stonetop-cs-region").on("change", ev => {
 			this._sel.regionId = ev.currentTarget.value;
 			this._sel.terrain = [];
+			this._sel.regionPicks = {};
 			this.render(false);
 		});
 		// Terrain has no handlers of its own: its controls carry TERRAIN_KEY and go through the
@@ -679,30 +706,64 @@ export class CreateSiteDialog extends StepperDialog {
 
 	/** What a chosen row's own "and roll 1d8 again" asks for, rolled on the sub-die it names. */
 	_againRolls(rows, value) {
-		const spec = againSpec(rows.find(r => r.text === value));
+		const row = findRow(rows, value);
+		const spec = againSpec(row);
 		if (!spec) return [];
-		const pool = combinableRows(rows, spec.max);
+		const pool = againPool(rows, row);
 		return Array.from({ length: spec.count }, () => rollOnTable(pool)?.text ?? "");
 	}
 
-	/** Roll one field of one pick: the whole table for the pick itself, the sub-die for an extra. */
-	_rollPick(key, slot) {
+	/**
+	 * Roll one field of one pick: the whole table for the pick itself, and for an extra the sub-die
+	 * of the row that owns that slot (or the whole table, for a slot combined in freely).
+	 */
+	_rollPick(key, slot, rng = Math.random) {
 		const target = this._pickTarget(key);
 		if (!target) return;
 		const { rows, values } = target;
-		const pool = slot === 0 ? rows : combinableRows(rows, againSpec(rows.find(r => r.text === values[0]))?.max ?? 0);
-		this._setPick(key, slot, rollOnTable(pool)?.text ?? "");
+		const pool = slot === 0 ? rows : slotPool(rows, values, slot);
+		this._setPick(key, slot, rollOnTable(pool, rng)?.text ?? "");
+	}
+
+	/**
+	 * Roll every table of the manner, in order, so a branch table's result opens the right branch
+	 * before its own tables are rolled.
+	 *
+	 * A table the book makes conditional (`conditional`: a haunted site's feature, which you skip
+	 * once the place is established; its cause of death, only if the origins involved deaths; a
+	 * cave's natural beast, only if one dwells there) is left for the GM to roll on its own.
+	 */
+	_rollAll(rng = Math.random) {
+		const manner = this._manner;
+		if (!manner) return;
+		this._sel.picks = {};
+		// Bounded by the table count: each pass rolls the first not-yet-picked visible
+		// table, which is how a branch opened mid-way still gets filled.
+		for (let i = 0; i < manner.tables.length; i++) {
+			const next = visibleTables(manner, this._sel.picks)
+				.find(t => !t.conditional && !splitCombined(this._sel.picks[t.key]).length);
+			if (!next) break;
+			// Through _setPick, so a rolled "and roll again" row is followed up here too.
+			this._setPick(next.key, 0, rollOnTable(next.rows, rng)?.text ?? "");
+		}
 	}
 
 	/**
 	 * A branch pick that changed leaves the other branch's answers orphaned; drop any pick whose
-	 * table is no longer visible so it can't ride along into the write-up.
+	 * table is no longer visible so it can't ride along into the write-up. The same for a region's
+	 * further tables, once the terrain or building row that opened them is gone.
 	 */
 	_dropOrphanPicks() {
 		const manner = this._manner;
-		if (!manner) return;
-		const visible = new Set(visibleTables(manner, this._sel.picks).map(t => t.key));
-		for (const k of Object.keys(this._sel.picks)) if (!visible.has(k)) delete this._sel.picks[k];
+		if (manner) {
+			const visible = new Set(visibleTables(manner, this._sel.picks).map(t => t.key));
+			for (const k of Object.keys(this._sel.picks)) if (!visible.has(k)) delete this._sel.picks[k];
+		}
+		const picks = this._sel.regionPicks;
+		if (picks) {
+			const open = new Set(regionTables(region(this._sel.regionId), this._sel.terrain, picks).map(t => t.key));
+			for (const k of Object.keys(picks)) if (!open.has(k)) delete picks[k];
+		}
 	}
 
 	// Capture any focused-but-unblurred field before leaving the step (Back/Next/jump) or
@@ -748,6 +809,15 @@ export class CreateSiteDialog extends StepperDialog {
 		});
 	}
 
+	/** Every table answer for the page: the manner's, then the region's further tables. */
+	_pickLines() {
+		const sel = this._sel;
+		return [
+			...pickLines(this._manner, sel.picks),
+			...regionPickLines(region(sel.regionId), sel.terrain, sel.regionPicks ?? {}),
+		];
+	}
+
 	// The collected seed, in the shape shapeSiteSystem / createSite expect. Blank rows are
 	// left in place here and dropped by the shaper, so one rule decides what "empty" means.
 	_seed() {
@@ -761,7 +831,7 @@ export class CreateSiteDialog extends StepperDialog {
 			name:        sel.name.trim() || "New Site",
 			manner:      manner?.id ?? "",
 			mannerLabel: manner?.label ?? "",
-			picks:       pickLines(manner, sel.picks),
+			picks:       this._pickLines(),
 			regionLabel: region(sel.regionId)?.label ?? "",
 			terrain:     joinCombined(sel.terrain),
 			// Back to one stored row per face of the die.

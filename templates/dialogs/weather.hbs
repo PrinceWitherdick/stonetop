@@ -12,13 +12,14 @@
   </p>
   {{/if}}
 
-  {{!-- The seasonal gain: "any time you roll the Die of Fate for weather, roll twice and take
-        your pick." Said here because this is where the die is rolled; the pick is a click on
-        whichever of the two rows the table prefers. --}}
-  {{#if torsBlessing}}
+  {{!-- How the next roll is thrown, said before it is: Tor's blessing ("roll twice and take
+        your pick"), the last weather's "roll again later with disadvantage", or the two
+        cancelling to one plain roll. The words are WEATHER_ROLL_PLANS' (utils/weather.js), the
+        same ones the card prints under the result. --}}
+  {{#if rollHint}}
   <p class="stonetop-weather-clock stonetop-weather-blessing">
     <i class="fas fa-sun"></i>
-    <strong>Tor&rsquo;s blessing</strong> holds this season: roll twice and take your pick. Roll, Re-roll, then click whichever of the two rows you&rsquo;d rather keep.
+    {{rollHint}}
   </p>
   {{/if}}
 
@@ -43,7 +44,7 @@
         that same array. A season change rebuilds the whole list and clears the pick with it. --}}
   <div class="stonetop-weather-rows">
     {{#each rows}}
-    <button type="button" class="stonetop-weather-row{{#if isPicked}} is-picked{{/if}}"
+    <button type="button" class="stonetop-weather-row{{#if isPicked}} is-picked{{/if}}{{#if isOffered}} is-offered{{/if}}"
             data-index="{{index}}" aria-pressed="{{#if isPicked}}true{{else}}false{{/if}}">
       <span class="stonetop-weather-row-range">{{range}}</span>
       <span class="stonetop-weather-row-text">{{text}}{{#if reroll}} <em class="stonetop-weather-row-reroll">(roll again later with disadvantage)</em>{{/if}}</span>
@@ -63,6 +64,13 @@
     <button type="button" class="stonetop-weather-post-btn">
       <i class="fas fa-cloud-sun-rain"></i> Post the weather
     </button>
+    {{else if choosing}}
+    {{!-- Tor's blessing: two rows are lit and neither is taken yet, so there is nothing to post.
+          The click on a lit row is the "take your pick". --}}
+    <button type="button" class="stonetop-weather-reroll-btn">
+      <i class="fas fa-rotate-right"></i> Re-roll
+    </button>
+    <span class="stonetop-weather-choose">Click the lit row you&rsquo;d rather keep.</span>
     {{else}}
     <button type="button" class="stonetop-weather-roll-btn">
       <i class="fas fa-cloud-sun-rain"></i> Roll the weather

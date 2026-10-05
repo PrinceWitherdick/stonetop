@@ -101,15 +101,29 @@ describe("a window that keeps its reader's place", () => {
 		expect(again.focus).not.toHaveBeenCalled();
 	});
 
-	// A column at its top is left to be one: the fresh draw already is.
-	it("writes no offset for a column that was at its top", async () => {
+	// A timeline laid out sideways scrolls across, not down, and a live write must not throw its
+	// reader back to the first season.
+	it("puts a sideways column back where they were reading too", async () => {
+		const first = draw([], 0);
+		first.column.scrollLeft = 900;
 		const next = draw();
-		let writes = 0;
-		Object.defineProperty(next.column, "scrollTop", { get: () => 0, set: () => { writes++; } });
-		const app = redrawing(new Kept(), draw([], 0), next);
+		await redrawing(new Kept(), first, next)._render(false, {});
+		expect(next.column.scrollLeft).toBe(900);
+	});
+
+	// A column at its top is PUT back at its top: a fresh draw is not always there already. The
+	// timeline's opens past its drag gutter (utils/drag-scroll.js), and a reader scrolled right up to
+	// the edge would be thrown a whole gutter by somebody else's write.
+	it("puts a column that was at its top and left edge back there", async () => {
+		const first = draw([], 0);
+		first.column.scrollLeft = 0;
+		const next = draw([], 225);
+		next.column.scrollLeft = 300;
+		const app = redrawing(new Kept(), first, next);
 		app.setPosition = vi.fn();
 		await app._render(false, {});
-		expect(writes).toBe(0);
+		expect(next.column.scrollTop).toBe(0);
+		expect(next.column.scrollLeft).toBe(0);
 	});
 
 	it("has no place to keep on its first draw", async () => {

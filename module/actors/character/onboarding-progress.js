@@ -10,26 +10,34 @@
 import { STONETOP_SCOPE } from "./StonetopFlags.js";
 
 /**
+ * Actor flag stamped (true) when a player really finishes creation: the walkthrough's Finish,
+ * from the first pass or from the sheet's "finish your character" re-entry. A committed playbook
+ * alone does not mean finished, because "Save & close" commits one part-way through.
+ */
+export const CREATION_FINISHED_FLAG = "creationFinished";
+
+/**
  * Turn a character's onboardingProgress flag (+ its committed playbook, if any) into a
- * short note — { playbook, text, status }, where status keys the styling and playbook
+ * short note: { playbook, text, status }, where status keys the styling and playbook
  * names the chosen playbook (committed wins; otherwise the in-progress pick the flow
  * stamps onto the flag, since the GM can't read the player's local resume snapshot).
  * With no flag, a character with no playbook yet hasn't been touched; one that has a
  * playbook is finished.
+ *
+ * `finished` is the CREATION_FINISHED_FLAG. A playbook WITH it is finished whatever the
+ * progress flag says. A playbook without it is finished only when no progress flag is live:
+ * that is every character made before the flag existed, and must not suddenly read as half
+ * built. A playbook without it and with a live progress flag is a "Save & close" part-way
+ * through, and reads where it stopped.
  */
-export function progressLabel(p, playbook) {
+export function progressLabel(p, playbook, finished = false) {
 	const hasPlaybook = !!playbook?.slug;
 	// Committed name wins; before commit, fall back to the playbook stamped on the
 	// progress flag (blank at the picker stage, where nothing is chosen yet).
 	const name = (hasPlaybook ? playbook.name : p?.playbook) || "";
-	// A committed playbook means creation is done (or was explicitly saved), so it
-	// always reads "Finished" — even if a mid-creation "Save & close" or an edit pass
-	// left a stale onboardingProgress flag behind that hasn't been cleared yet. The
-	// live "picker"/"on page N" states only apply before a playbook is committed,
-	// which is exactly when there's no playbook. `playbook` is attached once at the
-	// return, so each branch only carries its own status text.
+	// `playbook` is attached once at the return, so each branch only carries its own status text.
 	const label =
-		hasPlaybook          ? { text: "Finished", status: "finished" } :
+		hasPlaybook && (finished || !p) ? { text: "Finished", status: "finished" } :
 		!p                   ? { text: "not started yet", status: "not-started" } :
 		p.state === "picker" ? { text: "on playbook picker", status: "picker" } :
 		p.state === "exited" ? { text: "exited onboarding", status: "exited" } :
@@ -44,7 +52,11 @@ export function progressLabel(p, playbook) {
 
 /** A character's progress note, read straight off the actor. */
 export function progressFor(actor) {
-	return progressLabel(actor?.getFlag?.(STONETOP_SCOPE, "onboardingProgress"), actor?.system?.playbook);
+	return progressLabel(
+		actor?.getFlag?.(STONETOP_SCOPE, "onboardingProgress"),
+		actor?.system?.playbook,
+		!!actor?.getFlag?.(STONETOP_SCOPE, CREATION_FINISHED_FLAG),
+	);
 }
 
 /**

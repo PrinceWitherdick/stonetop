@@ -7,6 +7,10 @@
 // edit path from drifting, and it is the same split the custom-move and improvement dialogs make
 // with their savers.
 //
+// A TYPED ROW MAY WEAR ONE TAG: a kind's chip borrowed, or a tag of the table's own, which can be
+// made here, named and coloured, without leaving the dialog (timeline-tags.js). A milestone row's
+// kind IS its tag, so editing one offers no choice.
+//
 // THE DATE PICKER IS THE SEASONS CHANGE PICKER, reused rather than rebuilt: the same four cards and
 // the same year field the GM already meets when the season turns, so "when did this happen" is
 // asked in the shape the table already reads. Its markup and its year field come from
@@ -20,6 +24,15 @@ import { placeSuggestions } from "../timeline/timeline-places.js";
 import { wireDocumentDropZone } from "../utils/card-drop-zone.js";
 import { StonetopAutocomplete } from "../utils/autocomplete.js";
 import { localize } from "../utils/i18n.js";
+import { TIMELINE_KILLS_SOURCE, foesToLines, linesToFoes } from "../timeline/timeline-core.js";
+import { TIMELINE_COLOUR_KINDS } from "../timeline/timeline-colours.js";
+import { customTagChip, kindChip } from "../timeline/timeline-view.js";
+import { DEFAULT_TAG_COLOUR, TAG_NAME_MAX, liveTag } from "../timeline/timeline-tags.js";
+import { createCustomTag, worldCustomTags } from "../timeline/timeline-tag-store.js";
+import { renderTemplate } from "../utils/foundry-compat.js";
+
+/** One chip in the Tag row: the template's own partial, so a tag made after render matches the rest. */
+const TAG_CHIP_TEMPLATE = "systems/stonetop-pwd/templates/dialogs/partials/timeline-entry-tag.hbs";
 
 export class TimelineEntryDialog extends StonetopDialog {
 	/**
@@ -44,6 +57,16 @@ export class TimelineEntryDialog extends StonetopDialog {
 		// holds only the NAME. Cleared the moment that name is edited by hand -- see the input
 		// listener below for why that is the honest rule rather than a lossy one.
 		this._placeUuid = String(entry?.placeUuid ?? "").trim();
+		// A KILLS row's foes, as the text the Slain field opens with. Kept so `_save` can tell an
+		// edited list from an untouched one -- see there for why that matters.
+		this._isKills = entry?.source === TIMELINE_KILLS_SOURCE;
+		this._foesText = this._isKills ? foesToLines(entry?.foes ?? []) : "";
+		// The tag, for a TYPED row only. On the instance like the season: it is chosen by pressing a
+		// chip, and a tag made in this dialog is added to the row of chips by hand rather than by a
+		// re-render that would throw away everything typed. A custom tag the world has since lost
+		// opens as no tag, which is how the card already reads it.
+		this._showTags = !entry || (entry.source ?? "hand") === "hand";
+		this._tag = this._showTags ? liveTag(entry, worldCustomTags()) : "";
 	}
 
 	static get defaultOptions() {
@@ -82,7 +105,24 @@ export class TimelineEntryDialog extends StonetopDialog {
 			placeLinked: !!this._placeUuid,
 			body:       this._entry?.body ?? "",
 			places:     placeSuggestions(),
+			isKills:    this._isKills,
+			foesText:   this._foesText,
+			showTags:   this._showTags,
+			tagOptions: this._showTags ? this._tagOptions() : [],
+			tagNameMax: TAG_NAME_MAX,
+			tagColour:  DEFAULT_TAG_COLOUR,
 		};
+	}
+
+	/**
+	 * Every tag a typed row may wear, as chips: none, then each kind the system records (its own
+	 * chip and colour), then the world's own tags by name.
+	 */
+	_tagOptions() {
+		const none = { id: "", kind: "none", icon: "fa-minus", label: localize("stonetop.timeline.dialog.tagNone"), style: "" };
+		const kinds = TIMELINE_COLOUR_KINDS.map(kind => ({ id: kind, ...kindChip(kind) }));
+		const custom = worldCustomTags().map(tag => customTagOption(tag));
+		return [none, ...kinds, ...custom].map(option => ({ ...option, selected: option.id === this._tag }));
 	}
 
 	activateListeners(html) {
@@ -115,11 +155,87 @@ export class TimelineEntryDialog extends StonetopDialog {
 
 		this._wirePlaceDrop(root);
 		this._wireBodyDrop(root);
+		this._wireTags(root);
 
 		root.querySelector(".stonetop-timeline-entry-save")
 			?.addEventListener("click", ev => this._guardBusy(ev, () => this._save(root)));
 		root.querySelector(".stonetop-timeline-entry-cancel")
 			?.addEventListener("click", () => this.close());
+	}
+
+	/**
+	 * The tag chips and the New tag form.
+	 *
+	 * Pressing a chip marks it and unmarks the rest by hand, for the reason the season cards are
+	 * marked by hand: a re-render would throw away the title and account already typed. A tag made
+	 * here is written to the world AT ONCE (every thread offers the same list) and then pressed, so
+	 * the reader goes straight back to writing.
+	 */
+	_wireTags(root) {
+		const row = root.querySelector(".stonetop-timeline-entry-tags");
+		const form = root.querySelector(".stonetop-timeline-entry-tag-form");
+		const opener = root.querySelector(".stonetop-timeline-entry-tag-new");
+		if (!row) return;
+
+		const press = (id) => {
+			this._tag = id;
+			for (const chip of row.querySelectorAll("[data-tag]")) {
+				chip.setAttribute("aria-pressed", String(chip.dataset.tag === id));
+			}
+		};
+		row.addEventListener("click", ev => {
+			const chip = ev.target.closest?.("[data-tag]");
+			if (chip) press(chip.dataset.tag);
+		});
+
+		if (!form || !opener) return;
+		const name = form.querySelector(".stonetop-timeline-entry-tag-name");
+		const colour = form.querySelector(".stonetop-timeline-entry-tag-colour");
+
+		const showForm = (open) => {
+			form.hidden = !open;
+			opener.setAttribute("aria-expanded", String(open));
+			this.setPosition({ height: "auto" });
+			if (open) name?.focus();
+		};
+		opener.addEventListener("click", () => showForm(form.hidden));
+
+		const make = async () => {
+			if (!name?.value.trim()) return name?.focus();
+			// A write the server refuses (the journal gone, or ownership changed under the reader) is
+			// said as the journal refusal it is, rather than escaping as an unhandled rejection.
+			const made = await createCustomTag({ name: name.value, colour: colour?.value }).catch(err => {
+				console.error("Stonetop | the new timeline tag was not written", err);
+				return { tag: null, reason: "journal" };
+			});
+			if (!made.tag) {
+				ui.notifications?.warn(localize(`stonetop.timeline.dialog.tagRefused.${made.reason}`));
+				return;
+			}
+			// A name the world already had answers with that tag: press it rather than add a twin.
+			if (![...row.querySelectorAll("[data-tag]")].some(chip => chip.dataset.tag === made.tag.id)) {
+				opener.insertAdjacentHTML("beforebegin", await renderTemplate(TAG_CHIP_TEMPLATE, customTagOption(made.tag)));
+			}
+			press(made.tag.id);
+			name.value = "";
+			showForm(false);
+		};
+		// A latch of its own rather than `_guardBusy`, which leaves its control disabled on success
+		// because its callers close or re-render. This dialog stays open, and the Add button is
+		// wanted again for the next tag.
+		let making = false;
+		const run = async () => {
+			if (making) return;
+			making = true;
+			try { await make(); } finally { making = false; }
+		};
+		form.querySelector(".stonetop-timeline-entry-tag-add")?.addEventListener("click", run);
+		// Enter in the name field makes the tag. The form has no submit, and Enter must not reach it.
+		name?.addEventListener("keydown", ev => {
+			if (ev.key !== "Enter") return;
+			ev.preventDefault();
+			run();
+		});
 	}
 
 	/**
@@ -239,9 +355,10 @@ export class TimelineEntryDialog extends StonetopDialog {
 		const title = StonetopDialog.readValue(root, ".stonetop-timeline-entry-title").trim();
 		const place = StonetopDialog.readValue(root, ".stonetop-timeline-entry-place").trim();
 		const body  = StonetopDialog.readValue(root, ".stonetop-timeline-entry-body").trim();
-		if (!title && !place && !body) return this.close();
+		// A kills row is worth saving with every text field blank: its foes are the content.
+		if (!title && !place && !body && !this._isKills) return this.close();
 
-		return this._resolveWith({
+		const result = {
 			season: this._season,
 			year:   this._readYear(root),
 			title,
@@ -250,13 +367,29 @@ export class TimelineEntryDialog extends StonetopDialog {
 			// that is no longer there is not a claim worth keeping.
 			placeUuid: place ? this._placeUuid : "",
 			body,
-		});
+		};
+		// Only a typed row carries a tag; a milestone's dialog never offered one, so it sends none.
+		if (this._showTags) result.tag = this._tag;
+
+		// ⚠ THE FOES GO BACK ONLY IF THE SLAIN FIELD WAS EDITED. The GM's client appends to this row
+		// whenever a foe drops, and a player can have this dialog open across a whole fight. Sending
+		// back the list the dialog OPENED with would quietly delete every kill made since.
+		if (this._isKills) {
+			const text = StonetopDialog.readValue(root, ".stonetop-timeline-entry-foes");
+			if (text.trim() !== this._foesText.trim()) result.foes = linesToFoes(text);
+		}
+		return this._resolveWith(result);
 	}
 }
 
+/** One custom tag as a chip in the dialog's row. */
+function customTagOption(tag) {
+	return { id: tag.id, ...customTagChip(tag) };
+}
+
 /**
- * Ask for one entry. Resolves with `{season, year, title, place, body}`, or null if the reader
- * backed out.
+ * Ask for one entry. Resolves with `{season, year, title, place, placeUuid, body}` (plus `foes` when
+ * a kills row's Slain field was edited, and `tag` for a typed row), or null if the reader backed out.
  *
  * The one door in, so no caller stands the dialog up itself and quietly forgets to await it.
  */

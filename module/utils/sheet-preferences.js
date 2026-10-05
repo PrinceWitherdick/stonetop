@@ -13,8 +13,8 @@
  * thing this file states is which keys a player is offered and in what order.
  *
  * Scope is per-PLAYER, not per-character: nearly all of these are client-scoped, and several of
- * them (`sheetFont`, `reduceMotion`, `sheetFontScale`, `sheetContrast`, `sheetTexture`,
- * `noItalics`) are applied by setting a variable or a class
+ * them (`sheetFont`, `reduceMotion`, `sheetFontScale`, `sheetContrast`, `highContrast`,
+ * `sheetTexture`, `noItalics`) are applied by setting a variable or a class
  * on `document.documentElement`, so one character's sheet could not hold its own value even if
  * it wanted to. The tab is where a player finds them, not what owns them.
  *
@@ -60,12 +60,19 @@ export const PREFERENCE_GROUPS = [
 		// `noItalics` sits beside the grain because it is the same shape of request — a reader
 		// saying a treatment costs them more than it gives — and it is the one key here that
 		// reaches past our own windows to the whole client. See its registration in settings.js.
-		keys: ["sheetFontScale", "sheetContrast", "sheetTexture", "noItalics", "reduceMotion"],
+		//
+		// `highContrast` straight under the page it is worn over (Dark Mode): the two were one
+		// choice until 2026-10-04.
+		//
+		// `mapBrightness` straight after the palette, because the glare it answers is the one a
+		// reader notices the moment they switch to a dark palette and the map stays white.
+		// `sheetTextureFade` straight under the grain switch it tunes.
+		keys: ["sheetFontScale", "sheetContrast", "highContrast", "mapBrightness", "sheetTexture", "sheetTextureFade", "noItalics", "reduceMotion"],
 	},
 	{
 		id: "appearance",
 		titleKey: "stonetop.sheet.preferences.appearance",
-		keys: ["sheetFont", "sheetLayout", "editPencilRevealDelay", "timeBannerShown"],
+		keys: ["sheetFont", "sheetLayout", "editPencilRevealDelay", "timeBannerShown", "loveLetterJingle"],
 	},
 	{
 		id: "rolling",

@@ -49,7 +49,7 @@
 						<span class="stonetop-wound-text" data-tooltip="{{this.tooltip}}">{{#if this.isDeathsDoor}}<i class="fas fa-skull stonetop-wound-dd" data-tooltip="Death's Door mark"></i> {{/if}}{{#if this.text}}{{this.text}}{{else}}<em class="stonetop-wound-empty">(describe the wound)</em>{{/if}}</span>
 						{{#if ../stonetop.woundsView.canEdit}}
 						<span class="stonetop-wound-actions">
-							{{#if (eq this.status "problematic")}}<button type="button" class="stonetop-wound-tend" data-tooltip="Tend (Recover)"><i class="fas fa-hand-holding-heart"></i></button>{{/if}}
+							{{#if (and ../stonetop.woundsView.canTend (eq this.status "problematic"))}}<button type="button" class="stonetop-wound-tend" data-tooltip="Tend (Recover)"><i class="fas fa-hand-holding-heart"></i></button>{{/if}}
 							<button type="button" class="stonetop-wound-edit" data-tooltip="Edit"><i class="fas fa-pen"></i></button>
 							<button type="button" class="stonetop-wound-remove" data-tooltip="Remove"><i class="fas fa-trash"></i></button>
 						</span>
@@ -117,7 +117,7 @@
 				{{> "stonetop.tab-nav-item" tab="details"       label=(localize "stonetop.sheet.tabs.details")}}
 				{{> "stonetop.tab-nav-item" tab="special-moves" label=(localize "stonetop.sheet.tabs.specialMoves")}}
 				{{> "stonetop.tab-nav-item" tab="notes"         label=(localize "stonetop.sheet.tabs.notes")}}
-				{{#if stonetop.timelineEnabled}}{{#unless stonetop.classicLayout}}{{> "stonetop.tab-nav-item" tab="timeline" label=(localize "stonetop.sheet.tabs.timeline")}}{{/unless}}{{/if}}
+				{{#if stonetop.timelineShown}}{{#unless stonetop.classicLayout}}{{> "stonetop.tab-nav-item" tab="timeline" label=(localize "stonetop.sheet.tabs.timeline")}}{{/unless}}{{/if}}
 				{{!-- Last, and deliberately: it is the only tab that is not about the character.
 				      A player opens it once to set their text size and then rarely again, so it
 				      sits below everything they read every session.
@@ -142,7 +142,7 @@
 					{{> "stonetop.tab-details"}}
 					{{> "stonetop.tab-special-moves"}}
 					{{> "stonetop.tab-notes"}}
-				{{#if stonetop.timelineEnabled}}{{#unless stonetop.classicLayout}}{{> "stonetop.tab-timeline"}}{{/unless}}{{/if}}
+				{{#if stonetop.timelineShown}}{{#unless stonetop.classicLayout}}{{> "stonetop.tab-timeline"}}{{/unless}}{{/if}}
 					{{#if stonetop.showPreferences}}{{> "stonetop.tab-preferences"}}{{/if}}
 				</section>
 

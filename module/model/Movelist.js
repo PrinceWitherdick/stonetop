@@ -38,6 +38,8 @@ export class OtherItemSnapshot {
 		this.requiresLabel = b._requiresLabel ?? null;
 		this.resourceKey = b._resourceKey ?? b._name;
 		this.resource    = b._resource ?? null;
+		// A love letter the player has resolved: hidden from them, kept (dimmed) for the GM.
+		this.resolved    = b._resolved ?? false;
 	}
 }
 
@@ -56,6 +58,7 @@ export class OtherItemSnapshotBuilder {
 	withRequiresLabel(v) { this._requiresLabel = v; return this; }
 	withResourceKey(v) { this._resourceKey = v; return this; }
 	withResource(v)    { this._resource    = v; return this; }
+	withResolved(v)    { this._resolved    = !!v; return this; }
 	build()            { return new OtherItemSnapshot(this); }
 }
 

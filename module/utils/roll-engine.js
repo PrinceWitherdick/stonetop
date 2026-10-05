@@ -1,10 +1,11 @@
 import { maybeRemindPotentialForGreatness } from "../actors/character/WouldBeHeroAsterisk.js";
 import { WOUND_STATUS_LABEL } from "../actors/character/wound-display.js";
+import { normalizeWoundList } from "../actors/character/wound-record.js";
 import { escHtml, formatOutcomeDetail, stripHtmlToText, sign } from "./strings.js";
 import { pickLimitsFrom } from "./move-picks.js";
 import { pickLeadText, TIER_KEYS, TIER_LABELS } from "./move-results.js";
-import { markRolledTier, moveTiersHtml } from "./move-tiers.js";
-import { stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
+import { markRolledTier, moveTiersHtml, rollCardBody } from "./move-tiers.js";
+import { stonetopChatCard, springRollCardBody, rollFormulaChip, rollResultNumber, dieResultsText, multiDieFaces, damageMark, damageBadge, damageKeywordsHtml, pickListItem, descriptionPickTiers, cardNoticeHtml } from "./chat.js";
 import { adjustXp } from "./xp.js";
 import { XP_MARK_FLAG, XP_MARK_FOR_FLAG, XP_UNDONE_FLAG, MISS_XP_FLAG, takeBackXpMark } from "./undo-xp-mark.js";
 import { inCardTurn } from "./card-queue.js";
@@ -191,26 +192,9 @@ function _resultTableLadder(resultTable, tier) {
 // The title row's "?" that reveals a hidden move description, shared by every card that carries one.
 const DESC_TOGGLE_HTML = `<button class="stonetop-roll-card-desc-toggle" type="button" title="Show move description"><i class="fas fa-question-circle"></i></button>`;
 
-/**
- * Pull the individual die faces out of an evaluated Roll, e.g. a 2d6 that came up
- * 2 and 3 yields "2, 3". Discarded dice (the dropped die on adv/dis) are flagged with
- * a strike-through so the hover readout still shows what was rolled. Returns "" when
- * the roll has no dice terms.
- */
-export function dieResultsText(roll) {
-	const dice = roll?.dice ?? [];
-	const faces = dice.flatMap(term =>
-		(term.results ?? []).map(r => (r.active === false || r.discarded ? `(${r.result})` : `${r.result}`))
-	);
-	return faces.join(", ");
-}
-
-/** Die faces for a *multi*-die roll ("2, 4"), or "" for a single die — the readout
- *  only helps when more than one die contributed (a 1d6 just echoes its total). */
-export function multiDieFaces(roll) {
-	const faces = dieResultsText(roll);
-	return faces.includes(",") ? faces : "";
-}
+// The die-faces readouts live with the card pieces (utils/chat.js); re-exported for the callers that
+// have always taken them from here.
+export { dieResultsText, multiDieFaces };
 
 /**
  * Roll a Seasons-Change-style omen card (Spring Burst's first spring, the
@@ -593,8 +577,9 @@ function _rollCard({ header, result = "", resultClass = "", resultDetail = "", k
 // carries a mechanicalTag and is set to remind on this move (or on "*", all rolls).
 // A reminder only — it never changes the roll; the GM/player applies it in the fiction.
 function _woundReminderHtml(actor, moveName) {
-	const wounds = actor?.system?.attributes?.wounds;
-	if (!Array.isArray(wounds) || !wounds.length) return "";
+	// Read as the sheet reads them (wound-record.js), so a record the sheet shows is one this sees.
+	const wounds = normalizeWoundList(actor?.system?.attributes?.wounds);
+	if (!wounds.length) return "";
 	// "Ask" moves (Defy Danger/Interfere) and fixed moves rolled with an alternate stat
 	// arrive here as "<Name> with <STAT>" (see StonetopItem.roll), but the reminder picker
 	// stores the bare move name — so compare against the base so a reminder on "Defy Danger"
@@ -642,8 +627,10 @@ const WOUND_JUSTIFY_TIERS = TIER_KEYS.filter(tier => tier !== "success");
 // tag there, the wound as written here -- so the same injury appearing in both is not the same
 // line said twice.
 function _woundJustifyNotice(actor) {
-	const wounds = actor?.system?.attributes?.wounds;
-	if (!Array.isArray(wounds) || !wounds.length) return "";
+	// Normalized as the sheet reads them: a record stored with a blank status shows there as
+	// problematic, so it is one here too.
+	const wounds = normalizeWoundList(actor?.system?.attributes?.wounds);
+	if (!wounds.length) return "";
 	const items = wounds
 		.filter(w => w && !w.healed && JUSTIFYING_WOUND_STATUSES.has(w.status))
 		// The wound as the player wrote it, falling back to its mechanical tag for one entered as a
@@ -791,6 +778,8 @@ export function messageOfRoll(roll) {
  * @param {{title?: string, hint?: string}} [options.pickReference] - List `pickOptions` to READ,
  *   in a titled box under the legend, rather than as a checklist (pickReferenceHtml): for a
  *   choice made aloud and recorded elsewhere, like the seasonal gains.
+ * @param {boolean} [options.pickable]  false keeps the move's printed list as prose, for a list someone
+ *   other than the roller answers (Interfere aimed at a PC)
  * @returns {Promise<Roll>}
  */
 export async function rollStat(statKey, actor, options = {}) {
@@ -802,7 +791,15 @@ export async function rollStat(statKey, actor, options = {}) {
 	const forward    = options.forward  ?? 0;
 	const ongoing    = options.ongoing  ?? 0;
 
-	const moveDescription = options.moveDescription ?? "";
+	// The move's text as a roll card lays it out, ladder and all, whether the caller built it or
+	// handed over raw prose (move-tiers.js#rollCardBody). Its printed list is ticked only when the
+	// roll declares no pool of its own, which would be the card's checklist instead, and only when
+	// the caller has not said its list is someone else's to answer (`pickable: false`, Interfere
+	// aimed at a PC: StonetopItem#roll). A body with no ladder in it is laid out again here, so the
+	// caller's word has to reach this call too, not only the one that built the body.
+	const declaresPool = TIER_KEYS.some(tier => normalizePickPools(options.pickOptions).byTier[tier].length);
+	const moveDescription = rollCardBody(options.moveDescription ?? "", options.moveResults ?? null,
+		{ pickable: options.pickable !== false && !declaresPool });
 
 	const rollData    = modifier !== 0 ? { stat: statValue, mod: modifier } : { stat: statValue };
 	const rollOptions = {
@@ -929,7 +926,10 @@ export async function rollStat(statKey, actor, options = {}) {
 		countsAs: { missCountsAsPartial, partialCountsAsSuccess },
 		tierActions,
 		conditionsHtml,
-		noticesHtml: _woundReminderHtml(actor, moveName) + _woundJustifyHtml(actor, result.key),
+		// The wounds are the rolling CHARACTER's: a follower's roll (Order Followers, a Struggle as One
+		// follower row) is made on the PC's actor, but the PC's injuries neither hinder nor explain it.
+		noticesHtml: statKey === "follower" ? ""
+			: _woundReminderHtml(actor, moveName) + _woundJustifyHtml(actor, result.key),
 		buttons: true,
 		total: roll.total,
 		formula: roll.formula,

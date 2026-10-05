@@ -194,6 +194,43 @@ describe("Armored at the start of play", () => {
 		expect(ownedMoveNames(actor)).not.toContain("Armored");
 		expect(hauberk(actor)).toEqual({ added: false, carried: false });
 	});
+
+	describe("un-ticked on the Moves tab", () => {
+		const marshalArmored = { backgroundSlug: "penitent", stats: STANDARD_ARRAY, moves: [moveId("The Marshal", "Armored")], lore: { picks: {}, texts: {} } };
+		const untick = (char, actor) => char.removeMove(itemNamed(actor, "Armored")._id);
+
+		it("takes back the hauberk Armored brought at the start of play", async () => {
+			const { char, actor, sheet } = fresh("the-marshal", "The Marshal");
+			await onboard(sheet, marshalArmored, "the-marshal");
+			expect(hauberk(actor)).toEqual({ added: true, carried: true });
+
+			await untick(char, actor);
+
+			expect(ownedMoveNames(actor)).not.toContain("Armored");
+			expect(hauberk(actor)).toEqual({ added: false, carried: false });
+		});
+
+		it("leaves a hauberk the player had before, which Armored never claimed", async () => {
+			const { char, actor, sheet } = fresh("the-marshal", "The Marshal");
+			await char._inventory.addSpecial("hauberk-iron");
+			await onboard(sheet, marshalArmored, "the-marshal");
+
+			await untick(char, actor);
+
+			expect(hauberk(actor).added).toBe(true);
+		});
+
+		it("leaves it while another move still claims it", async () => {
+			const { char, actor, sheet } = fresh("the-marshal", "The Marshal");
+			await onboard(sheet, marshalArmored, "the-marshal");
+			const other = actor.items.find(i => i.type === "move" && i.name !== "Armored");
+			await other.setFlag("stonetop-pwd", START_GEAR_FLAG, "hauberk-iron");
+
+			await untick(char, actor);
+
+			expect(hauberk(actor).added).toBe(true);
+		});
+	});
 });
 
 describe("the Sheriff's barked order", () => {

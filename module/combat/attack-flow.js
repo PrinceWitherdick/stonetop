@@ -41,7 +41,7 @@ import {rollTargets} from "../fight/fight-targets.js";
 // used are let go once it is (fight/fight-shots.js).
 import {recordShots, releaseSpentTargets, shotOnRecordAt} from "../fight/fight-shots.js";
 // A lone attacker's blow on a token standing for a group hits one member of it (fight/group-hits.js).
-import {isLoneBlowOnGroup, applyMemberHit, applyRosterHit, moveRosterHit, rosterGroupFor} from "../fight/group-hits.js";
+import {isLoneBlowOnGroup, applyMemberHit, applyRosterHit, killsFromHit, moveRosterHit, rosterGroupFor} from "../fight/group-hits.js";
 import {halveDamage, spentOn} from "../fight/defend-spend.js";
 // Playbook moves the fight turns on: Undaunted's +1 armor and +1d6, Big Damn Hero's locked eyes
 // (fight/hero-moves.js).
@@ -64,6 +64,7 @@ import {offerBattleJoyOnDamage} from "./battle-joy-offer.js";
 import {revealOnAttack} from "../actors/character/fight-states.js";
 import {playBlowFx, playMissFx, playHitReactions} from "./attack-fx.js";
 import {hitReaction} from "./attack-fx-table.js";
+import {fightsAsGroup} from "../fight/fight-sides.js";
 
 const SCOPE = STONETOP_SCOPE;
 
@@ -279,10 +280,14 @@ export async function letFlyAmmoStatuses(actor) {
 
 // Mark the next ammo status. The slug is a dot-free inventory slug, so a sub-key write is
 // safe and leaves other weapons' resources untouched. Returns the new status.
-async function advanceWeaponAmmo(actor, weapon) {
+//
+// `moveName` is the move that spent the ammo (Let Fly, Blot Out the Sun), and every store's write
+// carries it, so the ledger says "via <move>" whichever track the weapon keeps its ammo on.
+async function advanceWeaponAmmo(actor, weapon, moveName = null) {
 	const track = ammoTrack(weapon);
 	const slug = weapon?.slug;
 	const next = Math.min(weaponAmmoIndex(actor, weapon) + 1, track.max);
+	const ledger = moveName ? { stonetopMove: moveName } : {};
 	if (weapon?.ammoStore === "move") {
 		// The move's own track, through its store's writer (a sub-key, so no sibling move's track is
 		// touched), attributed to the move for the ledger.
@@ -292,9 +297,9 @@ async function advanceWeaponAmmo(actor, weapon) {
 		// gear-choice key contains a colon, and a whole-object write keeps it out of Foundry's
 		// path expansion entirely (the same reason setChoiceUses is written that way).
 		const [possessionSlug, choiceSlug] = String(slug).split(":");
-		await actor.typedActor?.setSubChoiceUses?.(possessionSlug, choiceSlug, next);
+		await actor.typedActor?.setSubChoiceUses?.(possessionSlug, choiceSlug, next, moveName ? ledger : undefined);
 	} else {
-		await actor.update({ [`flags.${SCOPE}.inventory.resources.${slug}`]: next });
+		await actor.update({ [`flags.${SCOPE}.inventory.resources.${slug}`]: next }, ledger);
 	}
 	return { index: next, label: ammoStatusLabel(next, track), allOut: next >= track.max };
 }
@@ -901,7 +906,7 @@ async function askBlotOutTheSun(actor, move, weapon) {
 	// targets; the arrows come off once those are settled (see the caller), because a question backed out
 	// of is a shot never loosed.
 	const spend = async (archer, bow) => {
-		const spent = await advanceWeaponAmmo(archer, bow);
+		const spent = await advanceWeaponAmmo(archer, bow, BLOT_OUT_THE_SUN);
 		await ChatMessage.create({
 			content: stonetopChatCard(BLOT_OUT_THE_SUN, `<div class="card-content"><p>${escHtml(format("stonetop.fight.heroMoves.blotOut.spent", {
 				name: archer.name, weapon: bow?.name ?? "", status: spent.label,
@@ -2499,7 +2504,7 @@ export async function depleteAmmoAndPost(message, pc, attack, index) {
 	depleting.add(message.id);
 	let status;
 	try {
-		status = await advanceWeaponAmmo(pc, attack.weapon);
+		status = await advanceWeaponAmmo(pc, attack.weapon, attack.move ?? null);
 		await message.setFlag(SCOPE, AMMO_FLAG, { [index]: { label: status.label, allOut: status.allOut } });
 	} finally {
 		depleting.delete(message.id);
@@ -2884,13 +2889,24 @@ async function applyOwedDamage(message, damage) {
 		// Unstoppable: "Each time you take damage while at 0 HP, mark 1". Asked BEFORE the blow, which
 		// is what "while at 0 HP" means: the blow that puts them on 0 marks nothing.
 		const fightingOn = effective > 0 && !damageSet(current, "unstoppableOff").has(r.uuid) && keepsFightingAtZero(targetActor);
+		// A group fought as one pool (p.416) loses MEMBERS as its pool drains, so a blow on it can drop
+		// several: read the headcount before the write, to say how many this one felled.
+		const pool = fightsAsGroup({ type: targetActor.type, fightAsGroup: targetActor.system?.fightAsGroup, organization: targetActor.system?.organization })
+			? { count: targetActor.system?.count, hpMax: targetActor.system?.attributes?.hp?.max }
+			: null;
 		const t = await applyDamageToActor(targetActor, effective);
 		// A target actor with no hp attribute (e.g. a steading token) yields null. Skip it
 		// without recording it as applied, so it can be retried if the actor is fixed —
 		// rather than rendering "undefined → undefined HP" and marking it done forever.
 		if (!t) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: has no HP to damage</li>`); continue; }
 		reactions.push({ uuid: struck, reaction: hitReaction({ raw, effective, lowered: t.newHp < t.oldHp }) });
-		nextApplied.push({ uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp, ...(defender ? { by: standIn.by } : {}) });
+		// How many bodies it dropped, on the row: the kill tally reads it back off the card
+		// (timeline/timeline-watch.js), so the damage path says what happened and nothing more.
+		const felled = killsFromHit({ oldHp: t.oldHp, newHp: t.newHp, group: pool });
+		nextApplied.push({
+			uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp,
+			...(defender ? { by: standIn.by } : {}), ...(felled ? { felled } : {}),
+		});
 		// Payback: "a foe that has harmed you or one of your allies". Written on the character who took
 		// it, by whoever applied it — the one client certain to be allowed to write anything here.
 		//

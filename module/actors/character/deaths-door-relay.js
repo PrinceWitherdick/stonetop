@@ -28,6 +28,7 @@
 import { SYSTEM_ID } from "../../system-id.js";
 import { askGMClient, queryAsker, resolveSync } from "../../utils/foundry-compat.js";
 import { format } from "../../utils/i18n.js";
+import { moveChatCard } from "../../utils/chat.js";
 import { isPrimaryGM } from "../../utils/primary-gm.js";
 import { inTurn } from "../../utils/turn-queue.js";
 import { inCardTurn } from "../../utils/card-queue.js";
@@ -210,7 +211,7 @@ export function burnBrightlyOnDoorCard(message, actor, { shiftRoll, cardFlavor, 
 		if (!applied) return null;
 		onSpent?.();
 		await ChatMessage.create({
-			content: format("stonetop.specialMoves.burnBrightly.spent", { cost: BURN_BRIGHTLY_COST, xp: newXp, max: maxXp }),
+			content: moveChatCard("Burn Brightly", `<p>${format("stonetop.specialMoves.burnBrightly.spent", { cost: BURN_BRIGHTLY_COST, xp: newXp, max: maxXp })}</p>`),
 			speaker: ChatMessage.getSpeaker({ actor }),
 		});
 		const from = message.rolls?.at?.(0)?.total ?? null;

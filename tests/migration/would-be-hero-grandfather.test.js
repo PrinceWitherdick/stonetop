@@ -31,6 +31,13 @@ describe("who was The Hero by ownership", () => {
 		expect(heroByOwnership(hero({ items: [move("Big Damn Hero", { version: "1.6.6" })] }))).toBe(false);
 	});
 
+	// The held-move refresh drops the old `asterisk` and restamps the copy; the release it was made
+	// under is kept in `madeUnder`, so the hero it already crossed off stays crossed off.
+	it("is one whose starred move the refresh restamped, by the release it kept aside", () => {
+		const refreshed = { ...move("Big Damn Hero", { version: "1.7.2" }), flags: { [SCOPE]: { madeUnder: "1.6.0" } } };
+		expect(heroByOwnership(hero({ items: [refreshed] }))).toBe(true);
+	});
+
 	it("is not one already flagged, another playbook, or a hero with no starred move", () => {
 		expect(heroByOwnership(hero({ items: [move("Big Damn Hero")], flagged: true }))).toBe(false);
 		expect(heroByOwnership(hero({ slug: "the-heavy", items: [move("Big Damn Hero")] }))).toBe(false);

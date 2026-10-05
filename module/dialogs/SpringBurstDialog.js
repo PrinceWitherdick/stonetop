@@ -6,8 +6,9 @@ import { getPlayerCharacters } from "../utils/playbook-actors.js";
 import { setWorldSetting } from "../settings.js";
 import { postSeasonsChangeReminder } from "../seasons/seasons-change-reminders.js";
 import { recordSeasonsChange } from "../seasons/seasons-chronicle.js";
-import { recordCurrentSeason } from "../seasons/current-season.js";
+import { readCurrentSeason, recordCurrentSeason, seasonRank } from "../seasons/current-season.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
+import { applySeasonalGains } from "../actors/steading/seasonal-gains.js";
 import { markWalkthroughDone } from "./walkthrough-resume.js";
 import { saveChronicleFromButton } from "../utils/chronicle.js";
 import { SEASONAL_GAINS } from "./spring-burst-data.js";
@@ -32,6 +33,41 @@ const RESUME_KEY = "springBurst";
 // case)"). Later seasons read it off the steading, but the first-session guide is
 // always this opening roll.
 const FIRST_SPRING_FORTUNES = 1;
+
+/** The once-per-season marker the first spring's gains are applied under (seasonStepApplied). */
+export const SPRING_BURST_GAINS_STEP = "springBurstGains";
+
+/** The season this walkthrough IS: the campaign's first spring. */
+const FIRST_SPRING = Object.freeze({ season: "spring", year: 1 });
+
+/**
+ * Apply the gains ticked at the first spring, ONCE.
+ *
+ * Through the same helper the steading's Seasons Change window uses (seasonal-gains.js), filed
+ * under the same move. Two guards, because this walkthrough can be finished again:
+ *   • The clock. A table re-running it mid-campaign has a clock past Spring of Year One, and the
+ *     clock stamp is refused for exactly that reason (`advanceOnly` in recordCurrentSeason).
+ *     The gains are refused by the same test: nothing is granted for a season the campaign has
+ *     already left.
+ *   • A marker. Finished twice within that first spring the clock reads the same both times, so
+ *     the grant also stamps a once-per-season step and is refused while it stands.
+ *
+ * @param {Actor}  actor   The steading.
+ * @param {object} picked  The walkthrough's ticked gains, a presence map keyed by gain key.
+ * @returns {Promise<object|null>}  What was applied, or null when nothing was.
+ */
+export async function applySpringBurstGains(actor, picked) {
+	const steading = actor?.typedActor;
+	const keys = SEASONAL_GAINS.filter(g => picked?.[g.key]).map(g => g.key);
+	if (!steading || !keys.length) return null;
+	if (seasonRank(readCurrentSeason(actor)) > seasonRank(FIRST_SPRING)) return null;
+	const { season: seasonId, year } = FIRST_SPRING;
+	if (steading.seasonStepApplied(SPRING_BURST_GAINS_STEP, year, seasonId)) return null;
+	return applySeasonalGains(steading, keys, {
+		year, seasonId,
+		also: { flags: steading.seasonStepFlags(SPRING_BURST_GAINS_STEP, year, seasonId) },
+	});
+}
 
 // The same three tiers, framed for the GM running the first session: you're
 // fishing for a plot hook, not just any seasonal gain (Book I, p.32). The tier
@@ -155,6 +191,10 @@ export class SpringBurstDialog extends StepperDialog {
 		// (+1), and the omen/hook the GM noted as the season's note.
 		const picked    = this._answers().gains ?? {};
 		const gainNames = SEASONAL_GAINS.filter(g => picked[g.key]).map(g => g.name);
+		// The gains take effect, not just get written down: a Tor's blessing, a Population boom
+		// or an Unexpected bounty ticked here holds exactly as one ticked at any later Seasons
+		// Change. Before the clock is stamped, so the blessing's stamp and the clock's agree.
+		await applySpringBurstGains(getStonetopSteadingActor(), picked);
 		await recordSeasonsChange({
 			seasonId: "spring",
 			year:     1,

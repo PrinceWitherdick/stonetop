@@ -1474,7 +1474,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 					text: _markPlaceholder(),
 					status: "permanent",
 					origin: "deaths-door",
-				});
+				}, { moveName: _MOVE.name });
 			} catch (err) {
 				console.error("Stonetop | could not record the Death's-Door mark", err);
 				ui.notifications?.warn?.(localize(`${_I18N}.mark.seedFailed`));

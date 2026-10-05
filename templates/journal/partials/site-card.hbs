@@ -20,11 +20,16 @@
       Sites tab has anything to add, and neither half is about making it open — it repacks its
       masonry columns and remembers the state across re-renders. --}}
 <article class="threat-card threat-card--site site-card{{#if collapsed}} is-collapsed{{/if}}{{#if canDrag}} is-draggable{{/if}}"
-         data-site-id="{{id}}" data-page-uuid="{{uuid}}" style="--threat-accent:{{accent}};"{{#if canDrag}} draggable="true"{{/if}}>
+         data-site-id="{{id}}" data-page-uuid="{{uuid}}" style="--threat-accent-raw:{{accent}};"{{#if canDrag}} draggable="true"{{/if}}>
 	{{> "stonetop.card-head" kind="site" typeLabel="Site"}}
 
 	{{#if hasFoundation}}
 	<p class="site-foundation">{{#each foundation}}<span class="site-foundation__part">{{this}}</span>{{/each}}</p>
+	{{/if}}
+
+	{{!-- When the party was last here, once the GM has marked it (the flag on the card's tools). --}}
+	{{#if visitedLabel}}
+	<p class="site-visited"><i class="fas fa-flag" aria-hidden="true"></i> {{visitedLabel}}</p>
 	{{/if}}
 
 	{{#if hasDescription}}

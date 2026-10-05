@@ -131,4 +131,35 @@ describe("WoundDialog", () => {
 		expect(data.planRequirements).toEqual([]);
 		expect(data.reminderOptions.find(o => o.selected).value).toBe("");
 	});
+
+	// Wounds audit test gap #14: every test above reads a hand-built stand-in for the form, so a field
+	// renamed in the template would leave _read finding nothing while they all kept passing. This
+	// renders the template that ships, prefilled, and checks it carries every control _read and the
+	// wiring look for, with the values the record put there.
+	it("reads controls the shipped template actually draws", async () => {
+		const dialog = new WoundDialog({
+			isNew: false,
+			wound: {
+				id: "w1", text: "Cracked ribs", status: "stabilized", origin: "deaths-door",
+				requirementNote: "rest", mechanicalTag: "hurts to breathe", reminderMove: "*",
+				planNote: "a brace", planRequirements: [{ text: "a splint", done: true }], healed: true,
+			},
+		});
+		const html = await renderTemplate(dialog.options?.template ?? WoundDialog.defaultOptions.template, dialog.getData());
+
+		for (const name of ["text", "origin", "requirementNote", "mechanicalTag", "reminderMove", "planNote", "healed"]) {
+			expect(html, name).toContain(`name="${name}"`);
+		}
+		expect(html).toMatch(/<input type="radio" name="status" value="stabilized" checked>/);
+		expect(html).toMatch(/name="healed" checked/);
+		expect(html).toContain('value="Cracked ribs"');
+		expect(html).toMatch(/<option value="deaths-door" selected>/);
+		for (const cls of ["wd-req-list", "wd-req-tpl", "wd-req-add", "wd-save", "wd-cancel", "wd-back", "wd-next", "wd-tab"]) {
+			expect(html, cls).toContain(cls);
+		}
+		// The prefilled tick-box row carries the classes _read pulls its text and tick from.
+		const row = html.slice(html.indexOf('<li class="wd-req">'));
+		expect(row).toMatch(/class="stonetop-check wd-req-done" checked/);
+		expect(row).toMatch(/class="wd-req-text" value="a splint"/);
+	});
 });

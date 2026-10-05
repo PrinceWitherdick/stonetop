@@ -41,7 +41,7 @@ import { format, localize } from "../utils/i18n.js";
  */
 export function pickPersonOnMap({
 	options = [], title = "", buttonLabel = "", formatLabel = null, formatManyLabel = null,
-	icon = "", multiple = false, hint = "",
+	icon = "", multiple = false, hint = "", selected,
 } = {}) {
 	const people = options.map(option => {
 		const actor = option.actor ?? null;
@@ -60,7 +60,7 @@ export function pickPersonOnMap({
 	return pickPerson({
 		title: title || localize("stonetop.relmap.linkPickTitle"),
 		buttonLabel: buttonLabel || localize("stonetop.relmap.choose"),
-		formatLabel, formatManyLabel, icon, multiple, hint,
+		formatLabel, formatManyLabel, icon, multiple, hint, selected,
 		groups: groupPeople(people),
 	});
 }

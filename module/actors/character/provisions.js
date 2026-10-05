@@ -2,10 +2,8 @@ import { CharacterInventory } from "./CharacterInventory.js";
 import { CharacterPossessions } from "./CharacterPossessions.js";
 import { StonetopFlags } from "./StonetopFlags.js";
 import { SACRED_POUCH_SLUG, vesselHpFormula } from "./stock-cost.js";
-import { stonetopChatCard, rollFormulaChip, rollResultNumber } from "../../utils/chat.js";
+import { rolledTotalCard } from "../../utils/chat.js";
 import { applyDamageToActor } from "../../utils/damage.js";
-import { multiDieFaces } from "../../utils/roll-engine.js";
-import { escHtml } from "../../utils/strings.js";
 
 /**
  * PROVISIONS — food taken from the wild, and the one inventory track whose size is rolled for
@@ -133,17 +131,8 @@ export async function grantProvisions(actor, uses, { carry = false } = {}) {
 }
 
 /**
- * The card a haul of provisions comes back on — the house roll card, not Foundry's default.
- *
- * It went out for a long time as a bare `toMessage` with a plain string flavor, which is the one
- * shape that opts a message OUT of our styling: the shell class every rule in the chat block is
- * scoped to (`.stonetop-roll-card`) rides on the flavor markup, so a card without it takes core's
- * chrome AND shows Foundry's own dice block, which the rest of the system hides in favour of the
- * chip. Built out of the shared pieces — chip, result block, total — so a Forage answers in the
- * same shape as a damage roll or a Die of Fate.
- *
- * The faces readout is the MULTI-die one: "1d6" would only echo its own total in the tooltip,
- * while "2d6kl1" (On the Hoof in winter) has a discarded die worth showing.
+ * The card a haul of provisions comes back on: the house roll card (utils/chat.js#rolledTotalCard),
+ * not Foundry's default.
  *
  * @param {Roll} roll
  * @param {string} title   card header
@@ -156,27 +145,7 @@ function _provisionsCard(roll, title, note, larder) {
 	// The second is only knowable once the write has landed, which is why the card is built after
 	// it rather than before.
 	const details = [note, larder ? `${larder.held} in the pack` : ""].filter(Boolean).join(" • ");
-	return haulCard(roll, title, `${uses === 1 ? "use" : "uses"} of provisions`, details);
-}
-
-/**
- * A thrown haul: the chip, the total and what it was a total OF. Shared by provisions, Stock and the
- * companion's "Lend it your strength" (companion-bond.js). `details` is a line, or lines.
- */
-export function haulCard(roll, title, label, details) {
-	const faces = multiDieFaces(roll);
-	const total = Math.max(0, Math.trunc(roll.total));
-	const body = `<div class="card-content">
-		${rollFormulaChip(roll.formula, faces)}
-		<div class="stonetop-roll-result">
-			${rollResultNumber(total, faces)}
-			<div class="stonetop-roll-result-body">
-				<span class="stonetop-roll-result-label">${escHtml(label)}</span>
-				<span class="stonetop-roll-result-details">${[details].flat().map(escHtml).join("<br>")}</span>
-			</div>
-		</div>
-	</div>`;
-	return stonetopChatCard(title, body, "stonetop-provisions-card");
+	return rolledTotalCard(roll, title, `${uses === 1 ? "use" : "uses"} of provisions`, details);
 }
 
 /**
@@ -202,7 +171,7 @@ export async function rollStock(actor, { formula, pouchMax, speaker } = {}) {
 	const details = produced > restocked ? `${held} in the pouch (full)` : `${held} in the pouch`;
 	await roll.toMessage({
 		speaker: speaker ?? ChatMessage.getSpeaker({ actor }),
-		flavor:  haulCard(roll, "Stock", "Stock", details),
+		flavor:  rolledTotalCard(roll, "Stock", "Stock", details),
 	});
 	return { produced, restocked, held };
 }
@@ -231,7 +200,7 @@ export async function loseHpForStock(actor, { amount = 1, moveName = "", speaker
 	const newHp = hp?.newHp ?? 0;
 	await roll.toMessage({
 		speaker: speaker ?? ChatMessage.getSpeaker({ actor }),
-		flavor:  haulCard(roll, moveName || "Vessel", "HP lost", `in place of ${amount} Stock • HP ${oldHp} → ${newHp}`),
+		flavor:  rolledTotalCard(roll, moveName || "Vessel", "HP lost", `in place of ${amount} Stock • HP ${oldHp} → ${newHp}`),
 	});
 	return { lost, oldHp, newHp };
 }

@@ -1,4 +1,4 @@
-import { registerSettings, getSetting, isTimelineEnabled, applyMoveDescriptionBodyClass } from "./module/settings.js";
+import { registerSettings, getSetting, applyMoveDescriptionBodyClass, FEATURE_SWITCH_HOOK } from "./module/settings.js";
 import { createStonetopActorClass } from "./module/actors/StonetopActor.js";
 import { createStonetopItemClass } from "./module/item/StonetopItem.js";
 import { createStonetopArcanumSheetClass } from "./module/item/StonetopArcanumSheet.js";
@@ -49,11 +49,14 @@ import { installBattleHolds } from "./module/combat/battle-holds.js";
 import { hideAttackFxForReducedMotion } from "./module/combat/attack-fx.js";
 import { deathDripStamp, markDeathDrip } from "./module/hooks/DeathChatDrip.js";
 import { installOutOfTheFight } from "./module/fight/out-of-the-fight.js";
+import { registerTimelineWatch } from "./module/timeline/timeline-watch.js";
 import { onPreCreateThreatNote } from "./module/hooks/ThreatNotePins.js";
 import { onUpdateSiteNote } from "./module/sites/site-scene-pins.js";
 import { onDrawStonetopNote } from "./module/hooks/StonetopNoteLabels.js";
 import { installMapPinNameToggle } from "./module/hooks/MapPinNameToggle.js";
+import { registerMapBrightness } from "./module/hooks/map-brightness.js";
 import { installTimeBanner } from "./module/seasons/time-banner.js";
+import { installLoveLetterNotice } from "./module/actors/character/love-letter-notice.js";
 import { registerExpeditionRouteHooks } from "./module/hooks/ExpeditionRouteOverlay.js";
 import { bumpEncounterNotesGeneration } from "./module/actors/gmtoolkit/gm-encounters-tab.js";
 import { gmToolkitActors } from "./module/actors/gmtoolkit/gm-toolkit-actor.js";
@@ -68,14 +71,14 @@ import { onRenderCompendiumItemIcons } from "./module/hooks/CompendiumItemIcons.
 import { decoratePortraitRow, onUpdateActorPortraitFrame } from "./module/hooks/ActorDirectoryPortraits.js";
 import { decorateNameRow, onUpdateActorPlaybookName } from "./module/hooks/ActorDirectoryNames.js";
 import { decorateActorDirectoryRows } from "./module/hooks/actor-directory-rows.js";
-import { addOpenMapButton, hideRelationshipMapRows } from "./module/hooks/journal-directory-maps.js";
+import { hideRelationshipMapRows } from "./module/hooks/journal-directory-maps.js";
+import { hideTimelineJournalRow, onFeatureSwitched, syncOpenMapButton } from "./module/hooks/feature-switches.js";
 import { onUpdateCondemned } from "./module/hooks/CondemnedTag.js";
 import { characterFullName } from "./module/utils/playbook-actors.js";
 import { registerStonetopSingletonHooks } from "./module/hooks/StonetopSingleton.js";
 import { info } from "./module/utils/logger.js";
 import { boldMissText } from "./module/utils/strings.js";
-import { moveBodyHtml } from "./module/utils/move-tiers.js";
-import { MOVE_TIERS_CLASS, ROLLED_TIER_ATTR } from "./module/utils/move-results.js";
+import { moveBodyHtml, remarkRolledTier } from "./module/utils/move-tiers.js";
 import { hbsTruthy } from "./module/utils/hbs-truthy.js";
 import { rollSeasonsCard, sign, markMissXp, reconcileMissXp, pbtaDiceFormula, seasonsRollTable, seasonsRollPicks, syncCountedNotePill } from "./module/utils/roll-engine.js";
 import { countedResult, rolledRecord, cardCountedTier, totalTier } from "./module/utils/counted-tier.js";
@@ -86,7 +89,7 @@ import { registerRollRewrite } from "./module/utils/roll-rewrite.js";
 import { ROLL_CARD_QUERY, handleRollCardQuery, pressRollCard, registerRollCardAction, writeCardRoll } from "./module/utils/roll-card-writer.js";
 import { inCardTurn } from "./module/utils/card-queue.js";
 import { formatOutcomeDetail, escHtml } from "./module/utils/strings.js";
-import { moveChatCard, canRewriteCard } from "./module/utils/chat.js";
+import { moveChatCard, canRewriteCard, rolledTotalCard } from "./module/utils/chat.js";
 import { grantsWholeList, paintPickTally, pickLimitFor, releaseOverLimit, tierOffersPicks } from "./module/utils/pick-tally.js";
 import { wireUndoXpMark } from "./module/utils/undo-xp-mark.js";
 import { isKnowThings, logbookUses, LOGBOOK, STRONG_HIT_TOTAL } from "./module/actors/character/know-things.js";
@@ -115,6 +118,8 @@ import { wireSeasonsReminderResets } from "./module/seasons/seasons-change-remin
 import { onSteadingPeopleUpdate, repaintOpenSteadingRosters } from "./module/actors/steading/steading-people.js";
 import { makeDialogsResizable, enableAutoHeightVerticalResize } from "./module/utils/resizable-dialogs.js";
 import { registerStonetopWindowTheme, registerStonetopLightTheme } from "./module/utils/window-theme.js";
+import { registerUserConfigCharacterFilter } from "./module/hooks/user-config-characters.js";
+import { registerAssignToPlayer } from "./module/hooks/assign-to-player.js";
 import { installWindowRestore } from "./module/utils/window-restore.js";
 import { registerUuidRedirects } from "./module/migration/compat.js";
 import { adoptLegacyClientSettings } from "./module/migration/copy-settings.js";
@@ -135,6 +140,7 @@ import { loseHp, wirePostDeathMoveCards } from "./module/actors/character/post-d
 import { registerRosterFateHooks } from "./module/fight/roster-fate.js";
 import { wireCampCard } from "./module/camp/camp-flow.js";
 import { registerCampWindowRestore } from "./module/camp/CampWindow.js";
+import { registerTimelineWindowRestore } from "./module/dialogs/TimelineWindow.js";
 import { registerStruggleHooks } from "./module/struggle/struggle-flow.js";
 import { registerPcAskHooks, wirePcAskCard } from "./module/pc-asks/pc-ask-flow.js";
 import { registerFightTab } from "./module/fight/fight-boot.js";
@@ -233,6 +239,12 @@ Hooks.once("init", () => {
 	// light theme even in a dark-mode world. Core already does this for AppV1; this
 	// covers our ApplicationV2 windows. Native Foundry windows are left alone.
 	registerStonetopLightTheme();
+
+	// User Configuration's Character dropdown lists playbook characters only, not
+	// NPCs, monsters, the steading or the GM Toolkit. A GM who means to hand a player
+	// an NPC does it from the actor's right-click menu instead (Assign to Player…).
+	registerUserConfigCharacterFilter();
+	registerAssignToPlayer();
 
 	// Track open document sheets + their geometry and reopen them at the same spot on
 	// the next reload (per-client; toggled by the "Restore Open Windows on Reload"
@@ -487,21 +499,13 @@ Hooks.once("init", () => {
 	// sheet draws is the good version, but a journal page is what a table can share and print, and
 	// keeping the record legible outside our own UI is half of what makes it a chronicle. The sheet
 	// is read-only: everything that writes goes through the entry dialog. See module/timeline/.
-	//
-	// BEHIND THE FEATURE FLAG, and off in every shipped world. `registerSettings` ran at the top of
-	// this same hook, so the switch can be read here. Registering the model and the sheet for a
-	// subtype the manifest does not declare would be dead weight at best and a warning at worst, so
-	// the whole block stands or falls with `timelineEnabled`. See `isTimelineEnabled` in
-	// module/settings.js, which also says what has to go back into system.json to develop this.
-	if (isTimelineEnabled()) {
-		CONFIG.JournalEntryPage.dataModels["timeline"] = TimelinePageModel;
-		const StonetopTimelinePageSheet = createStonetopTimelinePageSheetClass(JournalPageSheetV1);
-		foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopTimelinePageSheet, {
-			types:       ["timeline"],
-			makeDefault: true,
-			label:       "Stonetop Timeline Page",
-		});
-	}
+	CONFIG.JournalEntryPage.dataModels["timeline"] = TimelinePageModel;
+	const StonetopTimelinePageSheet = createStonetopTimelinePageSheetClass(JournalPageSheetV1);
+	foundry.applications.apps.DocumentSheetConfig.registerSheet(JournalEntryPage, SYSTEM_ID, StonetopTimelinePageSheet, {
+		types:       ["timeline"],
+		makeDefault: true,
+		label:       "Stonetop Timeline Page",
+	});
 
 	// A relationship map is a JournalEntry, so it has a row in every player's Journal sidebar.
 	// Clicking that row must open the BOARD, not Foundry's prose editor on an entry whose only
@@ -673,6 +677,9 @@ Hooks.once("init", () => {
 		"stonetop.timeline-card":             "systems/stonetop-pwd/templates/dialogs/partials/timeline-card.hbs",
 		"stonetop.timeline-period":           "systems/stonetop-pwd/templates/dialogs/partials/timeline-period.hbs",
 		"stonetop.timeline-period-head":      "systems/stonetop-pwd/templates/dialogs/partials/timeline-period-head.hbs",
+		"stonetop.timeline-hperiod":          "systems/stonetop-pwd/templates/dialogs/partials/timeline-hperiod.hbs",
+		"stonetop.timeline-lane-head":        "systems/stonetop-pwd/templates/dialogs/partials/timeline-lane-head.hbs",
+		"stonetop.timeline-entry-tag":        "systems/stonetop-pwd/templates/dialogs/partials/timeline-entry-tag.hbs",
 		"stonetop.deaths-door-outcomes":      "systems/stonetop-pwd/templates/dialogs/partials/deaths-door-outcomes.hbs",
 		"stonetop.artifact-gm":              "systems/stonetop-pwd/templates/dialogs/artifact-gm.hbs",
 		"stonetop.header-toggle-glyph":       "systems/stonetop-pwd/templates/actor/partials/header-toggle-glyph.hbs",
@@ -733,10 +740,16 @@ Hooks.on("renderDocumentDirectory", (app, element) =>
 // folder with them while nothing else is in it, and one "Relationship Map" button goes at the top of
 // the tab in their place, opening the map exactly as the macro does. Nothing about the document
 // changes. See module/hooks/journal-directory-maps.js.
+//
+// The button only while the GM has the map switched on, and the Timeline journal's row only while
+// the timeline is; flipping either repaints every open sheet and this tab, on every client. See
+// module/hooks/feature-switches.js.
 Hooks.on("renderDocumentDirectory", (app, element) => {
 	hideRelationshipMapRows(app, element);
-	addOpenMapButton(app, element, () => game.stonetop?.openRelationshipMap?.());
+	syncOpenMapButton(app, element, () => game.stonetop?.openRelationshipMap?.());
+	hideTimelineJournalRow(app, element);
 });
+Hooks.on(FEATURE_SWITCH_HOOK, onFeatureSwitched);
 Hooks.on("updateActor", onUpdateActorPortraitFrame);
 Hooks.on("updateActor", onUpdateActorPlaybookName);
 
@@ -745,6 +758,14 @@ Hooks.on("updateActor", onUpdateActorPlaybookName);
 // wrong sheet when one is laid or lifted. Repaint the affected targets by hand.
 // See module/hooks/CondemnedTag.js.
 Hooks.on("updateActor", onUpdateCondemned);
+
+// -- THE TIMELINE, KEPT UP ---------------------------------------
+// A character's milestones (a level, a death, a lasting wound, an arcanum, a follower) written onto
+// their thread by the client that made the change; a new character's page minted, a renamed one's
+// page renamed. See module/timeline/timeline-watch.js.
+registerTimelineWatch();
+// And the aggregate timeline window, if it was open when this client reloaded (utils/window-restore.js).
+registerTimelineWindowRestore();
 
 // -- READY -----------------------------------------------------
 // FIRST of the ready listeners, deliberately. This one reports whether the startup it is reporting
@@ -896,10 +917,18 @@ Hooks.on("drawNote", onDrawStonetopNote);
 // does not exist until the interface has been rendered. See hooks/MapPinNameToggle.js.
 Hooks.once("ready", installMapPinNameToggle);
 
+// The imported maps dimmed for this browser, on the canvas and in the journal pages. Registered
+// at load so the first `canvasReady` of a reload is heard. See hooks/map-brightness.js.
+registerMapBrightness();
+
 // The weather, the season and the year hung from the top of the screen, read off the steading.
 // `ready` for the same reason as the eye: it mounts into core's own `#ui-top`. See
 // seasons/time-banner.js.
 Hooks.once("ready", installTimeBanner);
+
+// A player's red "a love letter has arrived" notice, hung under that bar; after it, so it finds
+// the bar to hang from. See actors/character/love-letter-notice.js.
+Hooks.once("ready", installLoveLetterNotice);
 
 // -- EXPEDITION ROUTE ON THE MAP -------------------------------
 // A journey put on a poster-map scene from the Run an Expedition walkthrough. The scene
@@ -998,6 +1027,9 @@ for (const hook of ["createActor", "updateActor", "deleteActor", "createItem", "
 // it can't reintroduce the scroll jump.
 Hooks.on("updateActor", (actor, _changes, options, userId) => {
 	if (options?.render !== false || userId === game.user?.id) return;
+	// The ledger's own write is render:false too, and no sheet draws it: repainting for it cost
+	// every other client a second full repaint per change.
+	if (options?.stonetopLedgerWrite) return;
 	for (const app of Object.values(actor.apps ?? {})) app?.render?.(false);
 });
 
@@ -1852,7 +1884,7 @@ function _chatWireAurochsHunt(message, html) {
 		errorNote: "Error gaining the aurochs hunt's Surplus",
 		run: async steading => {
 			const roll = await new Roll("1d4").evaluate();
-			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: "Aurochs Hunt: Surplus (1d4)" });
+			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: rolledTotalCard(roll, "Aurochs Hunt", "Surplus gained") });
 			const live = steading.getStatValue("surplus");
 			await steading.applyChanges({ system: { "attributes.surplus.value": live + roll.total } }, { stonetopMove: "Aurochs Hunt" });
 			return { stamp: { gained: roll.total }, notice: `The hunt brings home ${roll.total} Surplus (${live + roll.total} now).` };
@@ -1866,7 +1898,7 @@ function _chatWireAurochsHunt(message, html) {
 		errorNote: "Error rolling the aurochs hunt's lost horses",
 		run: async steading => {
 			const roll = await new Roll("1d4").evaluate();
-			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: "Aurochs Hunt: horses lamed or killed (1d4)" });
+			await roll.toMessage({ speaker: ChatMessage.getSpeaker({ actor: steading._actor }), flavor: rolledTotalCard(roll, "Aurochs Hunt", "horses lamed or killed") });
 			const lost = await steading.loseHorses(roll.total, { stonetopMove: "Aurochs Hunt" });
 			return {
 				stamp: { rolled: roll.total },
@@ -2645,9 +2677,7 @@ function _shiftRollCardFlavor(flavor, total, formula = null) {
 		// two (utils/move-tiers.js `markRolledTier`), so it moves the mark instead of joining the
 		// hide/show loop below: the ladder is the move's printed text, and a Shift Down must not
 		// take two thirds of it off a card the table has already read.
-		const ladder = wrapper.querySelector(
-			`.stonetop-roll-card ul.${MOVE_TIERS_CLASS}[${ROLLED_TIER_ATTR}]`);
-		if (ladder) ladder.setAttribute(ROLLED_TIER_ATTR, activeTier);
+		remarkRolledTier(wrapper, activeTier);
 
 		for (const group of wrapper.querySelectorAll(".stonetop-roll-card [data-active-tier]")) {
 			group.dataset.activeTier = activeTier;

@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { RequisitionDialog } from "../../../module/actors/character/dialogs/RequisitionDialog.js";
-import { STEADING_DEFAULTS } from "../../../module/actors/steading/StonetopSteading.js";
+import { STEADING_DEFAULTS, HERD_ASSET_NAME } from "../../../module/actors/steading/StonetopSteading.js";
+import { fakeForm, stubAsk } from "../../fakes/confirm.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,7 +42,7 @@ describe("RequisitionDialog", () => {
 			".stonetop-requisition-asset-select": { value: "1" },
 		});
 
-		expect(dialog._getChosenAsset(root)).toEqual({ index: 1, name: "Wagon" });
+		expect(dialog._getChosenAsset(root)).toMatchObject({ index: 1, name: "Wagon" });
 	});
 
 	it("resolves a trimmed custom requisition entry", () => {
@@ -62,7 +63,18 @@ describe("RequisitionDialog", () => {
 			".stonetop-requisition-asset-select": { value: "0" },
 		});
 
-		expect(dialog._getChosenAsset(root)).toEqual({ index: 0, name: STEADING_DEFAULTS.assets[0].name });
+		expect(dialog._getChosenAsset(root)).toMatchObject({ index: 0, name: STEADING_DEFAULTS.assets[0].name });
+	});
+
+	it("gives a seeded asset stored without a beast field its default's back, by name", () => {
+		// A world seeded before rows carried `beast`: the plows must not read as horses.
+		const stored = STEADING_DEFAULTS.assets.filter(a => a.name).map(({ name, checked }) => ({ name, checked }));
+		const dialog = makeDialog(stored);
+		const pick = value => dialog._getChosenAsset(makeRoot({ ".stonetop-requisition-asset-select": { value } })).asset;
+		expect(pick("0").beast).toEqual({ slug: "horse", count: 2, traits: ["hardy"] });
+		expect(pick("1").beast).toBeNull();
+		const custom = makeDialog([{ name: "Two old ponies", checked: true }]);
+		expect(custom._getChosenAsset(makeRoot({ ".stonetop-requisition-asset-select": { value: "0" } })).asset.beast).toBeUndefined();
 	});
 
 	// The Marshal's Logistics: "when you Requisition, you have advantage".
@@ -76,7 +88,113 @@ describe("RequisitionDialog", () => {
 		const hbs = fs.readFileSync(path.resolve(HERE, "../../../templates/dialogs/requisition-picker.hbs"), "utf8");
 		expect(hbs).toMatch(/name="logistics" checked>/);
 		const dialog = makeDialog([]);
-		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: true } }))).toEqual({ herdShare: false, logistics: true });
-		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: false } }))).toEqual({ herdShare: false, logistics: false });
+		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: true } }))).toEqual({ herdCount: 0, logistics: true });
+		expect(dialog._rollAnswers(makeRoot({ '[name="logistics"]': { checked: false } }))).toEqual({ herdCount: 0, logistics: false });
+	});
+
+	// Book I p. 157 (Herd of Horses): "When you Requisition half the herd or less, treat a 6- as a
+	// 7-9." Asked as a COUNT, capped at the grown horses, and read back for the roll.
+	it("asks how many horses come from the herd, and reads the count back for the roll", () => {
+		const dialog = makeDialog([]);
+		dialog._steadingActor.flags["stonetop-pwd"].steading = { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 9, yearlings: 3, foals: 0 } };
+		expect(dialog.getData().herdQuestion).toMatchObject({ max: 9 });
+		expect(dialog.getData().herdQuestion.label).toMatch(/of 12/);
+		expect(dialog._rollAnswers(makeRoot({ '[name="herdCount"]': { value: "4" } }))).toEqual({ herdCount: 4, logistics: false });
+		const hbs = fs.readFileSync(path.resolve(HERE, "../../../templates/dialogs/requisition-picker.hbs"), "utf8");
+		expect(hbs).toContain(`name="herdCount"`);
+		expect(hbs).not.toContain(`name="herdShare"`);
+		expect(makeDialog([]).getData().herdQuestion).toBeNull();
+	});
+
+	// The user's ruling: "Ask, take from herd". The herd's row is not lent out whole; so many
+	// horses leave the herd, each a follower, and the row stays on hand.
+	it("takes the asked number of horses out of the herd as followers, leaving the herd's row home", async () => {
+		let n = 0;
+		const info = vi.fn();
+		vi.stubGlobal("foundry", { ...globalThis.foundry, utils: { ...globalThis.foundry.utils, randomID: () => `id${++n}` } });
+		vi.stubGlobal("ui", { notifications: { info, warn: vi.fn() } });
+		try {
+			const dialog = makeDialog([{ name: HERD_ASSET_NAME, checked: true, beast: { slug: "horse", herd: true } }]);
+			const steading = dialog._steadingActor.flags["stonetop-pwd"].steading;
+			Object.assign(steading, { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 10, yearlings: 2, foals: 1 } });
+			dialog._steadingActor.update = vi.fn(async data => {
+				steading.herd = data["flags.stonetop-pwd.steading.herd"];
+			});
+			dialog.render = vi.fn();
+			const asked = stubAsk("take", fakeForm({ horses: { value: "3" } }));
+
+			expect(await dialog._takeFromHerd(makeRoot({ '[name="herdCount"]': { value: "3" } }))).toBe(true);
+
+			// Asked first, defaulting to the count the roll was made for.
+			expect(asked.mock.calls[0][0].content).toContain(`value="3"`);
+			expect(asked.mock.calls[0][0].buttons.map(b => b.label)).toEqual(["Take them from the herd", "Take none"]);
+			expect(steading.herd).toEqual({ grown: 7, yearlings: 2, foals: 1 });
+			expect(dialog._character.addCustomInventoryItem).toHaveBeenCalledWith("3 horses from the herd", 1);
+			const written = Object.values(dialog._characterActor.update.mock.calls[0][0]);
+			expect(written.map(f => f.name)).toEqual(["Horse 1", "Horse 2", "Horse 3"]);
+			expect(written[0].notes).toMatch(/^Requisitioned from the herd of horses\./);
+			// The herd itself is never marked out.
+			expect(dialog._steadingActor.setFlag).not.toHaveBeenCalled();
+			expect(steading.assets[0].takenBy).toBeUndefined();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("defaults to two horses, and takes none when told so", async () => {
+		vi.stubGlobal("ui", { notifications: { info: vi.fn(), warn: vi.fn() } });
+		try {
+			const dialog = makeDialog([]);
+			Object.assign(dialog._steadingActor.flags["stonetop-pwd"].steading, { improvements: { herdOfHorses: { completed: true } }, herd: { grown: 10 } });
+			dialog._steadingActor.update = vi.fn();
+			const asked = stubAsk("none");
+			expect(await dialog._takeFromHerd(makeRoot({}))).toBe(false);
+			expect(asked.mock.calls[0][0].content).toContain(`value="2"`);
+			expect(dialog._steadingActor.update).not.toHaveBeenCalled();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	// The steading playbook's "A pair of hardy draft horses, followers (large, powerful,
+	// keen-nosed, hardy)": the requisitioned follower is a hardy horse, with no choice left open.
+	// "A pair" is two horses: one card each, numbered, in one write, in tab order.
+	it("adds the steading's pair of draft horses as two hardy horse followers", async () => {
+		let n = 0;
+		const info = vi.fn();
+		vi.stubGlobal("foundry", { utils: { randomID: () => `id${++n}` } });
+		vi.stubGlobal("ui", { notifications: { info } });
+		try {
+			const dialog = makeDialog([]);
+			const assetName = STEADING_DEFAULTS.assets.find(a => /draft horses/.test(a.name)).name;
+			const match = (await import("../../../module/data/beasts.js")).beastFollowerForAsset(assetName);
+			await dialog._addRequisitionedFollower(match, assetName);
+			expect(dialog._characterActor.update).toHaveBeenCalledTimes(1);
+			const written = Object.values(dialog._characterActor.update.mock.calls[0][0]);
+			expect(written.map(f => f.name)).toEqual(["Horse 1", "Horse 2"]);
+			expect(written[1].order).toBe(written[0].order + 1);
+			for (const f of written) {
+				expect(f.tags).toContain("hardy");
+				// The seeded asset line trails a dashed stat block; the note names the asset only.
+				expect(f.notes).toBe("Requisitioned from A pair of hardy draft horses.");
+			}
+			expect(info).toHaveBeenCalledWith("Horse 1 & Horse 2 added to your followers.");
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it("adds a lone animal as one follower under its plain name", async () => {
+		vi.stubGlobal("foundry", { utils: { randomID: () => "abc" } });
+		vi.stubGlobal("ui", { notifications: { info: vi.fn() } });
+		try {
+			const dialog = makeDialog([]);
+			const match = (await import("../../../module/data/beasts.js")).beastFollowerForAsset("A sturdy mule");
+			await dialog._addRequisitionedFollower(match, "A sturdy mule");
+			const written = Object.values(dialog._characterActor.update.mock.calls[0][0]);
+			expect(written.map(f => f.name)).toEqual(["Mule"]);
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });

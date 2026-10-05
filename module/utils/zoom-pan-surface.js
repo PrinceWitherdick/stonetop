@@ -228,11 +228,6 @@ export class ZoomPanSurface {
 		else this.apply();
 	}
 
-	/** The bounds alone. See `setNaturalSize`, which this is with the size left as it is. */
-	setBounds(bounds) {
-		this.setNaturalSize(this._naturalWidth, this._naturalHeight, bounds ?? null);
-	}
-
 	/**
 	 * What `fit` frames and the pan holds a sliver of: the bounds a caller set, or the board itself.
 	 * In the board's own pixels at 1:1.

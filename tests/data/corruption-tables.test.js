@@ -134,4 +134,60 @@ describe("applyCorruption", () => {
 		expect(r.tags).toContain("solitary");
 		expect(r.rollFormula).toBe("d10+2");
 	});
+
+	it("counts a repeated gift or mark id once", () => {
+		const r = applyCorruption(base, { gifts: [11, "11", 12, 12], marks: [11, 11] });
+		expect(r.hp).toBe(16);
+		expect(r.rollFormula).toBe("d8+2");
+		expect(r.damageValue).toBe("claws d8+2 (hand, messy, forceful)");
+		expect(r.qualities.filter(q => /vulnerable to bronze/i.test(q))).toHaveLength(1);
+	});
+
+	it("claims Armor 4 for the resilience gift only when the gift raised the armor", () => {
+		const plated = applyCorruption({ ...base, armorValue: 5, armorSource: "plate" }, { gifts: [11] });
+		expect(plated.armorValue).toBe(5);
+		expect(plated.armorSource).toBe("plate");
+		expect(plated.qualities.some(q => /Armor 4/.test(q))).toBe(false);
+		expect(plated.qualities.some(q => /0 vs\. bronze/i.test(q))).toBe(true);
+
+		const hide = applyCorruption(base, { gifts: [11] });
+		expect(hide.qualities).toContain("unnatural resilience: Armor 4, but 0 vs. bronze");
+	});
+});
+
+describe("bumpDamage on lines the book prints", () => {
+	it("gives every attack of a multi-attack line the bonus and the tags, separators kept", () => {
+		const colossus = "trample d10+5 (hand, close, area, forceful), crushing hands d10+5 (close, reach, forceful, grabby), or hurled object d10+5 (far, area, forceful, reload)";
+		const r = bumpDamage(colossus, "d10+5", { damageBonus: 2, addTags: ["forceful"] });
+		expect(r.damageValue).toBe("trample d10+7 (hand, close, area, forceful), crushing hands d10+7 (close, reach, forceful, grabby), or hurled object d10+7 (far, area, forceful, reload)");
+		expect(r.rollFormula).toBe("d10+7");
+
+		const llamudwr = bumpDamage("stinging tail d10+1 (reach), crunching bite d10+1 (hand, grabby, messy, 1 piercing)", "d10+1", { damageBonus: 2, addTags: ["forceful"] });
+		expect(llamudwr.damageValue).toBe("stinging tail d10+3 (reach, forceful), crunching bite d10+3 (hand, grabby, messy, 1 piercing, forceful)");
+	});
+
+	it("steps each attack's own die when they differ", () => {
+		const r = bumpDamage("trample d8+3 w/disadvantage (hand, close) or ice-tusks d8+7 w/disadvantage (reach)", "d8+7", { dieSteps: 1, damageBonus: 2 });
+		expect(r.damageValue).toBe("trample d10+5 w/disadvantage (hand, close) or ice-tusks d10+9 w/disadvantage (reach)");
+		expect(r.rollFormula).toBe("d10+9");
+	});
+
+	it("keeps a dice count and reads a spaced bonus", () => {
+		expect(bumpDamage("bite 2d6+1", "", { damageBonus: 2 })).toEqual({ damageValue: "bite 2d6+3", rollFormula: "2d6+3" });
+		expect(bumpDamage("claws d8 - 1 (hand)", "", { damageBonus: 2 })).toEqual({ damageValue: "claws d8+1 (hand)", rollFormula: "d8+1" });
+	});
+
+	it("never takes a bonus from another attack when the formula is blank", () => {
+		const r = bumpDamage("claws d6 (hand) or bite d8+2 (close)", "", { damageBonus: 2 });
+		expect(r.damageValue).toBe("claws d6+2 (hand) or bite d8+4 (close)");
+		expect(r.rollFormula).toBe("d6+2");
+	});
+
+	it("de-dupes the new tags when the line has no tag list yet", () => {
+		expect(bumpDamage("d12+1", "d12+1", { addTags: ["forceful", "Forceful"] }).damageValue).toBe("d12+1 (forceful)");
+	});
+
+	it("adds tags into a tag list that is not at the end of the attack", () => {
+		expect(bumpDamage("gore d8 (hand) w/advantage", "d8", { addTags: ["messy"] }).damageValue).toBe("gore d8 (hand, messy) w/advantage");
+	});
 });

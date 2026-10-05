@@ -476,7 +476,7 @@ export class PersonPickerDialog extends StonetopDialog {
  */
 export function pickPerson({
 	title = "", groups = [], buttonLabel = "", formatLabel = null, icon = "", hint = "",
-	multiple = false, formatManyLabel = null,
+	multiple = false, formatManyLabel = null, selected = [],
 } = {}) {
 	if (!groups.some(group => group.people?.length)) return Promise.resolve(null);
 	// ⚠ ITS OWN WINDOW ID EVERY TIME. AppV1 finds a window's frame by its id, so two pickers sharing the
@@ -484,8 +484,10 @@ export function pickPerson({
 	// whose question then never got an answer, and a pick made there went to whichever caller asked last
 	// -- people meant for one map landing on another. Two are easy to have up at once: "Add someone" and
 	// a portrait's link handle, or the same button on the steading sheet's map and on its popped-out window.
+	// `selected` is passed on (who to tick before the reader touches anything: the party a site was
+	// visited by). `toggles` is not: the base window draws them but only a subclass reads them back.
 	return new PersonPickerDialog({
-		title, groups, buttonLabel, formatLabel, icon, hint, multiple, formatManyLabel,
+		title, groups, buttonLabel, formatLabel, icon, hint, multiple, formatManyLabel, selected,
 	}, { id: `stonetop-person-picker-${++pickersOpened}` }).promise();
 }
 

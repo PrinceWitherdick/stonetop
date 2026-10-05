@@ -1,8 +1,9 @@
 // Love letters (Book I, "Writing Moves & Love Letters", p.568) — single-use, GM-authored
 // moves addressed to one PC. Mechanically a love letter is an embedded `move` item, forced
 // to moveType "other" (so it's a plain narrative/roll move) and flagged loveLetter so the
-// sheet surfaces it in its own top-of-Moves section and consumes it (deletes it) once the
-// player resolves it. Unlike a player custom move it is NOT flagged `custom`, so it never
+// sheet surfaces it in its own top-of-Moves section. Resolving it HIDES it (the resolved
+// flag) rather than deleting it: the player stops seeing it, and the GM keeps it, dimmed,
+// with a Resend that hands it back. Unlike a player custom move it is NOT flagged `custom`, so it never
 // shows the player an edit affordance and never lands in the "Other Moves" list.
 //
 // The document shaping lives here so both the authoring dialog (LoveLetterDialog, launched
@@ -15,6 +16,15 @@ import { buildMoveTierResults, parseTierInput } from "../../utils/move-results.j
 import { clampInt } from "../../utils/custom-move-data.js";
 
 export const LOVE_LETTER_FLAG = "loveLetter";
+export const LOVE_LETTER_RESOLVED_FLAG = "loveLetterResolved";
+// When the letter last reached its reader: stamped on creation and on every Resend, never on an
+// edit. The arrival notice (love-letter-notice.js) compares it for EQUALITY only, so the GM's and
+// the player's clocks never have to agree.
+export const LOVE_LETTER_SENT_FLAG = "loveLetterSentAt";
+
+// What a letter can roll: the six stats, or +Fortunes (the steading's, rolled by the PC the
+// way Requisition rolls it), for a letter about the steading rather than the hero.
+export const LOVE_LETTER_ROLL_TYPES = [...STAT_KEYS, "fortunes"];
 
 // Coerce the dialog's pick-options input (a newline-separated textarea string, or an
 // already-split array) into a clean array of non-blank option strings.
@@ -29,15 +39,47 @@ export function isLoveLetter(item) {
 	return !!item?.flags?.[STONETOP_SCOPE]?.[LOVE_LETTER_FLAG];
 }
 
+// True once the player has resolved the letter. Hidden from the player, kept for the GM.
+export function isResolvedLoveLetter(item) {
+	return !!item?.flags?.[STONETOP_SCOPE]?.[LOVE_LETTER_RESOLVED_FLAG];
+}
+
+// What tells one arrival of a letter from the next: its sent stamp, or for a letter written
+// before the stamp existed, when it was created. Null for no letter.
+export function loveLetterArrivalKey(item) {
+	const sent = item?.flags?.[STONETOP_SCOPE]?.[LOVE_LETTER_SENT_FLAG];
+	return sent ?? item?._stats?.createdTime ?? null;
+}
+
+// Resolve (true) or resend (false) a letter. Edits leave this flag alone, so fixing a typo
+// in a resolved letter doesn't put it back in front of the player. A Resend is a new arrival,
+// so it restamps the sent time and the player's notice comes back.
+export async function setLoveLetterResolved(item, resolved) {
+	if (!item) return;
+	const update = { [`flags.${STONETOP_SCOPE}.${LOVE_LETTER_RESOLVED_FLAG}`]: !!resolved };
+	if (!resolved) update[`flags.${STONETOP_SCOPE}.${LOVE_LETTER_SENT_FLAG}`] = Date.now();
+	await item.update(update);
+}
+
+// The roll's label for the reader and the GM's chip: "Fortunes" for a steading roll, else
+// the stat's own label.
+export function loveLetterRollLabel(rollType) {
+	const rt = normalizeRollType(rollType);
+	if (!rt) return "";
+	if (rt === "fortunes") return game.i18n.localize("stonetop.character.moves.loveLetter.fortunes");
+	return Handlebars.helpers.statLabel(rt);
+}
+
 // Shape raw dialog input into the embedded-item document data (used by both create and
 // update). A love letter is a single-use move: name (its title), body prose, and an
-// optional fixed-stat roll with 10+/7-9/6- result text. moveResults follows the shape
-// rollStat consumes: { success|partial|failure: { label, value } }, or null for a no-roll
-// (read-aloud) letter. rollType is limited to the six character stats — a love letter is
-// authored for one specific scene, so "ask a stat each time" isn't offered. `noXpOnMiss`
+// optional fixed-stat (or +Fortunes) roll with 10+/7-9/6- result text. moveResults follows
+// the shape rollStat consumes: { success|partial|failure: { label, value, pick } }, or null
+// for a no-roll (read-aloud) letter; a tier may carry both a pick count and its own text.
+// rollType is limited to the six stats and Fortunes — a love letter is authored for one
+// specific scene, so "ask a stat each time" isn't offered. `noXpOnMiss`
 // mirrors the "Mark XP on a miss" checkbox (inverted), and `signed` is the closing sign-off.
 export function buildLoveLetterData(input) {
-	const { rollType, success, partial, failure } = parseTierInput(input, STAT_KEYS);
+	const { rollType, success, partial, failure } = parseTierInput(input, LOVE_LETTER_ROLL_TYPES);
 
 	// A shared "choose from this list" pool (one option per line) plus a per-tier count of
 	// how many to pick — the book's "on a 10+, pick 1; on a 7-9, pick 2; …" love letters.
@@ -75,6 +117,8 @@ export function buildLoveLetterData(input) {
 export async function createLoveLetter(actor, input) {
 	if (!actor) return null;
 	const data = buildLoveLetterData(input);
+	// Stamped here, not in buildLoveLetterData, which edits reuse: an edit is not an arrival.
+	data.flags[STONETOP_SCOPE][LOVE_LETTER_SENT_FLAG] = Date.now();
 	const created = await actor.createEmbeddedDocuments("Item", [data]);
 	return created?.[0] ?? null;
 }
@@ -96,12 +140,18 @@ export function loveLetterRecipientOptions(selectedId = null) {
 		.map(a => ({ id: a.id, name: a.name, selected: a.id === selectedId }));
 }
 
-// The roll-type dropdown options: no-roll + the six stats (no "ask"). `stat` is the
-// currently-selected value ("" for none).
+// The roll-type dropdown options: no-roll + the six stats + Fortunes (no "ask"). `stat` is
+// the currently-selected value ("" for none).
 export function loveLetterRollOptions(stat = "") {
 	const current = normalizeRollType(stat) ?? "";
 	return [
 		{ value: "", label: game.i18n.localize("stonetop.character.moves.loveLetter.rollNone"), selected: current === "" },
-		...STAT_KEYS.map(k => ({ value: k, label: Handlebars.helpers.statLabel(k), selected: current === k })),
+		...LOVE_LETTER_ROLL_TYPES.map(k => ({
+			value: k,
+			label: k === "fortunes"
+				? game.i18n.localize("stonetop.character.moves.loveLetter.fortunesOption")
+				: Handlebars.helpers.statLabel(k),
+			selected: current === k,
+		})),
 	];
 }
