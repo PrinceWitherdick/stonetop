@@ -1,4 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// The trip's timeline row is the writer's own business (tests/timeline/timeline-expedition-record.test.js);
+// here it is only whether the move asks for the triumph, and when.
+const { recordTrip } = vi.hoisted(() => ({ recordTrip: vi.fn(async () => true) }));
+vi.mock("../../../module/timeline/timeline-expedition-record.js", () => ({ recordTrip }));
+
 import { openReturnTriumphant } from "../../../module/actors/steading/return-triumphant.js";
 
 // Return Triumphant (Book I p.339) clears one of the steading's marked debilities, or raises
@@ -90,6 +96,7 @@ let onApplied;
 
 beforeEach(() => {
 	onApplied = vi.fn();
+	recordTrip.mockClear();
 });
 
 describe("picking a debility to clear", () => {
@@ -236,5 +243,46 @@ describe("with no steading at all", () => {
 		openReturnTriumphant(null, { onApplied });
 		expect(global.Dialog).not.toHaveBeenCalled();
 		expect(onApplied).not.toHaveBeenCalled();
+	});
+});
+
+// The trip's row says they came home in triumph once the move is made, whichever door it was made
+// from. It used to be the Expedition walkthrough's callback that did it, so the steading sheet's own
+// move card never reached the row.
+describe("crediting the trip", () => {
+	it("marks it triumphant once a debility is cleared, with no callback asked to", async () => {
+		const { root, data } = openPicker({ marked: DEBILITY_IDS });
+		root.choices[0].click();
+		await data.buttons.apply.callback();
+		expect(recordTrip).toHaveBeenCalledExactlyOnceWith({ triumphant: true, homeOnly: true });
+	});
+
+	it("marks it triumphant once Fortunes is raised", async () => {
+		const { data } = open(fakeSteading({ marked: [] }), {});
+		await data.buttons.apply.callback();
+		expect(recordTrip).toHaveBeenCalledExactlyOnceWith({ triumphant: true, homeOnly: true });
+	});
+
+	// The walkthrough's homecoming has the trip in hand; only the steading sheet has to ask whether
+	// the current trip came home at all.
+	it("credits the trip in hand when made from the walkthrough", async () => {
+		const { data } = open(fakeSteading({ marked: [] }), { fromWalkthrough: true });
+		await data.buttons.apply.callback();
+		expect(recordTrip).toHaveBeenCalledExactlyOnceWith({ triumphant: true });
+	});
+
+	// A window closed without committing, or Enter with nothing picked, made no move.
+	it("claims nothing for a move that was not made", async () => {
+		const { data } = openPicker({ marked: DEBILITY_IDS });
+		await data.buttons.apply.callback();
+		expect(recordTrip).not.toHaveBeenCalled();
+	});
+
+	// The steading write has already landed; a timeline that cannot be written is a footnote.
+	it("still repaints the sheet when the trip cannot be credited", async () => {
+		recordTrip.mockRejectedValueOnce(new Error("no page"));
+		const { data } = open(fakeSteading({ marked: [] }), { onApplied });
+		await expect(data.buttons.apply.callback()).resolves.toBeUndefined();
+		expect(onApplied).toHaveBeenCalledOnce();
 	});
 });

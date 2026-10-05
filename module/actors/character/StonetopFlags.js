@@ -4,6 +4,12 @@ import { deletionEntry } from "../../utils/foundry-compat.js";
 const _scope = SYSTEM_ID;
 export const STONETOP_SCOPE = _scope;
 
+/**
+ * Actor flag: the post-death insert's max-HP penalty the stored max was last built from
+ * (StonetopCharacter#syncStoredVitals), so a later fall can tell whether the Marks moved. Absent means 0.
+ */
+export const MIRRORED_HP_PENALTY_FLAG = "mirroredHpPenalty";
+
 // Compendium pack ids, derived from the system scope so a system-id rename touches only
 // system-id.js. Re-exported rather than declared here: they live beside packId now, where the
 // journal, bestiary and macro packs could join them. Import from either; do not retype the

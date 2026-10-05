@@ -1,73 +1,218 @@
-<form class="stonetop-custom-move-form stonetop-add-item-form" autocomplete="off">
-	<div class="stonetop-custom-move-field">
-		<label for="stonetop-add-item-name">{{localize "stonetop.inventory.addItemName"}}</label>
-		<input type="text" id="stonetop-add-item-name" name="name"
-		       placeholder="{{localize 'stonetop.inventory.addItemNamePlaceholder'}}" required>
-	</div>
+{{!-- AddInventoryItemDialog: a piece of gear, or (treasure mode) a treasure as Book II prints
+      one. Every field is prefilled from `v`, so the same template creates and edits.
 
-	{{#if allowColumnChoice}}
-	<div class="stonetop-custom-move-field">
-		<label for="stonetop-add-item-column">{{localize "stonetop.inventory.addItemColumn"}}</label>
-		<select id="stonetop-add-item-column" name="column">
-			<option value="regular"{{#unless columnIsSmall}} selected{{/unless}}>{{localize "stonetop.inventory.addItemColumnRegular"}}</option>
-			<option value="small"{{#if columnIsSmall}} selected{{/if}}>{{localize "stonetop.inventory.addItemColumnSmall"}}</option>
-		</select>
-		<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemColumnHint"}}</p>
-	</div>
-	{{/if}}
+      Laid out as a left-rail stepped sheet like the Welcome guide and the custom-move author
+      (shared .stonetop-guide-* chrome): the rail switches which group of fields shows,
+      client-side, so the one <form> keeps every value, and the live write-up editor, as you
+      move around. Save sits in the pinned footer, so a quick write-in is a name and Save.
+      Context: see AddInventoryItemDialog#getData. --}}
+<form class="stonetop-custom-move-form stonetop-add-item-form{{#if treasure}} stonetop-add-item-form--treasure{{/if}}" autocomplete="off">
 
-	{{#if showWeightBlock}}
-	<div class="stonetop-add-item-weight-block{{#if columnIsSmall}} is-hidden{{/if}}">
-		<div class="stonetop-custom-move-row">
-			<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
-				<label for="stonetop-add-item-weight">{{localize "stonetop.inventory.addItemWeight"}}</label>
-				<input type="number" id="stonetop-add-item-weight" name="weight" min="1" max="9" value="1">
+	<div class="stonetop-guide-split">
+
+		<nav class="stonetop-guide-toc" aria-label="{{localize 'stonetop.inventory.sectionsLabel'}}">
+			<ol class="stonetop-guide-toc-list">
+				{{#each sections}}
+				<li class="stonetop-guide-toc-item{{#if selected}} is-active{{/if}}">
+					<button type="button" class="stonetop-guide-toc-btn stonetop-add-item-tab" data-tab="{{key}}"{{#if selected}} aria-current="true"{{/if}}>
+						<i class="fas {{icon}} stonetop-guide-toc-icon"></i>
+						<span class="stonetop-guide-toc-text">{{title}}</span>
+					</button>
+				</li>
+				{{/each}}
+			</ol>
+		</nav>
+
+		<div class="stonetop-guide-main stonetop-add-item-main">
+
+			{{!-- Banner: the active section's icon + title + count (updated in JS on tab switch,
+			      so panels never re-render and keep what's been typed). --}}
+			<div class="stonetop-guide-banner">
+				<i class="fas {{active.icon}} stonetop-guide-banner-icon stonetop-add-item-banner-icon"></i>
+				<div class="stonetop-guide-banner-info">
+					<div class="stonetop-guide-banner-title stonetop-add-item-banner-title">{{active.title}}</div>
+					<div class="stonetop-guide-banner-sub">{{localize bannerSubKey}}</div>
+				</div>
+				<div class="stonetop-guide-count stonetop-add-item-banner-count">{{active.count}}</div>
 			</div>
-			<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
-				<label for="stonetop-add-item-armor">{{localize "stonetop.inventory.addItemArmor"}}</label>
-				<input type="number" id="stonetop-add-item-armor" name="armor" min="0" max="9" value="0">
-			</div>
-		</div>
-		{{!-- Worn body armor takes the BEST value rather than stacking, so which kind this is
-		      has to be authorable; without it every hand-written item was a stacking bonus and
-		      a write-in mail shirt left its wearer reading as unarmored. Hidden until there is
-		      an armor value to qualify, like the ammunition toggle above it. --}}
-		<div class="stonetop-custom-move-field stonetop-custom-move-check stonetop-add-item-armor-worn is-hidden">
-			<label><input type="checkbox" class="stonetop-check" name="armorWorn"> {{localize "stonetop.inventory.addItemArmorWorn"}}</label>
-		</div>
-		<p class="stonetop-custom-move-hint stonetop-add-item-armor-worn-hint is-hidden">{{localize "stonetop.inventory.addItemArmorWornHint"}}</p>
-		<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemWeightHint"}}</p>
-	</div>
-	{{/if}}
 
-	<div class="stonetop-custom-move-field">
-		<label for="stonetop-add-item-note">{{localize "stonetop.inventory.addItemTags"}}</label>
-		<input type="text" id="stonetop-add-item-note" name="note"
-		       placeholder="{{localize 'stonetop.inventory.addItemTagsPlaceholder'}}">
-		<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemTagsHint"}}</p>
-		<div class="stonetop-add-item-chips">
-			{{#each chips}}
-			<button type="button" class="stonetop-add-item-chip stonetop-add-item-chip--{{group}}"
-			        data-insert="{{insert}}" data-tooltip="{{tooltip}}">{{insert}}</button>
-			{{/each}}
+			{{!-- The thing itself: what it's called, what it looks like, where it goes, what it weighs. --}}
+			<section class="stonetop-custom-move-section stonetop-add-item-section" data-tab="item"{{#unless (eq activeTab "item")}} hidden{{/unless}}>
+				<div class="stonetop-custom-move-field">
+					<label for="stonetop-add-item-name">{{localize "stonetop.inventory.addItemName"}}</label>
+					<input type="text" id="stonetop-add-item-name" name="name" value="{{v.name}}"
+					       placeholder="{{#if treasure}}{{localize 'stonetop.inventory.treasureNamePlaceholder'}}{{else}}{{localize 'stonetop.inventory.addItemNamePlaceholder'}}{{/if}}" required>
+				</div>
+
+				{{#if showImage}}
+				{{!-- The item's own art. Optional: without it the sidebar shows the type marker, and a
+				      drop carries whatever is here onto the sheet copy. --}}
+				<div class="stonetop-custom-move-field stonetop-add-item-img">
+					<label>{{localize "stonetop.inventory.addItemImage"}}</label>
+					<div class="stonetop-add-item-img-row">
+						<img class="stonetop-add-item-img-preview" alt="">
+						<input type="hidden" name="img" value="{{img}}">
+						<button type="button" class="stonetop-add-item-img-choose">
+							<i class="fas fa-image" aria-hidden="true"></i> {{localize "stonetop.inventory.addItemImageChoose"}}
+						</button>
+						<button type="button" class="stonetop-add-item-img-clear">{{localize "stonetop.inventory.addItemImageClear"}}</button>
+					</div>
+				</div>
+				{{/if}}
+
+				{{#if allowColumnChoice}}
+				<div class="stonetop-custom-move-field">
+					<label for="stonetop-add-item-column">{{localize "stonetop.inventory.addItemColumn"}}</label>
+					<select id="stonetop-add-item-column" name="column">
+						{{#each columns}}
+						<option value="{{key}}"{{#if selected}} selected{{/if}}>{{localize labelKey}}</option>
+						{{/each}}
+					</select>
+					<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemColumnHint"}}</p>
+				</div>
+				{{/if}}
+
+				{{#if showWeightBlock}}
+				<div class="stonetop-add-item-weight-block{{#if weightHidden}} is-hidden{{/if}}">
+					<div class="stonetop-custom-move-row">
+						<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
+							<label for="stonetop-add-item-weight">{{localize "stonetop.inventory.addItemWeight"}}</label>
+							<input type="number" id="stonetop-add-item-weight" name="weight" min="1" max="9" value="{{v.weight}}">
+						</div>
+						<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
+							<label for="stonetop-add-item-armor">{{localize "stonetop.inventory.addItemArmor"}}</label>
+							<input type="number" id="stonetop-add-item-armor" name="armor" min="0" max="9" value="{{v.armor}}">
+						</div>
+					</div>
+					{{!-- Worn body armor takes the BEST value rather than stacking, so which kind this is
+					      has to be authorable; without it every hand-written item was a stacking bonus and
+					      a write-in mail shirt left its wearer reading as unarmored. Hidden until there is
+					      an armor value to qualify, like the ammunition toggle on the Uses page. --}}
+					<div class="stonetop-custom-move-field stonetop-custom-move-check stonetop-add-item-armor-worn is-hidden">
+						<label><input type="checkbox" class="stonetop-check" name="armorWorn"{{#if v.armorWorn}} checked{{/if}}> {{localize "stonetop.inventory.addItemArmorWorn"}}</label>
+					</div>
+					<p class="stonetop-custom-move-hint stonetop-add-item-armor-worn-hint is-hidden">{{localize "stonetop.inventory.addItemArmorWornHint"}}</p>
+					<div class="stonetop-custom-move-field stonetop-custom-move-check">
+						<label><input type="checkbox" class="stonetop-check" name="shield"{{#if v.shield}} checked{{/if}}> {{localize "stonetop.inventory.addItemShield"}}</label>
+					</div>
+					<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemWeightHint"}}</p>
+				</div>
+				{{/if}}
+			</section>
+
+			{{!-- The tag line, and the Value that ends it ("Value 3", "Value 2 to the right buyer").
+			      Both are stored in the tags (composeInventoryNote), so the identify ladder hides
+			      them together. --}}
+			<section class="stonetop-custom-move-section stonetop-add-item-section" data-tab="tags"{{#unless (eq activeTab "tags")}} hidden{{/unless}}>
+				<div class="stonetop-custom-move-field">
+					<label for="stonetop-add-item-note">{{localize "stonetop.inventory.addItemTags"}}</label>
+					<input type="text" id="stonetop-add-item-note" name="note" value="{{v.tags}}"
+					       placeholder="{{#if treasure}}{{localize 'stonetop.inventory.treasureTagsPlaceholder'}}{{else}}{{localize 'stonetop.inventory.addItemTagsPlaceholder'}}{{/if}}">
+					<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemTagsHint"}}</p>
+					<div class="stonetop-add-item-chips">
+						{{#each chips}}
+						<button type="button" class="stonetop-add-item-chip stonetop-add-item-chip--{{group}}"
+						        data-insert="{{insert}}"{{#if tooltip}} data-tooltip="{{tooltip}}"{{/if}}>{{insert}}</button>
+						{{/each}}
+					</div>
+				</div>
+
+				<div class="stonetop-custom-move-row">
+					<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
+						<label for="stonetop-add-item-value">{{localize "stonetop.inventory.addItemValue"}}</label>
+						<input type="number" id="stonetop-add-item-value" name="value" min="0" max="9" value="{{v.value}}">
+					</div>
+					<div class="stonetop-custom-move-field stonetop-add-item-value-to">
+						<label for="stonetop-add-item-value-to">{{localize "stonetop.inventory.addItemValueTo"}}</label>
+						<input type="text" id="stonetop-add-item-value-to" name="valueTo" value="{{v.valueTo}}"
+						       placeholder="{{localize 'stonetop.inventory.addItemValueToPlaceholder'}}">
+					</div>
+				</div>
+				<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemValueHint"}}</p>
+			</section>
+
+			{{!-- The ○ track: how many, what it counts, and whether it's ammunition. --}}
+			<section class="stonetop-custom-move-section stonetop-add-item-section" data-tab="uses"{{#unless (eq activeTab "uses")}} hidden{{/unless}}>
+				<div class="stonetop-custom-move-row">
+					<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
+						<label for="stonetop-add-item-uses">{{localize "stonetop.inventory.addItemUses"}}</label>
+						<input type="number" id="stonetop-add-item-uses" name="uses" min="0" max="20" value="{{v.uses}}">
+					</div>
+					<div class="stonetop-custom-move-field stonetop-add-item-uses-label stonetop-add-item-uses-only is-hidden">
+						<label for="stonetop-add-item-uses-label">{{localize "stonetop.inventory.addItemUsesLabel"}}</label>
+						<input type="text" id="stonetop-add-item-uses-label" name="usesLabel" value="{{v.usesLabel}}"
+						       placeholder="{{localize 'stonetop.inventory.addItemUsesLabelPlaceholder'}}">
+					</div>
+				</div>
+				<div class="stonetop-custom-move-field stonetop-custom-move-check stonetop-add-item-ammo stonetop-add-item-uses-only is-hidden">
+					<label><input type="checkbox" class="stonetop-check" name="ammo"{{#if v.isAmmo}} checked{{/if}}> {{localize "stonetop.inventory.addItemAmmo"}}</label>
+				</div>
+				{{!-- Labels are positional (label i follows circle i), so blank lines are kept. --}}
+				<div class="stonetop-custom-move-field stonetop-add-item-uses-only is-hidden">
+					<label for="stonetop-add-item-uses-labels">{{localize "stonetop.inventory.addItemUsesLabels"}}</label>
+					<textarea id="stonetop-add-item-uses-labels" name="usesLabels" rows="3">{{v.usesLabels}}</textarea>
+					<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemUsesLabelsHint"}}</p>
+				</div>
+				<div class="stonetop-custom-move-field stonetop-custom-move-check stonetop-add-item-uses-only is-hidden">
+					<label><input type="checkbox" class="stonetop-check" name="resourceFirst"{{#if v.resourceFirst}} checked{{/if}}> {{localize "stonetop.inventory.addItemResourceFirst"}}</label>
+				</div>
+				<p class="stonetop-custom-move-hint stonetop-add-item-uses-only is-hidden">{{localize "stonetop.inventory.addItemResourceFirstHint"}}</p>
+				<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemUsesHint"}}</p>
+			</section>
+
+			{{#if treasure}}
+			{{!-- The artifact half of a treasure, in the order Book I pp.430-431 introduces it: the
+			      write-up a 10+ hands over on a page of its own (it is the long one), then the hint
+			      that stands in for the tags meanwhile and the lead a miss leaves. Same fields, and
+			      same wording, as the GM's artifact control. --}}
+			<section class="stonetop-custom-move-section stonetop-add-item-section" data-tab="writeup"{{#unless (eq activeTab "writeup")}} hidden{{/unless}}>
+				<div class="stonetop-custom-move-field stonetop-add-item-lore">
+					<label for="stonetop-add-item-lore">{{localize "stonetop.artifact.fieldLore"}}</label>
+					{{!-- Always-on editor, harvested by name on Save (<prose-mirror> is form-associated).
+					      `value` is the raw HTML it edits; the body is the enriched copy it paints first. --}}
+					<prose-mirror id="stonetop-add-item-lore" class="stonetop-add-item-rich" name="lore"
+					              value="{{v.artifact.lore}}">{{{loreEnriched}}}</prose-mirror>
+					<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.treasureLoreHint"}}</p>
+				</div>
+			</section>
+
+			<section class="stonetop-custom-move-section stonetop-add-item-section" data-tab="identify"{{#unless (eq activeTab "identify")}} hidden{{/unless}}>
+
+				<div class="stonetop-custom-move-field">
+					<label for="stonetop-add-item-hint">{{localize "stonetop.artifact.fieldHint"}}</label>
+					<input type="text" id="stonetop-add-item-hint" name="hint" value="{{v.artifact.hint}}">
+					<p class="stonetop-custom-move-hint">{{localize "stonetop.artifact.fieldHintNote"}}</p>
+				</div>
+
+				<div class="stonetop-custom-move-field">
+					<label for="stonetop-add-item-lead">{{localize "stonetop.artifact.fieldLead"}}</label>
+					<input type="text" id="stonetop-add-item-lead" name="lead" value="{{v.artifact.lead}}">
+					<p class="stonetop-custom-move-hint">{{localize "stonetop.artifact.fieldLeadNote"}}</p>
+				</div>
+
+				<div class="stonetop-custom-move-field stonetop-custom-move-check">
+					<label><input type="checkbox" class="stonetop-check" name="startsHidden"{{#if startsHidden}} checked{{/if}}> {{localize "stonetop.inventory.treasureStartsHidden"}}</label>
+				</div>
+				<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.treasureStartsHiddenHint"}}</p>
+			</section>
+			{{/if}}
+
 		</div>
+
 	</div>
 
-	<div class="stonetop-custom-move-row">
-		<div class="stonetop-custom-move-field stonetop-custom-move-field--num">
-			<label for="stonetop-add-item-uses">{{localize "stonetop.inventory.addItemUses"}}</label>
-			<input type="number" id="stonetop-add-item-uses" name="uses" min="0" max="20" value="0">
-		</div>
-		<div class="stonetop-custom-move-field stonetop-custom-move-check stonetop-add-item-ammo is-hidden">
-			<label><input type="checkbox" class="stonetop-check" name="ammo"> {{localize "stonetop.inventory.addItemAmmo"}}</label>
-		</div>
-	</div>
-	<p class="stonetop-custom-move-hint">{{localize "stonetop.inventory.addItemUsesHint"}}</p>
-
-	<div class="stonetop-custom-move-actions">
-		<button type="button" class="stonetop-custom-move-save stonetop-add-item-save">
-			<i class="fas fa-check" aria-hidden="true"></i> {{localize "stonetop.inventory.addItemConfirm"}}
-		</button>
-		<button type="button" class="stonetop-custom-move-cancel stonetop-add-item-cancel">{{localize "Cancel"}}</button>
-	</div>
+	{{!-- Pinned footer: the save/cancel pair at one end, the rail's Back/Next at the other
+	      (shared .stonetop-guide-nav row + button styling, laid out as the custom-move one). --}}
+	<footer class="stonetop-guide-nav stonetop-custom-move-nav">
+		<span class="stonetop-custom-move-nav-btns">
+			<button type="button" class="stonetop-custom-move-save stonetop-guide-btn--primary stonetop-add-item-save">
+				<i class="fas fa-check" aria-hidden="true"></i> {{localize confirmKey}}
+			</button>
+			<button type="button" class="stonetop-custom-move-cancel stonetop-add-item-cancel">{{localize "Cancel"}}</button>
+		</span>
+		<span class="stonetop-custom-move-nav-btns">
+			<button type="button" class="stonetop-add-item-back"{{#if atFirst}} disabled{{/if}}><span class="stonetop-nav-arrow stonetop-nav-arrow--back"></span>{{localize "stonetop.character.moves.custom.back"}}</button>
+			<button type="button" class="stonetop-add-item-next"{{#if atLast}} disabled{{/if}}>{{localize "stonetop.character.moves.custom.next"}}<span class="stonetop-nav-arrow"></span></button>
+		</span>
+	</footer>
 </form>

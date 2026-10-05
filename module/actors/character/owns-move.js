@@ -95,7 +95,7 @@ export function worldLearnedHolderNames(name) {
  * lets a player's own move "act as itself" asks this, so the foreign move keeps working.
  *
  * Read through the older scopes too until the item is cut over (system-id.js#isCutOver): a custom
- * move written before the rename carries its flag under `stonetop_pwd`, and must not start
+ * move written before the rename carries its flag under `stonetop`, and must not start
  * answering as the book's move of that name just because the migration hasn't reached it yet.
  */
 export function isPlayerAuthoredMove(item) {

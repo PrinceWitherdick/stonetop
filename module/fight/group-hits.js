@@ -65,6 +65,32 @@ export function groupTokenInfo(actor) {
 }
 
 /**
+ * How many bodies one blow dropped.
+ *
+ *  • One creature: one, if the blow took it from above 0 to 0.
+ *  • A group fought as ONE pool (p.416, a group or horde with Group fight on): the members the blow
+ *    put out of the fight, read off the pool as casualties before and after. A blow that routs the
+ *    group counts every member still standing -- "routed, massacred, or otherwise defeated" is one
+ *    outcome on the page, and the GM can correct the row if the survivors fled.
+ *
+ * @param {{oldHp: number, newHp: number, group?: {count: number, hpMax: number}|null}} hit
+ * @returns {number}
+ */
+export function killsFromHit({ oldHp, newHp, group = null } = {}) {
+	const before = Number(oldHp);
+	const after = Number(newHp);
+	if (!Number.isFinite(before) || !Number.isFinite(after) || before <= 0) return 0;
+	const count = Math.trunc(Number(group?.count) || 0);
+	const hpMax = Math.trunc(Number(group?.hpMax) || 0);
+	if (count > 1 && hpMax > 0) {
+		const standingBefore = groupCasualties({ hpMax, hpCurrent: before, count }).standing;
+		const standingAfter = groupCasualties({ hpMax, hpCurrent: after, count }).standing;
+		return Math.max(0, standingBefore - standingAfter);
+	}
+	return after <= 0 ? 1 : 0;
+}
+
+/**
  * What one lone blow does to one member of a group. PURE.
  *
  * @param {{hpMax: number, count: number, wound: number}} group

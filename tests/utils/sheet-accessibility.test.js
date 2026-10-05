@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { readCss, readRepo, splitSelectorList } from "../fakes/css.js";
 import { fakeEl } from "../fakes/dom.js";
-import { applySheetContrast, applySheetTexture, applyNoItalics } from "../../module/settings.js";
+import { applySheetContrast, applyHighContrast, splitLegacyHighContrast, applySheetTexture, applySheetTextureFade, SHEET_TEXTURE_FADE_DEFAULT, applyNoItalics } from "../../module/settings.js";
 import { PREFERENCE_GROUPS, PREFERENCE_KEYS, GM_ONLY_KEYS } from "../../module/utils/sheet-preferences.js";
 
 /**
@@ -50,17 +50,91 @@ afterEach(() => {
 
 describe("applySheetContrast", () => {
 	it("puts the high-contrast class on the document root", () => {
-		applySheetContrast("high");
+		applySheetContrast("normal", true);
 		expect(rootClasses().includes("stonetop-high-contrast")).toBe(true);
 	});
 
-	// Compared against the one value that means "on", so a retired or unreadable setting lands on
-	// the normal palette rather than on a half-applied one.
-	it("takes it off again for anything that is not \"high\"", () => {
+	// Only the checkbox turns it on. A page value from before the split ("high") is Ready's to
+	// split first (splitLegacyHighContrast), so here it is just an unknown page.
+	it("takes it off again whenever the checkbox is not ticked", () => {
 		for (const value of ["high", "normal", "", undefined, null, "HIGH", 0, "dark"]) {
-			applySheetContrast(value);
-			expect(rootClasses().includes("stonetop-high-contrast"), String(value))
-				.toBe(value === "high");
+			applySheetContrast(value, false);
+			expect(rootClasses().includes("stonetop-high-contrast"), String(value)).toBe(false);
+		}
+	});
+
+	// Whatever paints the palette outside the stylesheet (utils/palette.js) hears a change, and
+	// only a change.
+	it("fires the palette hook when the classes change, and not when they do not", () => {
+		const saved = globalThis.Hooks;
+		const fired = [];
+		globalThis.Hooks = { callAll: name => fired.push(name) };
+		try {
+			applySheetContrast("normal", false);
+			fired.length = 0;
+			applySheetContrast("dark", false);
+			applySheetContrast("dark", false);
+			applySheetContrast("dark", true);
+			expect(fired).toEqual(["stonetopPaletteChanged", "stonetopPaletteChanged"]);
+		} finally {
+			globalThis.Hooks = saved;
+		}
+	});
+});
+
+describe("High Contrast, its own checkbox", () => {
+	let savedGame;
+	beforeEach(() => { savedGame = globalThis.game; });
+	afterEach(() => { globalThis.game = savedGame; });
+	const store = values => {
+		globalThis.game = { settings: {
+			get: (scope, key) => values[key],
+			set: async (scope, key, value) => { values[key] = value; return value; },
+		} };
+		return values;
+	};
+
+	it("reads the checkbox when the page changes", () => {
+		store({ sheetContrast: "dark", highContrast: true });
+		applySheetContrast("dark");
+		expect(rootClasses()).toEqual(expect.arrayContaining(["stonetop-dark", "stonetop-high-contrast"]));
+		store({ sheetContrast: "dark", highContrast: false });
+		applySheetContrast("dark");
+		expect(rootClasses().includes("stonetop-high-contrast")).toBe(false);
+		expect(rootClasses().includes("stonetop-dark")).toBe(true);
+	});
+
+	it("keeps the page when the checkbox changes", () => {
+		store({ sheetContrast: "slate" });
+		applyHighContrast(true);
+		expect(rootClasses()).toEqual(expect.arrayContaining(["stonetop-dark", "stonetop-slate", "stonetop-high-contrast"]));
+		applyHighContrast(false);
+		expect(rootClasses().includes("stonetop-high-contrast")).toBe(false);
+		expect(rootClasses().includes("stonetop-slate")).toBe(true);
+	});
+
+	// The checkbox's onChange reads the page back, so ticking it first would paint "dark-high" as
+	// the light page for a moment.
+	it("writes the page before the checkbox", async () => {
+		const values = store({ sheetContrast: "dark-high", highContrast: false });
+		const order = [];
+		const set = globalThis.game.settings.set;
+		globalThis.game.settings.set = async (scope, key, value) => { order.push(key); return set(scope, key, value); };
+		await splitLegacyHighContrast();
+		expect(order).toEqual(["sheetContrast", "highContrast"]);
+		expect(values).toEqual({ sheetContrast: "dark", highContrast: true });
+	});
+
+	it("splits a page stored with high contrast folded in, and leaves a split one alone", async () => {
+		for (const [stored, page] of [["high", "normal"], ["dark-high", "dark"], ["slate-high", "slate"], ["auto-high", "auto"]]) {
+			const values = store({ sheetContrast: stored, highContrast: false });
+			await splitLegacyHighContrast();
+			expect(values, stored).toEqual({ sheetContrast: page, highContrast: true });
+		}
+		for (const page of ["normal", "dark", "slate", "auto"]) {
+			const values = store({ sheetContrast: page, highContrast: false });
+			await splitLegacyHighContrast();
+			expect(values, page).toEqual({ sheetContrast: page, highContrast: false });
 		}
 	});
 });
@@ -73,6 +147,53 @@ describe("applySheetTexture", () => {
 		expect(rootClasses().includes("stonetop-no-texture")).toBe(false);
 		applySheetTexture(false);
 		expect(rootClasses().includes("stonetop-no-texture")).toBe(true);
+	});
+});
+
+describe("applySheetTextureFade", () => {
+	// A real style object is more than the shared element fake models; this one only has to
+	// remember what was set on it.
+	const props = {};
+	beforeEach(() => {
+		for (const k of Object.keys(props)) delete props[k];
+		globalThis.document.documentElement.style = { setProperty: (k, v) => { props[k] = v; } };
+	});
+
+	it("writes the percent onto the root, in the variable the stylesheet's veil reads", () => {
+		applySheetTextureFade(45);
+		expect(props["--st-paper-veil-strength"]).toBe("45%");
+		expect(CSS).toContain("var(--st-paper-veil-strength, 30%)");
+	});
+
+	it("clamps to the setting's range, and lands an unreadable value on the default", () => {
+		applySheetTextureFade(150);
+		expect(props["--st-paper-veil-strength"]).toBe("90%");
+		applySheetTextureFade(-5);
+		expect(props["--st-paper-veil-strength"]).toBe("0%");
+		for (const value of [undefined, "abc", NaN]) {
+			applySheetTextureFade(value);
+			expect(props["--st-paper-veil-strength"], String(value)).toBe(`${SHEET_TEXTURE_FADE_DEFAULT}%`);
+		}
+	});
+
+	// The default IS the fade the parchment shipped at before the setting existed, so the CSS
+	// fallback and the registration have to agree or a client's first paint differs from its
+	// second.
+	it("defaults to the same level the stylesheet falls back to", () => {
+		expect(SHEET_TEXTURE_FADE_DEFAULT).toBe(30);
+		const at = SETTINGS_SRC.indexOf('game.settings.register(SYSTEM_ID, "sheetTextureFade", {');
+		const body = SETTINGS_SRC.slice(at, SETTINGS_SRC.indexOf("\n\t});", at));
+		expect(body).toMatch(/scope:\s*"client"/);
+		expect(body).toMatch(/default:\s*SHEET_TEXTURE_FADE_DEFAULT/);
+		expect(body).toContain("applySheetTextureFade(value)");
+	});
+
+	it("is applied on load and offered straight under the grain switch", () => {
+		expect(READY_SRC).toContain('applySheetTextureFade(getSetting("sheetTextureFade"))');
+		expect(READY_SRC).toMatch(/import\s*\{[^}]*applySheetTextureFade[^}]*\}\s*from\s*"\.\.\/settings\.js"/s);
+		const keys = PREFERENCE_GROUPS.find(group => group.id === "accessibility").keys;
+		expect(keys.indexOf("sheetTextureFade")).toBe(keys.indexOf("sheetTexture") + 1);
+		expect(PREFERENCE_KEYS.has("sheetTextureFade")).toBe(true);
 	});
 });
 
@@ -104,6 +225,9 @@ describe("the class names the stylesheet is waiting for", () => {
 			expect(CSS, `${name} is set but nothing in the stylesheet answers to it`)
 				.toContain(`:root.${name}`);
 		}
+		// Slate is only ever worn beside the dark class, so that is the selector that answers to it.
+		expect(SETTINGS_SRC).toContain(`classList.toggle("stonetop-slate"`);
+		expect(CSS).toContain(":root.stonetop-dark.stonetop-slate {");
 	});
 });
 
@@ -112,6 +236,9 @@ describe("reaching the reader who already stored a value", () => {
 		const block = /export async function onReady\(\)\s*\{([\s\S]{0,1500})/.exec(READY_SRC);
 		expect(block, "onReady not found — did Ready.js reorganize?").not.toBeNull();
 		expect(block[1]).toContain('applySheetContrast(getSetting("sheetContrast"))');
+		// A page stored as "dark-high" is split before anything reads it.
+		expect(block[1].indexOf("splitLegacyHighContrast()")).toBeGreaterThan(-1);
+		expect(block[1].indexOf("splitLegacyHighContrast()")).toBeLessThan(block[1].indexOf("applySheetContrast("));
 		expect(block[1]).toContain('applySheetTexture(getSetting("sheetTexture"))');
 		expect(block[1]).toContain('applyNoItalics(getSetting("noItalics"))');
 		// And they are imported, or the call above is a ReferenceError at `ready`.
@@ -131,7 +258,7 @@ describe("where a player finds them", () => {
 		expect(access, "the accessibility group is gone").toBeTruthy();
 		expect(PREFERENCE_GROUPS[0].id, "accessibility is not the first group drawn")
 			.toBe("accessibility");
-		for (const key of ["sheetFontScale", "sheetContrast", "sheetTexture", "noItalics"]) {
+		for (const key of ["sheetFontScale", "sheetContrast", "highContrast", "sheetTexture", "noItalics"]) {
 			expect(access.keys, `${key} is not offered on the tab`).toContain(key);
 			expect(PREFERENCE_KEYS.has(key), `${key} is not writable from the tab`).toBe(true);
 			expect(GM_ONLY_KEYS.has(key), `${key} must not be GM-only`).toBe(false);
@@ -140,6 +267,8 @@ describe("where a player finds them", () => {
 		const order = access.keys;
 		expect(order.indexOf("sheetFontScale")).toBeLessThan(order.indexOf("sheetContrast"));
 		expect(order.indexOf("sheetContrast")).toBeLessThan(order.indexOf("sheetTexture"));
+		// High Contrast straight under the page it is worn over.
+		expect(order.indexOf("highContrast")).toBe(order.indexOf("sheetContrast") + 1);
 		// The two "take this treatment off" switches together, and both above `reduceMotion`.
 		expect(order.indexOf("sheetTexture")).toBeLessThan(order.indexOf("noItalics"));
 		expect(order.indexOf("noItalics")).toBeLessThan(order.indexOf("reduceMotion"));
@@ -163,7 +292,7 @@ describe("the registrations", () => {
 	// rejected on their client and applied for EVERYONE on a GM's. A reader's own palette is
 	// theirs, and it has to be theirs on every world this browser opens.
 	it("registers both per client, visible in the settings window, and wired to an apply", () => {
-		for (const [key, apply] of [["sheetContrast", "applySheetContrast"],
+		for (const [key, apply] of [["sheetContrast", "applySheetContrast"], ["highContrast", "applyHighContrast"],
 			["sheetTexture", "applySheetTexture"], ["noItalics", "applyNoItalics"]]) {
 			const body = registration(key);
 			expect(body, `${key} is not client-scoped`).toMatch(/scope:\s*"client"/);
@@ -177,6 +306,7 @@ describe("the registrations", () => {
 	// and nobody should find their sheets repainted by an upgrade they did not ask for.
 	it("leaves a table that has not asked for anything exactly where it was", () => {
 		expect(registration("sheetContrast")).toMatch(/default:\s*"normal"/);
+		expect(registration("highContrast")).toMatch(/default:\s*false/);
 		expect(registration("sheetTexture")).toMatch(/default:\s*true/);
 		// Off, for a reason worth stating: italic IS the emphasis in most of the prose this system
 		// ships, and nobody should have it flattened by an upgrade they did not ask for.
@@ -185,12 +315,13 @@ describe("the registrations", () => {
 
 	// A choice rather than a checkbox, because the palette is the axis: a light-on-dark option
 	// belongs here as a third value, not as a second setting kept exclusive with this one by hand.
-	it("shapes the contrast setting as a choice", () => {
+	it("shapes the page as a choice and high contrast as a checkbox", () => {
 		const body = registration("sheetContrast");
 		expect(body).toMatch(/type:\s*String/);
 		expect(body).toMatch(/choices:\s*\{/);
 		expect(body).toMatch(/"normal":\s*"stonetop\.settings\.sheetContrast\.normal"/);
-		expect(body).toMatch(/"high":\s*"stonetop\.settings\.sheetContrast\.high"/);
+		expect(body).toMatch(/"dark":\s*"stonetop\.settings\.sheetContrast\.dark"/);
+		expect(registration("highContrast")).toMatch(/type:\s*Boolean/);
 	});
 });
 

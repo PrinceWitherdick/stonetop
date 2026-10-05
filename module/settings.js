@@ -4,6 +4,10 @@ import { POSTER_MAPS, posterMapSlugOf } from "./book2-art/poster-map-catalog.js"
 import { SYSTEM_ID } from "./system-id.js";
 import { WEATHER_FX_PARTS, WEATHER_FX_SETTING } from "./seasons/weather-fx-parts.js";
 import { isPrimaryGM } from "./utils/primary-gm.js";
+import { localize } from "./utils/i18n.js";
+import { PALETTE_HOOK } from "./utils/palette.js";
+import { MIN_MAP_BRIGHTNESS } from "./hooks/map-brightness.js";
+import { applyTimelineKindColours, normalizeKindColours } from "./timeline/timeline-colours.js";
 
 /**
  * A weather-effect setting changed, so the canvas has to catch up with it: unticking Fog must
@@ -348,6 +352,33 @@ export function registerSettings() {
 		config: true,
 		type: Boolean,
 		default: true,
+	});
+
+	// The relationship map and the timeline, each switched off for the whole table at once: the
+	// steading's tab, the Journal sidebar's button and row, the hotbar macro and any window open on
+	// one go with it. Nothing stored is touched, and the timeline goes on recording underneath, so
+	// switching back on finds everything where it was. No reload: hooks/feature-switches.js repaints
+	// what is open. World scope, so only someone with SETTINGS_MODIFY can change it.
+	// ⚠ A NEW KEY, NOT THE OLD "...Enabled" ONE. That was the dark-launch switch the timeline shipped
+	// out from behind, and a world from that release may still hold a `false` under it, which would hide the timeline
+	// from a table that never asked. tests/timeline/timeline-shipped.test.js keeps the name retired.
+	game.settings.register(SYSTEM_ID, "showRelationshipMap", {
+		name: "stonetop.settings.showRelationshipMap.name",
+		hint: "stonetop.settings.showRelationshipMap.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: value => Hooks.callAll(FEATURE_SWITCH_HOOK, "relationshipMap", value),
+	});
+	game.settings.register(SYSTEM_ID, "showTimeline", {
+		name: "stonetop.settings.showTimeline.name",
+		hint: "stonetop.settings.showTimeline.hint",
+		scope: "world",
+		config: true,
+		type: Boolean,
+		default: true,
+		onChange: value => Hooks.callAll(FEATURE_SWITCH_HOOK, "timeline", value),
 	});
 
 	// Whether players may PEEK at a card's BACK before unlocking it. A card's OWNER always
@@ -1245,16 +1276,18 @@ export function registerSettings() {
 		scope: "client",
 		config: true,
 		type: String,
-		// A CHOICE rather than a checkbox. The palette is the axis, not the boolean "more contrast":
-		// the light-on-dark pair (the "Lamplit" section of stonetop.css) landed here as two more
-		// values rather than as a second setting that has to be kept exclusive with this one by hand.
+		// A CHOICE: which PAGE, parchment or one of the dark ones. High contrast is NOT one of
+		// them any more; it is the `highContrast` checkbox below, worn over whichever page this
+		// picks (user, 2026-10-04). It used to be four more values here ("high", "dark-high",
+		// "slate-high", "auto-high"), one per page, which made a reader pick from a list of every
+		// combination; splitLegacyHighContrast carries a value stored that way across on load.
 		// Configure Settings and the Preferences tab on the character sheet and the GM Toolkit all
 		// read these choices off the registration.
 		choices: {
-			"normal":    "stonetop.settings.sheetContrast.normal",
-			"high":      "stonetop.settings.sheetContrast.high",
-			"dark":      "stonetop.settings.sheetContrast.dark",
-			"dark-high": "stonetop.settings.sheetContrast.darkHigh",
+			"normal":     "stonetop.settings.sheetContrast.normal",
+			"dark":       "stonetop.settings.sheetContrast.dark",
+			"slate":      "stonetop.settings.sheetContrast.slate",
+			"auto":       "stonetop.settings.sheetContrast.auto",
 		},
 		default: "normal",
 		// NO re-render, unlike most of the settings below it: the palette is tokens on the document
@@ -1267,6 +1300,37 @@ export function registerSettings() {
 		onChange: value => applySheetContrast(value),
 	});
 
+	// HIGH CONTRAST, its own switch over whichever page the setting above picks: plain white
+	// paper or the darker dark page, every grey and coloured ink pitched to 7:1, and the focus
+	// ring, underlined links and heavier hairlines that come with it. The two are independent
+	// axes (two classes on the root, see applySheetContrast), so a checkbox each is the honest
+	// shape. Client-scoped like the page, and offered beside it on the Preferences tab.
+	game.settings.register(SYSTEM_ID, "highContrast", {
+		name: "stonetop.settings.highContrast.name",
+		hint: "stonetop.settings.highContrast.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: false,
+		onChange: value => applyHighContrast(value),
+	});
+
+	// The imported poster maps, as Scenes, in the Setting Overview pages and on the expedition's
+	// route map, turned down for this browser (hooks/map-brightness.js). A PERCENT slider rather than a multiplier like the font
+	// size's, because "75" is what a reader means by "a bit darker" and "0.75" is not. Its own
+	// setting rather than part of the palette above: a map can glare in the light palette at night
+	// as much as in the dark one. No onChange: the hook module hears the change by key and repaints
+	// the canvas, the journal figures and the route maps itself.
+	game.settings.register(SYSTEM_ID, "mapBrightness", {
+		name: "stonetop.settings.mapBrightness.name",
+		hint: "stonetop.settings.mapBrightness.hint",
+		scope: "client",
+		config: true,
+		type: Number,
+		range: { min: MIN_MAP_BRIGHTNESS, max: 100, step: 5 },
+		default: 100,
+	});
+
 	game.settings.register(SYSTEM_ID, "sheetTexture", {
 		name: "stonetop.settings.sheetTexture.name",
 		hint: "stonetop.settings.sheetTexture.hint",
@@ -1277,6 +1341,22 @@ export function registerSettings() {
 		// should have to turn it back on.
 		default: true,
 		onChange: value => applySheetTexture(value),
+	});
+
+	// How faint the grain is while it is on. A PERCENT, like the map brightness above, and read the
+	// way a reader asks for it: higher is MORE transparent. 0 is the image at full strength; the
+	// default 30 is the level the parchment was knocked back to on 2026-10-04, so nobody's sheets
+	// move. Capped short of 100 because a full veil is just "Paper Texture" off by another route.
+	// Written into --st-paper-veil-strength by applySheetTextureFade (see --st-paper-veil).
+	game.settings.register(SYSTEM_ID, "sheetTextureFade", {
+		name: "stonetop.settings.sheetTextureFade.name",
+		hint: "stonetop.settings.sheetTextureFade.hint",
+		scope: "client",
+		config: true,
+		type: Number,
+		range: { min: 0, max: SHEET_TEXTURE_FADE_MAX, step: 5 },
+		default: SHEET_TEXTURE_FADE_DEFAULT,
+		onChange: value => applySheetTextureFade(value),
 	});
 
 	// ITALICS OFF. A third setting in the same family, and kept apart from the other two for the
@@ -1477,6 +1557,18 @@ export function registerSettings() {
 		default: true,
 	});
 
+	// The bells the love-letter notice rings as it drops in (actors/character/love-letter-notice.js).
+	// Per browser, and only the sound: the red notice still comes, so a player who finds the
+	// jingle too much doesn't also stop being told a letter arrived. Read each time it would ring.
+	game.settings.register(SYSTEM_ID, "loveLetterJingle", {
+		name: "stonetop.settings.loveLetterJingle.name",
+		hint: "stonetop.settings.loveLetterJingle.hint",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: true,
+	});
+
 	// NO "HIDE ROLLABLE ICON" SETTING. It used to sit here, between the pencil delay and the
 	// roll-mode switch, and it hid the dice icon on move rows and stat rows. Both icons are
 	// gone outright: a move is rolled by its TITLE and a stat by its whole CELL, so the switch
@@ -1561,52 +1653,60 @@ export function registerSettings() {
 		default: false,
 	});
 
-	// IS THE NARRATIVE TIMELINE PART OF THIS WORLD AT ALL? Off, and shipped off.
-	//
-	// The timeline is built and tested but has not been released, and it is not meant to be seen in
-	// 0.9.x. This is the one switch that decides: with it off, neither sheet grows a Timeline tab,
-	// WorldSetup mints no track pages, the Seasons Change move writes no row, the journal page type
-	// registers no model and no sheet, and `game.stonetop.openTimeline` is not defined.
-	// `isTimelineEnabled` below lists every door that reads it.
-	//
-	// WORLD scope, not client: the feature is a set of shared journal pages, so one player seeing a
-	// tab that another does not would be a bug rather than a preference. `config: false` because
-	// nobody at a table should be able to switch on an unfinished feature by browsing the settings
-	// window; this is a developer's switch, thrown from the console:
-	//
-	//     game.settings.set("stonetop_pwd", "timelineEnabled", true)
-	//
-	// AND ONE THING THE SWITCH CANNOT DO. The `timeline` JournalEntryPage subtype has to be declared
-	// in the MANIFEST, which is read long before any setting exists, so it was taken back out of
-	// `system.json` (`documentTypes.JournalEntryPage`) along with its `TYPES.JournalEntryPage` label
-	// in `languages/en.json`. Turning the feature on for development means putting those two lines
-	// back and RELAUNCHING the world, since a new subtype is not picked up by a reload. Until they
-	// are back the track pages cannot be created, and the tab says for itself that it has no page.
-	game.settings.register(SYSTEM_ID, "timelineEnabled", {
-		scope: "world",
+	// HOW THIS READER LAYS THE TIMELINE OUT: across the page ("horizontal", one axis with the seasons
+	// strung along it; the default since 2026-10-03) or down it ("vertical"). Per client, because it is a way of
+	// READING the record, not a fact about it. `config: false` because the switch sits in the
+	// timeline's own toolbar, and a second one in the settings window would be a disagreeing copy.
+	game.settings.register(SYSTEM_ID, "timelineOrientation", {
+		scope: "client",
+		config: false,
+		type: String,
+		default: "horizontal",
+	});
+
+	// WHICH KINDS OF ROW THIS READER HAS HIDDEN (kills, level-ups, ...): the sources they unticked in
+	// the timeline's "Filter" menu. Stored as what is HIDDEN rather than what is shown, so a kind added
+	// in a later release shows up for everybody instead of being silently missing. Per client and
+	// `config: false` for the same reasons as the orientation above.
+	game.settings.register(SYSTEM_ID, "timelineHiddenSources", {
+		scope: "client",
+		config: false,
+		type: Array,
+		default: [],
+	});
+
+	// WHICH THREADS THIS READER HAS HIDDEN off the aggregate timeline, as track ids, from the Filter
+	// menu's Threads section. Hidden rather than shown for the reason above: a character made later
+	// joins the board for everybody. Per client, `config: false`.
+	game.settings.register(SYSTEM_ID, "timelineHiddenTracks", {
+		scope: "client",
+		config: false,
+		type: Array,
+		default: [],
+	});
+
+	// HAS THIS READER CHOSEN THEIR THREADS YET? Until a PLAYER ticks a thread or presses Show
+	// everything, the aggregate opens on their own characters' threads alone (user, 2026-10-03),
+	// worked out fresh each render so a character joining later stays off it too; the list above
+	// is only read once this is true. A GM is never defaulted. Per client, `config: false`.
+	game.settings.register(SYSTEM_ID, "timelineThreadsChosen", {
+		scope: "client",
 		config: false,
 		type: Boolean,
 		default: false,
 	});
 
-	// Fold what the system already recorded into the timeline: levels gained, moves learned, the
-	// seasons as they turned. Per client, because it is a way of READING the record rather than a
-	// fact about it -- one player wants their character's whole history, another wants only what
-	// the table wrote down, and neither should change what the other sees.
-	//
-	// OFF BY DEFAULT. These rows are derived and can be numerous (the ledger holds up to 300 per
-	// actor), and a timeline that opens full of bookkeeping buries the one line somebody actually
-	// wrote about that season. Turning them on is one click in the timeline's own toolbar, which
-	// is where the choice is made rather than here -- this registration is only where it lives.
-	//
-	// `config: false` for that reason: a setting whose control sits on the thing it affects does
-	// not also want a row in the settings window, where it would read as a second, disagreeing
-	// switch. See utils/timeline-auto-rows.js for what is actually folded in.
-	game.settings.register(SYSTEM_ID, "timelineAutoRows", {
-		scope: "client",
+	// THE COLOURS A GM REPAINTED THE TIMELINE'S KINDS IN, keyed by kind, `#rrggbb` each; a kind not
+	// in it wears the stylesheet's shipped colour. WORLD-scoped and so GM-only to write: a kind's
+	// colour is part of how the whole table reads the record, not one reader's taste. Set from the
+	// timeline toolbar's Colours window, so `config: false`. Foundry fires `onChange` on EVERY
+	// client for a world setting, which is what repaints the table the moment the GM saves.
+	game.settings.register(SYSTEM_ID, "timelineKindColours", {
+		scope: "world",
 		config: false,
-		type: Boolean,
-		default: false,
+		type: Object,
+		default: {},
+		onChange: value => applyTimelineKindColours(value),
 	});
 
 	// Reopen the document sheets (characters, steadings, monsters, NPCs, items, journals)
@@ -2153,13 +2253,89 @@ export function applyReduceMotion(value) {
  * hairlines) comes along for free. The stylesheet's `:root.stonetop-dark.stonetop-high-contrast`
  * block then re-pitches the colours for the dark page.
  *
+ * Slate is a third class, `.stonetop-slate`, worn WITH `.stonetop-dark`: the same dark mode with
+ * the warm tokens re-pointed cool, so everything the dark palette does still applies to it.
+ *
+ * "auto" is not a palette of its own. It resolves, here and on every change of Foundry's theme
+ * (see watchFoundryTheme), to Lamplit or parchment.
+ *
+ * `value` is the PAGE (the `sheetContrast` setting) and `high` the `highContrast` checkbox, read
+ * off the setting when not passed. The page values that once carried high contrast with them
+ * ("dark-high" and the rest) are not read here: Ready runs splitLegacyHighContrast first.
+ *
+ * Fires PALETTE_HOOK when the classes actually change, for whatever paints in the palette's ink
+ * outside the stylesheet's reach (utils/palette.js).
+ *
  * Compared as strings against the values that mean "on", so an unreadable or retired setting
  * lands on the normal palette rather than on a half-applied one.
  */
-export function applySheetContrast(value) {
-	const palette = String(value ?? "");
-	document.documentElement.classList.toggle("stonetop-high-contrast", palette === "high" || palette === "dark-high");
-	document.documentElement.classList.toggle("stonetop-dark", palette === "dark" || palette === "dark-high");
+export function applySheetContrast(value, high = getBooleanSetting("highContrast")) {
+	let palette = String(value ?? "");
+	if (palette === "auto") palette = foundryAppsAreDark() ? "dark" : "normal";
+	const root = document.documentElement;
+	const worn = () => _PALETTE_CLASSES.map(name => root.classList.contains(name)).join();
+	const before = worn();
+	root.classList.toggle("stonetop-high-contrast", high === true);
+	root.classList.toggle("stonetop-dark", palette === "dark" || palette === "slate");
+	root.classList.toggle("stonetop-slate", palette === "slate");
+	if (worn() !== before) globalThis.Hooks?.callAll?.(PALETTE_HOOK);
+}
+
+const _PALETTE_CLASSES = ["stonetop-high-contrast", "stonetop-dark", "stonetop-slate"];
+
+/** The `highContrast` checkbox, applied over whatever page the reader has picked. */
+export function applyHighContrast(value) {
+	let page = "";
+	try { page = getSetting("sheetContrast"); } catch { /* not registered yet */ }
+	applySheetContrast(page, value === true);
+}
+
+/** The page values that carried high contrast with them before it was its own checkbox. */
+const _LEGACY_HIGH_CONTRAST = { "high": "normal", "dark-high": "dark", "slate-high": "slate", "auto-high": "auto" };
+
+/**
+ * Carry a page value stored with high contrast folded into it ("dark-high" and the rest) across
+ * to the two settings it means now: the page, and the `highContrast` checkbox ticked. Called once
+ * from Ready; a no-op for a value already split.
+ *
+ * ⚠ THE PAGE FIRST. Each write's onChange paints from both settings, and the checkbox's reads the
+ * page back: ticked while the page still says "dark-high", it would paint the light page (no
+ * "dark" in it) for a moment before the second write put the dark one back.
+ */
+export async function splitLegacyHighContrast() {
+	const stored = String(getSetting("sheetContrast") ?? "");
+	const page = _LEGACY_HIGH_CONTRAST[stored];
+	if (page === undefined) return;
+	await setSetting("sheetContrast", page);
+	await setSetting("highContrast", true);
+}
+
+/**
+ * Whether Foundry is drawing its applications dark: core's own "Applications" colour scheme
+ * (Configure Settings → Core → User Interface), and, when that is left at its blank "browser
+ * default", the operating system's preference, resolved the way core resolves it. What "auto"
+ * follows. Reads as light before core's setting is registered.
+ */
+export function foundryAppsAreDark() {
+	let scheme = "";
+	try { scheme = game.settings.get("core", "uiConfig")?.colorScheme?.applications ?? ""; }
+	catch { /* not registered yet, or no game at all */ }
+	if (scheme) return scheme === "dark";
+	return !!globalThis.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
+}
+
+/**
+ * Re-resolve "auto" when Foundry's theme changes under it: core's setting, which fires
+ * `clientSettingChanged` as "core.uiConfig", or the OS's, which core itself also listens to. Called
+ * once, from Ready. A reader on any other value is left alone.
+ */
+export function watchFoundryTheme(hooks = globalThis.Hooks) {
+	const reapply = () => {
+		const value = String(getSetting("sheetContrast") ?? "");
+		if (value === "auto") applySheetContrast(value);
+	};
+	hooks?.on("clientSettingChanged", key => { if (key === "core.uiConfig") reapply(); });
+	globalThis.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", reapply);
 }
 
 /**
@@ -2174,6 +2350,23 @@ export function applySheetContrast(value) {
  */
 export function applySheetTexture(value) {
 	document.documentElement.classList.toggle("stonetop-no-texture", !value);
+}
+
+// The `sheetTextureFade` default, shared with the fallback below so an unreadable value lands
+// on the same fade a fresh client gets.
+export const SHEET_TEXTURE_FADE_DEFAULT = 30;
+// Its top, shared with the clamp below for the same reason.
+export const SHEET_TEXTURE_FADE_MAX = 90;
+
+/**
+ * How far the paper grain is faded toward the page, as a percent on the document root. The image
+ * is opaque, so it cannot be made translucent itself; the stylesheet lays a wash of the page
+ * colour over it at this strength instead (--st-paper-veil). Clamped to the setting's own range.
+ */
+export function applySheetTextureFade(value) {
+	const percent = Number(value);
+	const safe    = Number.isFinite(percent) ? Math.min(Math.max(percent, 0), SHEET_TEXTURE_FADE_MAX) : SHEET_TEXTURE_FADE_DEFAULT;
+	document.documentElement.style.setProperty("--st-paper-veil-strength", `${safe}%`);
 }
 
 /**
@@ -2226,6 +2419,36 @@ export function isFightTabEnabled() {
 	return getBooleanSetting("fightTab", false);
 }
 
+/**
+ * Fired by the two switches below on every client when the GM flips one, with the feature's name
+ * and its new value. A hook rather than an import, so this file never has to load the windows it
+ * closes. See hooks/feature-switches.js.
+ */
+export const FEATURE_SWITCH_HOOK = "stonetopFeatureSwitched";
+
+/** Is the relationship map on in this world? Defaults to yes, unregistered included. */
+export function isRelationshipMapShown() {
+	return getBooleanSetting("showRelationshipMap", true);
+}
+
+/** Is the timeline on in this world? Defaults to yes, unregistered included. */
+export function isTimelineShown() {
+	return getBooleanSetting("showTimeline", true);
+}
+
+/**
+ * The guard every way into a switched-off feature opens with: true, after a notice saying why,
+ * while the GM has it off.
+ *
+ * @param {"relationshipMap"|"timeline"} feature
+ */
+export function refuseHiddenFeature(feature) {
+	const relmap = feature === "relationshipMap";
+	if (relmap ? isRelationshipMapShown() : isTimelineShown()) return false;
+	globalThis.ui?.notifications?.info?.(localize(relmap ? "stonetop.relmap.disabled" : "stonetop.timeline.disabled"));
+	return true;
+}
+
 /** Does this reader want the Fight window to open by itself when a fight starts? Defaults to yes. */
 export function isFightWindowAuto() {
 	return getBooleanSetting("fightWindowAuto", true);
@@ -2241,34 +2464,57 @@ export function isAttackFxOn() {
 	return getBooleanSetting("attackFx", true);
 }
 
-/**
- * Is the narrative timeline switched on in this world? Defaults to NO, and NO is what ships.
- *
- * Read by every door the feature has: both sheets' `getData` (which is what draws or withholds the
- * tab) and their tab lifecycle, `stonetop.js` (the page model and sheet registration), the
- * WorldSetup lane that mints track pages, the Seasons Change row in `seasons/seasons-chronicle.js`,
- * and `game.stonetop.openTimeline` in `hooks/Ready.js`.
- *
- * Tolerant of an unregistered key, like its neighbours here: a sheet rendered in a test that never
- * called `registerSettings` gets the shipped answer rather than a throw.
- *
- * NOT read by `seasons/current-season.js`, which keeps logging when each season began whatever this
- * says. That log is an invisible flag, it is the only record of WHEN a season turned, and it can
- * only be collected as it happens: a world that played a year with the switch off and then turned
- * it on would otherwise have no way to place its own history. See timeline/timeline-seasons.js.
- */
-export function isTimelineEnabled() {
-	return globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineEnabled") ?? false;
+/** This reader's timeline layout: "horizontal" (the default) or "vertical". */
+export function getTimelineOrientation() {
+	const value = globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineOrientation");
+	return value === "vertical" ? "vertical" : "horizontal";
 }
 
-/** Does this reader want the timeline to fold in what the system recorded? Defaults to no. */
-export function getTimelineAutoRows() {
-	return globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineAutoRows") ?? false;
+/** Remember this reader's layout. Client-scoped, so it never reaches anybody else at the table. */
+export function setTimelineOrientation(orientation) {
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineOrientation", orientation === "vertical" ? "vertical" : "horizontal");
 }
 
-/** Remember this reader's answer. Client-scoped, so it never reaches anybody else at the table. */
-export function setTimelineAutoRows(on) {
-	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineAutoRows", !!on);
+/** The kinds of timeline row this reader has hidden, as source names. */
+export function getTimelineHiddenSources() {
+	return getArraySetting("timelineHiddenSources").filter(s => typeof s === "string" && s);
+}
+
+/** Remember which kinds this reader has hidden. */
+export function setTimelineHiddenSources(sources) {
+	const clean = [...new Set((Array.isArray(sources) ? sources : []).filter(s => typeof s === "string" && s))];
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineHiddenSources", clean);
+}
+
+/** The threads this reader has hidden off the aggregate timeline, as track ids. */
+export function getTimelineHiddenTracks() {
+	return getArraySetting("timelineHiddenTracks").filter(s => typeof s === "string" && s);
+}
+
+/** Remember which threads this reader has hidden. */
+export function setTimelineHiddenTracks(trackIds) {
+	const clean = [...new Set((Array.isArray(trackIds) ? trackIds : []).filter(s => typeof s === "string" && s))];
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineHiddenTracks", clean);
+}
+
+/** Has this reader picked their own threads, or is the aggregate still on its default? */
+export function getTimelineThreadsChosen() {
+	return globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineThreadsChosen") === true;
+}
+
+/** Remember that this reader has picked their threads; the default never applies again. */
+export function setTimelineThreadsChosen(chosen) {
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineThreadsChosen", !!chosen);
+}
+
+/** The kinds the GM has repainted for this world, cleaned: `{kind: "#rrggbb"}`. */
+export function getTimelineKindColours() {
+	return normalizeKindColours(globalThis.game?.settings?.get?.(SYSTEM_ID, "timelineKindColours"));
+}
+
+/** Repaint the world's kinds. World-scoped: only a GM's write is accepted. */
+export function setTimelineKindColours(colours) {
+	return globalThis.game?.settings?.set?.(SYSTEM_ID, "timelineKindColours", normalizeKindColours(colours));
 }
 
 /**

@@ -9,7 +9,9 @@
       read one way here and another way there. `canEdit` is false on every card, which is what takes
       the card partial's action row out. --}}
 <div class="stonetop-timeline">
-	{{#if stonetop.timeline.isEmpty}}
+	{{#if stonetop.off}}
+	<p>{{localize "stonetop.timeline.disabled"}}</p>
+	{{else if stonetop.timeline.isEmpty}}
 	<p>{{localize "stonetop.timeline.empty.readOnly"}}</p>
 	{{else}}
 	<div class="stonetop-timeline-spine">

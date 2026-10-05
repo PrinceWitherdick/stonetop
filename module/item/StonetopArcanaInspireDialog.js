@@ -1,8 +1,8 @@
 import { StonetopDialog } from "../utils/stonetop-dialog.js";
 import { holdCentre } from "../utils/hold-centre.js";
 import {
-	ORIGINS, NATURES, FORM_FIELDS, detailFieldsForNature,
-	rollOnTable, seedDescriptionHtml,
+	FIELDS, NATURES, FORM_FIELDS, detailFieldsForNature,
+	expandFields, rollField, followAgain, clearAgainPicks, seedDescriptionHtml,
 } from "../data/artifact-creation-tables.js";
 
 // Ordered step keys. The detail step's fields depend on the chosen nature, but the step
@@ -84,13 +84,19 @@ export class StonetopArcanaInspireDialog extends StonetopDialog {
 		return Number.isInteger(idx) ? NATURES[idx]?.key : null;
 	}
 
-	// The fields shown on a given step (detail branches on the chosen nature).
-	_fieldsForStep(step) {
-		if (step === "origin") return [{ key: "origin", label: "Origin / theme", table: ORIGINS }];
-		if (step === "nature") return [{ key: "nature", label: "Nature", table: NATURES }];
+	// The base fields of a step (detail branches on the chosen nature), before follow-ups.
+	_baseFieldsForStep(step) {
+		if (step === "origin") return [FIELDS.origin];
+		if (step === "nature") return [FIELDS.nature];
 		if (step === "detail") return detailFieldsForNature(this._natureKey());
 		if (step === "form")   return FORM_FIELDS;
 		return [];
+	}
+
+	// The fields shown on a step: its base fields plus every follow-up their picks open
+	// ("go to step 2e", "roll again"), each beneath the field that opened it.
+	_fieldsForStep(step) {
+		return expandFields(this._baseFieldsForStep(step), this._picks);
 	}
 
 	// Every field in display order, used to assemble the seed and review list.
@@ -143,9 +149,12 @@ export class StonetopArcanaInspireDialog extends StonetopDialog {
 			return data;
 		}
 
+		const base = new Set(this._baseFieldsForStep(this._step).map(f => f.key));
 		data.fields = this._fieldsForStep(this._step).map(f => ({
 			key:   f.key,
 			label: f.label,
+			page:  f.page ?? null,
+			followUp: !base.has(f.key),
 			options: f.table.map((entry, i) => ({
 				value:    String(i),
 				label:    entry.text,
@@ -160,12 +169,11 @@ export class StonetopArcanaInspireDialog extends StonetopDialog {
 		super.activateListeners(html);
 		const root = html[0];
 
-		// Field selects → remember the pick (no re-render; the value is already shown).
+		// Field selects → remember the pick. Re-render only when the pick changes which fields
+		// show (a "go to" or "roll again" row opened or closed one); otherwise the value is
+		// already on screen.
 		root.querySelectorAll("[data-inspire-field]").forEach(sel =>
-			sel.addEventListener("change", () => {
-				const v = sel.value;
-				this._picks[sel.dataset.inspireField] = v === "" ? undefined : Number(v);
-			}));
+			sel.addEventListener("change", () => this._pickField(sel.dataset.inspireField, sel.value)));
 
 		// Per-field roll (the randomizer button beside each dropdown).
 		root.querySelectorAll(".stonetop-inspire-roll").forEach(btn =>
@@ -209,12 +217,27 @@ export class StonetopArcanaInspireDialog extends StonetopDialog {
 		this.render(false);
 	}
 
+	// Roll a field, then follow any "roll again" its result asks for (rollField does both).
 	_rollField(key) {
 		const field = this._fieldsForStep(this._step).find(f => f.key === key);
 		if (!field) return;
-		const entry = rollOnTable(field.table);
-		this._picks[key] = field.table.indexOf(entry);
+		rollField(field, this._picks);
 		this.render(false);
+	}
+
+	// A hand-picked row: its old "rolled again" follow-ups go, and a row that says "roll again"
+	// is rolled again for you, exactly as a rolled one is.
+	_pickField(key, value) {
+		const field = this._fieldsForStep(this._step).find(f => f.key === key);
+		if (!field) return;
+		const before = this._fieldsForStep(this._step).map(f => f.key).join("|");
+		clearAgainPicks(key, this._picks);
+		this._picks[key] = value === "" ? undefined : Number(value);
+		followAgain(field, this._picks);
+		const after = this._fieldsForStep(this._step).map(f => f.key).join("|");
+		// A fresh reroll under the same fields still has to be drawn.
+		const rerolled = !!field.table[this._picks[key]]?.again;
+		if (before !== after || rerolled) this.render(false);
 	}
 
 	// Origin and nature must be chosen before moving on (nature branches the detail step).

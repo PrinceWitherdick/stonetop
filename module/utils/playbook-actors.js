@@ -85,6 +85,32 @@ export function charactersOwnedBy(userId) {
 	);
 }
 
+/** A world collection (`game.users`, `game.actors`) as a plain array, whatever shape it arrives in. */
+export function asArray(users) {
+	if (Array.isArray(users)) return users;
+	if (Array.isArray(users?.contents)) return users.contents;
+	return typeof users?.[Symbol.iterator] === "function" ? [...users] : [];
+}
+
+/**
+ * Is `actor` some OTHER user's assigned character (their `User#character`)? Then it is theirs,
+ * whoever else has been given ownership of it: a GM who lets Bob run Alice's PC while she is away
+ * has not made it Bob's. hooks/Ready.js asks this before greeting a player with "your" character,
+ * and createCharacterForUser asks it before listing a player's characters for replacement.
+ */
+export function assignedToAnother(actor, userId, users = game.users) {
+	if (!actor?.id) return false;
+	return asArray(users).some(u => u && u.id !== userId && u.character?.id === actor.id);
+}
+
+/**
+ * The characters a player PLAYS: the ones they explicitly own (charactersOwnedBy), less any that
+ * another user holds as their assigned character.
+ */
+export function charactersPlayedBy(userId, users = game.users) {
+	return charactersOwnedBy(userId).filter(a => !assignedToAnother(a, userId, users));
+}
+
 /**
  * Path to a playbook's avatar art (`assets/icons/playbooks/<slug>_icon.webp`), or
  * `null` for a slug-less actor. Server-root-relative (no leading slash) — the same

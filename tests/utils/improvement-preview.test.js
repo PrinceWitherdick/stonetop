@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EMPTY_PREVIEW_HTML, improvementPreviewHtml } from "../../module/utils/improvement-preview.js";
+import { EMPTY_PREVIEW_HTML, improvementPreviewHtml, improvementPreviewNotes } from "../../module/utils/improvement-preview.js";
 import { buildImprovementDef, sectionsFromGroups } from "../../module/utils/improvement-def.js";
 import { IMPROVEMENT_DEFINITIONS, IMPROVEMENT_GRANTS } from "../../module/actors/steading/StonetopSteading.js";
 import { readRepo } from "../fakes/css.js";
@@ -85,5 +85,31 @@ describe("improvementPreviewHtml", () => {
 		expect(html).toContain("Or all of these:");
 		expect(html).toContain("Defenses +1");
 		expect(html).toContain("Fortifications: Weapons of War");
+	});
+});
+
+// The Preview panel's soft warnings: what the card cannot say for itself. None of them stops Save.
+describe("improvementPreviewNotes", () => {
+	it("warns that an improvement with no requirements can be completed at once", () => {
+		const def = buildImprovementDef({ name: "Feast", sections: sectionsFromGroups([{ rows: [] }]) });
+		expect(improvementPreviewNotes(def)).toEqual(["It has no requirements, so anyone can mark it complete at once."]);
+		// Blank rows are covered by that note: a fresh group always opens with one.
+		expect(improvementPreviewNotes(def, { blankRows: 1 })).toHaveLength(1);
+	});
+
+	it("says how many blank rows the save will leave out", () => {
+		expect(improvementPreviewNotes(DEF, { blankRows: 1 })).toEqual(["One requirement row is empty and will be left out."]);
+		expect(improvementPreviewNotes(DEF, { blankRows: 3 })).toEqual(["3 requirement rows are empty and will be left out."]);
+	});
+
+	it("says nothing about a complete improvement", () => {
+		expect(improvementPreviewNotes(DEF)).toEqual([]);
+	});
+
+	it("is written without em dashes", () => {
+		const def = buildImprovementDef({ name: "Feast" });
+		for (const line of [...improvementPreviewNotes(def), ...improvementPreviewNotes(DEF, { blankRows: 2 })]) {
+			expect(line).not.toMatch(/—/);
+		}
 	});
 });

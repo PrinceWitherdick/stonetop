@@ -1,0 +1,39 @@
+{{!-- ONE SEASON ON A SIDEWAYS TIMELINE.
+
+      The slide-deck shape: one axis line across the page, a node on it per season, and that
+      season's cards hanging off the node on a short stalk -- above the line for one season, below
+      it for the next (`above`, alternated by the view model), so neighbours never crowd each other.
+
+      ⚠ THE NODE COMES FIRST IN THE DOM, whichever side its cards hang on. The grid places the cards
+      in the top or the bottom row; a screen reader and the Tab key read the season's name and then
+      what happened in it, in that order, every time.
+
+      The axis itself is drawn by the node (a rule across its whole column), so the line stays
+      continuous from season to season with nothing measured in script. Every node carries its own
+      year chip (the shared heading).
+
+      The stalk runs from the cards all the way to the node, however tall the row of nodes is
+      (user, 2026-10-04): `--cards` marks a season that has any, since the empty list still holds
+      the whitespace between its tags and so is never `:empty`.
+
+      A YEAR SEPARATOR opens the season that starts a year (`startsYear`): a column of its own with
+      the year's chip on the axis. NO RED RULE on this view (user, 2026-10-04: the sheet's tab is not
+      the pop-out, whose swimlanes keep theirs). Its own column, so the list's `--timeline-hcols`
+      (timeline.hbs) gives it one; the chip sizes it.
+
+      Context: one period view-model (timeline-view.js#periodVM). --}}
+{{#if startsYear}}
+<li class="stonetop-timeline-hyear" data-year="{{year}}">
+	<h2 class="stonetop-timeline-hyear-node"><span class="stonetop-year-chip">{{yearLabel}}</span></h2>
+</li>
+{{/if}}
+<li class="stonetop-timeline-hperiod {{#if above}}stonetop-timeline-hperiod--above{{else}}stonetop-timeline-hperiod--below{{/if}}{{#if entries.length}} stonetop-timeline-hperiod--cards{{/if}}" data-period="{{key}}"{{#unless undated}} data-year="{{year}}"{{/unless}}>
+	<div class="stonetop-timeline-hnode">
+		<div class="stonetop-timeline-hhead{{#if seasonClass}} {{seasonClass}}{{/if}}{{#if seasonNotes.length}} stonetop-timeline-head--notes{{/if}}">
+			{{> "stonetop.timeline-period-head"}}
+		</div>
+	</div>
+	<ol class="stonetop-timeline-cards stonetop-timeline-hcards">
+		{{#each entries}}{{> "stonetop.timeline-card"}}{{/each}}
+	</ol>
+</li>

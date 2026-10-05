@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "<em>fragile</em>, magical",
+    "note": "<em>fragile</em>, <em>magical</em>",
     "resource": {
       "max": 3,
       "title": null,
@@ -24,7 +24,7 @@
       "slug": "a-sealed-amphora",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "<em>fragile</em>, magical",
+      "note": "<em>fragile</em>, <em>magical</em>",
       "resource": {
         "max": 3,
         "title": null,

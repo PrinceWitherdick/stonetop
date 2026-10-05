@@ -177,16 +177,22 @@ export class StonetopDialog extends Application {
 		return key ? `[${attr}="${key}"]` : null;
 	}
 
-	/** Where the reader is in the window as drawn: the kept column's offset, and the control with the keyboard. Null before the first draw. */
+	/**
+	 * Where the reader is in the window as drawn: the kept column's offsets (down AND across -- a
+	 * timeline laid out sideways scrolls left to right), and the control with the keyboard. Null
+	 * before the first draw.
+	 */
 	_readPlace() {
 		const before = this.element?.[0];
 		if (!before) return null;
 		const scroller = this._keptScrollSelector;
 		const active = globalThis.document?.activeElement;
+		const column = scroller ? before.querySelector?.(scroller) : null;
 		return {
 			scroller,
-			scrolled: scroller ? before.querySelector?.(scroller)?.scrollTop ?? 0 : 0,
-			focused:  active && before.contains?.(active) ? this._focusSelector(active) : null,
+			scrolled:     column?.scrollTop ?? 0,
+			scrolledLeft: column?.scrollLeft ?? 0,
+			focused:      active && before.contains?.(active) ? this._focusSelector(active) : null,
 		};
 	}
 
@@ -197,8 +203,14 @@ export class StonetopDialog extends Application {
 	_restorePlace(place) {
 		if (!place) return;
 		const after = this.element?.[0];
-		const column = place.scrolled ? after?.querySelector?.(place.scroller) : null;
-		if (column) column.scrollTop = place.scrolled;
+		// ⚠ ZERO IS PUT BACK TOO. A fresh column does not always start at 0: the timeline's opens past
+		// its drag gutter (utils/drag-scroll.js), so a reader who had scrolled right up to the edge
+		// would otherwise be thrown a whole gutter by somebody else's write.
+		const column = place.scroller ? after?.querySelector?.(place.scroller) : null;
+		if (column) {
+			column.scrollTop = place.scrolled;
+			column.scrollLeft = place.scrolledLeft;
+		}
 		if (place.focused) after?.querySelector?.(place.focused)?.focus?.({ preventScroll: true });
 	}
 

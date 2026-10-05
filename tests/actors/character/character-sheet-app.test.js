@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { stubConfirm } from "../../fakes/confirm.js";
-import { createStonetopCharacterSheetClass } from "../../../module/actors/character/StonetopCharacterSheet.js";
+import { createStonetopCharacterSheetClass, woundEditPatch } from "../../../module/actors/character/StonetopCharacterSheet.js";
+import { WoundDialog } from "../../../module/actors/character/dialogs/WoundDialog.js";
 import {FakeActorBuilder} from "../../fakes/FakeActorBuilder.js";
 import { DEATHS_DOOR_STATE, zeroHpMove, zeroHpResolution } from "../../../module/actors/character/deaths-door.js";
 
@@ -175,6 +176,13 @@ function makeCharacterMock(actor) {
 		moveResources: { add: vi.fn() },
 		buildSnapshot: vi.fn(async () => ({})),
 		setInventoryResource: vi.fn(),
+		inventoryResourceData: vi.fn((slug, count) => ({ [`flags.stonetop_pwd.inventory.resources.${slug}`]: count })),
+		// The live hit points and the COMPUTED max, as Recover and Convalesce read them at the press.
+		get hp() { return Number(actor.system?.attributes?.hp?.value) || 0; },
+		computedMaxHp: vi.fn(async () => Number(actor.system?.attributes?.hp?.max) || 0),
+		// Not dying unless a test says so (the real getter reads HP 0 and the `dying` state).
+		canFaceDeathsDoor: false,
+		zeroHpMove: { name: "Death's Door" },
 		// The real one falls back to the Lightbearer's list for anyone with Invoke the Sun God;
 		// these tests only ever hand it a playbook that carries its own.
 		invocationSource: vi.fn(async playbookDoc => playbookDoc?.invocations?.options?.length ? playbookDoc.invocations : null),
@@ -314,7 +322,6 @@ describe("StonetopCharacterSheet event handlers", () => {
 		it("shows the owner the back they are owed", async () => {
 			const card = await cardOf(arcanaSheet({ card: { backOwed: true } }));
 			expect(card.showBackOwed).toBe(true);
-			expect(card.gmBackOwed).toBe(false);
 		});
 
 		it("drops the strip once the back has actually arrived", async () => {
@@ -327,24 +334,23 @@ describe("StonetopCharacterSheet event handlers", () => {
 			}
 		});
 
-		it("shows the GM the back they owe, and no strip once it is moot", async () => {
-			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true } }))).gmBackOwed).toBe(true);
-			// An unlocked card's back is the owner's already, so there is nothing left to reveal.
-			expect((await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true, unlocked: true } }))).gmBackOwed).toBe(false);
-			expect((await cardOf(arcanaSheet({ isGM: true, revealed: ["the-key"], card: { backOwed: true } }))).gmBackOwed).toBe(false);
-			expect((await cardOf(arcanaSheet({ isGM: true }))).gmBackOwed).toBe(false);
+		it("carries no GM-side strip: the footer's reveal toggle settles the debt", async () => {
+			const card = await cardOf(arcanaSheet({ isGM: true, card: { backOwed: true } }));
+			expect(card.showBackOwed).toBe(false);
+			expect(card.canReveal).toBe(true);
 		});
 
 		/**
-		 * revealArcanum is the ONLY thing that clears backOwed, and the GM's strip is the only route
-		 * to it for a still-locked card. Gated on the reveal TOGGLE's rule (which carries a
-		 * "secretive mode only" term) the debt was stranded with the world's peek switch on: nobody
-		 * could settle it, and the day the switch went off the owner's sheet went back to claiming a
-		 * back they had been reading for sessions.
+		 * revealArcanum is the ONLY thing that clears backOwed, and the footer's reveal toggle is the
+		 * GM's only route to it. Gated on secretive mode alone, the debt was stranded with the
+		 * world's peek switch on: nobody could settle it, and the day the switch went off the owner's
+		 * sheet went back to claiming a back they had been reading for sessions.
 		 */
-		it("still lets the GM settle the debt while players can already peek", async () => {
-			const card = await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true } }));
-			expect(card.gmBackOwed).toBe(true);
+		it("still offers the GM the reveal toggle for an owed back while players can already peek", async () => {
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true } }))).canReveal).toBe(true);
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true }))).canReveal).toBe(false);
+			// An unlocked card's back is the owner's already, so there is nothing left to reveal.
+			expect((await cardOf(arcanaSheet({ isGM: true, peek: true, card: { backOwed: true, unlocked: true } }))).canReveal).toBe(false);
 		});
 
 		/**
@@ -356,7 +362,6 @@ describe("StonetopCharacterSheet event handlers", () => {
 		it("keeps the owed-back strip off a non-owning viewer's copy of the sheet", async () => {
 			const card = await cardOf(arcanaSheet({ owns: false, card: { backOwed: true } }));
 			expect(card.showBackOwed).toBe(false);
-			expect(card.gmBackOwed).toBe(false);
 		});
 
 		it("offers the no-roll hand-over to the GM only", async () => {
@@ -1392,37 +1397,98 @@ describe("StonetopCharacterSheet._buildRecoverData", () => {
 describe("StonetopCharacterSheet._applyRecover", () => {
 	// A purse as supply-cost.js hands them over: which row, what it is called, what is in it.
 	const purse = (slug, remaining, label = "Supplies") => ({ slug, label, remaining });
+	const RECOVER = { stonetopMove: "Recover" };
 
-	it("decrements one use of the chosen purse", async () => {
-		const actor = makeActor();
+	// A hurt character carrying `resources`, at `hp` of a computed `max`.
+	function hurt({ hp = 4, max = 20, resources = { supplies: 3 } } = {}) {
+		const actor = new FakeActorBuilder().withHp(hp, max).withFlag("inventory.resources", resources).build();
+		actor.id = "actor-1";
+		actor.isOwner = true;
+		actor.typedActor = makeCharacterMock(actor);
+		return actor;
+	}
+
+	it("decrements one use of the chosen purse, named as Recover's", async () => {
+		const actor = hurt();
 		const sheet = makeSheet(actor);
-		await sheet._applyRecover({ purse: purse("supplies", 3), oldHp: 4, newHp: 8 });
-		expect(actor.typedActor.setInventoryResource).toHaveBeenCalledWith("supplies", 2);
+		await sheet._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop_pwd.inventory.resources.supplies": 2 }), RECOVER);
 	});
 
 	// The one thing that may stand in for supplies at a Recover (Book II p.462). It is spent
 	// through the same path, which is the point of the purse abstraction.
 	it("spends a Twisting Pine vial when that is what was picked", async () => {
-		const actor = makeActor();
+		const actor = hurt({ resources: { "twisting-pine": 1 } });
 		const sheet = makeSheet(actor);
-		await sheet._applyRecover({ purse: purse("twisting-pine", 1, "Twisting Pine sap"), oldHp: 4, newHp: 8 });
-		expect(actor.typedActor.setInventoryResource).toHaveBeenCalledWith("twisting-pine", 0);
+		await sheet._applyRecover({ purse: purse("twisting-pine", 1, "Twisting Pine sap"), base: 4 });
+		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop_pwd.inventory.resources.twisting-pine": 0 }), RECOVER);
 	});
 
-	it("heals to the new HP and locks the move", async () => {
-		const actor = makeActor();
+	// Audit #1: every automated move write names its move, so the ledger reads "via Recover".
+	it("spends the supply, heals 4+Prosperity and locks the move, in one write named as Recover's", async () => {
+		const actor = hurt({ hp: 4, resources: { supplies: 1 } });
 		const sheet = makeSheet(actor);
-		await sheet._applyRecover({ purse: purse("supplies", 1), oldHp: 4, newHp: 9 });
+		await sheet._applyRecover({ purse: purse("supplies", 1), base: 5 });
+		expect(actor.update).toHaveBeenCalledTimes(1);
 		expect(actor.update).toHaveBeenCalledWith({
+			"flags.stonetop_pwd.inventory.resources.supplies": 0,
 			"system.attributes.hp.value": 9,
 			"flags.stonetop_pwd.recover.spent": true,
-		});
+		}, RECOVER);
+	});
+
+	// Audit #2: the window's numbers are stale by the press. A camp that healed them meanwhile was
+	// written back DOWN to the window's figure, and a blow taken meanwhile was healed over.
+	it("heals from the HP at the press, not the HP the window opened on", async () => {
+		const actor = hurt({ hp: 4, max: 20 });
+		const sheet = makeSheet(actor);
+		actor.system.attributes.hp.value = 13;     // Make Camp settled while the window stood open
+		await sheet._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		expect(actor.system.attributes.hp.value).toBe(17);
+
+		const bled = hurt({ hp: 10, max: 20 });
+		const sheet2 = makeSheet(bled);
+		bled.system.attributes.hp.value = 4;       // took 6 damage meanwhile
+		await sheet2._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		expect(bled.system.attributes.hp.value).toBe(8);
+	});
+
+	it("caps at the computed max", async () => {
+		const actor = hurt({ hp: 18, max: 20 });
+		await makeSheet(actor)._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		expect(actor.system.attributes.hp.value).toBe(20);
+	});
+
+	it("spends from the purse as it is now, not as the window counted it", async () => {
+		const actor = hurt({ resources: { supplies: 2 } });   // a camp ate one since the window opened
+		await makeSheet(actor)._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		expect(actor.update).toHaveBeenCalledWith(expect.objectContaining({ "flags.stonetop_pwd.inventory.resources.supplies": 1 }), RECOVER);
+	});
+
+	it("spends nothing when the purse has run dry since the window opened", async () => {
+		const actor = hurt({ resources: {} });
+		await makeSheet(actor)._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		expect(actor.update).not.toHaveBeenCalled();
+	});
+
+	it("spends nothing on a second press, or a second window, once the Recover is spent", async () => {
+		const actor = hurt();
+		const sheet = makeSheet(actor);
+		await sheet._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		await sheet._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		expect(actor.update).toHaveBeenCalledTimes(1);
+	});
+
+	it("spends nothing when they are back at full HP by the press", async () => {
+		const actor = hurt({ hp: 20, max: 20 });
+		await makeSheet(actor)._applyRecover({ purse: purse("supplies", 3), base: 4 });
+		expect(actor.update).not.toHaveBeenCalled();
 	});
 
 	it("re-renders after applying", async () => {
-		const actor = makeActor();
+		const actor = hurt();
 		const sheet = makeSheet(actor);
-		await sheet._applyRecover({ purse: purse("supplies", 2), oldHp: 4, newHp: 8 });
+		await sheet._applyRecover({ purse: purse("supplies", 2), base: 4 });
 		expect(sheet.render).toHaveBeenCalledWith(false);
 	});
 });
@@ -1477,9 +1543,9 @@ describe("StonetopCharacterSheet._buildConvalesceData", () => {
 describe("StonetopCharacterSheet._applyConvalesce", () => {
 	it("heals to max and clears every marked debility, attributed to the move", async () => {
 		const actor = makeActor();
+		actor.system.attributes.hp.value = 3;
 		const sheet = makeSheet(actor);
 		await sheet._applyConvalesce({
-			oldHp: 3, newHp: 8,
 			debilities: [
 				{ key: "weakened",  name: "Weakened",  active: true },
 				{ key: "miserable", name: "Miserable", active: true },
@@ -1496,7 +1562,7 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
 		await sheet._applyConvalesce({
-			oldHp: 8, newHp: 8, debilities: [],
+			debilities: [],
 			tracks: [{ key: "auspicious-birth", name: "Auspicious Birth's background circle" }],
 		});
 		expect(actor.update).toHaveBeenCalledWith({
@@ -1508,8 +1574,18 @@ describe("StonetopCharacterSheet._applyConvalesce", () => {
 	it("re-renders after applying", async () => {
 		const actor = makeActor();
 		const sheet = makeSheet(actor);
-		await sheet._applyConvalesce({ oldHp: 4, newHp: 8, debilities: [] });
+		await sheet._applyConvalesce({ debilities: [] });
 		expect(sheet.render).toHaveBeenCalledWith(false);
+	});
+
+	// Audit #2: the HP is worked out at the press from the live HP and the COMPUTED max, not
+	// handed over from the moment the window opened.
+	it("sets HP to the computed max as it is at the press", async () => {
+		const actor = makeActor();
+		actor.system.attributes.hp.value = 2;
+		actor.typedActor.computedMaxHp = vi.fn(async () => 14);   // the stored max (8) is stale
+		await makeSheet(actor)._applyConvalesce({ debilities: [] });
+		expect(actor.system.attributes.hp.value).toBe(14);
 	});
 });
 
@@ -1560,7 +1636,221 @@ describe("Recover and Convalesce for the Unliving", () => {
 		await sheet._applyRecover({ purse: { slug: "supplies", label: "Supplies", remaining: 3 }, oldHp: 2, newHp: 7 });
 		await sheet._applyConvalesce({ oldHp: 2, newHp: 8, debilities: [] });
 		expect(actor.update).not.toHaveBeenCalled();
-		expect(actor.typedActor.setInventoryResource).not.toHaveBeenCalled();
+	});
+});
+
+// Wounds audit #9 (user ruling): a PC at Death's Door "can't save themselves" (Book I p.240), and
+// whoever tends them is Aiding the roll (p.245). Their own Recover and Convalesce lock while the
+// 0-HP move is still to face, however they are reached, and say why.
+describe("Recover and Convalesce while dying", () => {
+	let warn;
+	beforeEach(() => { warn = vi.fn(); global.ui = { notifications: { info: vi.fn(), warn, error: vi.fn() } }; });
+
+	function dying({ move = "Death's Door" } = {}) {
+		const actor = new FakeActorBuilder().withHp(0, 20).withFlag("inventory.resources", { supplies: 3 }).build();
+		actor.id = "actor-1";
+		actor.isOwner = true;
+		actor.typedActor = makeCharacterMock(actor);
+		actor.typedActor.canFaceDeathsDoor = true;
+		actor.typedActor.zeroHpMove = { name: move };
+		return actor;
+	}
+
+	it("locks both cards with a hint naming the roll to Aid", () => {
+		const sheet = makeSheet(dying());
+		const recover = sheet._buildRecoverData(recoverSnapshot({ hpValue: 0, hpMax: 20 }));
+		const convalesce = sheet._buildConvalesceData(convalesceSnapshot({ hpValue: 0, hpMax: 20 }));
+		expect(recover.canRecover).toBe(false);
+		expect(convalesce.canConvalesce).toBe(false);
+		expect(recover.hint.text).toBe("Dying: you can't save yourself. Someone who tends you Aids your Death's Door roll instead.");
+		expect(convalesce.hint.text).toBe(recover.hint.text);
+	});
+
+	it("names an insert's own 0-HP move", () => {
+		const data = makeSheet(dying({ move: "Undying" }))._buildRecoverData(recoverSnapshot({ hpValue: 0, hpMax: 20 }));
+		expect(data.hint.text).toContain("Aids your Undying roll");
+	});
+
+	it("opens no window and writes nothing when either is reached another way", async () => {
+		const actor = dying();
+		const sheet = makeSheet(actor);
+		await sheet._onRecoverOpen();
+		await sheet._onConvalesceOpen();
+		expect(actor.typedActor.buildSnapshot).not.toHaveBeenCalled();
+		expect(warn).toHaveBeenCalledTimes(2);
+		await sheet._applyRecover({ purse: { slug: "supplies", label: "Supplies", remaining: 3 }, base: 4 });
+		await sheet._applyConvalesce({ debilities: [] });
+		expect(actor.update).not.toHaveBeenCalled();
+	});
+
+	it("leaves both open once they are back up", () => {
+		const actor = dying();
+		actor.typedActor.canFaceDeathsDoor = false;
+		const sheet = makeSheet(actor);
+		expect(sheet._buildRecoverData(recoverSnapshot({ hpValue: 1, hpMax: 20 })).canRecover).toBe(true);
+		expect(sheet._buildConvalesceData(convalesceSnapshot({ hpValue: 1, hpMax: 20 })).canConvalesce).toBe(true);
+	});
+});
+
+// Wounds audit #11 (user ruling): Convalesce stays live for a wound that can still heal, or a
+// permanent injury with no plan yet. One already planned for no longer holds it open, or every
+// survivor of Death's Door's 10+ would carry a Convalesce card that never locks.
+describe("Convalesce and the wounds that keep it open", () => {
+	const atFull = wounds => ({ ...convalesceSnapshot({ hpValue: 8, hpMax: 8 }), wounds });
+	const can = wounds => makeSheet(makeActor())._buildConvalesceData(atFull(wounds)).canConvalesce;
+
+	it("stays open for a wound that can still heal", () => {
+		expect(can([{ status: "problematic", healed: false }])).toBe(true);
+		expect(can([{ status: "stabilized", healed: false }])).toBe(true);
+	});
+
+	it("stays open for a permanent injury with no plan yet", () => {
+		expect(can([{ status: "permanent", healed: false, planNote: "", planRequirements: [] }])).toBe(true);
+	});
+
+	it("locks for a permanent injury already planned for, by goal or by tick boxes", () => {
+		expect(can([{ status: "permanent", healed: false, planNote: "Carry it", planRequirements: [] }])).toBe(false);
+		expect(can([{ status: "permanent", healed: false, planNote: "", planRequirements: [{ text: "practice", done: false }] }])).toBe(false);
+	});
+
+	it("locks for a scar", () => {
+		expect(can([{ status: "stabilized", healed: true }])).toBe(false);
+	});
+
+	it("opens no window from a press when only planned injuries are left", async () => {
+		const actor = makeActor();
+		actor.typedActor.buildSnapshot = vi.fn(async () => atFull([
+			{ id: "m", status: "permanent", healed: false, planNote: "Carry it", planRequirements: [] },
+		]));
+		const DialogSpy = vi.fn(function () { this.render = vi.fn(); });
+		globalThis.Dialog = DialogSpy;
+		try {
+			await makeSheet(actor)._onConvalesceOpen();
+			expect(DialogSpy).not.toHaveBeenCalled();
+		} finally {
+			delete globalThis.Dialog;
+		}
+	});
+});
+
+// Wounds audit #5, #6 and #8: Tend is Recover (so not for the Unliving), the editor writes only
+// what was changed, and a record stored with a blank id is still found.
+describe("the sheet's wound controls", () => {
+	let warn;
+	beforeEach(() => { warn = vi.fn(); global.ui = { notifications: { info: vi.fn(), warn, error: vi.fn() } }; });
+
+	function withWounds(wounds, { insert = null } = {}) {
+		const builder = new FakeActorBuilder();
+		if (insert) builder.withFlag("postDeathInsert.slug", insert);
+		const actor = builder.build();
+		actor.id = "actor-1";
+		actor.isOwner = true;
+		actor.system.attributes.wounds = wounds;
+		actor.typedActor = makeCharacterMock(actor);
+		actor.typedActor.updateWound = vi.fn(async () => {});
+		return actor;
+	}
+	const GASH = { id: "w1", text: "Gash", status: "problematic", healed: false };
+
+	it("draws no Tend button for a Ghost or a Revenant, and refuses a Tend that gets there anyway", () => {
+		const DialogSpy = vi.fn(function () { this.render = vi.fn(); });
+		globalThis.Dialog = DialogSpy;
+		try {
+			const ghost = makeSheet(withWounds([GASH], { insert: "ghost" }));
+			expect(ghost._buildWoundsView([GASH], true).canTend).toBe(false);
+			ghost._onWoundTend("w1");
+			expect(DialogSpy).not.toHaveBeenCalled();
+			expect(warn.mock.calls[0][0]).toContain("Unliving: no benefit");
+
+			const living = makeSheet(withWounds([GASH]));
+			expect(living._buildWoundsView([GASH], true).canTend).toBe(true);
+			living._onWoundTend("w1");
+			expect(DialogSpy).toHaveBeenCalledTimes(1);
+		} finally {
+			delete globalThis.Dialog;
+		}
+	});
+
+	// Book I p.240: the dying can't save themselves, and Tend is Recover.
+	it("draws no Tend button while Death's Door is still to face, and refuses a Tend that gets there anyway", () => {
+		const DialogSpy = vi.fn(function () { this.render = vi.fn(); });
+		globalThis.Dialog = DialogSpy;
+		try {
+			const actor = withWounds([GASH]);
+			actor.typedActor.canFaceDeathsDoor = true;
+			const sheet = makeSheet(actor);
+			expect(sheet._buildWoundsView([GASH], true).canTend).toBe(false);
+			sheet._onWoundTend("w1");
+			expect(DialogSpy).not.toHaveBeenCalled();
+			expect(warn).toHaveBeenCalledTimes(1);
+		} finally {
+			delete globalThis.Dialog;
+		}
+	});
+
+	// Test gap #13: the sheet's own Tend, not just the model call it makes. "It's taken care of"
+	// stabilizes the wound, clears what it was said to need, and names Recover to the ledger.
+	it("stabilizes the tended wound as Recover's write", async () => {
+		const DialogSpy = vi.fn(function () { this.render = vi.fn(); });
+		globalThis.Dialog = DialogSpy;
+		globalThis.ChatMessage = { create: vi.fn(async d => d), getSpeaker: () => ({}) };
+		try {
+			const actor = withWounds([{ ...GASH, requirementNote: "stitches" }]);
+			makeSheet(actor)._onWoundTend("w1");
+			await DialogSpy.mock.calls[0][0].buttons.stabilize.callback();
+			expect(actor.typedActor.updateWound).toHaveBeenCalledWith("w1", { status: "stabilized", requirementNote: "" }, { moveName: "Recover" });
+		} finally {
+			delete globalThis.Dialog;
+			delete globalThis.ChatMessage;
+		}
+	});
+
+	it("finds a record stored with a blank id by the stand-in id its row carries", () => {
+		const sheet = makeSheet(withWounds([{ id: "", text: "Old gash", status: "problematic" }]));
+		expect(sheet._woundRecord("wound-0")?.text).toBe("Old gash");
+	});
+
+	it("says so, rather than opening an empty editor, for a wound that is gone", async () => {
+		const actor = withWounds([]);
+		const sheet = makeSheet(actor);
+		sheet._openWoundDialog = vi.fn();
+		await sheet._onWoundEdit("w9");
+		expect(sheet._openWoundDialog).not.toHaveBeenCalled();
+		expect(warn).toHaveBeenCalledWith("That wound is no longer on the sheet.");
+	});
+
+	it("writes only the fields the player changed", async () => {
+		const actor = withWounds([GASH]);
+		const sheet = makeSheet(actor);
+		const edited = {
+			text: "Deep gash", status: "problematic", origin: "wound", requirementNote: "", mechanicalTag: "",
+			reminderMove: "", planNote: "", planRequirements: [], healed: false,
+		};
+		const promise = vi.spyOn(WoundDialog.prototype, "promise").mockResolvedValue(edited);
+		try {
+			await sheet._openWoundDialog({ isNew: false, wound: GASH });
+		} finally {
+			promise.mockRestore();
+		}
+		// The status and the scar box went untouched, so a Tend or a heal landing while the editor
+		// stood open is not written back over.
+		expect(actor.typedActor.updateWound).toHaveBeenCalledWith("w1", { text: "Deep gash" });
+	});
+});
+
+describe("woundEditPatch", () => {
+	const opened = { id: "w1", text: "Gash ", status: "problematic", planRequirements: [{ text: "rest", done: false }] };
+	it("carries nothing for an untouched wound, trimmed text and an unchanged tick list included", () => {
+		expect(woundEditPatch(opened, {
+			text: "Gash", status: "problematic", origin: "wound", healed: false,
+			planRequirements: [{ text: "rest", done: false }],
+		})).toEqual({});
+	});
+
+	it("carries what moved, the tick list whole", () => {
+		expect(woundEditPatch(opened, {
+			text: "Gash", status: "permanent", healed: true, planRequirements: [{ text: "rest", done: true }],
+		})).toEqual({ status: "permanent", healed: true, planRequirements: [{ text: "rest", done: true }] });
 	});
 });
 
@@ -1878,7 +2168,8 @@ describe("StonetopCharacterSheet Death's Door card past the Door", () => {
 		for (const [slug, move] of [["revenant", "Undying"], ["thrall", "Dark Succor"], ["ghost", "Tethered"]]) {
 			const sheet = makeCardSheet(slug, { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
 			await sheet._onDeathsDoorClear();
-			expect(sheet._stonetopCharacter.restoreHp, slug).toHaveBeenCalledWith(8, move, { clearsDeathsDoor: true });
+			// Unhalved: a return is not a heal, so Torment's Blessing leaves it alone (the user's ruling, 2026-09-30).
+			expect(sheet._stonetopCharacter.restoreHp, slug).toHaveBeenCalledWith(8, move, { clearsDeathsDoor: true, unhalved: true });
 			expect(sheet._stonetopCharacter.setDeathsDoorState, slug).not.toHaveBeenCalled();
 		}
 	});
@@ -1889,6 +2180,15 @@ describe("StonetopCharacterSheet Death's Door card past the Door", () => {
 		expect(revenant.hint.text).toContain("8 HP");
 		const ghost = card(makeCardSheet("ghost", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION }));
 		expect(ghost.action.label).toBe("Reform at your tether");
+	});
+
+	// The return is not a heal (the user's ruling, 2026-09-30): Torment's Blessing leaves it at a full half.
+	it("promises a Thrall with Torment's Blessing the full half, unhalved", () => {
+		const sheet = makeCardSheet("thrall", { state: DEATHS_DOOR_STATE.OUT_OF_ACTION });
+		sheet.actor.flags = { "stonetop_pwd": {
+			postDeathInsert: { slug: "thrall" }, postDeathLore: { counts: { "marks:torments-blessing": 1 } },
+		} };
+		expect(card(sheet).hint.text).toContain("8 HP");
 	});
 
 	it("still only clears the state for the living, and for a `dead` being undone", async () => {
@@ -2053,12 +2353,11 @@ describe("StonetopCharacterSheet Post-Death tab controls", () => {
 
 	it("puts the Final Consequence's box back when the question is declined", async () => {
 		const { sheet, char } = makePdiSheet();
-		char.markSectionOptionUpdateData = vi.fn(() => ({ x: 1 }));
-		char.deathsDoorStateUpdateData = vi.fn(() => ({ y: 1 }));
-		char.restoreHp = vi.fn(async () => false);
+		char.finalConsequenceUpdateData = vi.fn(() => ({ x: 1 }));
+		char.applyUpdate = vi.fn(async () => {});
 		stubConfirm(false);
 		await sheet._onInsertLoreTick({ checked: true, dataset: { loreSlug: "consequences", optionSlug: "final-consequence", idx: "0" } });
-		expect(char.restoreHp).not.toHaveBeenCalled();
+		expect(char.applyUpdate).not.toHaveBeenCalled();
 		expect(char.markSectionOption).not.toHaveBeenCalled();
 		// The re-render is what redraws the box unticked.
 		expect(sheet.render).toHaveBeenCalledWith(false);

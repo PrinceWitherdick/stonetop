@@ -615,3 +615,50 @@ describe("a Thrall's Marks at the fire", () => {
 		expect(campShareUpdate(entry, live()).update[HP]).toBe(12);
 	});
 });
+
+// ── wounds audit #9 and #10 (user rulings, 2026-10-02) ───────────────────────
+
+describe("a dying character at the fire, and the followers the meal fed", () => {
+	const HP   = "system.attributes.hp.value";
+	const live = (over = {}) => ({
+		resources:        { supplies: 4 },
+		hpValue:          0,
+		resourceData:     (slug, n) => ({ [`flags.${SYSTEM_ID}.inventory.resources.${slug}`]: n }),
+		advantageData:    source => ({ [`flags.${SYSTEM_ID}.heldAdvantage`]: { source } }),
+		disadvantageData: source => ({ [`flags.${SYSTEM_ID}.heldDisadvantage`]: { source } }),
+		...over,
+	});
+	const dying = (choices = {}, over = {}) => ({ ...paying(choices, { hp: 0, ...over }), dying: true });
+
+	// Book I p.240: a PC out of the action "can't save themselves"; p.245: whoever tends them Aids the roll.
+	it("restores a dying character no HP, by the pick or by any extra", () => {
+		// The same character up and about rolls both, so it is the dying that stops them.
+		const up = campLedger([paying({ bedroll: true }, { hp: 0, carriesBedroll: true, breaksBread: true })]);
+		expect(rollsBedroll(up.rows[0], up)).toBe(true);
+		expect(rollsBreakBread(up.rows[0], up)).toBe(true);
+		const ledger = campLedger([dying({ bedroll: true }, { carriesBedroll: true, breaksBread: true })]);
+		expect(rollsBedroll(ledger.rows[0], ledger)).toBe(false);
+		expect(rollsBreakBread(ledger.rows[0], ledger)).toBe(false);
+		const [entry] = freezeCampPlan(ledger, { bedrolls: { aeliana: 6 }, breads: { aeliana: 8 } });
+		expect(entry).toMatchObject({ dying: true, hpBefore: 0, hpAfterPick: 0, hpAfter: 0, extras: [] });
+		expect(campShareUpdate(entry, live()).update).not.toHaveProperty(HP);
+	});
+
+	it("still clears the debility a dying character picked", () => {
+		const [entry] = freezeCampPlan(campLedger([dying({ benefit: "debility", debility: "dazed" }, { marked: ["dazed"] })]));
+		expect(entry).toMatchObject({ benefit: CAMP_BENEFIT.DEBILITY, debility: { key: "dazed", name: "Dazed" } });
+		expect(campShareUpdate(entry, live()).update["system.attributes.debilities.options.dazed.value"]).toBe(false);
+	});
+
+	it("heals one who is not dying as it always did", () => {
+		const [entry] = freezeCampPlan(campLedger([paying()]));
+		expect(entry.dying).toBeUndefined();
+		expect(campShareUpdate(entry, live({ hpValue: 4 })).update[HP]).toBe(12);
+	});
+
+	it("says on the plan how many followers the meal fed", () => {
+		const [entry] = freezeCampPlan(campLedger([paying({ followers: 2, offer: { supplies: 3 } })]));
+		expect(entry.followersFed).toBe(2);
+		expect(freezeCampPlan(campLedger([paying()]))[0].followersFed).toBe(0);
+	});
+});

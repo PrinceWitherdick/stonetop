@@ -9,6 +9,7 @@
 //
 // This module is the same nineteen rows with the blank filled in: named nodes, weighted edges,
 // and — because the point is to TAP A PLACE — where each node sits on the two regional maps.
+// Plus a handful of legs the books imply and the table does not print, each marked `ruling`.
 //
 // WHY A GRAPH AND NOT A LOOKUP. The table is deliberately sparse. It never prints Stonetop ->
 // Lygos; it prints Marshedge -> Lygos, 30 days, and leaves you to notice that Marshedge is
@@ -329,7 +330,8 @@ export const TRAVEL_PLACES = Object.freeze([
 ]);
 
 /**
- * The nineteen rows of the table, as undirected edges.
+ * The nineteen rows of the table, as undirected edges, and then seven legs the table never printed
+ * but the books plainly imply (marked `ruling`, see below).
  *
  * `min`/`max` are the printed range in `unit` — "3-4 hours" is `{ min: 3, max: 4, unit: "hours" }`
  * and a flat "2 days" is `{ min: 2, max: 2 }`. Hours and days are kept as they were printed and
@@ -338,6 +340,12 @@ export const TRAVEL_PLACES = Object.freeze([
  *
  * `via` records the block's own wording where it names a route, which is worth keeping because it
  * is the reason a leg is as quick as it is.
+ *
+ * `ruling` MARKS A LEG THE TABLE DOES NOT PRINT. Those are kept out of the drift guard against the
+ * shipped table (they are not in it) and out of the map-pace fit in utils/custom-route.js (they
+ * are a ruling, not a measurement). They exist because the table prints every road journey from
+ * Stonetop and none from anywhere else on the roads, so a party at the Crossroads or in the
+ * Foothills was routed back through Stonetop to reach a road they were already standing on.
  */
 export const TRAVEL_LEGS = Object.freeze([
 	// From Stonetop via the Roads to…
@@ -365,7 +373,30 @@ export const TRAVEL_LEGS = Object.freeze([
 	// To Tor's Fist from…
 	Object.freeze({ from: "the-foothills", to: "tors-fist", min: 5, max: 5, unit: "days" }),
 	Object.freeze({ from: "barrier-pass",  to: "tors-fist", min: 6, max: 6, unit: "days" }),
+
+	// RULINGS, not rows of the table (user, 2026-10-02).
+	//
+	// The Crossroads joins the roads. Book II p.270: the West Road runs from Stonetop to Gordin's
+	// Delve and "about 15 miles from town, it crosses the Highway, which runs from Barrier Pass
+	// all the way to Marshedge". Every "via the Roads" journey out of Stonetop therefore passes the
+	// Crossroads, so from there it takes no LONGER than the printed time. The Crossroads gets the
+	// same times as Stonetop, as an "at least" floor: the 3-4 hours already walked are not taken
+	// off, because the table never says which roads they shorten or by how much.
+	Object.freeze({ from: "the-crossroads", to: "the-foothills", min: 2,  max: 2,  unit: "days", via: "the Roads", ruling: true }),
+	Object.freeze({ from: "the-crossroads", to: "titan-bones",   min: 2,  max: 2,  unit: "days", via: "the Roads", ruling: true }),
+	Object.freeze({ from: "the-crossroads", to: "gordins-delve", min: 4,  max: 4,  unit: "days", via: "the Roads", ruling: true }),
+	Object.freeze({ from: "the-crossroads", to: "the-steplands", min: 4,  max: 4,  unit: "days", via: "the Roads", ruling: true }),
+	Object.freeze({ from: "the-crossroads", to: "barrier-pass",  min: 5,  max: 5,  unit: "days", via: "the Roads", ruling: true }),
+	Object.freeze({ from: "the-crossroads", to: "marshedge",     min: 10, max: 10, unit: "days", via: "the Roads", ruling: true }),
+	// Book II p.26: Barrier Pass is "five days north of Stonetop via the Highway, after winding
+	// through the Foothills", which the table prices at two of those five. Last in the list on
+	// purpose: Stonetop to Barrier Pass via the Foothills (2 + 3) ties the printed 5 days, and the
+	// solve keeps whichever leg it relaxed first, which is the printed one.
+	Object.freeze({ from: "the-foothills", to: "barrier-pass", min: 3, max: 3, unit: "days", via: "the Roads", ruling: true }),
 ]);
+
+/** The rows the book actually prints: TRAVEL_LEGS without the rulings. */
+export const BOOK_LEGS = Object.freeze(TRAVEL_LEGS.filter(leg => !leg.ruling));
 
 /**
  * Where a leg of the table has to be DRAWN bending, because the road it stands for does.

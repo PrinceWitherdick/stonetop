@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
 	TIMELINE_JOURNAL_NAME, TIMELINE_PAGE_TYPE,
-	allTracks, findTimelineJournal, findTrackPage, readTrack, trackForActor, worldTracks,
+	allTracks, findTimelineJournal, findTrackPage, readTrack, syncTrackPages, trackForActor, worldTracks, writeEntries,
 } from "../../module/timeline/timeline-store.js";
 import { TIMELINE_TRACK_STEADING, trackKey } from "../../module/timeline/timeline-core.js";
 import { SYSTEM_ID } from "../../module/system-id.js";
@@ -170,5 +170,82 @@ describe("allTracks", () => {
 		world({ pages: [fakePage({ key: trackKey("pc-gone"), name: "Gethin" })], actors: [] });
 		const [track] = allTracks();
 		expect(track).toMatchObject({ trackId: "pc-gone", name: "Gethin", actor: null });
+	});
+
+	// Two clients can mint one track's page at the same instant. One lane, and it is the page every
+	// write goes to (`findTrackPage`, the first in the journal).
+	it("draws one lane for a track with two pages, the one findTrackPage answers", () => {
+		const first = fakePage({ key: trackKey("pc-ellis"), name: "Ellis", sort: 30 });
+		const second = fakePage({ key: trackKey("pc-ellis"), name: "Ellis", sort: 20 });
+		world({ pages: [first, second], actors: [ELLIS] });
+		const tracks = allTracks();
+		expect(tracks).toHaveLength(1);
+		expect(tracks[0].page).toBe(first);
+		expect(findTrackPage("pc-ellis")).toBe(first);
+	});
+});
+
+describe("syncTrackPages", () => {
+	// A compendium import fires one createActor per character, all in the same tick.
+	it("mints each page once when several syncs start at once", async () => {
+		const journal = world({ actors: [STEADING, ELLIS, KEFTA] });
+		global.game.user = { isGM: true };
+		journal.createEmbeddedDocuments = async (_type, data) => {
+			await new Promise(resolve => setTimeout(resolve, 1));
+			const made = data.map(d => fakePage({ key: d.flags[SYSTEM_ID].chronicleKey, name: d.name, sort: d.sort }));
+			journal.pages.push(...made);
+			return made;
+		};
+		const minted = await Promise.all([syncTrackPages(), syncTrackPages(), syncTrackPages()]);
+		expect(minted).toEqual([3, 0, 0]);
+		expect(journal.pages).toHaveLength(3);
+	});
+});
+
+describe("writeEntries", () => {
+	// Real enough: what the page holds, and every update it is sent.
+	function writablePage(entries, { keyed = true } = {}) {
+		const updates = [];
+		return { updates, system: { entries, keyed }, update: async data => { updates.push(data); } };
+	}
+	const row = (id, over = {}) => ({ id, year: 1, season: "spring", title: id, ...over });
+
+	// Two clients writing different rows of one track must both land. A whole-list write has the
+	// last one back erase the other's row.
+	it("writes only the entries and fields that moved, by their own keys", async () => {
+		const page = writablePage({ a: row("a"), b: row("b") });
+		await writeEntries(page, [row("a", { title: "Retitled" }), row("c")]);
+		expect(page.updates).toHaveLength(1);
+		const [update] = page.updates;
+		expect(update["system.entries.a.title"]).toBe("Retitled");
+		expect(update["system.entries.c"]).toMatchObject({ id: "c", title: "c" });
+		expect(Object.keys(update).some(key => key.includes(".b") && !key.includes("-="))).toBe(false);
+		expect(Object.keys(update).some(key => key.endsWith("-=b"))).toBe(true);
+		expect(Object.keys(update).filter(key => key.startsWith("system.entries.a."))).toEqual(["system.entries.a.title"]);
+	});
+
+	// A field patch that landed after another client deleted its row leaves a partial row behind.
+	// Nobody reads it, and the next write takes it out of storage.
+	it("clears a leftover row along with what it writes", async () => {
+		const page = writablePage({ a: row("a"), gone: { foes: ["Wolf"] } });
+		await writeEntries(page, [row("a", { title: "Retitled" })]);
+		const [update] = page.updates;
+		expect(update["system.entries.a.title"]).toBe("Retitled");
+		expect(Object.keys(update).some(key => key.endsWith("-=gone"))).toBe(true);
+	});
+
+	it("writes nothing when nothing moved", async () => {
+		const page = writablePage({ a: row("a") });
+		await writeEntries(page, [row("a")]);
+		expect(page.updates).toEqual([]);
+	});
+
+	// The server merges into what it STORES; a keyed patch merged into a stored list folds the two.
+	it("replaces a page still storing a list whole, once, and marks it keyed", async () => {
+		const page = writablePage({ a: row("a") }, { keyed: false });
+		await writeEntries(page, [row("a"), row("b")]);
+		const [update] = page.updates;
+		expect(update["system.keyed"]).toBe(true);
+		expect(Object.keys(update["system.==entries"] ?? {})).toEqual(["a", "b"]);
 	});
 });

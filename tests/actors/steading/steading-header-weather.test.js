@@ -49,10 +49,10 @@ describe("the steading header's weather glyph", () => {
 		expect(clock).toContain('data-action="set-current-weather"');
 		// Two glyphs in the block, one per branch, and never both on screen at once.
 		expect(clock.match(/class="steading-header-weather-glyph"/g)).toHaveLength(2);
-		// Through the same entry point the hotbar macro and the Expedition dialog use, so
-		// openOrFocus can keep it to one window however it was reached.
+		// Through the same entry point the hotbar macro and the time banner use, so openOrFocus
+		// can keep it to one window however it was reached. GM-only at the door as well.
 		expect(SHEET_JS).toContain(`html.find("[data-action='set-current-weather']").on("click", () => game.stonetop?.openWeather?.());`);
-		expect(read("module/hooks/Ready.js")).toContain("game.stonetop.openWeather       = () => WeatherDialog.open();");
+		expect(read("module/hooks/Ready.js")).toContain("game.stonetop.openWeather       = () => (game.user?.isGM ? WeatherDialog.open() : null);");
 	});
 
 	// An <i> is an empty element painting a private-use codepoint: a screen reader left to read
@@ -113,7 +113,7 @@ describe("the steading header's weather glyph", () => {
 	// next one to reach for the exported `postWeather` would post a card and leave the header
 	// on yesterday's sky. The pair itself is covered by tests/seasons/current-weather.test.js.
 	it("is written by the Weather picker, on the post", () => {
-		expect(DIALOG_JS).toContain("await announceWeather(this._season, this._picked);");
+		expect(DIALOG_JS).toContain("await announceWeather(this._season, this._picked)");
 		// The picker must not be able to post without writing: no direct route to either half.
 		expect(DIALOG_JS).not.toMatch(/\bpostWeather\s*\(/);
 		expect(DIALOG_JS).not.toMatch(/\brecordCurrentWeather\s*\(/);

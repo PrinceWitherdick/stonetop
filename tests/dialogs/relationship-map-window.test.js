@@ -338,8 +338,9 @@ describe("the update hook", () => {
 		expect(app.sync).not.toHaveBeenCalled();
 	});
 
-	// ⚠ The package id is hyphenated, so a DOTTED read of it (`changed.flags.stonetop_pwd`) parses
-	// as a subtraction and throws. This handler is registered on a GLOBAL hook, so a throw here
+	// ⚠ This package's id happens to be `stonetop_pwd`, where a dotted read would parse, but the same
+	// source ships under the hyphenated `stonetop-pwd`, and there a DOTTED `changed.flags.stonetop-pwd`
+	// parses as a subtraction and throws. This handler is registered on a GLOBAL hook, so a throw here
 	// takes down every other listener on it — a whole-world failure caused by a journal rename.
 	it("does not throw on the hyphenated flag scope, in the shape Foundry sends it", () => {
 		const { app } = windowFor();
@@ -476,6 +477,26 @@ describe("nudging a portrait from the keyboard", () => {
 		const wrote = JSON.stringify(entry.updates);
 		expect(wrote).toContain("21");
 		expect(wrote).toContain("71");
+	});
+
+	// ⚠ BUT TWO PEOPLE NUDGED ONE AFTER THE OTHER ARE TWO MOVES. Written as one, they were one step of
+	// the undo, and folded with neither one's own run of keys.
+	it("writes two people nudged one after the other as a step each", async () => {
+		const { app, entry, root } = boardWithPortrait();
+		root.children['[data-relmap-node="stefan"]'] = el({ style: {} });
+		app._nudgeNode("elena", { x: 21, y: 30 });
+		app._nudgeNode("stefan", { x: 71, y: 30 });
+		await app._writeNudge();
+		expect(entry.updates).toHaveLength(2);
+	});
+
+	// A selection walked by the arrow keys is one move of several people, and stays one write.
+	it("writes a selection nudged together in one write", async () => {
+		const { app, entry, root } = boardWithPortrait();
+		root.children['[data-relmap-node="stefan"]'] = el({ style: {} });
+		app._nudgeNodes({ elena: { x: 21, y: 30 }, stefan: { x: 71, y: 30 } });
+		await app._writeNudge();
+		expect(entry.updates).toHaveLength(1);
 	});
 
 	// The next key has to step on from where the portrait IS. Reading the document instead would
@@ -2600,6 +2621,19 @@ describe("the colours of the table's own already on a board", () => {
 		expect(app._inksInUse()).toEqual(["#7a2f8a", "#1d5f4a"]);
 	});
 
+	// A group's outline drawn in the table's purple is that purple on this map as much as a line is.
+	it("counts the colours of the groups too", () => {
+		const { app } = windowFor({
+			...MANY_INKS,
+			groups: {
+				g1: { name: "Hunters", shape: "box", dash: "solid", ink: "#1d5f4a", members: { elena: true } },
+				g2: { name: "Elders", shape: "oval", dash: "solid", ink: "#1d5f4a", members: { stefan: true } },
+				g3: { name: "Kin", shape: "box", dash: "solid", ink: "#3a4fa0", members: { elena: true } },
+			},
+		});
+		expect(app._inksInUse()).toEqual(["#1d5f4a", "#7a2f8a", "#3a4fa0"]);
+	});
+
 	it("offers nothing at all for a board drawn only in the eight", () => {
 		const { app } = windowFor();
 		expect(app._inksInUse()).toEqual([]);
@@ -3749,18 +3783,12 @@ function livingMap(boards) {
 				for (const [key, value] of Object.entries(patch)) {
 					const parts = key.slice(`${FLAG}.`.length).split(".");
 					const leaf = parts[parts.length - 1];
-					if (leaf.startsWith("-=")) {
-						delete page.flag[parts[0]][leaf.slice(2)];
-						continue;
-					}
-					if (parts.length === 1) {
-						page.flag[parts[0]] = value;
-						continue;
-					}
-					const [kind, id, field] = parts;
-					page.flag[kind] ??= {};
-					page.flag[kind][id] ??= {};
-					page.flag[kind][id][field] = value;
+					// Walked to ANY depth, as the document's own merge does: a person in a group is a
+					// leaf one level below a field (`groups.<id>.members.<person>`).
+					let at = page.flag;
+					for (const part of parts.slice(0, -1)) at = (at[part] ??= {});
+					if (leaf.startsWith("-=")) delete at[leaf.slice(2)];
+					else at[leaf] = value;
 				}
 				return Promise.resolve(page);
 			},
@@ -5159,5 +5187,193 @@ describe("several people at once", () => {
 		// Both were at y=30 and both have gone to y=70: the whole line is down there now.
 		expect(fromTop).toBeGreaterThan(60);
 		expect(toTop).toBeGreaterThan(60);
+	});
+});
+
+// -- Groups: a named box or oval round some people ------------------------------------------------
+//
+// "The hunters", "The elders". The window's half is the tool on the footer (group the selection, or
+// arm a box), the bar's three writes (who is in it, what it is called, rubbing it out), and that each
+// of those is one write and one step of the undo.
+describe("groups on the map", () => {
+	beforeEach(() => {
+		forgetAllHistory();
+		globalThis.game.i18n = TABLE;
+	});
+	afterEach(() => forgetAllHistory());
+
+	const HUNTERS = () => livingMap([{
+		id: "p1", name: "Stonetop",
+		graph: {
+			...TWO_PEOPLE,
+			nodes: { ...TWO_PEOPLE.nodes, marta: { uuid: null, name: "Marta", img: "", x: 50, y: 80, note: "" } },
+			groups: { hunt: { name: "The hunters", shape: "box", ink: "rose", members: { elena: true, stefan: true } } },
+		},
+	}]);
+	const toolButton = root => {
+		const button = el({ attrs: {} });
+		button.setAttribute = (key, value) => { button.attrs[key] = value; };
+		root.children["[data-relmap-action='group']"] = button;
+		return button;
+	};
+
+	it("groups the selected people at once, in a colour no other group is wearing", async () => {
+		const { entry, pages: [page] } = HUNTERS();
+		const { app } = windowFor(null, { entry, pageId: "p1" });
+		app._selected = ["stefan", "marta"];
+		await app._groupTool();
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(page.updates).toHaveLength(1);
+		const made = Object.entries(readGraph(page).groups).find(([id]) => id !== "hunt");
+		expect(made[1].members).toEqual({ marta: true, stefan: true });
+		expect(made[1].ink).not.toBe("rose");
+		// The selection has become the group; what comes next is naming it, on the next paint.
+		expect(app._selected).toEqual([]);
+		expect(app._pendingGroupPick).toBe(made[0]);
+		expect(app._history.peekUndo().label).toBe(TABLE.localize("stonetop.relmap.history.grouped"));
+	});
+
+	it("arms a box with nobody selected, and stands down when pressed again", () => {
+		const { app, root } = windowFor(TWO_PEOPLE);
+		const button = toolButton(root);
+		app._groupTool();
+		expect(app._drawArmed).toBe(true);
+		expect(button.attrs["aria-pressed"]).toBe("true");
+		app._groupTool();
+		expect(app._drawArmed).toBe(false);
+		expect(button.attrs["aria-pressed"]).toBe("false");
+	});
+
+	it("makes nothing from an empty box or an abandoned one, and stands the tool down", () => {
+		const { app, entry, live } = windowFor(TWO_PEOPLE);
+		app._drawArmed = true;
+		app._drewGroup(null);
+		expect(app._drawArmed).toBe(false);
+		expect(live.textContent ?? "").toBe("");
+		app._drawArmed = true;
+		app._drewGroup([]);
+		expect(app._drawArmed).toBe(false);
+		expect(live.textContent).toBe(TABLE.localize("stonetop.relmap.groups.empty"));
+		expect(entry.updates).toEqual([]);
+	});
+
+	it("puts the selected into a group and takes them out again, a step each", async () => {
+		const { entry, pages: [page] } = HUNTERS();
+		const { app } = windowFor(null, { entry, pageId: "p1" });
+		app._selected = ["marta"];
+		await app._regroup("hunt", "add");
+		expect(readGraph(page).groups.hunt.members).toEqual({ elena: true, marta: true, stefan: true });
+		app._selected = ["elena"];
+		await app._regroup("hunt", "take");
+		expect(readGraph(page).groups.hunt.members).toEqual({ marta: true, stefan: true });
+		expect(app._history.depth).toBe(2);
+		await app._stepHistory("back");
+		expect(readGraph(page).groups.hunt.members.elena).toBe(true);
+	});
+
+	// An outline round nobody is nothing, so taking out the last of them rubs the group out instead.
+	it("rubs the group out when everybody left in it is taken out", async () => {
+		const { entry, pages: [page] } = HUNTERS();
+		const { app } = windowFor(null, { entry, pageId: "p1" });
+		app._selected = ["elena", "stefan"];
+		await app._regroup("hunt", "take");
+		expect(readGraph(page).groups.hunt).toBeUndefined();
+		expect(page.updates).toHaveLength(1);
+	});
+
+	// ⚠ WHAT THE BAR IS HOLDING BACK IS THROWN AWAY, NOT WRITTEN, when its group goes. Written, a colour
+	// still waiting in the picker landed a moment before the group was rubbed out: two steps of the undo
+	// for one press, and one undo brought the group back without it.
+	it("lets the group's bar go without writing what it held, however the group goes", async () => {
+		for (const go of [
+			app => app._dropGroup("hunt"),
+			app => { app._selected = ["elena", "stefan"]; return app._regroup("hunt", "take"); },
+		]) {
+			forgetAllHistory();
+			const { entry, pages: [page] } = HUNTERS();
+			const { app } = windowFor(null, { entry, pageId: "p1" });
+			app._groupBar = { id: "hunt", discard: vi.fn(), close: vi.fn() };
+			await go(app);
+			expect(app._groupBar.discard).toHaveBeenCalled();
+			expect(app._groupBar.close).not.toHaveBeenCalled();
+			expect(page.updates).toHaveLength(1);
+			expect(app._history.depth).toBe(1);
+		}
+	});
+
+	it("rubs a group out leaving its people, and the undo puts it back whole", async () => {
+		const { entry, pages: [page] } = HUNTERS();
+		const { app } = windowFor(null, { entry, pageId: "p1" });
+		const before = readGraph(page).groups.hunt;
+		await app._dropGroup("hunt");
+		expect(readGraph(page).groups.hunt).toBeUndefined();
+		expect(Object.keys(readGraph(page).nodes)).toHaveLength(3);
+		await app._stepHistory("back");
+		expect(readGraph(page).groups.hunt).toEqual(before);
+	});
+
+	it("draws every group on the board, with its people, and frames its outline", () => {
+		const { entry } = HUNTERS();
+		const { app } = windowFor(null, { entry, pageId: "p1" });
+		const plan = app._plan();
+		const context = app._boardContext(plan);
+		expect(context.groups).toHaveLength(1);
+		expect(context.groups[0]).toMatchObject({ id: "hunt", inkKey: "rose", name: "The hunters" });
+		expect(context.groups[0].tooltip).toContain("Elena");
+		expect(app._groupAt("hunt").members).toEqual(["elena", "stefan"]);
+		expect(app._groupMembersOf("hunt")).toEqual(["elena", "stefan"]);
+		const outline = app._drawn.groups.get("hunt").outline;
+		expect(app._boundsOf(plan).top).toBeLessThanOrEqual(outline.top);
+	});
+
+	// ⚠ A NAME HALF TYPED IS NOT PAINTED OVER. The repaint waits for it as it waits for a caption.
+	it("holds a repaint back while a group's name is waiting to be written", () => {
+		const { app } = windowFor(TWO_PEOPLE);
+		app._groupBar = { isWriting: () => true };
+		expect(app._isBusy()).toBe(true);
+	});
+
+	// ⚠ ONLY ONE BAR IS EVER UP, HOWEVER IT IS RAISED. A line drawn from a portrait while a group's
+	// bar was still up is taken hold of by the repaint, not by a click, and used to raise the tie
+	// bar beside the group's: two bars over one board, each saying it was the thing being edited.
+	it("puts the group's bar down when a line drawn a moment ago is taken hold of", async () => {
+		const { app } = windowFor(TWO_PEOPLE);
+		const said = [];
+		app._groupBar = {
+			refresh: vi.fn(), selectionChanged: vi.fn(), close: vi.fn(() => said.push("group down")),
+		};
+		app._tieBar = {
+			refresh: vi.fn(), close: vi.fn(), open: vi.fn(() => said.push("line up")),
+		};
+		app._pendingPick = "link1";
+		await app._repaintBoard();
+		expect(said).toEqual(["group down", "line up"]);
+		expect(app._tieBar.open).toHaveBeenCalledWith("link1");
+		expect(app._tieBar.close).not.toHaveBeenCalled();
+	});
+
+	// ⚠ A GROUP JUST DRAWN IS NAMED IN A BAR THE REPAINT RAISES, and Enter on the name has to leave the
+	// reader on the board: with nowhere to go back to, the focus fell to the page and the next Delete
+	// went to the scene. The way back is FOUND when it is needed, since every repaint replaces it.
+	it("gives a group just drawn a way back to its own name", async () => {
+		const { app } = windowFor(TWO_PEOPLE);
+		app._groupBar = { refresh: vi.fn(), selectionChanged: vi.fn(), close: vi.fn(), open: vi.fn() };
+		app._tieBar = { refresh: vi.fn(), close: vi.fn() };
+		app._pendingGroupPick = "hunt";
+		await app._repaintBoard();
+		const [id, opts] = app._groupBar.open.mock.calls[0];
+		expect(id).toBe("hunt");
+		expect(opts.focusName).toBe(true);
+		expect(typeof opts.returnTo).toBe("function");
+	});
+
+	it("puts the tie bar down when a group is taken hold of", () => {
+		const { app } = windowFor(TWO_PEOPLE);
+		app._tieBar = { close: vi.fn() };
+		app._groupBar = { open: vi.fn(), close: vi.fn() };
+		app._pickGroup("hunt", { focusName: true });
+		expect(app._tieBar.close).toHaveBeenCalled();
+		expect(app._groupBar.close).not.toHaveBeenCalled();
+		expect(app._groupBar.open).toHaveBeenCalledWith("hunt", { returnTo: null, focusName: true });
 	});
 });

@@ -361,9 +361,14 @@ export async function showRouteOnScene(scene, journey) {
 	// marks and no destination, because while a way is drawn the destination is a pick the GM is
 	// keeping for later rather than anything the line on the Scene is about — and writing it here
 	// would make the button think the Scene had gone out of step every time they changed it.
+	//
+	// AND THE KIND IT IS NOT IS WRITTEN AS NULL, not left out. `update` MERGES a plain object into
+	// the one already stored, so a table route written as `{ origin, destination }` over a drawn
+	// way kept the old `custom` key, and since a drawn way outranks a destination the Scene went on
+	// painting the old line on every client while the button offered, forever, to draw the new one.
 	const payload = drawn
-		? { origin, custom: { tier: custom.tier, points: custom.points } }
-		: { origin, destination };
+		? { origin, destination: null, custom: { tier: custom.tier, points: custom.points } }
+		: { origin, destination, custom: null };
 	// ONE write, and it takes any LEGACY copy down on the way past. `scopedFlag` answers with the
 	// first scope that holds one and walks the historical ids AHEAD of the pinned one, so a flag
 	// left behind by a rename would otherwise outrank the route being drawn right now.

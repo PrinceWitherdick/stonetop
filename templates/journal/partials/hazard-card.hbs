@@ -4,7 +4,7 @@
       checkboxes) so the shared threat-view wiring and the card CSS apply unchanged;
       hazard-specific rows carry .hazard-* classes on top. --}}
 <article class="threat-card threat-card--hazard hazard-card{{#if collapsed}} is-collapsed{{/if}}{{#if canDrag}} is-draggable{{/if}}"
-         data-hazard-id="{{id}}" data-page-uuid="{{uuid}}" style="--threat-accent:{{accent}};"{{#if canDrag}} draggable="true"{{/if}}>
+         data-hazard-id="{{id}}" data-page-uuid="{{uuid}}" style="--threat-accent-raw:{{accent}};"{{#if canDrag}} draggable="true"{{/if}}>
 	{{> "stonetop.card-head" kind="hazard" typeLabel="Hazard"}}
 
 	{{#if hasInstinct}}

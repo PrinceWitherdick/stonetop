@@ -127,6 +127,64 @@ function cardKind(card) {
 }
 
 /**
+ * Every prep tool on these two tabs, one row per kind. The three kinds' edit / remove / add
+ * handling was the same six-line `closest` chain three times over, differing only in the selector
+ * words.
+ *
+ * What is here is only what a TAB knows and the kind table cannot: which panel a kind's cards are
+ * drawn in, and which of this sheet's methods its buttons call. Everything that is a fact ABOUT a
+ * kind rather than about this sheet, including the noun in the delete prompt, is read off
+ * gm-prep-page.js, so a fourth kind adds one row here and one there instead of one in each of six
+ * tables. Each handler is handed the sheet rather than closing over it, which is what lets the
+ * table live out here where the context builder can read it too.
+ *
+ * There is no `remove` column: the three kinds' deletes are one function (see deleteGmPrepPage),
+ * so a column would present one behaviour as three.
+ *
+ * `actions` is the buttons a kind's card wears BESIDE the shared pencil and trash. Each one says
+ * everything the tools partial needs to draw it (`cls`, the handler's hook and the only class it
+ * wears; `icon`; the i18n keys for its `label` and `tooltip`) and what clicking it does (`run`,
+ * handed the card's page and then the sheet). The partial loops over them and the click handler
+ * dispatches over them, so neither names a kind. That is the point of the column: "Mark visited"
+ * was first wired as a `visit=true` flag on the partial and a site-only branch ahead of this table,
+ * and every later per-kind button would have been one more of each. A special case outside the
+ * table is how a fourth kind falls off silently.
+ */
+const PREP_TOOLS = [
+	{ scope: ".steading-threats", kind: "threat",
+		edit: (sheet, page) => sheet._openThreatEditor(page),
+		// Threats are added per proximity band; the button says which.
+		add: (sheet, btn) => sheet._onCreateThreat(btn.dataset.proximity) },
+	{ scope: ".steading-threats", kind: "hazard",
+		edit: (sheet, page) => sheet._onEditHazard(page),
+		add: sheet => sheet._onCreateHazard() },
+	{ scope: ".steading-sites", kind: "site",
+		edit: (sheet, page) => sheet._onEditSite(page),
+		add: sheet => sheet._onCreateSite(),
+		actions: [
+			// "Mark visited": asks who went and puts the visit on their timelines and Stonetop's
+			// (sites/site-visit.js). Loaded on the click, since it is the only thing here that
+			// needs the picker and the timeline store. No render after it: the page write it ends
+			// on is what repaints the card, through the page-sync hook (`_wirePrepPageSync`).
+			{ cls: "site-visit", icon: "fa-flag",
+				label: "stonetop.sites.visit.button", tooltip: "stonetop.sites.visit.tooltip",
+				run: async page => {
+					const { markSiteVisited } = await import("../../sites/site-visit.js");
+					await markSiteVisited(page);
+				} },
+		] },
+];
+
+/**
+ * What the tools partial draws for each kind's `actions`, by kind: the row's look with its `run`
+ * left behind, since a handler has no business in a render context. Built once at import, as
+ * nothing in it is localized here (the partial localizes the keys), and frozen because the same
+ * arrays are stamped onto every card of a kind on every render.
+ */
+const PREP_CARD_ACTIONS = Object.freeze(Object.fromEntries(PREP_TOOLS.map(tool => [tool.kind,
+	Object.freeze((tool.actions ?? []).map(({ run, ...look }) => Object.freeze(look)))])));
+
+/**
  * Adds the Threats & Dangers and Sites tabs to a sheet.
  *
  * Expects the host to provide `isEditable`, `_editMode` and `render`. NOT `withSectionEditing`:
@@ -297,6 +355,10 @@ export function withGmPrepTabs(Base) {
 				vm.canDrag = vm.isOwner;
 				vm.collapsible = true;
 				vm.collapsed = this._isCardCollapsed(kind, page.uuid);
+				// The buttons this kind's card wears beside the pencil and trash, which the tools
+				// partial reads straight off the card it is drawn under (see PREP_TOOLS). An empty
+				// list for a kind with none, so the partial never has to ask which kind it is on.
+				vm.prepActions = PREP_CARD_ACTIONS[kind] ?? [];
 				// A card whose body is drawn in named folds (sites) opens SHUT here, minus the
 				// folds this GM has opened. Mutated in place on the cached view-model's own group
 				// objects, exactly as `collapsed` above is re-applied to a cached card: what the
@@ -411,30 +473,8 @@ export function withGmPrepTabs(Base) {
 
 			wireThreatDoomChange(root, chk => fromUuid(chk.closest(".threat-card")?.dataset.pageUuid ?? ""));
 
-			// Every prep tool on these two tabs, one row per kind. The three kinds' edit / remove
-			// / add handling was the same six-line `closest` chain three times over, differing
-			// only in the selector words.
-			// What is left here is only what a TAB knows and the kind table cannot: which panel a
-			// kind's cards are drawn in, and which of this sheet's methods its two buttons call.
-			// Everything that is a fact ABOUT a kind rather than about this sheet — including the
-			// noun in the delete prompt — is read off gm-prep-page.js, so a fourth kind adds one
-			// row here and one there instead of one in each of six tables.
-			//
-			// There is no `remove` column: the three kinds' deletes are one function (see
-			// deleteGmPrepPage), so a column would present one behaviour as three.
-			const prepTools = [
-				{ scope: ".steading-threats", kind: "threat",
-					edit: page => this._openThreatEditor(page),
-					// Threats are added per proximity band; the button says which.
-					add: btn => this._onCreateThreat(btn.dataset.proximity) },
-				{ scope: ".steading-threats", kind: "hazard",
-					edit: page => this._onEditHazard(page),
-					add: () => this._onCreateHazard() },
-				{ scope: ".steading-sites", kind: "site",
-					edit: page => this._onEditSite(page),
-					add: () => this._onCreateSite() },
-			];
-
+			// The prep tools themselves are one table, PREP_TOOLS above, read here and by the
+			// context builder alike.
 			root.addEventListener("click", async ev => {
 				// A threat type in the reference block, opening its own list of GM moves. First,
 				// because it is reference chrome rather than a prep tool and matches none of the
@@ -447,11 +487,21 @@ export function withGmPrepTabs(Base) {
 					return;
 				}
 
-				for (const tool of prepTools) {
+				for (const tool of PREP_TOOLS) {
+					// A kind's own card buttons, dispatched off the row that declared them, so no
+					// kind's button gets a branch of its own up here (see PREP_TOOLS).
+					for (const action of tool.actions ?? []) {
+						const btn = ev.target.closest?.(`${tool.scope} .${action.cls}`);
+						if (!btn) continue;
+						ev.preventDefault();
+						const page = await fromUuid(btn.dataset.pageUuid);
+						if (page) await action.run(page, this);
+						return;
+					}
 					const add = ev.target.closest?.(`${tool.scope} .${tool.kind}-add-btn`);
-					if (add) { ev.preventDefault(); tool.add(add); return; }
+					if (add) { ev.preventDefault(); tool.add(this, add); return; }
 					const edit = ev.target.closest?.(`${tool.scope} .${tool.kind}-edit-open`);
-					if (edit) { ev.preventDefault(); const page = await fromUuid(edit.dataset.pageUuid); if (page) tool.edit(page); return; }
+					if (edit) { ev.preventDefault(); const page = await fromUuid(edit.dataset.pageUuid); if (page) tool.edit(this, page); return; }
 					const remove = ev.target.closest?.(`${tool.scope} .${tool.kind}-remove`);
 					if (remove) {
 						ev.preventDefault();

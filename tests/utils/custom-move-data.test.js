@@ -83,3 +83,25 @@ describe("clampInt", () => {
 		expect(clampInt(99, 0, 10)).toBe(10);
 	});
 });
+
+describe("buildCustomMoveData requirement", () => {
+	it("keeps a printed prerequisite as the note requirementLabel reads", () => {
+		expect(buildCustomMoveData({ name: "Commune with Aratis", requires: "  Prophet   background " }).system.requirement)
+			.toEqual({ note: "Prophet background" });
+	});
+
+	it("is null (so an edit can clear it) when there is none", () => {
+		expect(buildCustomMoveData({ name: "x", requires: "   " }).system.requirement).toBe(null);
+		expect(buildCustomMoveData({ name: "x" }).system.requirement).toBe(null);
+		expect(buildCustomMoveData({ name: "x" }, { requirement: { note: "old" } }).system.requirement).toBe(null);
+	});
+
+	// The dialog shows only the note, so an edit must not wipe what it never showed.
+	it("keeps the rest of a stored requirement through an edit", () => {
+		const stored = { moves: ["Bonded"], stats: { wis: 1 }, note: "old" };
+		expect(buildCustomMoveData({ name: "x" }, { requirement: stored }).system.requirement)
+			.toEqual({ moves: ["Bonded"], stats: { wis: 1 }, note: null });
+		expect(buildCustomMoveData({ name: "x", requires: "Prophet" }, { requirement: stored }).system.requirement)
+			.toEqual({ moves: ["Bonded"], stats: { wis: 1 }, note: "Prophet" });
+	});
+});

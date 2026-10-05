@@ -36,15 +36,17 @@ import {
 import {PlaybookMoveEntry} from "./PlaybookMoveEntry.js";
 import {normalizeRollMode, tookOffer} from "../../dialogs/RollDialog.js";
 import {deletionEntry} from "../../utils/foundry-compat.js";
+import {appendLedgerEntries} from "../../utils/ledger-core.js";
 import {statRequirementsUnmet} from "./stat-requirement.js";
 import {effectiveRequiredMoves, requiredMovesUnmet, requirementLabel} from "./move-requirement.js";
 import {MoveResources, learnedTrack, takeBackHeld} from "./MoveResources.js";
 import {debilityData, walkItOffChoice} from "./walk-it-off.js";
+import {normalizeWound as _normalizeWound, normalizeWoundList} from "./wound-record.js";
 import {moveMarkBudget, markOptionCapNote} from "./move-mark-budget.js";
 import {markEntries, filledMarks, filledMarkCount, trimEmptyTail, oncePerLevelCautions, ONCE_PER_LEVEL_MARKS} from "./pfg-marks.js";
 import {MARK_STAT_CAPS} from "./stat-rules.js";
-import {StonetopFlags, STONETOP_SCOPE, resolvedFlags, resolvedFlagProperty} from "./StonetopFlags.js";
-import {DEATHS_DOOR_FLAG, FINAL_CONSEQUENCE, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, lostToTheGm, stateOnTakingInsert, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
+import {StonetopFlags, STONETOP_SCOPE, ITEM_FLAG_SCOPE, MIRRORED_HP_PENALTY_FLAG, resolvedFlags, readableFlags, resolvedFlagProperty} from "./StonetopFlags.js";
+import {DEATHS_DOOR_FLAG, DEATHS_DOOR_STATE, FINAL_CONSEQUENCE, UNSTOPPABLE, canFaceDeathsDoor, deathsDoorRollOptions, effectiveDeathsDoorState, lostToTheGm, stateOnTakingInsert, zeroHpMove, zeroHpResolution} from "./deaths-door.js";
 import {heroDisplayName, WBH_HERO_FLAG} from "./WouldBeHeroAsterisk.js";
 import {tookBackground} from "./took-background.js";
 import {ownedNamesOr, ownedLearnedMove, ownsLearnedMoveNamed, moveLearnedIn, switchedOffGranter, ownedMoveNames, ownsMoveNamed} from "./owns-move.js";
@@ -92,7 +94,7 @@ import {CharacterArcana} from "./CharacterArcana.js";
 import {seekerArcanaState, seekerArcanaChosen, seekerCardRoles, majorMarkBoxes, withMinorRole, seekerMajorSwitchPlan, seekerMajorOwed} from "./seeker-collection.js";
 import {CharacterLore} from "./CharacterLore.js";
 import {CharacterPostDeath, buildLoreSection, insertHpPenalty} from "./CharacterPostDeath.js";
-import {planLoreMoveSync} from "./post-death-moves.js";
+import {isPostDeathMove, planLoreMoveSync, postDeathMoveItemData} from "./post-death-moves.js";
 import {effectiveSubgroupMax, sumMoveBonus} from "./dialogs/possession-choice-cap.js";
 import {partitionMovesByGroup} from "./dialogs/onboarding-move-groups.js";
 import {backgroundMarkOption, hasBackgroundMarkOptions, moveChoiceKey} from "./dialogs/well-versed-topics.js";
@@ -106,15 +108,20 @@ import {seasonLabel} from "../../seasons/seasons-change-reminders.js";
 import {moveChatCard, postMoveNote} from "../../utils/chat.js";
 import {normalizeRollType} from "../../utils/roll-types.js";
 import {buildCustomMoveData, clampInt} from "../../utils/custom-move-data.js";
-import {buildInventoryItemData, readInventoryItemData} from "../../utils/inventory-item-data.js";
+import {buildInventoryItemData, readInventoryItemData, WRITEUP_EDITED_FLAG} from "../../utils/inventory-item-data.js";
 import {ARTIFACT_STATE, concealArtifactFields, isArtifactUpgrade, normalizeArtifactState} from "./artifact-identify.js";
-import {isLoveLetter} from "./love-letters.js";
+import {isLoveLetter, isResolvedLoveLetter} from "./love-letters.js";
 import {deriveLoadLevel, loadLimitsFor} from "../../utils/load.js";
 import {maxDie, stepDie, normalizeDamageDie} from "../../utils/damage-die.js";
 import {WEAPONS_OF_WAR_COMMON, WEAPONS_OF_WAR_PIERCING, ALL_IN_THE_WRIST} from "../../data/weapons.js";
 import {X_PIERCING_MAX} from "../../utils/damage.js";
 import {healTo} from "../../camp/camp-rules.js";
 import {recoveredHpTo, slowToHeal} from "./deaths-door-actor.js";
+import {LEARNED_OPTION} from "../../timeline/timeline-milestones.js";
+import {inTurn} from "../../utils/turn-queue.js";
+import {isGear} from "../../migration/superseded-values.js";
+import {StonetopSteading} from "../steading/StonetopSteading.js";
+import {rulesHas} from "../steading/improvement-rules.js";
 
 /**
  * The state a playbook move leaves on a character, and whether anything they hold still makes it:
@@ -400,6 +407,8 @@ const ROLL_LABELS_BY_TYPE = {
 	cha: "CHA",
 	// The Destined's Omens of Fate rolls the Omens held, not a stat (destined.js).
 	omens: "Omens",
+	// A love letter can roll the steading's Fortunes (love-letters.js).
+	fortunes: "Fortunes",
 };
 const HOMEFRONT_ROLL_LABELS_BY_NAME = {
 	"Deploy": "Defenses",
@@ -1362,7 +1371,7 @@ export class StonetopCharacter {
 			}
 		}
 
-		const postDeathItems = this._actor.items.filter(i => i.type === "move" && i.system?.moveType === "post-death");
+		const postDeathItems = this._actor.items.filter(isPostDeathMove);
 		if (postDeathItems.length > 0) {
 			// With their tracks: Poltergeist's Fury is a hold on its move, kept by name like a playbook
 			// move's (post-death-moves.js).
@@ -1493,7 +1502,8 @@ export class StonetopCharacter {
 			// Armored lightens a written-in, granted or dropped shield (the makerglass shield
 			// treasure) exactly as it does a catalog one. Whether the item IS a shield is read the
 			// way _gearSources reads it for Readiness, so the two can never disagree.
-			const weight = _shieldAdjustedWeight(item.system.weight ?? 1, readInventoryItemData(item).shield, shieldLoadReduction);
+			const read = readInventoryItemData(item);
+			const weight = _shieldAdjustedWeight(item.system.weight ?? 1, read.shield, shieldLoadReduction);
 			return new InventoryItemSnapshotBuilder()
 			.withSlug(item._id)
 			.withName(grant?.name ?? item.name)
@@ -1514,6 +1524,7 @@ export class StonetopCharacter {
 			// Persuade"), so the whisky reads as one phrase. Only grants carry it; write-ins
 			// pass no grant, so it stays null.
 			.withResourceSuffix(grant?.resourceSuffix ?? null)
+			.withResourceFirst(read.resourceFirst)
 			.withIsCustom(true)
 			.withOwnedId(item._id)
 			.withTwoCol(false)
@@ -1696,8 +1707,8 @@ export class StonetopCharacter {
 			.filter(i => i.type === "move" && i.system?.moveType === "other");
 
 		// Love letters are single-use, GM-authored moves (Book I p.568). They share the
-		// "other" moveType but render in their own top-of-Moves section and get consumed on
-		// resolve — so split them off here in one pass and keep them off the "Other Moves" list.
+		// "other" moveType but render in their own top-of-Moves section and hide once
+		// resolved — so split them off here in one pass and keep them off the "Other Moves" list.
 		const loveLetterItems = [];
 		const otherMoveItems = [];
 		for (const i of otherItems) (isLoveLetter(i) ? loveLetterItems : otherMoveItems).push(i);
@@ -1712,6 +1723,7 @@ export class StonetopCharacter {
 				.withOwnedId(i._id)
 				.withRollType(normalizeRollType(i.system?.rollType))
 				.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
+				.withResolved(isResolvedLoveLetter(i))
 				.build());
 
 		const other = otherMoveItems
@@ -1740,6 +1752,9 @@ export class StonetopCharacter {
 					.withRollType(normalizeRollType(i.system?.rollType))
 					.withRollLabel(_rollLabelForMove(i.name, i.system?.rollType, i.system))
 					.withSourceLabel(origin && origin !== ownPlaybook ? origin : null)
+					// What the move printed as its prerequisite, for reading: an Other Move is
+					// already learned, so nothing is checked against it here.
+					.withRequiresLabel(requirementLabel(i.system?.requirement, { replaces: i.system?.replaces || null }))
 					.withCustom(_isCustomMove(i))
 					.withLearned(moveLearnedIn(i, this._actor.items))
 					.withResourceKey(resourceKey)
@@ -2146,7 +2161,7 @@ export class StonetopCharacter {
 		if (slug) await this._postDeath.pruneToInsert(slug);
 
 		const toRemove = this._actor.items
-			.filter(i => i.type === "move" && i.system?.moveType === "post-death")
+			.filter(isPostDeathMove)
 			.map(i => i._id);
 		if (toRemove.length > 0) {
 			await this._actor.deleteEmbeddedDocuments("Item", toRemove);
@@ -2171,19 +2186,17 @@ export class StonetopCharacter {
 		const taken = slug ? stateOnTakingInsert(this.deathsDoorState) : null;
 		await this._actor.update({
 			...this._postDeath.slugUpdateData(slug),
-			...(taken ? { [`flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`]: taken.state } : {}),
+			...(taken ? this.deathsDoorStateUpdateData(taken.state) : {}),
 			...(taken?.atTheDoor && this.hp !== 0 ? { "system.attributes.hp.value": 0 } : {}),
 			...(this._postDeath.tabRequestUpdateData(!slug) ?? {}),
 		});
 		if (slug) {
 			// The insert's own moves. A Consequence's or Mark's move (Poltergeist, Red Wrath) is the
 			// lore sync's, made below only for what the character has marked and carried over.
+			// Made whole, outcomes and track included, as a lore move is: the roll card reads its
+			// outcomes off this copy, and one made from the text alone posted Undying with none.
 			const entries = (await this._moveRepo.getPostDeathMoves(slug)).filter(m => !m.loreOption);
-			await this._actor.createEmbeddedDocuments("Item", entries.map(m => ({
-				name: m.name,
-				type: "move",
-				system: { moveType: "post-death", rollType: m.rollType ?? "", description: m.description ?? "" },
-			})));
+			await this._actor.createEmbeddedDocuments("Item", entries.map(postDeathMoveItemData));
 			await this._syncPostDeathLoreMoves();
 		}
 		return true;
@@ -2206,7 +2219,7 @@ export class StonetopCharacter {
 			entries:  slug ? await this._moveRepo.getPostDeathMoves(slug) : [],
 			// Read at the moment of the sync, not handed in: a queued sync runs after whatever went
 			// before it has landed, and it is THAT state it has to agree with.
-			owned:    this._actor.items.filter(i => i.type === "move" && i.system?.moveType === "post-death"),
+			owned:    this._actor.items.filter(isPostDeathMove),
 			isMarked: key => Number(counts[key]) > 0,
 		});
 		if (remove.length) await this._actor.deleteEmbeddedDocuments("Item", remove);
@@ -2238,7 +2251,8 @@ export class StonetopCharacter {
 	async setPostDeathLoreText(loreSlug, optSlug, value) { await this._postDeath.lore.setText(loreSlug, optSlug, value); }
 
 	async setInventoryItemChecked(slug, isChecked) { await this._inventory.setItemChecked(slug, isChecked); }
-	async setInventoryResource(slug, count)         { await this._inventory.setResource(slug, count); }
+	// `options` reaches the write, so a move spending a use can name itself to the ledger ({stonetopMove}).
+	async setInventoryResource(slug, count, options) { await this._inventory.setResource(slug, count, options); }
 	// Fragment forms, for a move that changes several things at once and wants one write for the
 	// lot of them (see camp/camp-rules.js#campShareUpdate; heldAdvantageData is with the held modes).
 	inventoryResourceData(slug, count)              { return this._inventory.resourceData(slug, count); }
@@ -2375,9 +2389,8 @@ export class StonetopCharacter {
 	/** Whether this character has what a FICTION_ROLL_OFFERS row asks for (see there). */
 	async _earnsRollOffer(row) {
 		if (row.ownsLearned) return ownsLearnedMoveNamed(this._actor, row.ownsLearned);
-		// Marked on the insert they WEAR: a removed insert keeps its lore (removal is an undo), and a
-		// Consequence of an insert they no longer carry is nobody's Consequence.
-		if (row.postDeathLore) return !!this._postDeath.activeSlug && Number(this._postDeath.lore.counts[row.postDeathLore]) > 0;
+		// Marked on the insert they WEAR (CharacterPostDeath#wornMarked).
+		if (row.postDeathLore) return this._postDeath.wornMarked(row.postDeathLore);
 		if (row.background) {
 			return tookBackground({ playbook: this._actor.system?.playbook?.name ?? null, background: this._background.selectedSlug }, row.background);
 		}
@@ -2491,7 +2504,7 @@ export class StonetopCharacter {
 	 * window's post-death lines are (_earnsRollOffer).
 	 */
 	_foldStandingNotes(options) {
-		if (!this._postDeath.activeSlug || !(Number(this._postDeath.lore.counts[UNSTABLE_LORE]) > 0)) return options;
+		if (!this._postDeath.wornMarked(UNSTABLE_LORE)) return options;
 		const note = `<p class="stonetop-roll-offer-note">${_loc("stonetop.postDeathMoves.unstableNote")}</p>`;
 		return { ...options, ..._withTierActions(options, { failure: note }) };
 	}
@@ -2549,15 +2562,15 @@ export class StonetopCharacter {
 	}
 
 	/**
-	 * Whether the steading has earned Weapons of War: the improvement built, or "Weapons of War"
-	 * active on its Fortifications list (a GM who wrote it there by hand).
+	 * Whether the steading has earned Weapons of War: the improvement in force by the one rule every
+	 * reader asks (improvement-rules.js), so built, or "Weapons of War" ticked on its Fortifications
+	 * list (a GM who wrote it there by hand, or a homebrew improvement that adds it), and not
+	 * retired by another improvement.
 	 */
 	weaponsOfWarEarned(steading = this.getSteadingActor()) {
 		if (!steading) return false;
-		const steadingFlags = resolvedFlagProperty(steading, "steading") ?? {};
-		return !!steadingFlags.improvements?.[_WEAPONS_OF_WAR_IMPROVEMENT]?.completed
-			|| (steadingFlags.fortifications ?? []).some(f =>
-				String(f?.name ?? f) === _WEAPONS_OF_WAR_CATEGORY && f?.checked !== false);
+		const rules = (steading.typedActor ?? new StonetopSteading(steading)).improvementRules?.() ?? [];
+		return rulesHas(rules)(_WEAPONS_OF_WAR_IMPROVEMENT);
 	}
 
 	/**
@@ -2740,6 +2753,7 @@ export class StonetopCharacter {
 			// re-planted without this kept its 2 armor and silently stopped buying "+1 Readiness
 			// on a Defend 7+", which is the whole reason the flag exists.
 			shield,
+			resourceFirst: read.resourceFirst,
 			moveType: "inventory-custom",
 			// A Book II treasure keeps its marker through the re-plant, so the gear tab can
 			// group it under "Treasures" rather than among the write-ins.
@@ -2751,6 +2765,11 @@ export class StonetopCharacter {
 			// the whole art pipeline visible only in the Items sidebar.
 			img: itemData?.img ?? null,
 		});
+		// A write-up the GM edited stays theirs on the sheet copy too: the load-time back-fill
+		// walks the copies in play as well as the sidebar (see WRITEUP_EDITED_FLAG).
+		if (itemData?.flags?.[ITEM_FLAG_SCOPE]?.[WRITEUP_EDITED_FLAG]) {
+			data.flags = { [ITEM_FLAG_SCOPE]: { [WRITEUP_EDITED_FLAG]: true } };
+		}
 		await this._actor.createEmbeddedDocuments("Item", [data]);
 	}
 
@@ -2832,7 +2851,7 @@ export class StonetopCharacter {
 	async updateCustomMove(itemId, input) {
 		const item = this._actor.items.get(itemId);
 		if (!item) return;
-		await item.update(buildCustomMoveData(input));
+		await item.update(buildCustomMoveData(input, { requirement: item.system?.requirement }));
 	}
 
 	// Toggle a move between learned (active — rollable, bonuses apply) and un-learned (kept
@@ -3149,9 +3168,34 @@ export class StonetopCharacter {
 			const count = Number(resources[item._id]);
 			if (repair.resourceMax != null && count > repair.resourceMax) clamps.push([item._id, repair.resourceMax]);
 		}
-		if (updates.length) await this._actor.updateEmbeddedDocuments("Item", updates);
+		// Quiet in the ledger: a repair to match the playbook's text, not an edit anybody made.
+		if (updates.length) await this._actor.updateEmbeddedDocuments("Item", updates, { stonetopLedger: true });
 		for (const [id, max] of clamps) await this._inventory.setResource(id, max);
 		return updates.length;
+	}
+	/**
+	 * The actor.update fragment that keeps no more pips on a track than its new, smaller size, for
+	 * held items whose track the pack shrank (migration/move-refresh.js: Unstoppable's six circles
+	 * becoming the book's five). A move's track is stored by its name, a piece of gear's by its item
+	 * id. Null when nothing stored is over.
+	 *
+	 * @param {Array<{item: object, max: number}>} shrunk
+	 * @returns {object|null}
+	 */
+	heldTrackClampData(shrunk = []) {
+		const moves = this._moveResources.getMoveResources();
+		const gear = this._inventory.resources;
+		let data = null;
+		for (const { item, max } of shrunk) {
+			const gearItem = isGear(item);
+			const key = gearItem ? item._id : item?.name;
+			// A dotted name would write a nested path instead of its own key.
+			if (!key || key.includes(".")) continue;
+			const stored = Number((gearItem ? gear : moves)[key]);
+			if (!(stored > max)) continue;
+			data = { ...data, ...(gearItem ? this._inventory.resourceData(key, max) : this._moveResources.usesUpdate(key, max)) };
+		}
+		return data;
 	}
 	async setCustomPossessions(labels) { await this._possessions.setCustom(labels); }
 	async removeCustomPossession(slug) { await this._possessions.removeCustom(slug); }
@@ -3201,7 +3245,7 @@ export class StonetopCharacter {
 		await this._possessions.writeSubChoices(possessionSlug, remaining, { uncarry });
 	}
 	async selectSubChoiceExclusive(possessionSlug, choiceSlug, exclusiveSlugs) { await this._possessions.selectExclusive(possessionSlug, choiceSlug, exclusiveSlugs); }
-	async setSubChoiceUses(possessionSlug, choiceSlug, count) { await this._possessions.setChoiceUses(possessionSlug, choiceSlug, count); }
+	async setSubChoiceUses(possessionSlug, choiceSlug, count, options) { await this._possessions.setChoiceUses(possessionSlug, choiceSlug, count, options); }
 	/** The ○○ count on one gear-choice option. The read half of setSubChoiceUses, so the
 	 *  `possessions.choiceUses` path and its `possession:choice` key shape stay in the class
 	 *  that owns that store rather than being spelled out again by the combat flow. */
@@ -3703,8 +3747,9 @@ export class StonetopCharacter {
 		await item.setFlag(STONETOP_SCOPE, START_GEAR_FLAG, slug);
 	}
 
-	// A re-run of onboarding taking back a move taken at the start of play takes back the gear it
-	// gave (_grantStartGear), unless another move still claims it.
+	// A move taken at the start of play takes back the gear it gave (_grantStartGear) when it goes,
+	// whether an onboarding re-run drops it or it is un-ticked (removeMove), unless another move
+	// still claims that gear. Gear the move never recorded (bought, or there before) is never touched.
 	async _releaseStartGear(item) {
 		const slug = item?.flags?.[STONETOP_SCOPE]?.[START_GEAR_FLAG];
 		if (!slug) return;
@@ -4130,6 +4175,9 @@ export class StonetopCharacter {
 		await this._trimMoveMarksOnRemoval([removed, ...orphanItems]);
 		await this._trimCompanionTraitsOnRemoval([removed, ...orphanItems]);
 		await this._releaseGrantedPossession(removed);
+		// Un-ticking Armored taken at the start of play takes back its hauberk, as an onboarding
+		// re-run dropping it does. Read off the snapshots: their startGear flag outlives the delete.
+		for (const gone of [removed, ...orphanItems]) await this._releaseStartGear(gone);
 		await this._clearUnheldInvocations();
 	}
 
@@ -4511,7 +4559,7 @@ export class StonetopCharacter {
 			this._postDeath.hpPenalty(),
 		]);
 		const { armor, unpierceable, conditional, conditionalSource } = this._armorFrom(gear, moveBonuses);
-		return { armor, unpierceable, conditional, conditionalSource, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0 };
+		return { armor, unpierceable, conditional, conditionalSource, maxHp: playbookData ? _hpFrom(this._actor, playbookData, moveBonuses, hpPenalty).hpMax : 0, hpPenalty };
 	}
 
 	/**
@@ -4553,14 +4601,16 @@ export class StonetopCharacter {
 	 * either writes both. A non-finite armor (nothing worked out, or a move bonus that is not a number)
 	 * writes neither, where 0 is real (unarmored) and must overwrite a stale number. Max HP only with a
 	 * playbook to derive it from (0 says there is none). Ledger-silenced: the real change was the gear,
-	 * the level or the Mark, which the ledger already files. Returns whether it wrote.
+	 * the level or the Mark, which the ledger already files; the one exception is HP a falling max takes
+	 * down with it, which is filed on its own line. Returns whether it wrote.
 	 *
 	 * @param {{armor: number|null, unpierceable: number, conditional?: number, conditionalSource?: string, maxHp: number}} [vitals]  computedVitals' answer.
 	 *   A caller handing in its own numbers must carry the WHOLE armor group: the write is one update
 	 *   over all four fields, so an omitted `conditional` writes the default back over a real one.
 	 */
 	async syncStoredVitals(vitals = null) {
-		const { armor, unpierceable, maxHp, conditional = 0, conditionalSource = "" } = vitals ?? await this.computedVitals();
+		const worked = vitals ?? await this.computedVitals();
+		const { armor, unpierceable, maxHp, conditional = 0, conditionalSource = "" } = worked;
 		const attrs = this._actor.system?.attributes ?? {};
 		const update = {};
 		const floor = Number(unpierceable) || 0;
@@ -4568,6 +4618,7 @@ export class StonetopCharacter {
 		// damage card reads this document, and it offers that armor back (combat/attack-flow.js).
 		const gated = Math.max(0, Math.trunc(Number(conditional) || 0));
 		const gatedBy = gated > 0 ? String(conditionalSource || "") : "";
+		let penaltyBefore, penaltyNow = 0;
 		if (armor !== null && Number.isFinite(Number(armor))
 			&& (Number(attrs.armor?.value) !== Number(armor) || (Number(attrs.armor?.unpierceable) || 0) !== floor
 				|| (Number(attrs.armor?.conditional) || 0) !== gated || (attrs.armor?.conditionalSource ?? "") !== gatedBy)) {
@@ -4583,9 +4634,31 @@ export class StonetopCharacter {
 			// the HP down with it, in the same write: nobody holds more HP than their max. Only when the
 			// max MOVES, so HP this sync did not cause stays the table's business.
 			if ((Number(attrs.hp?.value) || 0) > hpMax) update["system.attributes.hp.value"] = hpMax;
+			// The insert penalty this max is built from, kept so the NEXT fall can tell whether the Marks
+			// moved (maxHpFallCause). Written only when it differs: a character who never had a Mark
+			// carries none, and reads as 0.
+			const penalty = Number(worked.hpPenalty ?? await this._postDeath?.hpPenalty?.()) || 0;
+			penaltyBefore = readableFlags(this._actor)?.[MIRRORED_HP_PENALTY_FLAG];
+			if ((penaltyBefore ?? 0) !== penalty) update[`flags.${STONETOP_SCOPE}.${MIRRORED_HP_PENALTY_FLAG}`] = penalty;
+			penaltyNow = penalty;
 		}
 		if (!Object.keys(update).length) return false;
-		await this._actor.update(update, { stonetopLedger: true });
+		const hpBefore = Number(attrs.hp?.value) || 0;
+		const written = await this._actor.update(update, { stonetopLedger: true });
+		// The mirror stays quiet, but HP taken down with a falling max is HP the character LOST, and
+		// nothing else files it. One line for it, naming what lowered the max where that is known.
+		//
+		// Only from the client whose write actually landed. Every owner with the sheet open runs this
+		// sync, and the author's client runs the mirror too, so two can read the old max and both send
+		// the clamp; core returns nothing for the one that arrives second and changes nothing.
+		const clamped = update["system.attributes.hp.value"];
+		if (clamped !== undefined && written) {
+			const cause = maxHpFallCause(this, penaltyBefore, penaltyNow);
+			await appendLedgerEntries(this._actor, [{
+				category: "stats",
+				action: `HP changed from ${hpBefore} to ${clamped} (max HP fell to ${hpMax}${cause ? `: ${cause}` : ""})`,
+			}]);
+		}
 		return true;
 	}
 
@@ -4967,12 +5040,26 @@ export class StonetopCharacter {
 	 * And: an operation that changed nothing writes NOTHING. Re-Censuring somebody already branded
 	 * would otherwise broadcast an update and re-render every open sheet to store what was already
 	 * there.
+	 *
+	 * `op` is the roster operation itself, `raw => result`, not its result: it is run against the
+	 * list as stored AFTER every earlier write to this flag has landed. Writes to one actor's flag
+	 * queue behind each other (turn-queue.js#inTurn), because the document only takes a write once the
+	 * server answers. Run on the spot, a note blurred and a tick clicked a moment later both read
+	 * the list from before the note, and the tick's whole-array write put the old note back.
 	 */
-	async _rosterWrite(flag, { entries, added, removed, changed }) {
-		const result = added ?? removed ?? changed ?? null;
-		if (!result) return null;
-		await this._actor.setFlag(STONETOP_SCOPE, flag, entries);
-		return result;
+	async _rosterWrite(flag, op) {
+		return (await this._rosterOp(flag, op)).done;
+	}
+
+	/** `_rosterWrite`'s queue, answering `{ result, done }`: the operation's whole result as well. */
+	_rosterOp(flag, op) {
+		// Keyed by actor uuid, not this wrapper, which is not guaranteed to be the same object twice.
+		return inTurn(`roster:${this._actor?.uuid ?? this._actor?.id ?? ""}|${flag}`, async () => {
+			const result = op(this._rosterRaw(flag));
+			const done = result?.added ?? result?.removed ?? result?.changed ?? null;
+			if (done) await this._actor.setFlag(STONETOP_SCOPE, flag, result.entries);
+			return { result, done };
+		});
 	}
 
 	// -- Condemn (the Judge's brand) --------------------------------------------------
@@ -4997,8 +5084,7 @@ export class StonetopCharacter {
 		// opens the window that lays brands. The blow now lands where the Censure itself is used (the
 		// sheet's _censure), and a brand laid from the window afterwards, or added by hand, rolls
 		// nothing, so one Censure is never two 1d4s.
-		return this._rosterWrite(CONDEMNED_FLAG,
-			addCondemned(this._rosterRaw(CONDEMNED_FLAG), entry, newRosterId));
+		return this._rosterWrite(CONDEMNED_FLAG, raw => addCondemned(raw, entry, newRosterId));
 	}
 
 	/** Whether this Judge's Censure hurts: Castigate LEARNED, not merely listed. */
@@ -5028,12 +5114,12 @@ export class StonetopCharacter {
 
 	/** Dismiss one brand — the only way it ever ends. Returns the entry that was lifted, or null. */
 	async dismissCondemned(id) {
-		return this._rosterWrite(CONDEMNED_FLAG, removeCondemned(this._rosterRaw(CONDEMNED_FLAG), id));
+		return this._rosterWrite(CONDEMNED_FLAG, raw => removeCondemned(raw, id));
 	}
 
 	/** Re-word why somebody is branded. Returns the patched entry, or null when nothing changed. */
 	async setCondemnedNote(id, note) {
-		return this._rosterWrite(CONDEMNED_FLAG, noteCondemned(this._rosterRaw(CONDEMNED_FLAG), id, note));
+		return this._rosterWrite(CONDEMNED_FLAG, raw => noteCondemned(raw, id, note));
 	}
 
 	// -- Oaths (the Judge's Binding Arbitration) ---------------------------------------
@@ -5050,26 +5136,26 @@ export class StonetopCharacter {
 	}
 
 	/**
-	 * Witness an oath. Returns the stored entry, or null when the list was left alone — a nameless
-	 * swearer, or one already on the list.
+	 * Witness an oath. Returns the stored entry, or null for a nameless swearer. Every oath is its
+	 * own row (oaths.js), so somebody already on the list swearing again is a second row.
 	 */
 	async witnessOath(entry) {
-		return this._rosterWrite(OATHS_FLAG, addOath(this._rosterRaw(OATHS_FLAG), entry, newRosterId));
+		return this._rosterWrite(OATHS_FLAG, raw => addOath(raw, entry, newRosterId));
 	}
 
 	/** Release somebody from an oath — the only way it ends. Returns the entry lifted, or null. */
 	async releaseOath(id) {
-		return this._rosterWrite(OATHS_FLAG, removeOath(this._rosterRaw(OATHS_FLAG), id));
+		return this._rosterWrite(OATHS_FLAG, raw => removeOath(raw, id));
 	}
 
 	/** Re-word what somebody swore. Returns the patched entry, or null when nothing changed. */
 	async setOathNote(id, note) {
-		return this._rosterWrite(OATHS_FLAG, noteOath(this._rosterRaw(OATHS_FLAG), id, note));
+		return this._rosterWrite(OATHS_FLAG, raw => noteOath(raw, id, note));
 	}
 
 	/** Mark an oath kept or broken — a broken one is advantage on all rolls against them. */
 	async setOathBroken(id, broken) {
-		return this._rosterWrite(OATHS_FLAG, setOathBroken(this._rosterRaw(OATHS_FLAG), id, broken));
+		return this._rosterWrite(OATHS_FLAG, raw => setOathBroken(raw, id, broken));
 	}
 
 	// -- The Blessed's marks -----------------------------------------------------------
@@ -5087,18 +5173,17 @@ export class StonetopCharacter {
 
 	/** Lay a mark. Returns the stored entry, or null for a nameless or already-marked subject. */
 	async layBlessedMark(entry) {
-		return this._rosterWrite(BLESSED_MARKS_FLAG,
-			addMark(this._rosterRaw(BLESSED_MARKS_FLAG), entry, newRosterId));
+		return this._rosterWrite(BLESSED_MARKS_FLAG, raw => addMark(raw, entry, newRosterId));
 	}
 
 	/** Lift a mark. Returns the entry lifted, or null when the id matched nothing. */
 	async liftBlessedMark(id) {
-		return this._rosterWrite(BLESSED_MARKS_FLAG, removeMark(this._rosterRaw(BLESSED_MARKS_FLAG), id));
+		return this._rosterWrite(BLESSED_MARKS_FLAG, raw => removeMark(raw, id));
 	}
 
 	/** Re-word what a mark is for. Returns the patched entry, or null when nothing changed. */
 	async setBlessedMarkNote(id, note) {
-		return this._rosterWrite(BLESSED_MARKS_FLAG, noteMark(this._rosterRaw(BLESSED_MARKS_FLAG), id, note));
+		return this._rosterWrite(BLESSED_MARKS_FLAG, raw => noteMark(raw, id, note));
 	}
 
 	/**
@@ -5107,7 +5192,7 @@ export class StonetopCharacter {
 	 * or null when nothing changed, which is also what the four kinds without the choice get back.
 	 */
 	async setBlessedMarkSign(id, sign) {
-		return this._rosterWrite(BLESSED_MARKS_FLAG, setMarkSign(this._rosterRaw(BLESSED_MARKS_FLAG), id, sign));
+		return this._rosterWrite(BLESSED_MARKS_FLAG, raw => setMarkSign(raw, id, sign));
 	}
 
 	/**
@@ -5120,9 +5205,9 @@ export class StonetopCharacter {
 	 * rather than storing and broadcasting an exhausted row first.
 	 */
 	async setBlessedMarkLoyalty(id, loyalty, options = {}) {
-		const result = setMarkLoyalty(this._rosterRaw(BLESSED_MARKS_FLAG), id, loyalty, options);
-		const changed = await this._rosterWrite(BLESSED_MARKS_FLAG, result);
-		return { changed, ended: changed ? result.ended : false };
+		const { result, done } = await this._rosterOp(BLESSED_MARKS_FLAG,
+			raw => setMarkLoyalty(raw, id, loyalty, options));
+		return { changed: done, ended: done ? result.ended : false };
 	}
 
 	// -- Battle Joy (the Heavy) ---------------------------------------------------------
@@ -5518,7 +5603,7 @@ export class StonetopCharacter {
 	 * both alike (see deathsDoorState).
 	 */
 	get _clearDeathsDoorUpdate() {
-		return { [`flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`]: null };
+		return this.deathsDoorStateUpdateData(null);
 	}
 
 	get hp() { return Number(this._actor.system?.attributes?.hp?.value) || 0; }
@@ -5724,12 +5809,44 @@ export class StonetopCharacter {
 	// points and its state in ONE write (UndeathDialog#_onApply). Null where the writing twin would
 	// refuse (already marked, already crossed off). See CharacterPostDeath.
 	markSectionOptionUpdateData(section, option) { return this._postDeath.markSectionOptionUpdateData(section, option); }
+	unmarkSectionOptionUpdateData(section, option) { return this._postDeath.unmarkSectionOptionUpdateData(section, option); }
 	crossOffMarkUpdateData(s)  { return this._postDeath.crossOffMarkUpdateData(s); }
 	masterTaskUpdateData(t)    { return this._postDeath.masterTaskUpdateData(t); }
 	tetherUpdateData(t)        { return this._postDeath.tetherUpdateData(t); }
 	favorUpdateData(v)         { return this._postDeath.favorUpdateData(v); }
 	/** The Death's Door state as a fragment, written as the caller's decision (see DeathsDoorPrompt's preUpdate). */
 	deathsDoorStateUpdateData(state) { return { [`flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`]: state ?? null }; }
+	/**
+	 * THE FINAL CONSEQUENCE as a fragment: marked (unless it already is) and out of play, `dead`. It ends
+	 * them as a player character, so the two never land apart (UndeathDialog's destroyed tether, and the
+	 * tab's edit-mode tick).
+	 */
+	finalConsequenceUpdateData() {
+		return {
+			...(this.markSectionOptionUpdateData(FINAL_CONSEQUENCE.section, FINAL_CONSEQUENCE.option) ?? {}),
+			...this.deathsDoorStateUpdateData(DEATHS_DOOR_STATE.DEAD),
+		};
+	}
+
+	/**
+	 * finalConsequenceUpdateData taken back, for a tick made by mistake: unmarked, and back in play in the
+	 * same write if it left them `dead`, so the character is never unmarked but still out of every party list.
+	 */
+	finalConsequenceUndoUpdateData() {
+		return {
+			...(this.unmarkSectionOptionUpdateData(FINAL_CONSEQUENCE.section, FINAL_CONSEQUENCE.option) ?? {}),
+			...(this.deathsDoorState === DEATHS_DOOR_STATE.DEAD ? this.deathsDoorStateUpdateData(null) : {}),
+		};
+	}
+
+	/**
+	 * Fragments like these landed as ONE write, attributed to the move for the ledger: a decision that
+	 * restores no hit points (restoreHp's no-rise path, the Final Consequence, Unholy Vessel). No-op on
+	 * an empty or absent fragment.
+	 */
+	async applyUpdate(update, moveName) {
+		if (update && Object.keys(update).length) await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
+	}
 
 	/**
 	 * How this character left play, when it was not through the Last Door: "monster" for a Ghost or
@@ -5771,12 +5888,13 @@ export class StonetopCharacter {
 	// the Battle Joy and Readiness the drop cost), so hooks see it land as one.
 	// Torment's Blessing halves what it restores, rounded up (deaths-door-actor.js#recoveredHpTo): a Thrall's
 	// "half your max HP" is a quarter's worth of hit points back. Never below 1 of a gain, so a Death's
-	// Door "regain 1 HP" still brings them back.
-	async restoreHp(value, moveName, { clearsDeathsDoor = false, alsoUpdate = null } = {}) {
-		const target = recoveredHpTo(this.hp, Math.max(0, Math.trunc(Number(value) || 0)), slowToHeal(this._actor));
+	// Door "regain 1 HP" still brings them back. `unhalved` is for a return that is not a heal (back on
+	// their feet from out of the action at half max HP, the user's ruling of 2026-09-30), which it skips.
+	async restoreHp(value, moveName, { clearsDeathsDoor = false, alsoUpdate = null, unhalved = false } = {}) {
+		const target = recoveredHpTo(this.hp, Math.max(0, Math.trunc(Number(value) || 0)), !unhalved && slowToHeal(this._actor));
 		if (target <= this.hp) {
 			if (clearsDeathsDoor) await this.setDeathsDoorState(null);
-			if (alsoUpdate && Object.keys(alsoUpdate).length) await this._actor.update(alsoUpdate, moveName ? { stonetopMove: moveName } : {});
+			await this.applyUpdate(alsoUpdate, moveName);
 			return false;
 		}
 		const update = { "system.attributes.hp.value": target, ...(alsoUpdate ?? {}) };
@@ -5886,10 +6004,16 @@ export class StonetopCharacter {
 	// current list, recomputes it, and writes the whole thing back. `moveName`, when
 	// given, tags the write so the character ledger attributes it ("via Recover", etc.).
 
-	// A defensive, normalized copy of the current wound list.
+	// A defensive, normalized copy of the current wound list. A record stored with no id reads
+	// with the same stand-in id every time (wound-record.js#normalizeWoundList), so the ids the
+	// sheet renders are the ids the CRUD below finds.
 	_woundList() {
-		const arr = this._actor.system?.attributes?.wounds;
-		return Array.isArray(arr) ? arr.map(w => _normalizeWound(w)) : [];
+		return normalizeWoundList(this._actor.system?.attributes?.wounds);
+	}
+
+	/** The current wound records, normalized: what the sheet's wound editor and Tend read. */
+	woundRecords() {
+		return this._woundList();
 	}
 
 	async _writeWounds(wounds, moveName) {
@@ -5900,10 +6024,11 @@ export class StonetopCharacter {
 	}
 
 	// Add a wound. Returns its generated id so callers can immediately open it for editing.
-	async addWound(data = {}) {
-		const wound  = _normalizeWound(data, { keepId: false });
-		await this._writeWounds([...this._woundList(), wound]);
-		return wound.id;
+	// `moveName` tags the write for the ledger when a move records it (Death's Door's 10+ mark).
+	async addWound(data = {}, { moveName } = {}) {
+		const { update, id } = this.addWoundUpdate(data);
+		await this._actor.update(update, moveName ? { stonetopMove: moveName } : {});
+		return id;
 	}
 
 	// addWound as an `actor.update()` fragment, for a move landing the wound in one write with the rest
@@ -6148,7 +6273,7 @@ export class StonetopCharacter {
 				// The mark options ride along with the copies already held, so the level-up's marks step
 				// can ask a foreign Beast of Legend's pick as it asks the Ranger's own (LevelUpDialog).
 				out.push({
-					compendiumId: def.id, name: def.name, description: def.description ?? "", playbook: pb,
+					compendiumId: def.id, name: def.name, description: def.description ?? "", moveResults: def.moveResults ?? null, playbook: pb,
 					requiresLabel: requirementLabel(def.requirement, { replaces: def.replaces ?? null }),
 					markOptions: def.markOptions ?? null, markBudget: def.markBudget ?? null, ownedIds,
 				});
@@ -6174,7 +6299,7 @@ export class StonetopCharacter {
 	// `"level"` — the character is no longer at `fromLevel`, the level the caller's choices
 	// were built for (the same level-up already applied from another window); `"xp"` — they
 	// no longer have the 6 + 2×level XP it costs (Book I p.528: the move needs that much).
-	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug, choices = null, { fromLevel = null } = {}) {
+	async applyLevelUp(selectedMoveCompendiumId, selectedInvocationSlug, choices = null, { fromLevel = null, moveName = "" } = {}) {
 		// Through the XP lock (utils/xp.js), not adjustXp: the level and the XP it cost move in
 		// ONE update, and splitting them would leave a moment where the character has the new
 		// level and has not paid for it. Both are therefore read inside the lock, so a mark that
@@ -6189,10 +6314,13 @@ export class StonetopCharacter {
 			const xp    = this._actor.system?.attributes?.xp?.value ?? 0;
 			if (fromLevel != null && level !== fromLevel) return "level";
 			if (xp < xpToLevelUp(level)) return "xp";
-			await this._actor.update({
+			const levelUp = {
 				"system.attributes.level.value": level + 1,
 				"system.attributes.xp.value":   xp - xpToLevelUp(level),
-			});
+			};
+			// The move learned rides on the update so the timeline's level-up row can name it
+			// (timeline/timeline-watch.js reads it back off the options).
+			await this._actor.update(levelUp, moveName ? { [LEARNED_OPTION]: moveName } : {});
 			return null;
 		});
 		if (refused) return { applied: false, reason: refused };
@@ -6518,39 +6646,10 @@ function _buildDebilitiesSection(actor, moveResources) {
 	);
 }
 
-// Valid wound enum values. Kept here (not as StringField `choices`) so the read path
-// can coerce anything unexpected — a wound record written by a newer build, or a
-// hand-edited world — back to a safe default instead of wedging the sheet.
-const _WOUND_STATUSES = ["problematic", "stabilized", "permanent"];
-const _WOUND_ORIGINS  = ["wound", "deaths-door"];
-
-// Coerce a stored/partial wound record into the canonical shape the schema and sheet
-// expect, filling defaults and normalizing the two enum fields. `keepId` false mints a
-// fresh id (used when adding); true preserves whatever id came in (used when editing).
-function _normalizeWound(w = {}, { keepId = true } = {}) {
-	return {
-		id:              (keepId && w.id) ? w.id : foundry.utils.randomID(),
-		text:            typeof w.text === "string" ? w.text : "",
-		status:          _WOUND_STATUSES.includes(w.status) ? w.status : "problematic",
-		origin:          _WOUND_ORIGINS.includes(w.origin) ? w.origin : "wound",
-		requirementNote: typeof w.requirementNote === "string" ? w.requirementNote : "",
-		planNote:        typeof w.planNote === "string" ? w.planNote : "",
-		planRequirements: Array.isArray(w.planRequirements)
-			? w.planRequirements
-				.map(r => ({ text: typeof r?.text === "string" ? r.text : "", done: !!r?.done }))
-				.filter(r => r.text)
-			: [],
-		mechanicalTag:   typeof w.mechanicalTag === "string" ? w.mechanicalTag : "",
-		reminderMove:    typeof w.reminderMove === "string" ? w.reminderMove : "",
-		healed:          !!w.healed,
-	};
-}
-
+// The wound record's one reading (normalizeWound / normalizeWoundList) lives in wound-record.js,
+// shared with the ledger and the roll card.
 function _buildWoundsSection(actor) {
-	const arr = actor.system?.attributes?.wounds;
-	if (!Array.isArray(arr)) return [];
-	return arr.map(w => {
-		const n = _normalizeWound(w);
+	return normalizeWoundList(actor.system?.attributes?.wounds).map(n => {
 		return new WoundSnapshotBuilder()
 			.withId(n.id)
 			.withText(n.text)
@@ -6581,6 +6680,18 @@ function _buildWoundsSection(actor) {
 function _derivedDamageDie(playbookData, moveBonuses = {}) {
 	if (!playbookData) return null;
 	return moveBonuses.damageDie ? maxDie(playbookData.damage, moveBonuses.damageDie) : playbookData.damage;
+}
+
+/**
+ * What lowered a character's max HP, for the ledger, or null when it is not knowable here. A
+ * post-death insert's marked options are the one source this can name: a Thrall's "Reduce your max
+ * HP by 2" Mark. Named only when the penalty GREW since the last max was written (`before`, the
+ * MIRRORED_HP_PENALTY_FLAG, absent for 0): a Mark taken long ago did not cause today's fall.
+ */
+function maxHpFallCause(character, before, now) {
+	const slug = character?._postDeath?.activeSlug;
+	if (!slug) return null;
+	return now > (Number(before) || 0) ? `the ${capitalizeFirst(slug)}'s Marks` : null;
 }
 
 /**

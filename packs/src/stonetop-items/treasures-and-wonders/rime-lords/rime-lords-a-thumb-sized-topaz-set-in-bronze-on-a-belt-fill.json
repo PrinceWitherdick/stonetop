@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "magical, terrifying, Value 2",
+    "note": "<em>magical</em>, terrifying, Value 2",
     "isTreasure": true
   },
   "flags": {
@@ -14,7 +14,7 @@
       "slug": "a-thumb-sized-topaz-set-in-bronze-on-a-belt-fills-you-with-dread-to-look-at-it",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "magical, terrifying, Value 2"
+      "note": "<em>magical</em>, terrifying, Value 2"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

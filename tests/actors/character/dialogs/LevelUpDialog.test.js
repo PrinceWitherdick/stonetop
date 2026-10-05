@@ -220,7 +220,7 @@ describe("LevelUpDialog cross-playbook step machine", () => {
 		dlg._selectedMoveId = "i1";
 		dlg._selectedForeignMoveId = "bm1";
 		await dlg._apply();
-		expect(char.applyLevelUp).toHaveBeenCalledWith("i1", null, { crossPlaybook: true, foreignMoveId: "bm1", grantsPossession: "sacred-pouch" }, { fromLevel: 2 });
+		expect(char.applyLevelUp).toHaveBeenCalledWith("i1", null, { crossPlaybook: true, foreignMoveId: "bm1", grantsPossession: "sacred-pouch" }, { fromLevel: 2, moveName: expect.any(String) });
 		expect(dlg.close).toHaveBeenCalled();
 	});
 
@@ -236,12 +236,23 @@ describe("LevelUpDialog cross-playbook step machine", () => {
 		expect(dlg._onDone).toHaveBeenCalledWith("Initiate of the Secret Arts", { applied: true, foreignMoveName: "Big Magic" });
 	});
 
+	// The timeline's "Reached level N" row names the move learned, and this is where it comes from.
+	it("_apply hands the chosen move's name on for the timeline", async () => {
+		const initiate = { compendiumId: "i1", name: "Initiate of the Secret Arts", cap: null, crossPlaybook: { playbooks: ["The Blessed"], grantsPossession: "sacred-pouch" } };
+		const { dlg, char } = makeDialog({ data: { availableMoves: [initiate] } });
+		dlg._foreignMoves = [{ compendiumId: "bm1", name: "Big Magic", playbook: "The Blessed" }];
+		dlg._selectedMoveId = "i1";
+		dlg._selectedForeignMoveId = "bm1";
+		await dlg._apply();
+		expect(char.applyLevelUp.mock.calls[0][3]).toEqual({ fromLevel: 2, moveName: "Initiate of the Secret Arts" });
+	});
+
 	it("_apply still passes the stat choice for a stat move (no cross-playbook collision)", async () => {
 		const { dlg, char } = makeDialog({ data: { availableMoves: [statMove] } });
 		dlg._selectedMoveId = "s1";
 		dlg._selectedStat = "str";
 		await dlg._apply();
-		expect(char.applyLevelUp).toHaveBeenCalledWith("s1", null, { stat: "str", cap: 2 }, { fromLevel: 2 });
+		expect(char.applyLevelUp).toHaveBeenCalledWith("s1", null, { stat: "str", cap: 2 }, { fromLevel: 2, moveName: expect.any(String) });
 	});
 });
 
@@ -337,7 +348,7 @@ describe("LevelUpDialog — Beast-Bonded companion step", () => {
 		dlg._selectedMoveId = "p1";
 		dlg._selectedCompanionActions = ["sense-emotion"];
 		await dlg._apply();
-		expect(char.applyLevelUp).toHaveBeenCalledWith("p1", null, { companionActions: ["sense-emotion"] }, { fromLevel: 2 });
+		expect(char.applyLevelUp).toHaveBeenCalledWith("p1", null, { companionActions: ["sense-emotion"] }, { fromLevel: 2, moveName: expect.any(String) });
 	});
 });
 
@@ -465,7 +476,7 @@ describe("LevelUpDialog mark step — budgeted moves (Veteran Crew / Well Versed
 		dlg._selectedMoveId = "vc1";
 		dlg._selectedMarks = [{ slug: "tags" }];
 		await dlg._apply();
-		expect(char.applyLevelUp).toHaveBeenCalledWith("vc1", null, { marks: { moveName: "Veteran Crew", picks: [{ slug: "tags" }] } }, { fromLevel: 2 });
+		expect(char.applyLevelUp).toHaveBeenCalledWith("vc1", null, { marks: { moveName: "Veteran Crew", picks: [{ slug: "tags" }] } }, { fromLevel: 2, moveName: expect.any(String) });
 	});
 
 	it("clamps the take's required picks to the selectable options so the step can't dead-end", () => {
@@ -559,6 +570,6 @@ describe("LevelUpDialog mark step: a foreign budgeted move", () => {
 		expect(char.applyLevelUp).toHaveBeenCalledWith("ws1", null, {
 			crossPlaybook: true, foreignMoveId: "bol1", grantsPossession: null,
 			marks: { moveName: "Beast of Legend", picks: [{ slug: "tough" }] },
-		}, { fromLevel: 2 });
+		}, { fromLevel: 2, moveName: expect.any(String) });
 	});
 });

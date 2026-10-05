@@ -1,4 +1,4 @@
-// The system modules the "Import Book Art" macro borrows, handed to it on
+// The system modules the "Import Book Art" macro (and the test-fixtures macro) borrow, handed on
 // `game.stonetop.macroModules` rather than imported by their served path.
 //
 // The macro is a Script macro, outside our module graph, so it used to `import()` these files by
@@ -15,4 +15,8 @@ export const MACRO_MODULES = Object.freeze({
 	journalSyncCore: () => import("../hooks/journal-sync-core.js"),
 	worldJournalArt: () => import("./world-journal-art.js"),
 	posterMaps:      () => import("./poster-maps.js"),
+	// Not Import Book Art's: the test-fixtures macro (scripts/local/create-test-characters.js) seeds
+	// and clears a three-year timeline through it. Same reason, and a sharper one: the timeline's
+	// writes take turns per track, and a second copy of the store would bring a second queue.
+	timeline:        () => import("../timeline/timeline-macro-api.js"),
 });

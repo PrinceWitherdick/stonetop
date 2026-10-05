@@ -12,9 +12,9 @@ export class ArcanaUnlockOptionSnapshot {
 		this.type        = "option";
 		this.slug        = b._slug;
 		this.description = b._description;
+		// `count` of `max` ticks: the template draws `max` boxes and checks the first `count`.
 		this.count       = b._count;
 		this.max         = b._max;
-		this.selected    = b._selected;
 	}
 }
 
@@ -23,7 +23,6 @@ export class ArcanaUnlockOptionSnapshotBuilder {
 	withDescription(v) { this._description = v; return this; }
 	withCount(v)       { this._count       = v; return this; }
 	withMax(v)         { this._max         = v; return this; }
-	withSelected(v)    { this._selected    = v; return this; }
 	build()            { return new ArcanaUnlockOptionSnapshot(this); }
 }
 
@@ -44,22 +43,18 @@ export class ArcanumBackMoveSnapshot {
 	}
 }
 
+// A back option's label only. The ledger names a ticked option by it (CharacterLedger); nothing
+// draws back options as a track or writes a count for one, so no count, max or selected is carried.
 export class ArcanaBackOptionSnapshot {
 	constructor(b) {
 		this.slug        = b._slug;
 		this.description = b._description;
-		this.count       = b._count;
-		this.max         = b._max;
-		this.selected    = b._selected;
 	}
 }
 
 export class ArcanaBackOptionSnapshotBuilder {
 	withSlug(v)        { this._slug        = v; return this; }
 	withDescription(v) { this._description = v; return this; }
-	withCount(v)       { this._count       = v; return this; }
-	withMax(v)         { this._max         = v; return this; }
-	withSelected(v)    { this._selected    = v; return this; }
 	build()            { return new ArcanaBackOptionSnapshot(this); }
 }
 
@@ -139,6 +134,10 @@ export class MinorArcanumSnapshot {
 		// sheet folds it behind a collapsible and shows it only when the front is the sole
 		// visible side (see showFrontConsequences).
 		this.consequences = b._consequences ?? null;
+		// The card is held (its slug is in `owned`) but no pack or world arcanum answers to it any
+		// more: a homebrew card the GM deleted. The tab draws a stub with Remove rather than nothing,
+		// or the held slug and its marks would linger with no way to clear them.
+		this.missing    = b._missing ?? false;
 	}
 }
 
@@ -157,6 +156,7 @@ export class MinorArcanumSnapshotBuilder {
 	withSummonFollowers(v) { this._summonFollowers = v; return this; }
 	withGreaterConduit(v) { this._greaterConduit = v; return this; }
 	withConsequences(v) { this._consequences = v; return this; }
+	withMissing(v)     { this._missing    = v; return this; }
 	build()            { return new MinorArcanumSnapshot(this); }
 }
 

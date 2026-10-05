@@ -19,7 +19,8 @@
       "chronicle": "Chronicle",
       "threat": "Threat",
       "hazard": "Hazard",
-      "site": "Site"
+      "site": "Site",
+      "timeline": "Timeline"
     }
   },
   "stonetop": {
@@ -359,6 +360,8 @@
         "tooltip": "When you have enough XP to Level Up, you may spend 2 XP after any roll you make to add +1 to that roll (max +1 per roll).",
         "drivenTooltip": "Driven: you always have the option to Burn Brightly; you can spend 2 XP after you roll to add +1 (max +1 per roll), even if you don't have enough XP to level.",
         "notEnoughXp": "You don't have enough XP to Burn Brightly.",
+        "notYours": "Only the player of the character who made this roll can Burn Brightly on it.",
+        "zeroHp": "Burn Brightly cannot change a roll made at 0 HP from the card: its result is already settled.",
         "spent": "-{cost} XP for Burning Brightly.<br>New XP: {xp} / {max}"
       },
       "deathsDoor": {
@@ -420,9 +423,7 @@
             "next": "Choose your Terrible Purpose and your first Consequence."
           },
           "undying": {
-            "intro": "You gave up the body you clung to, and your spirit lingers on. Your Terrible Purpose stays with you; as a Ghost, you choose a first Consequence of your own.",
-            "card": "<strong>{who}</strong> gives up the body and lingers on as a <strong>{what}</strong>.",
-            "next": "Choose your first Consequence as a Ghost."
+            "intro": "You gave up the body you clung to, and your spirit lingers on. Your Terrible Purpose stays with you; as a Ghost, you choose a first Consequence of your own."
           },
           "thrall": {
             "intro": "You called one of the Things Below by name, and it answered. Here is what that costs.",
@@ -605,7 +606,8 @@
         "summary": "When you <em><strong>rest for a few days, in safety and comfort</strong></em>, recover all your HP and clear all your debilities.",
         "nothingHint": "You're already at full HP with no debilities to clear.",
         "unlivingHint": "Unliving: no benefit. A Ghost or Revenant gains nothing from Convalesce."
-      }
+      },
+      "dyingHint": "Dying: you can't save yourself. Someone who tends you Aids your {move} roll instead."
     },
     "undeath": {
       "becameGhost": "Gave up the Revenant insert and became a <strong>Ghost</strong>. Your Terrible Purpose stays with you; choose your first Consequence as a Ghost.",
@@ -685,19 +687,25 @@
         "regained": "HP <strong>{from}</strong> &rarr; <strong>{to}</strong>.",
         "rolledHeal": "rolled {roll}, HP <strong>{from}</strong> &rarr; <strong>{to}</strong>.",
         "rolledNoGain": "rolled {roll}, but they are already at full HP.",
+        "healLabel": "HP regained",
+        "healLine": "HP {from} → {to}",
+        "healFull": "Already at full HP",
         "debilitiesCleared": "Cleared {names}.",
         "consequenceCleared": "Cleared the consequence <strong>{name}</strong>.",
         "consequenceMarked": "Marked the consequence <strong>{name}</strong>.",
         "indulged": "Indulged their Strange Appetites: advantage on their next roll.",
         "favorTitle": "Favor",
         "favorHeld": "{held} of {max} held",
+        "favorHeldByTask": "Held at 0 until your master's task is done",
+        "favorCautionTask": "Your master's task isn't done yet, and until it is, your Favor stays at 0 (Dark Succor).",
         "favorPip": "Favor {n} of {max}",
         "favorHint": "A ticked pip is Favor held. Click a pip to set your Favor to it.",
         "gainMark": "Gain a Mark",
-        "gainMarkHint": "When Favor goes past 3 and you choose a new Mark. Then the GM crosses off one you don't have. With none left to gain, it is Unholy Vessel.",
+        "gainMarkHint": "When Favor goes past 3 and you choose a new Mark: your Favor goes to 0. Then the GM crosses off one you don't have. With none left to gain, it is Unholy Vessel.",
         "gainMarkTitle": "Gain a Mark",
         "gainMarkAsk": "<p>Which Mark does this Thrall gain?</p>",
         "markGained": "Gained the Mark <strong>{name}</strong>.",
+        "favorReset": "Favor reset to <strong>0</strong>.",
         "unholyVesselNo": "Not yet, keep them",
         "crossOff": "Cross off",
         "crossOffLabel": "Cross off {name}: this Thrall can never gain it",
@@ -715,6 +723,10 @@
         "finalBody": "<p>The Final Consequence ends <strong>{name}</strong> as a player character: their tenuous connection to humanity is lost, and they become a monster under the GM's control.</p>",
         "finalYes": "Mark it: they become a monster",
         "finalNo": "Leave it unmarked",
+        "finalUndoTitle": "Take back the Final Consequence?",
+        "finalUndoBody": "<p>Unmarking the Final Consequence brings <strong>{name}</strong> back into play as a player character, with the hit points they have now.</p>",
+        "finalUndoYes": "Unmark it: back in play",
+        "finalUndoNo": "Keep it marked",
         "finalMove": "The Final Consequence"
       }
     },
@@ -746,15 +758,14 @@
       "backOwedText": "You've read the front. The back is owed you, once you've had time to study it or learn more.",
       "backOwedStudy": "Study it",
       "backOwedTitle": "Study it",
-      "backOwedGmText": "You owe this card's back: they read the front on a 7-9.",
-      "backOwedGrant": "Show them the back",
       "unidentifiedText": "This arcanum has not yet been identified. You can tell it's something, but not what.",
       "discover": "Arcana Discovered",
       "discoverTitle": "Arcanum Discovered",
       "discoverConfirm": "Have you tracked down and recovered this arcanum? Its full details will be revealed.",
       "discoverYes": "Reveal the arcanum",
       "discoverNo": "Not yet",
-      "leadText": "You have a lead on this arcanum's whereabouts, but haven't recovered it yet."
+      "leadText": "You have a lead on this arcanum's whereabouts, but haven't recovered it yet.",
+      "missingText": "This arcanum's card can no longer be found in this world. Remove it to clear its marks."
     },
     "inventory": {
       "regularItems": "Items",
@@ -777,7 +788,8 @@
       "addItemColumn": "Column",
       "addItemColumnRegular": "Items (◇, counts toward load)",
       "addItemColumnSmall": "Small items (pocket, pouch, or boot)",
-      "addItemColumnHint": "Which inventory column this item lands in when dropped.",
+      "addItemColumnImmobile": "Immobile (can't be carried off)",
+      "addItemColumnHint": "Which inventory column this item lands in when dropped. An immobile thing lists with the small items and carries the immobile tag, as the book prints it.",
       "addItemName": "Name",
       "addItemNamePlaceholder": "e.g. Bow & iron arrows",
       "addItemNameRequired": "Give the item a name.",
@@ -792,7 +804,42 @@
       "addItemUses": "Uses (○)",
       "addItemUsesHint": "How many ○ circles to track. Tick \"Ammunition\" for a bow/crossbow's low-ammo / all-out track.",
       "addItemAmmo": "Ammunition",
+      "addItemUsesLabel": "Track label",
+      "addItemUsesLabelPlaceholder": "e.g. hours, Blood",
+      "addItemUsesLabels": "Circle labels",
+      "addItemUsesLabelsHint": "One line per circle, printed after it. Leave a line blank to skip a circle, e.g. four blank lines then \"out\" to mark only the fifth. Ignored while Ammunition is ticked.",
+      "addItemResourceFirst": "Print the track before the tags",
+      "addItemResourceFirstHint": "As the book prints the bullseye lantern: \"○○○○○ Oil, near\" rather than \"near ○○○○○ Oil\".",
+      "addItemShield": "Shield (+1 Readiness on a 7+ to Defend)",
+      "addItemValue": "Value",
+      "addItemValueTo": "To whom (optional)",
+      "addItemValueToPlaceholder": "e.g. to the right buyer",
+      "addItemValueHint": "What it's worth in trade, printed at the end of its tags (\"Value 3\"). Leave blank if it has none.",
+      "addItemImage": "Image",
+      "addItemImageChoose": "Choose image",
+      "addItemImageClear": "Clear",
       "addItemConfirm": "Add item",
+      "createTreasure": "Create Treasure",
+      "createTreasureConfirm": "Create treasure",
+      "treasureCreated": "Created treasure \"{name}\". Only the GM can see it until you drag it onto a character's Inventory tab.",
+      "treasureNamePlaceholder": "e.g. A makerglass sword",
+      "treasureTagsPlaceholder": "e.g. fragile, magical",
+      "sectionsLabel": "Item sections",
+      "bannerSubItem": "Inventory item",
+      "bannerSubTreasure": "Treasure",
+      "section": {
+        "item": "The item",
+        "tags": "Tags & Value",
+        "uses": "Uses",
+        "writeup": "Write-up",
+        "identify": "Identifying it"
+      },
+      "treasureLoreHint": "What it looks like, what it truly does, and any custom move's full text. The player reads it once they've identified it (a 10+ to Know Things).",
+      "treasureStartsHidden": "Lands unidentified",
+      "treasureStartsHiddenHint": "The player sees only its name and ◇ until they work it out. Leave clear to follow the world setting \"Artifacts Arrive Unidentified\".",
+      "editItemTitle": "Edit {name}",
+      "editTreasureTitle": "Edit treasure: {name}",
+      "saveChanges": "Save changes",
       "removeItem": "Remove",
       "resetLabel": "Reset Inventory",
       "resetTitle": "Reset Inventory",
@@ -883,6 +930,14 @@
         "name": "Guided Monster Builder",
         "hint": "When on (the default), creating a blank Monster from \"Create Actor\" opens a guided worksheet (Book I, \"Dangers\") that walks you through the book's steps and computes HP, Armor, and Damage from your tag picks. Turn off to create a blank stat block instead. Compendium imports, drag-drops, and duplicates are never intercepted."
       },
+      "showRelationshipMap": {
+        "name": "Relationship Map",
+        "hint": "When on (the default), the table shares a relationship map: a tab on the steading sheet, a button in the Journal tab and a hotbar macro. Turn it off to take all three away for everyone. Nothing drawn on the map is lost, and it comes back as it was when you turn it on again."
+      },
+      "showTimeline": {
+        "name": "Timeline",
+        "hint": "When on (the default), the steading and every character have a Timeline tab, and the Chronicle folder holds the Timeline journal. Turn it off to take the tabs and the journal away for everyone. It goes on recording in the background while it is off, so nothing is missing when you turn it on again."
+      },
       "arcanaPlayersSeeBothSides": {
         "name": "Arcana: Players See Both Sides",
         "hint": "A player always sees the back of a card once they've unlocked it (filled every spot). That's their own achievement, no setting needed. This switch is a separate peek: when on, players may also open the back of a card they haven't unlocked yet, reading the whole card up front. Off by default for a more secretive table: an un-unlocked back stays hidden until you click \"Reveal back to player\" on that card (handy when a card must be read before it can be unlocked). Turn on to let players read cards up front. You always see both sides as the GM."
@@ -903,16 +958,28 @@
         "hint": "Scale the text on Stonetop sheets, dialogs and chat cards to make it easier to read. 1.00 is the size the sheets were drawn at, so 1.25 is a quarter larger again and 1.40 is the largest."
       },
       "sheetContrast": {
-        "name": "Dark Mode & Contrast",
-        "hint": "The colours of Stonetop sheets, dialogs and chat cards. Dark (Lamplit) is the dark mode: light ink on a warm, dark page, easier on the eyes at night and for readers bothered by glare. High Contrast repaints them on plain white paper and darkens every grey and coloured text on them well past the readability guideline; Dark, High Contrast does the same for the dark page. None of these touch the paper grain, so set that below to taste. Pair any of them with a larger font size above.",
-        "normal": "Normal (Parchment)",
-        "high": "High Contrast",
+        "name": "Dark Mode",
+        "hint": "The page behind Stonetop sheets, dialogs and chat cards. Dark (Lamplit) is light ink on a warm, dark page, easier on the eyes at night and for readers bothered by glare. Dark (Slate) is the same in a cool blue-grey. Follow Foundry uses Lamplit whenever Foundry's own theme is dark, and parchment when it is light. Tick High Contrast below to go with any of them. None of these touch the paper grain, so set that below to taste.",
+        "normal": "Off (Parchment)",
         "dark": "Dark (Lamplit)",
-        "darkHigh": "Dark, High Contrast"
+        "slate": "Dark (Slate)",
+        "auto": "Follow Foundry"
+      },
+      "highContrast": {
+        "name": "High Contrast",
+        "hint": "Darken every grey and coloured text well past the readability guideline, on plain white paper, or on a darker page in Dark Mode. Adds a clearer focus ring, underlined links and heavier dividing lines. Pair it with a larger font size above."
+      },
+      "mapBrightness": {
+        "name": "Map Brightness",
+        "hint": "Dim the imported Stonetop maps (The Village, The Vicinity, World's End, Marshedge and Gordin's Delve), as scenes, in the Setting Overview pages, and on an expedition's route map. 100 is as imported; lower takes the glare off, which helps most in Dark Mode. Only on this computer. Other maps, and the rulebook pages, are left alone."
       },
       "sheetTexture": {
         "name": "Paper Texture",
-        "hint": "Show the faint grain on the paper behind Stonetop sheets, dialogs and chat cards. Turn it off for a flat page, which is easier to read text on. This works on its own, whatever Dark Mode & Contrast is set to."
+        "hint": "Show the faint grain on the paper behind Stonetop sheets, dialogs and chat cards. Turn it off for a flat page, which is easier to read text on. This works on its own, whatever Dark Mode and High Contrast are set to."
+      },
+      "sheetTextureFade": {
+        "name": "Paper Texture Transparency",
+        "hint": "How faint the spirals and grain on the paper are, while Paper Texture is on. 0 shows them at full strength; higher fades them further into the page, up to 90. 30 is the default."
       },
       "noItalics": {
         "name": "No Italic Text",
@@ -950,6 +1017,10 @@
       "timeBannerShown": {
         "name": "Weather and Season Bar",
         "hint": "Show the weather, the season and the year at the top of the screen. This only affects your own screen."
+      },
+      "loveLetterJingle": {
+        "name": "Love Letter Jingle",
+        "hint": "Ring a short jingle when a love letter arrives for you. The red notice still appears when this is off. This only affects your own screen."
       },
       "askRollModeEachRoll": {
         "name": "Ask How to Roll Each Time",
@@ -1071,7 +1142,7 @@
       },
       "artifactsStartUnidentified": {
         "name": "Artifacts Arrive Unidentified",
-        "hint": "Book I, Discoveries pp.430-431. When on, a Book II treasure dropped onto a character sheet arrives with its tags, Value and uses withheld: the player sees only what's obvious at a glance, and has to Know Things or Seek Insight about it to learn more. Off by default, so treasure lands fully described as it always has. Either way you can hide or hand over any single artifact from the mask icon on its gear row."
+        "hint": "Book I, Discoveries pp.430-431. When on, a treasure (from Book II, or one made with Create Item) dropped onto a character sheet arrives with its tags, Value and uses withheld: the player sees only what's obvious at a glance, and has to Know Things or Seek Insight about it to learn more. Off by default, so treasure lands fully described as it always has. Either way you can hide or hand over any single artifact from the mask icon on its gear row."
       },
       "fightTab": {
         "name": "Fight tab (replaces the Combat tracker)",
@@ -1098,6 +1169,9 @@
       "confirmEdit": "Edit this character",
       "confirmKeep": "Leave it as it is",
       "pickerTitle": "Choose a Playbook",
+      "pickerTakenBy": "Taken by {names}",
+      "pickerHolder": "{character} ({player})",
+      "pickerDeadHolder": "{name} (dead)",
       "changePlaybookTitle": "Change Playbook?",
       "changePlaybookContent": "Changing {name} from {old} to {new} clears everything that came with {old}: its moves (and any moves they taught), special possessions and their gear, background, instinct, lore answers and followers (their actors stay in the sidebar). Name, level, XP, stats, notes, relationships, inventory and arcana stay.",
       "changePlaybookYes": "Become {new}",
@@ -1146,6 +1220,16 @@
       "savedContent": "Your current character creation selections have been saved.",
       "continueEditing": "Continue Editing",
       "closeForNow": "Close for Now"
+    },
+    "rollCard": {
+      "writerSilent": "The GM's client did not answer in time. It may still go through, so check the card before pressing again."
+    },
+    "optionHpLoss": {
+      "title": "Lose {formula} HP?",
+      "body": "<p><strong>{name}</strong> rolls {formula} and loses that much HP now. It is HP lost, not damage: armor, Defend and Undying don't reduce it.</p>",
+      "yes": "Roll it and lose the HP",
+      "no": "Not yet",
+      "notOwner": "Only {name}'s owner can lose their HP."
     },
     "rollResults": {
       "miss": "Miss",
@@ -1499,6 +1583,10 @@
           "worldCreated": "Created move \"{name}\". Drag it onto a character sheet to add it.",
           "descriptionLabel": "What happens? (the trigger and effect)",
           "descriptionPlaceholder": "When you…",
+          "descriptionHint": "Wrap the trigger in ***three asterisks*** for the book's bold italic. **Two** make bold, *one* makes italic. A blank line starts a new paragraph.",
+          "requiresLabel": "Requires (optional)",
+          "requiresPlaceholder": "e.g. Prophet background, or Read the Land",
+          "requiresHint": "The prerequisite as the book prints it. It is shown under the move and not checked.",
           "rollLabel": "Dice roll",
           "rollNone": "No roll: text only",
           "rollAsk": "Ask: choose a stat each time",
@@ -1535,7 +1623,9 @@
           "descriptionPlaceholder": "Dear …",
           "rollLabel": "Dice roll",
           "rollNone": "No roll: read aloud only",
-          "rollHint": "Pick a stat to make this a 2d6+stat move. Leave on \"No roll\" for a read-aloud letter.",
+          "rollHint": "Pick a stat (or the steading's Fortunes) to make this a 2d6 move. Leave on \"No roll\" for a read-aloud letter.",
+          "fortunes": "Fortunes",
+          "fortunesOption": "Fortunes (the steading)",
           "resultsTitle": "Roll results (optional)",
           "stylePickerLabel": "Result style",
           "styleProse": "Describe outcomes",
@@ -1543,6 +1633,7 @@
           "pickLabel": "Pick",
           "pickCountLabel": "How many to pick",
           "pickCountHint": "How many the player chooses on a 10+, 7-9, and 6- (0 = none).",
+          "listTextSuffix": "(optional words with the picks)",
           "optionsLabel": "Options to choose from (one per line)",
           "optionsPlaceholder": "Owain's been calling for folks to \"do something\"…\nWini has been acting out, badly…\nCrinwin jumped one of your crew…",
           "optionsHint": "A shared list the player chooses from, one option per line.",
@@ -1560,7 +1651,15 @@
           "readAloudButton": "Read aloud",
           "pickFromList": "from the list below",
           "rollButton": "Roll",
-          "resolveButton": "Read & Resolve"
+          "resolveButton": "Read & Resolve",
+          "resolvedBadge": "Resolved",
+          "resendButton": "Resend",
+          "resendHint": "The player has resolved this letter, so they no longer see it. Resend puts it back on their Moves tab.",
+          "resent": "Love letter sent back to {name}'s Moves tab.",
+          "noticeOne": "A love letter has arrived",
+          "noticeMany": "{count} love letters have arrived",
+          "noticeFor": "{text} for {name}",
+          "noticeOpen": "Open it"
         }
       },
       "lore": {
@@ -2150,7 +2249,8 @@
       "endedDropped": "{name} drops to 0 HP and stops fighting: their Battle Joy ends, with no roll.",
       "endedDown": "The action stops with {name} down: their Battle Joy ends, with no roll.",
       "regainButton": "That was a rush: regain 1d4 HP",
-      "regained": "Battle Joy: that was a rush. {name} regains {amount} HP (now {hp}).",
+      "regainedLabel": "HP regained",
+      "regainedLine": "That was a rush. HP {from} → {to}",
       "debilityButton": "Mark {debility}",
       "debilityMarked": "{name} marks {debility} as their Battle Joy ends, and marks no XP for the miss.",
       "debilityTaken": "That debility is already marked. Choose another."
@@ -2317,6 +2417,7 @@
       }
     },
     "relmap": {
+      "disabled": "The relationship map is turned off in this world's settings.",
       "noun": "relationship map",
       "untitled": "Relationship Map",
       "windowTitle": "Relationship maps",
@@ -2394,6 +2495,33 @@
       "selection": {
         "count": "{count} selected. Drag any of them, or use the arrow keys, to move them together. Escape lets go.",
         "none": "Nobody is selected."
+      },
+      "groups": {
+        "tool": "Group",
+        "toolHint": "Draw a named box round some people, like the hunters or the elders. With people selected, groups them at once. Otherwise, drag a box round them on the map.",
+        "drawHint": "Drag a box round the people to put in the group. Escape stops.",
+        "empty": "Nobody was inside that box, so no group was made.",
+        "made": "Group made with {count} people in it. Type its name.",
+        "added": "{count} put in the group.",
+        "taken": "{count} taken out of the group.",
+        "dropped": "The group has been deleted. Everyone in it is still on the map.",
+        "unnamed": "Unnamed group",
+        "says": "{name}: {who}",
+        "edit": "{said}. Click to name, recolour or change who is in it. Drag to move everyone in it.",
+        "bar": "Group",
+        "name": "Group name",
+        "placeholder": "The hunters",
+        "ink": "Group colour",
+        "inkDeepened": "{chose} was too pale to follow on this map, so this group is drawn in {used}.",
+        "shape": "Outline",
+        "shapes": {
+          "box": "Box",
+          "oval": "Oval"
+        },
+        "dash": "Outline line",
+        "addSelected": "Put the {count} selected in this group",
+        "takeSelected": "Take the {count} selected out of this group",
+        "drop": "Delete this group. Everyone in it stays on the map."
       },
       "inkNamed": "Colour: {name}",
       "inkCustomHeading": "Already on this map",
@@ -2537,6 +2665,10 @@
         "unlinked": "deleting a line",
         "editedLink": "changing a line",
         "movedCaption": "moving what a line says",
+        "grouped": "drawing a group",
+        "ungrouped": "deleting a group",
+        "editedGroup": "changing a group",
+        "groupMembers": "changing who is in a group",
         "backHint": "Take back {what}. Yours alone: it takes back what you did on this map, and never what anyone else at the table did. Ctrl+Z.",
         "forwardHint": "Do {what} again. Ctrl+Shift+Z.",
         "backNothing": "There is nothing of yours on this map to take back.",
@@ -2599,6 +2731,7 @@
       "followed": "This map's pin names follow the world setting again."
     },
     "timeline": {
+      "disabled": "The timeline is turned off in this world's settings.",
       "windowTitle": "The Timeline",
       "trackTitle": "{name}: the timeline",
       "beforeRecord": "Before the record",
@@ -2608,6 +2741,8 @@
       "openFullTooltip": "Every thread on one timeline: Stonetop and each character",
       "editEntry": "Edit this entry",
       "removeEntry": "Remove this entry",
+      "editSeasonNote": "Edit what this season recorded",
+      "removeSeasonNote": "Remove what this season recorded",
       "moveEarlier": "Move earlier in the season",
       "moveLater": "Move later in the season",
       "entryCount": "{count} entries",
@@ -2633,6 +2768,21 @@
         "placeLinked": "Linked",
         "placeLinkedTooltip": "This place links to a document. Editing the name breaks the link; drop again to remake it.",
         "bodyDropHint": "Drop a person, place or creature into the text to link it.",
+        "foes": "Slain",
+        "foesHint": "One foe per line. \"Crinwin ×3\" counts three.",
+        "tag": "Tag",
+        "tagNone": "No tag",
+        "tagNew": "New tag",
+        "tagName": "Name of the new tag",
+        "tagNamePlaceholder": "A name, like The hunters",
+        "tagColour": "Colour of the new tag",
+        "tagAdd": "Add this tag",
+        "tagHint": "One tag per entry. A kind makes it read like the rows the timeline records. A new tag is shared with the whole table. A pale colour is darkened where needed so everyone can read it.",
+        "tagRefused": {
+          "name": "Give the new tag a name.",
+          "colour": "That colour could not be read. Pick another.",
+          "journal": "The Timeline journal is missing or you cannot write to it, so the tag was not made. Ask your GM."
+        },
         "body": "The account",
         "bodyPlaceholder": "As much or as little as you want to write down.",
         "save": "Save the entry",
@@ -2649,11 +2799,103 @@
         "title": "Whose thread?",
         "confirm": "Write on this thread"
       },
-      "auto": {
-        "show": "Show what the system recorded",
-        "hide": "Hide what the system recorded",
-        "tooltip": "Fold in level-ups, moves gained and the seasons as they turned. Only you see this choice.",
-        "badge": "Recorded"
+      "allHidden": {
+        "lead": "Everything on this timeline is hidden by your Filter menu."
+      },
+      "kind": {
+        "hand": "Written",
+        "levelup": "Level up",
+        "kills": "Kills",
+        "expedition": "Expedition",
+        "site": "Site visit",
+        "death": "Death",
+        "wound": "Lasting wound",
+        "arcana": "Arcanum",
+        "follower": "Follower"
+      },
+      "show": {
+        "label": "Filter",
+        "all": "Show everything",
+        "hiddenCount": "{count} hidden",
+        "threads": "Subject",
+        "kinds": "Entries",
+        "hand": "Written entries",
+        "levelup": "Level-ups",
+        "kills": "Kills",
+        "expedition": "Expeditions",
+        "site": "Site visits",
+        "death": "Deaths and fates",
+        "wound": "Lasting wounds",
+        "arcana": "Arcana",
+        "follower": "Followers"
+      },
+      "layout": {
+        "label": "Timeline layout",
+        "caption": "Layout:",
+        "vertical": "Vertical",
+        "verticalTooltip": "Lay the timeline down the page, one season under the next",
+        "horizontal": "Horizontal",
+        "horizontalTooltip": "Lay the timeline across the page along one line, like a slide"
+      },
+      "scrub": {
+        "label": "Jump to year",
+        "tooltip": "Slide to a year to bring it to the middle of the timeline"
+      },
+      "colours": {
+        "open": "Colours",
+        "openTooltip": "Choose the colour each kind of entry wears, for everyone in this world",
+        "title": "Timeline Colours",
+        "intro": "The colour each kind of entry wears on the timeline, for everyone at the table. Pick a new one for any kind, or put it back to its default.",
+        "pick": "Colour for {kind}",
+        "reset": "Default",
+        "resetTooltip": "Put {kind} back to its default colour",
+        "nudged": "Adjusted so it can be read on this page.",
+        "save": "Save colours",
+        "saveFailed": "The timeline colours could not be saved. Your choices are still in the Colours menu, so you can try Save again.",
+        "cancel": "Cancel"
+      },
+      "kills": {
+        "title": "Slew {count}"
+      },
+      "milestone": {
+        "levelup": "Reached level {level}",
+        "learned": "Learned {move}.",
+        "death": "Died",
+        "insert": {
+          "ghost": "Lingered as a Ghost",
+          "revenant": "Rose again as a Revenant",
+          "thrall": "Returned as a Thrall"
+        },
+        "woundPermanent": "Lasting wound: {text}",
+        "woundScar": "Healed to a scar: {text}",
+        "woundMark": "Marked at Death's Door",
+        "arcanaFound": "Found {name}",
+        "arcanaIdentified": "Identified {name}",
+        "arcanaMajor": "Sought the secrets of {name}",
+        "followerGained": "{name} joined",
+        "followerDied": "{name} died",
+        "followerFree": "{name} broke free",
+        "expeditionSetOut": "Set out in {when}.",
+        "expeditionTriumphant": "Returned triumphant.",
+        "expeditionParty": "With {names}.",
+        "site": "Visited {name}"
+      },
+      "expedition": {
+        "recorded": "On the timeline: home in {when}, for everyone who went and for Stonetop.",
+        "notYet": "Not on the timeline yet. It is written the first time you step in here with Next.",
+        "record": "Record on the timeline",
+        "again": "Record on the timeline again"
+      }
+    },
+    "sites": {
+      "visit": {
+        "button": "Mark visited",
+        "tooltip": "Mark this site visited: it goes on the timeline of everyone who went",
+        "title": "Who went to {name}?",
+        "hint": "The site's name goes on their timelines and Stonetop's, where the players can read it.",
+        "confirm": "Mark visited",
+        "confirmMany": "Mark visited by {count}",
+        "visited": "Visited in {when}"
       }
     },
     "fight": {

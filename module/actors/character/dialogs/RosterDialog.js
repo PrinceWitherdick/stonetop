@@ -262,6 +262,10 @@ export class RosterDialog extends StonetopDialog {
 	 * A row whose actor has since been DELETED keeps its name and simply stops being a link: losing
 	 * the document does not lift a brand, release an oath or end a mark, and the character still has
 	 * to be able to end it. Subclasses spread this and add whatever their own rows carry.
+	 *
+	 * A LINKED row shows the actor's name as it is NOW. The stored name is what it was called when
+	 * the row was laid, so an NPC renamed since ("Brennan" to "Brennan the Claw") would otherwise
+	 * sit on the roster under a name their own sheet no longer wears.
 	 */
 	_portraitRow(entry) {
 		const actor = entry.uuid ? this._resolveActor(entry.uuid) : null;
@@ -270,6 +274,7 @@ export class RosterDialog extends StonetopDialog {
 			: { src: "", style: "" };
 		return {
 			...entry,
+			name:     String(actor?.name ?? "").trim() || entry.name,
 			linked:   !!actor,
 			img:      portrait.src || PERSON_ROSTER_IMG,
 			imgStyle: portrait.style,

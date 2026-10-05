@@ -616,6 +616,83 @@
       </button>
     </div>
 
+    {{!-- THE GROUP THE READER HAS HOLD OF: its name, its colour, box or oval, who is in it, and
+          rubbing it out. utils/relmap-group-bar.js drives it.
+
+          ⚠ OUTSIDE THE BOARD AND `hidden` RATHER THAN ABSENT, for the tie bar's two reasons: the
+          board is repainted under it on every live change, and the bar writes onto markup a render
+          left standing. Its words arrive here because the bar has no i18n in it; the two membership
+          buttons carry a PATTERN (`data-relmap-said`) the bar fills the count into. --}}
+    <div class="stonetop-relmap-groupbar" role="group" aria-label="{{groupBar.label}}" hidden>
+      <input type="text" class="stonetop-relmap-groupbar-name" data-relmap-gbar="name"
+             maxlength="{{maxLength}}" aria-label="{{groupBar.name}}"
+             placeholder="{{groupBar.placeholder}}" autocomplete="off" spellcheck="false">
+
+      <div class="stonetop-relmap-tiebar-group stonetop-relmap-groupbar-inks" role="radiogroup"
+           aria-label="{{groupBar.ink}}">
+        {{#each inks}}
+        <button type="button" class="stonetop-relmap-inkpop-swatch stonetop-relmap-ink--{{key}}"
+                data-relmap-gbar="ink" data-relmap-gbar-value="{{key}}" role="radio"
+                aria-checked="false" tabindex="-1" aria-label="{{name}}" data-tooltip="{{name}}">
+          <span class="stonetop-relmap-ink-swatch" aria-hidden="true"></span>
+        </button>
+        {{/each}}
+      </div>
+
+      {{!-- A COLOUR OF THE READER'S OWN, OUTSIDE THE RADIOGROUP: the `+` asks a second question rather
+            than answering the first. It shows Foundry's `<color-picker>`, the tie bar's own element
+            for the tie bar's reasons -- rendered always and hidden, because a custom element has to
+            be connected to build its two inputs. Shown by the bar for a group already wearing a hex,
+            which then lights none of the eight. --}}
+      <div class="stonetop-relmap-tiebar-group stonetop-relmap-groupbar-own">
+        <button type="button" class="stonetop-relmap-tiebar-btn stonetop-relmap-groupbar-inkmore"
+                data-relmap-gbar="inkmore" aria-expanded="false"
+                aria-label="{{inkCustomField}}" data-tooltip="{{inkCustomField}}">
+          <i class="fas fa-plus"></i>
+        </button>
+        <color-picker class="stonetop-relmap-tiebar-hex" data-relmap-gbar="inkhex"
+                      aria-label="{{inkCustomField}}" data-tooltip="{{inkCustomField}}"
+                      value="" hidden></color-picker>
+      </div>
+
+      <div class="stonetop-relmap-tiebar-group" role="radiogroup" aria-label="{{groupBar.shape}}">
+        {{#each groupBar.shapes}}
+        <button type="button" class="stonetop-relmap-tiebar-btn" data-relmap-gbar="shape"
+                data-relmap-gbar-value="{{key}}" role="radio" aria-checked="false" tabindex="-1"
+                aria-label="{{name}}" data-tooltip="{{name}}">
+          <i class="{{icon}}"></i>
+        </button>
+        {{/each}}
+      </div>
+
+      <div class="stonetop-relmap-tiebar-group" role="radiogroup" aria-label="{{groupBar.dash}}">
+        {{#each groupBar.dashes}}
+        <button type="button" class="stonetop-relmap-tiebar-btn" data-relmap-gbar="dash"
+                data-relmap-gbar-value="{{key}}" role="radio" aria-checked="false" tabindex="-1"
+                aria-label="{{name}}" data-tooltip="{{name}}">
+          <span class="stonetop-relmap-tiebar-rule stonetop-relmap-tiebar-rule--{{key}}" aria-hidden="true"></span>
+        </button>
+        {{/each}}
+      </div>
+
+      <div class="stonetop-relmap-tiebar-group">
+        <button type="button" class="stonetop-relmap-tiebar-btn stonetop-relmap-groupbar-who"
+                data-relmap-gbar="add" data-relmap-said="{{groupBar.add}}" hidden>
+          <i class="fas fa-user-plus"></i>
+        </button>
+        <button type="button" class="stonetop-relmap-tiebar-btn stonetop-relmap-groupbar-who"
+                data-relmap-gbar="take" data-relmap-said="{{groupBar.take}}" hidden>
+          <i class="fas fa-user-minus"></i>
+        </button>
+        {{!-- NO CONFIRM, for the tie bar's reason: the undo is one press away, and it takes away an
+              outline, never a person. --}}
+        <button type="button" class="stonetop-relmap-tiebar-btn stonetop-relmap-tiebar-rub"
+                data-relmap-gbar="drop" data-tooltip="{{groupBar.drop}}" aria-label="{{groupBar.drop}}">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+
     {{!-- OPEN THIS BOARD IN A WINDOW OF ITS OWN, in the corner of the board itself.
 
           ONLY ON A SURFACE THAT HAS SOMEWHERE TO POP OUT FROM, which today means the steading
@@ -826,6 +903,17 @@
           <i class="fas fa-rotate-right"></i>
         </button>
       </span>
+
+      {{!-- DRAWING A GROUP ROUND SOME PEOPLE: "The hunters", "The elders". With people selected it
+            groups them at once; with nobody selected it arms the board, and the next drag on open
+            paper draws the box. Pressed again while armed, it stands down. `aria-pressed` says which,
+            written by `_paintGroupTool`. --}}
+      <button type="button" class="stonetop-relmap-tool stonetop-relmap-grouptool"
+              data-relmap-action="group" aria-pressed="false"
+              data-tooltip="{{groupHint}}" aria-label="{{groupHint}}">
+        <i class="fas fa-object-group"></i>
+        <span>{{groupLabel}}</span>
+      </button>
 
       {{!-- MAKING SOMEBODY NEW AND PUTTING THEM ON, for whoever may create actors, players included
             (see the `create` entry in the window's TOOLS). The sidebar's Person worksheet, then a seat on

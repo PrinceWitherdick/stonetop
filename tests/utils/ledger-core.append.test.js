@@ -1,24 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
-	LEDGER_SCOPE, LEDGER_KEY, LEDGER_FLAG_PATH,
-	appendLedgerEntries, deleteLedgerEntries, listMerge, numericMerge,
+	appendLedgerEntries, deleteLedgerEntries, editAction, editMerge, ledgerSubject, listMerge, numericMerge,
 } from "../../module/utils/ledger-core.js";
+import { makeLedgerActor } from "../fakes/ledger-actor.js";
 
 // appendLedgerEntries is the seam between a caller's chronological list of what just happened
-// and the newest-first array the flag stores (and that mergeRuns walks). These cover the flip,
+// and the newest-first ledger the flag stores (and that mergeRuns walks). These cover the flip,
 // which is invisible until one update produces several entries at once.
 
-function makeActor(stored = []) {
-	const actor = {
-		type: "character",
-		written: null,
-		getFlag: (scope, key) => (scope === LEDGER_SCOPE && key === LEDGER_KEY ? stored : undefined),
-		update: async data => { actor.written = data[LEDGER_FLAG_PATH]; },
-	};
-	return actor;
-}
+// `stored` is a legacy array ledger, newest first, which the write converts.
+const makeActor = (stored = []) => makeLedgerActor({ raw: stored });
 
-const actions = actor => actor.written.map(e => e.action);
+const actions = actor => actor.entries.map(e => e.action);
 
 describe("appendLedgerEntries ordering", () => {
 	it("accumulates a list run in the order the entries happened", async () => {
@@ -72,7 +65,7 @@ describe("appendLedgerEntries ordering", () => {
 			[{ action: "Surplus changed from 1 to 2" }, { action: "Notes edited", category: "notes" }],
 			{ defaultCategory: "steading" },
 		);
-		expect(actor.written.map(e => e.category)).toEqual(["notes", "steading"]);
+		expect(actor.entries.map(e => e.category)).toEqual(["notes", "steading"]);
 	});
 });
 
@@ -87,17 +80,9 @@ describe("appendLedgerEntries ordering", () => {
  * left unserialized. Each test uses a fresh id so the module-level chain can't leak between them.
  */
 function makeLiveActor(id) {
-	let stored = [];
-	return {
-		id,
-		type: "character",
-		getFlag: (scope, key) => (scope === LEDGER_SCOPE && key === LEDGER_KEY ? stored : undefined),
-		update: async data => {
-			await Promise.resolve();
-			stored = data[LEDGER_FLAG_PATH];
-		},
-		get stored() { return stored; },
-	};
+	const actor = makeLedgerActor({ id, raw: [], delay: true });
+	Object.defineProperty(actor, "stored", { get: () => actor.entries });
+	return actor;
 }
 
 describe("appendLedgerEntries serializes writes per actor", () => {
@@ -159,5 +144,32 @@ describe("appendLedgerEntries serializes writes per actor", () => {
 		await appendLedgerEntries(actor, [{ action: "Background set to Sheriff" }]);
 
 		expect(actor.stored.map(e => e.action)).toEqual(["Background set to Sheriff"]);
+	});
+});
+
+// The subject the filter files an entry under is stamped as it is written, not re-read out of the
+// sentence: a name holding one of the verb words ("marked") was cut at it.
+describe("an entry's subject", () => {
+	it("is the builder's own when it says one, and the action's reading otherwise", async () => {
+		const actor = makeActor();
+		const name = "Cloak marked with the Rime sigil";
+		await appendLedgerEntries(actor, [
+			{ subject: name, action: editAction(name, ["description"]), merge: editMerge(name, "item:c", ["description"]) },
+			{ action: "HP changed from 5 to 3" },
+		]);
+		expect(actor.entries.map(e => e.subject)).toEqual(["HP", name]);
+		expect(actor.entries.map(ledgerSubject)).toEqual(["HP", name]);
+	});
+
+	it("reads an entry written before subjects were stamped from its action", () => {
+		expect(ledgerSubject({ action: "Longsword selected" })).toBe("Longsword");
+	});
+
+	it("keeps the subject through a run that rewords the action", async () => {
+		const actor = makeActor();
+		const pick = value => ({ action: `Arcanum gained: ${value}`, merge: listMerge("Arcana gained", "arcana", [value]) });
+		await appendLedgerEntries(actor, [pick("The Key"), pick("The Lamp")]);
+		expect(actor.entries).toHaveLength(1);
+		expect(actor.entries[0].subject).toBe("Arcanum");
 	});
 });

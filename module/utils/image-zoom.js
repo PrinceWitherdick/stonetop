@@ -18,6 +18,12 @@ export const MAX_ZOOM = 8;
 export const ZOOM_STEP = 1.2;
 
 /**
+ * The gentler notch for a surface somebody ARRANGES and aims at a particular size: the relationship
+ * map's board and the timeline. Why it is under a tenth is written beside RELMAP_ZOOM_STEP.
+ */
+export const FINE_ZOOM_STEP = 1.08;
+
+/**
  * A usable scale, whatever was asked for. Zero, negative, NaN and undefined all come back as 1
  * rather than as themselves: every one of them would otherwise reach `img.style.width` as a
  * degenerate pixel count and the picture would vanish with no error anywhere.

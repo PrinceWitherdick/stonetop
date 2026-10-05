@@ -4,6 +4,7 @@ import { DEATHS_DOOR_STATE } from "../../../module/actors/character/deaths-door.
 import {
 	buildPostDeathTabView, completeMasterTask, gainThrallMark, runPostDeathOutcome, setFavorFromPip, tickInsertLore,
 } from "../../../module/actors/character/post-death-outcomes.js";
+import { buildPostDeathChoices, sectionReader } from "../../../module/actors/character/post-death-choices.js";
 import { FakeRepositoryFactory } from "../../fakes/FakeRepositoryFactory.js";
 import { FakePostDeathInsertRepository } from "../../fakes/FakePostDeathInsertRepository.js";
 import { makeLiveActor } from "../../fakes/LiveCharacter.js";
@@ -198,7 +199,11 @@ describe("pressing an outcome", () => {
 		const { actor, char } = makeUndead("ghost", { counts: { "consequences:specter": 1 }, hp: 12 });
 		await runPostDeathOutcome(char, "regain-d8", { source: "SPECTER" });
 		expect(actor.system.attributes.hp.value).toBe(16);
-		expect(toMessage.mock.calls[0][0].flavor).toContain("rolled 7");
+		// On the house roll card, not core's bare dice block: the total, and where HP went.
+		const flavor = toMessage.mock.calls[0][0].flavor;
+		expect(flavor).toContain("stonetop-roll-card");
+		expect(flavor).toContain(">7<");
+		expect(flavor).toContain("HP 12 → 16");
 		// The dice card says it; no second card.
 		expect(ChatMessage.create).not.toHaveBeenCalled();
 	});
@@ -224,6 +229,20 @@ describe("pressing an outcome", () => {
 	});
 });
 
+// The sheet's render builds the insert's questions and the tab's buttons from one read of each section.
+describe("one render's reads", () => {
+	it("reads each section once for the questions and the tab together", async () => {
+		const { char } = makeUndead("revenant", { counts: { "consequences:breakdown": 1 } });
+		const read = vi.spyOn(char, "sectionOptions");
+		const sections = sectionReader(char);
+		await buildPostDeathChoices(char, { sections });
+		await tabView(char, { sections });
+		const bySection = read.mock.calls.map(([section]) => section);
+		expect(bySection.filter(section => section === "consequences")).toHaveLength(1);
+		expect(new Set(bySection).size).toBe(bySection.length);
+	});
+});
+
 // ── B12: edit mode's ticks and cautions ────────────────────────────────────
 
 describe("edit mode on the insert's lists", () => {
@@ -241,6 +260,25 @@ describe("edit mode on the insert's lists", () => {
 		expect(count(actor, "consequences:final-consequence")).toBe(1);
 		expect(flag(actor, "deathsDoor")).toBe(DEATHS_DOOR_STATE.DEAD);
 		expect(char.lostToTheGm).toBe("monster");
+	});
+
+	// Asks first (the user's call, 2026-09-30): taking it back returns a monster to the party.
+	it("takes THE FINAL CONSEQUENCE back once asked, and puts them back in play, in ONE write", async () => {
+		const { actor, char } = makeUndead("ghost", {
+			counts: { "consequences:final-consequence": 1 }, state: DEATHS_DOOR_STATE.DEAD,
+		});
+		stubConfirm(false);
+		expect(await tickInsertLore(char, { section: "consequences", option: "final-consequence", count: 0 })).toBe(false);
+		expect(actor.update).not.toHaveBeenCalled();
+		expect(count(actor, "consequences:final-consequence")).toBe(1);
+
+		const wait = stubConfirm(true);
+		expect(await tickInsertLore(char, { section: "consequences", option: "final-consequence", count: 0 })).toBe(true);
+		expect(wait.mock.calls[0][0].buttons[0].label).toBe("Unmark it: back in play");
+		expect(actor.update).toHaveBeenCalledTimes(1);
+		expect(count(actor, "consequences:final-consequence")).toBe(0);
+		expect(flag(actor, "deathsDoor")).toBeNull();
+		expect(char.lostToTheGm).toBeNull();
 	});
 
 	it("routes a Consequence or Mark tick through markSectionOption / unmarkSectionOption", async () => {
@@ -307,10 +345,12 @@ describe("the Thrall on the Post-Death tab", () => {
 			.then(v => v.lore.entries.find(e => e.slug === "marks").options);
 		const gmMarks = await marks(true);
 		const by = slug => gmMarks.find(o => o.slug === slug);
-		expect(by("red-wrath").pdiCrossOff).toBeUndefined();
-		expect(by("ravenous").pdiUncross.label).toContain("Restore RAVENOUS");
-		expect(by("death-mask").pdiCrossOff.label).toContain("Cross off DEATH MASK");
-		expect((await marks(false)).some(o => o.pdiCrossOff || o.pdiUncross)).toBe(false);
+		expect(by("red-wrath").pdiMarkControl).toBeUndefined();
+		expect(by("ravenous").pdiMarkControl).toMatchObject({ action: "uncross", text: "Restore" });
+		expect(by("ravenous").pdiMarkControl.label).toContain("Restore RAVENOUS");
+		expect(by("death-mask").pdiMarkControl).toMatchObject({ action: "cross-off", text: "Cross off" });
+		expect(by("death-mask").pdiMarkControl.label).toContain("Cross off DEATH MASK");
+		expect((await marks(false)).some(o => o.pdiMarkControl)).toBe(false);
 	});
 
 	it("crosses a Mark off and takes it back", async () => {
@@ -329,14 +369,43 @@ describe("the Thrall on the Post-Death tab", () => {
 		expect((await tabView(char, { canEdit: true })).gainMark).toBe(true);
 		expect((await tabView(char, { canEdit: false })).gainMark).toBe(false);
 
-		const mark = vi.spyOn(char, "markSectionOption");
 		const wait = pressLabelled("Gain DEATH MASK");
 		await gainThrallMark(char);
 		const offered = wait.mock.calls[0][0].buttons.map(b => b.label);
 		expect(offered).not.toContain("Gain RED WRATH");
 		expect(offered).not.toContain("Gain RAVENOUS");
-		expect(mark).toHaveBeenCalledWith("marks", "death-mask");
 		expect(count(actor, "marks:death-mask")).toBe(1);
+	});
+
+	// Favor's overflow: "reduce your Favor to 0 and choose 1: ... Gain a new Mark of your choice".
+	it("resets Favor to 0 in the Mark's own write", async () => {
+		const { actor, char } = makeUndead("thrall", { counts: { "marks:red-wrath": 1, "favor:favor-track": 3 } });
+		pressLabelled("Gain DEATH MASK");
+		const done = await gainThrallMark(char);
+		expect(actor.update).toHaveBeenCalledTimes(1);
+		expect(count(actor, "marks:death-mask")).toBe(1);
+		expect(count(actor, "favor:favor-track")).toBe(0);
+		expect(done.lines.join(" ")).toContain("Favor reset to");
+	});
+
+	// Dark Succor: "Your master gives you a task; until you complete it, your Favor stays at 0." Flagged,
+	// never blocked: the pips still set, and Favor held anyway wears the caution.
+	it("flags Favor held while the master's task stands, and never blocks it", async () => {
+		const { actor, char } = makeUndead("thrall", { insert: { task: "Bring me the bell" } });
+		const view = await tabView(char);
+		expect(view.favor.canSet).toBe(true);
+		expect(view.favor.heldLabel).toBe("Held at 0 until your master's task is done");
+		expect(view.favor.caution).toBe("");
+		await setFavorFromPip(char, 2, false);
+		expect(count(actor, "favor:favor-track")).toBe(3);
+		const held = await tabView(char);
+		expect(held.favor.heldLabel).toBe("3 of 3 held");
+		expect(held.favor.caution).toContain("master's task");
+	});
+
+	it("wears no caution on Favor with no task standing", async () => {
+		const { char } = makeUndead("thrall", { counts: { "favor:favor-track": 2 } });
+		expect((await tabView(char)).favor.caution).toBe("");
 	});
 
 	// Unholy Vessel: "When you would gain a Mark but there are none left to gain".

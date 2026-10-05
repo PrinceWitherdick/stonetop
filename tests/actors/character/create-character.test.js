@@ -15,25 +15,40 @@ let opened = null;
  * Stand in for core's Dialog, answering with `answer` the moment it renders:
  * "add" / "replace" press that button, null dismisses the window.
  */
-function installDialog(answer) {
+function installDialog(answer, { ticked = null } = {}) {
 	global.Dialog = class {
 		constructor(config) { opened = config; }
 		render() {
 			if (answer === null) return opened.close?.();
-			opened.buttons[answer]?.callback?.();
+			opened.buttons[answer]?.callback?.(renderedBoxes(opened.content, ticked));
 		}
 	};
 }
 
+/**
+ * The replace list's checkboxes as the content draws them, in the shape core hands a button
+ * callback (a jQuery-like list whose [0] is the root). `ticked`, when given, is what the user left
+ * ticked; otherwise each box keeps the state it was drawn with.
+ */
+function renderedBoxes(content, ticked) {
+	const boxes = [...String(content).matchAll(/<input type="checkbox" name="stonetop-replace" value="([^"]+)"( checked)?>/g)]
+		.map(([, value, checked]) => ({ value, checked: ticked ? ticked.includes(value) : !!checked }));
+	return [{ querySelectorAll: () => boxes }];
+}
+
 /** A character actor as `charactersOwnedBy` and the confirmation read one. */
-function character(id, name, ownerId, { canDelete = true, progress = null } = {}) {
+function character(id, name, ownerId, { canDelete = true, progress = null, dead = false, owners = [] } = {}) {
+	const ownership = ownerId ? { [ownerId]: OWNER } : {};
+	for (const extra of owners) ownership[extra] = OWNER;
 	return {
 		id,
 		name,
 		type: "character",
 		system: {},
-		ownership: ownerId ? { [ownerId]: OWNER } : {},
-		getFlag: () => progress,
+		ownership,
+		// Where Death's Door keeps its state: "dead" is someone through the Last Door.
+		flags: dead ? { "stonetop_pwd": { deathsDoor: "dead" } } : {},
+		getFlag: (_scope, key) => (key === "onboardingProgress" ? progress : undefined),
 		canUserModify: () => canDelete,
 	};
 }
@@ -46,7 +61,7 @@ function character(id, name, ownerId, { canDelete = true, progress = null } = {}
  * @param {string} [world.assigned]   The id in the player's `User#character` slot, if any.
  * @param {boolean} [world.asGM]      Is the client pressing the button the GM?
  */
-function makeWorld({ existing = [], assigned = null, asGM = true } = {}) {
+function makeWorld({ existing = [], assigned = null, asGM = true, others = [] } = {}) {
 	const created = [];
 	const deleted = [];
 	const player = {
@@ -59,7 +74,7 @@ function makeWorld({ existing = [], assigned = null, asGM = true } = {}) {
 	global.game = {
 		...global.game,
 		user: asGM ? { id: "gm1", isGM: true } : { id: "u1", isGM: false },
-		users: { get: id => (id === "u1" ? player : null) },
+		users: { get: id => (id === "u1" ? player : null), contents: [player, ...others] },
 		actors: { contents: existing },
 	};
 	global.getDocumentClass = () => ({
@@ -216,5 +231,98 @@ describe("a player who already has a character", () => {
 		expect(await createCharacterForUser("u1")).toBeNull();
 		expect(created).toEqual([]);
 		expect(global.ui.notifications.error).toHaveBeenCalled();
+	});
+});
+
+// Replace is a checklist: only what is left ticked goes, and a character another player holds as
+// their own is never on the list at all, however much ownership this player was given over it.
+describe("replacing from a checklist", () => {
+	const alice = { id: "u2", name: "Bryn", character: { id: "alicePc" } };
+
+	it("never lists, and never deletes, a character assigned to another player", async () => {
+		const { deleted } = makeWorld({
+			existing: [
+				character("a1", "Wren", "u1"),
+				// Bryn's PC, which Aderyn was made an owner of to run it while Bryn is away.
+				character("alicePc", "Holt", "u2", { owners: ["u1"] }),
+			],
+			assigned: "a1",
+			others: [alice],
+		});
+		installDialog("replace");
+
+		await createCharacterForUser("u1");
+
+		expect(opened.content).not.toContain("Holt");
+		expect(deleted).toEqual(["a1"]);
+	});
+
+	it("asks nothing when the only character this player owns is someone else's", async () => {
+		const { deleted, player } = makeWorld({
+			existing: [character("alicePc", "Holt", "u2", { owners: ["u1"] })],
+			others: [alice],
+		});
+		installDialog("replace");
+
+		const actor = await createCharacterForUser("u1");
+
+		expect(opened).toBeNull();
+		expect(deleted).toEqual([]);
+		expect(player.update).toHaveBeenCalledWith({ character: actor.id });
+	});
+
+	it("deletes only the ones left ticked, and keeps the assignment on a survivor", async () => {
+		const { deleted, player } = makeWorld({
+			existing: [character("a1", "Wren", "u1"), character("a2", "Ash", "u1")],
+			assigned: "a1",
+		});
+		installDialog("replace", { ticked: ["a2"] });
+
+		await createCharacterForUser("u1");
+
+		expect(deleted).toEqual(["a2"]);
+		expect(player.update).not.toHaveBeenCalled();
+	});
+
+	it("starts the dead unticked and the living ticked", async () => {
+		const { deleted } = makeWorld({
+			existing: [character("a1", "Wren", "u1"), character("a2", "Ash", "u1", { dead: true })],
+			assigned: "a1",
+		});
+		installDialog("replace");
+
+		await createCharacterForUser("u1");
+
+		expect(opened.content).toContain("Ash</strong> (dead)");
+		expect(deleted).toEqual(["a1"]);
+	});
+
+	// The usual replacement after a death keeps the fallen sheet (it starts unticked), and nobody
+	// plays it: the slot must not stay on the corpse.
+	it("hands the slot on from a dead assigned character that the replace kept", async () => {
+		const ash = character("a2", "Ash", "u1", { dead: true });
+		const { player, deleted } = makeWorld({ existing: [ash], assigned: "a2" });
+		player.character = ash;
+		installDialog("replace");
+
+		const actor = await createCharacterForUser("u1");
+
+		expect(deleted).toEqual([]);
+		expect(player.update).toHaveBeenCalledWith({ character: actor.id });
+	});
+
+	it("adds alongside, deleting nothing, when Replace is pressed with nothing ticked", async () => {
+		const { deleted, created, player } = makeWorld({
+			existing: [character("a1", "Wren", "u1")],
+			assigned: "a1",
+		});
+		installDialog("replace", { ticked: [] });
+
+		const actor = await createCharacterForUser("u1");
+
+		expect(actor).toBeTruthy();
+		expect(created).toHaveLength(1);
+		expect(deleted).toEqual([]);
+		expect(player.update).not.toHaveBeenCalled();
 	});
 });

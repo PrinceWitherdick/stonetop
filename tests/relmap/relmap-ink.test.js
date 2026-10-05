@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import {
 	RELMAP_GROUND_FALLBACK, RELMAP_INK_ACROSS, RELMAP_INK_CUSTOM, RELMAP_INK_FLOOR,
 	RELMAP_INK_PRESETS,
-	contrast, deepenInk, inkPaint, luminance, normalizeHex, parseColour,
+	boardGrounds, contrast, deepenInk, inkPaint, luminance, normalizeHex, parseColour,
 } from "../../module/relmap/relmap-ink.js";
 import { RELMAP_INKS } from "../../module/relmap/relmap-store.js";
 import { readCss, declarations } from "../fakes/css.js";
@@ -150,6 +150,18 @@ describe("the paper the guard measures against", () => {
 	it("matches the stylesheet it is a copy of", () => {
 		expect(token("--st-page")).toBe(RELMAP_GROUND_FALLBACK.page);
 		expect(token("--stonetop-bg")).toBe(RELMAP_GROUND_FALLBACK.panel);
+	});
+
+	// A stored hex is read by the whole table. Walked toward white for a reader on a dark palette it
+	// would be a pale line on everybody else's paper, and the stylesheet can lift a deep colour for
+	// the dark board but cannot deepen a pale one for paper. So under a dark palette: the paper.
+	it("is the paper under a dark palette too, whatever the page reads", () => {
+		const root = { classList: { contains: name => name === "stonetop-dark" } };
+		const grounds = boardGrounds(root);
+		expect(grounds).toEqual([parseColour(RELMAP_GROUND_FALLBACK.page), parseColour(RELMAP_GROUND_FALLBACK.panel)]);
+		const chosen = deepenInk("#fff27a", { grounds });
+		expect(chosen.nudged).toBe(true);
+		expect(luminance(parseColour(chosen.hex))).toBeLessThan(luminance(parseColour("#fff27a")));
 	});
 });
 

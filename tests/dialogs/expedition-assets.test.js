@@ -41,7 +41,7 @@ vi.mock("../../module/utils/roll-engine.js", async importOriginal => ({
 }));
 
 const { ExpeditionDialog } = await import("../../module/dialogs/ExpeditionDialog.js");
-const { StonetopSteading } = await import("../../module/actors/steading/StonetopSteading.js");
+const { StonetopSteading, HERD_ASSET_NAME } = await import("../../module/actors/steading/StonetopSteading.js");
 
 let store;
 let warned;
@@ -156,6 +156,65 @@ describe("the Requisition step lists the steading's assets", () => {
 	it("says so when the steading lists no assets at all", () => {
 		world.steading = steadingActor([{ name: "", checked: false }]);
 		expect(dialog()._buildAssetPicker()).toMatchObject({ hasSteading: true, hasRows: false });
+	});
+});
+
+// The user's ruling, "Ask, take from herd": the Herd of Horses' row is not lent out whole. How
+// many horses go is asked, they leave the herd's count, and the trip records that many.
+describe("taking horses from the herd", () => {
+	beforeEach(() => {
+		world.steading = steadingActor([
+			{ name: HERD_ASSET_NAME, checked: true, beast: { slug: "horse", herd: true } },
+			{ name: "A wagon", checked: true },
+		]);
+		Object.assign(world.steading.flags.stonetop.steading, {
+			improvements: { herdOfHorses: { completed: true } },
+			herd: { grown: 8, yearlings: 0, foals: 0 },
+		});
+	});
+
+	it("asks how many, takes them out of the herd, and records them, leaving the herd's row home", async () => {
+		const asked = stubAsk("take", fakeForm({ horses: { value: "3" } }));
+		const d = dialog();
+
+		await d._toggleRequisitionedAsset(0, true);
+
+		expect(asked).toHaveBeenCalledTimes(1);
+		expect(asked.mock.calls[0][0].content).toContain(`max="8" value="2"`);
+		expect(world.steading.update).toHaveBeenCalledWith(
+			{ "flags.stonetop_pwd.steading.herd": { grown: 5, yearlings: 0, foals: 0 } }, { stonetopMove: "Requisition" });
+		expect(assetsNow()[0].takenBy).toBeUndefined();
+		expect(tripNow().requisitioned).toEqual([{ name: "3 horses from the herd", herd: 3 }]);
+	});
+
+	it("shows the herd's row ticked with the trip's horses, and a click then puts them back", async () => {
+		stubAsk("take", fakeForm({ horses: { value: "3" } }));
+		const d = dialog();
+		await d._toggleRequisitionedAsset(0, true);
+
+		const row = d._buildAssetPicker().rows[0];
+		expect(row).toMatchObject({ ours: true, take: false, name: `${HERD_ASSET_NAME} (3 with this trip)` });
+
+		world.steading.update.mockClear();
+		await d._toggleRequisitionedAsset(0, false);
+		// The fake herd still reads 8 grown (its update writes nothing back), so 8 + 3.
+		expect(world.steading.update).toHaveBeenCalledWith(
+			{ "flags.stonetop_pwd.steading.herd": { grown: 11, yearlings: 0, foals: 0 } }, { stonetopMove: "Requisition" });
+		expect(tripNow().requisitioned).toEqual([]);
+		expect(d._buildAssetPicker().rows[0]).toMatchObject({ ours: false, take: true, name: HERD_ASSET_NAME });
+	});
+
+	it("reads a herd line written before the count was kept, by its label", async () => {
+		const d = dialog([{ id: "trip-1", title: "T", createdAt: 0, requisitioned: [{ name: "2 horses from the herd" }, { name: "A horse from the herd" }] }]);
+		expect(d._buildAssetPicker().rows[0].name).toBe(`${HERD_ASSET_NAME} (3 with this trip)`);
+	});
+
+	it("writes nothing when none are taken", async () => {
+		stubAsk("none");
+		const d = dialog();
+		await d._toggleRequisitionedAsset(0, true);
+		expect(world.steading.update).not.toHaveBeenCalled();
+		expect(tripNow().requisitioned ?? []).toEqual([]);
 	});
 });
 
@@ -438,9 +497,9 @@ describe("rolling Requisition", () => {
 			{ type: "character", name: "Ash", items: [move("Logistics", false)] },
 			{ type: "npc", name: "Quartermaster", items: [move("Logistics")] },
 		];
-		expect(dialog()._logisticsQuestion()).toMatch(/^Logistics \(Wren\): they are the one Requisitioning, advantage$/);
+		expect(dialog()._requisitionQuestions().logistics).toMatch(/^Logistics \(Wren\): they are the one Requisitioning, advantage$/);
 		global.game.actors = [{ type: "character", name: "Ash", items: [move("Logistics", false)] }];
-		expect(dialog()._logisticsQuestion()).toBe("");
+		expect(dialog()._requisitionQuestions().logistics).toBe("");
 	});
 
 	it("rolls at advantage with the Logistics line ticked, and names it on the card", async () => {

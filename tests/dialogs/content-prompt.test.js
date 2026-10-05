@@ -172,6 +172,15 @@ describe("which row the chooser opens on", () => {
 	// ⚠ A DEFAULT THAT IS NOT THERE MUST NOT LEAVE THE GROUP EMPTY. A radio group with nothing
 	// checked is a confirm button that resolves to undefined, which no caller can tell from a
 	// dismissal -- so a name that matches no row falls back to the first, as if none was given.
+	// A heading is a caption, not a choice: no radio, and never the row a window opens on.
+	it("draws a heading without a radio and opens on the first real row", () => {
+		pickContentOption({ title: "t", options: [{ heading: "Shapes" }, ...ROWS] });
+		const html = asked[0].content.innerHTML;
+		expect(html).toContain('class="stonetop-content-picker-heading">Shapes<');
+		expect(html.match(/type="radio"/g)).toHaveLength(2);
+		expect(checkedIn(html)).toBe("ring");
+	});
+
 	it("falls back to the first row when the named one is not on the list", () => {
 		pickContentOption({ title: "t", options: ROWS, selected: "spiral" });
 		expect(checkedIn(asked[0].content.innerHTML)).toBe("ring");

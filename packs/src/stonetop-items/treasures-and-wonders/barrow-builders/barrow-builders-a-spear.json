@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "<em>close</em>, <em>thrown</em>, beautiful, indestructible, 2 <em>piercing</em>, Value 3",
+    "note": "<em>close</em>, <em>thrown</em>, <em>beautiful</em>, <em>indestructible</em>, 2 <em>piercing</em>, Value 3",
     "isTreasure": true,
     "artifactLore": "<p>made of makerglass, shaft and all, found in a hero’s tomb</p>"
   },
@@ -17,7 +17,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "<em>close</em>, <em>thrown</em>, beautiful, indestructible, 2 <em>piercing</em>, Value 3"
+      "note": "<em>close</em>, <em>thrown</em>, <em>beautiful</em>, <em>indestructible</em>, 2 <em>piercing</em>, Value 3"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

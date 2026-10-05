@@ -282,6 +282,34 @@ describe("where on a padded scene the marks land", () => {
 	});
 });
 
+const isPlainObject = v => !!v && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * Write `value` at `key` of `node` the way Foundry's `update` does: a plain object MERGES into the
+ * plain object already there, key by key and all the way down, while anything else (a string, an
+ * array, null) replaces. A fake that replaced outright hid a real bug, a table route written over
+ * a drawn way keeping the way's `custom` key.
+ */
+function mergeAt(node, key, value) {
+	if (isPlainObject(value) && isPlainObject(node[key])) {
+		for (const [k, v] of Object.entries(value)) mergeAt(node[key], k, v);
+	} else {
+		node[key] = isPlainObject(value) ? structuredClone(value) : value;
+	}
+}
+
+/** Apply one `update` payload of dotted paths to a stand-in document, merging as Foundry does. */
+function applyUpdate(doc, changes) {
+	for (const [path, value] of Object.entries(changes ?? {})) {
+		const parts = path.split(".");
+		const key = parts.pop();
+		let node = doc;
+		for (const part of parts) node = (node[part] ??= {});
+		if (key.startsWith("-=")) delete node[key.slice(2)];
+		else mergeAt(node, key, value);
+	}
+}
+
 describe("what the scene remembers", () => {
 	/**
 	 * A Scene stand-in with just enough of the document API to be written to.
@@ -289,21 +317,12 @@ describe("what the scene remembers", () => {
 	 * `update` rather than `setFlag`, because that is what the writes use: a flag stamped under a
 	 * system id this package no longer answers to cannot be reached through `setFlag`/`unsetFlag`
 	 * at all, since core validates the scope against the ACTIVE package ids and throws otherwise.
-	 * So this expands the dotted paths and honours the `-=` deletion key, which is the whole of
-	 * what those writes rely on.
+	 * So this expands the dotted paths, honours the `-=` deletion key, and MERGES a plain object
+	 * into the one already stored, which is what core does and what the writes have to survive.
 	 */
 	function writableScene(slug = "vicinity") {
 		const scene = posterScene(slug);
-		scene.update = async (changes) => {
-			for (const [path, value] of Object.entries(changes ?? {})) {
-				const parts = path.split(".");
-				const key = parts.pop();
-				let node = scene;
-				for (const part of parts) node = (node[part] ??= {});
-				if (key.startsWith("-=")) delete node[key.slice(2)];
-				else node[key] = value;
-			}
-		};
+		scene.update = async (changes) => applyUpdate(scene, changes);
 		return scene;
 	}
 
@@ -313,8 +332,32 @@ describe("what the scene remembers", () => {
 		// back, and a title copied onto the scene goes stale the moment the trip is renamed.
 		const where = await showRouteOnScene(scene, { origin: "stonetop", destination: "the-crossroads", id: "t1", title: "A trip" });
 		expect(where).toBe("the Crossroads");
+		// `custom: null` is written, not left out: see the next test for why.
 		expect(scene.flags[SYSTEM_ID][SCENE_ROUTE_FLAG])
-			.toEqual({ origin: "stonetop", destination: "the-crossroads" });
+			.toEqual({ origin: "stonetop", destination: "the-crossroads", custom: null });
+	});
+
+	// `update` merges, so a table route written as `{ origin, destination }` over a drawn way kept
+	// the way's `custom`, and a drawn way outranks a destination: the Scene went on painting the
+	// old line on every client while the button offered, forever, to draw the new one.
+	it("replaces a drawn way with a table route rather than merging into it", async () => {
+		const scene = writableScene();
+		await showRouteOnScene(scene, { origin: "stonetop", custom: { tier: "vicinity", points: [{ fx: 0.4, fy: 0.6 }] } });
+		expect(sceneJourney(scene).custom.on).toBe(true);
+		const table = { origin: "stonetop", destination: "the-maw" };
+		await showRouteOnScene(scene, table);
+		expect(sceneJourney(scene).custom.on).toBe(false);
+		expect(sceneJourney(scene).destination).toBe("the-maw");
+		expect(sceneShowsJourney(scene, table)).toBe(true);
+	});
+
+	it("and a table route with a drawn way", async () => {
+		const scene = writableScene();
+		await showRouteOnScene(scene, { origin: "stonetop", destination: "the-maw" });
+		const drawnWay = { origin: "stonetop", custom: { tier: "vicinity", points: [{ fx: 0.4, fy: 0.6 }] } };
+		await showRouteOnScene(scene, drawnWay);
+		expect(scene.flags[SYSTEM_ID][SCENE_ROUTE_FLAG].destination).toBeNull();
+		expect(sceneShowsJourney(scene, drawnWay)).toBe(true);
 	});
 
 	// The read walks every id this package has shipped under, so the delete has to as well. It
@@ -501,12 +544,9 @@ const drawnTrip = (points, { origin = "stonetop", tier = "vicinity" } = {}) =>
 /** A Scene already showing whatever `showRouteOnScene` would have written for `trip`. */
 async function sceneShowing(slug, trip) {
 	const scene = posterScene(slug);
+	// Merging, as core's `update` does (see `applyUpdate`).
 	scene.update = update => {
-		for (const [key, value] of Object.entries(update)) {
-			if (key.startsWith("flags.") && !key.includes("-=")) {
-				scene.flags[SYSTEM_ID] = { ...scene.flags[SYSTEM_ID], [SCENE_ROUTE_FLAG]: value };
-			}
-		}
+		applyUpdate(scene, update);
 		return Promise.resolve(scene);
 	};
 	await showRouteOnScene(scene, trip);
@@ -519,6 +559,7 @@ describe("putting a hand-drawn way on a scene", () => {
 		const scene = await sceneShowing("vicinity", trip);
 		expect(scene.flags[SYSTEM_ID][SCENE_ROUTE_FLAG]).toEqual({
 			origin: "stonetop",
+			destination: null,
 			custom: { tier: "vicinity", points: [{ fx: 0.4, fy: 0.6 }] },
 		});
 	});

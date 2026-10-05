@@ -13,7 +13,7 @@ import { runImportBookArtMacro } from "../book2-art/macro.js";
 import { hasImportedBook2Art } from "../book2-art/reapply.js";
 // Shared with the replacement confirmation, so the roster's "on page 4 of 9" and the
 // warning shown before that character is deleted can never disagree.
-import { progressLabel } from "../actors/character/onboarding-progress.js";
+import { progressFor } from "../actors/character/onboarding-progress.js";
 import { SYSTEM_ID, JOURNAL_PACK } from "../system-id.js";
 
 // ── WelcomeDialog ───────────────────────────────────────────────────────────
@@ -147,10 +147,9 @@ export class WelcomeDialog extends Application {
 						// Live creation progress, stamped by the player's creation flow (see
 						// _setOnboardingState in StonetopCharacterSheet); cleared once they
 						// finish, so a completed character shows no note.
-						progress: progressLabel(
-							a.getFlag?.(SYSTEM_ID, "onboardingProgress"),
-							a.system?.playbook,
-						),
+						// Read through progressFor, which also asks whether creation was really
+						// finished: a "Save & close" commits the playbook part-way through.
+						progress: progressFor(a),
 					})),
 			}));
 

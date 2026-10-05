@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "<em>fragile</em>, beautiful, Value 4",
+    "note": "<em>fragile</em>, <em>beautiful</em>, Value 4",
     "isTreasure": true,
     "artifactLore": "<p>~2 feet tall with an iridescent glaze; reminds you of the fragility of life</p>"
   },
@@ -17,7 +17,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "<em>fragile</em>, beautiful, Value 4"
+      "note": "<em>fragile</em>, <em>beautiful</em>, Value 4"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

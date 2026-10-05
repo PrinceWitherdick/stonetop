@@ -5,6 +5,7 @@ import { isPrimaryGM } from "../utils/primary-gm.js";
 import { progressSlice, SEED_FOLDER_PHASE, SEED_BULK_CREATE_FRACTION } from "../utils/progress-slice.js";
 import { ITEMS_PACK } from "../actors/character/StonetopFlags.js";
 import { TREASURE_CATALOG } from "../data/treasure-catalog.js";
+import { WRITEUP_EDITED_FLAG } from "../utils/inventory-item-data.js";
 
 // On load, import the Book II treasures — the "Treasures & Wonders" folder of the
 // stonetop-items Item compendium — into the world's Items sidebar under a folder of the
@@ -192,8 +193,12 @@ function writeupsByName() {
 // a nullish fallback would never reach the flag at all. The flag is what the older seeded copies
 // carry (see the drops builder, which still writes both), and they are exactly the copies most
 // likely to be missing the write-up.
+//
+// A write-up the GM has edited (even to nothing) is theirs: WRITEUP_EDITED_FLAG, stamped by the
+// Create Item → Treasure dialog's edit, keeps the book's text from being poured back in.
 const wantsWriteup = item => item.type === "move"
 	&& !!(item.system?.isTreasure || item.flags?.stonetop?.isTreasure)
+	&& !item.flags?.stonetop?.[WRITEUP_EDITED_FLAG]
 	&& !String(item.system?.artifactLore ?? "").trim();
 
 /** Returns how many items were filled in (0 when there was nothing to do). */
@@ -210,7 +215,8 @@ export async function backfillTreasureWriteups() {
 		...[...(game.actors ?? [])].map(actor => ({
 			where:  `"${actor.name}"`,
 			items:  actor.items ?? [],
-			commit: u => actor.updateEmbeddedDocuments("Item", u),
+			// Quiet in the ledger: a back-fill on load, not an edit anybody made.
+			commit: u => actor.updateEmbeddedDocuments("Item", u, { stonetopLedger: true }),
 		})),
 	];
 

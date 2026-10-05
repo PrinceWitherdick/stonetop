@@ -176,4 +176,25 @@ describe("NpcLedger", () => {
 			"Move removed: Bark an order",
 		]);
 	});
+
+	// #4: core casts the sheet's `system.impressions.<n>` inputs into ONE array before any hook
+	// sees the update (ArrayField), so this whole-array shape is the one that actually arrives.
+	it("diffs impressions arriving as the whole array core casts them to", () => {
+		const actor = makeActor({ impressions: ["gruff voice", "", "smells of pipe smoke"] });
+		const entries = NpcLedger.entriesForActorUpdate(actor, {
+			system: { impressions: ["gruff voice", "limps", ""] },
+		});
+		expect(entries.map(e => e.action)).toEqual([
+			"Impression added: limps",
+			"Impression cleared: smells of pipe smoke",
+		]);
+	});
+
+	it("says nothing for a deletion in either core's spelling", () => {
+		const actor = makeActor({ attributes: { hp: { value: 5 } }, relationships: { pc1: { hearts: 2 } } });
+		expect(NpcLedger.entriesForActorUpdate(actor, {
+			"system.attributes.hp.value": new foundry.data.operators.ForcedDeletion(),
+			"system.relationships.-=pc1": null,
+		})).toEqual([]);
+	});
 });

@@ -312,6 +312,23 @@ describe("StonetopSteadingSheet", () => {
 		expect(globalThis.ui.notifications.warn).toHaveBeenCalledWith("ROADBUILDING is already a steading improvement.");
 	});
 
+	it("tells a player who cannot edit the steading why a dropped card was not added", async () => {
+		const { sheet, typedActor } = makeSheet();
+		Object.defineProperty(sheet, "isEditable", { get: () => false });
+		await sheet._onDropSteadingImprovement({ name: "ROADBUILDING" });
+		expect(typedActor.addCustomImprovement).not.toHaveBeenCalled();
+		expect(globalThis.ui.notifications.warn).toHaveBeenCalledWith("You can't add improvements to Stonetop: you don't have permission to edit it.");
+	});
+
+	it("warns rather than throwing when the add is refused", async () => {
+		const { sheet, typedActor } = makeSheet();
+		typedActor.addCustomImprovement.mockRejectedValueOnce(new Error("permission"));
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		await sheet._onDropSteadingImprovement({ name: "ROADBUILDING" });
+		expect(globalThis.ui.notifications.warn).toHaveBeenCalledWith("Could not add ROADBUILDING to Stonetop.");
+		warn.mockRestore();
+	});
+
 	it("ignores a malformed drop payload", async () => {
 		const { sheet, typedActor } = makeSheet();
 		await sheet._onDropSteadingImprovement(undefined);
@@ -382,6 +399,14 @@ describe("StonetopSteadingSheet", () => {
 			expect(data.buttons.no.label).toBe("Keep it on the steading");
 			// Affirmative is not the default on a destructive, un-undoable write.
 			expect(data.default).toBe("no");
+		});
+
+		// Core's Dialog v1 renders a button label as HTML, and this label is the author's.
+		it("escapes the improvement's name in the button core renders raw", async () => {
+			const dialog = captureDialog();
+			const { sheet } = makeSheet({ improvementDef: { ...roadbuilding, label: `<img src=x onerror="alert(1)">` } });
+			await sheet._onRemoveCustomImprovement("custom-roadbuilding");
+			expect(dialog().data.buttons.yes.label).toBe("Remove &lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
 		});
 
 		it("says what completing it applied, since removing it gives that back", async () => {
@@ -462,10 +487,37 @@ describe("StonetopSteadingSheet", () => {
 			await sheet._onImprovementComplete("palisade", true);
 
 			expect(asked).toHaveBeenCalledTimes(1);
-			expect(asked.mock.calls[0][0].buttons.map(b => b.label)).toEqual(["Mark them complete and earn it", "Not yet"]);
+			expect(asked.mock.calls[0][0].buttons.map(b => b.label)).toEqual(["Mark the rest done and earn it", "Not yet"]);
 			// Force-completing passes the filled requirement array through to the model,
 			// which persists completion and auto-applies the improvement's grants.
 			expect(typedActor.setImprovementCompleted).toHaveBeenCalledWith("palisade", true, { forceR: [true, true, true] });
+		});
+
+		// Not every box: the fewest that meet the requirements, never both sides of an either/or,
+		// and the window says which boxes and what completing will apply.
+		it("ticks only what is missing, and says so with what completing applies", async () => {
+			const militiaLike = {
+				slug: "drills", label: "Drills",
+				sections: [
+					{ heading: "Requires:", items: ["A veteran"] },
+					{ heading: "Tactics:", min: 1, items: ["Archery", "<em>Cavalry</em>", "Formations"] },
+				],
+				effect: "...",
+			};
+			const { sheet, typedActor } = makeSheet({ improvementDef: militiaLike, improvements: { drills: { completed: false, r: [false, false, false, true] } } });
+			typedActor.improvementCompletionPreview = vi.fn(() => ["Defenses +1"]);
+			const asked = stubConfirm(true);
+			sheet.render = vi.fn();
+
+			await sheet._onImprovementComplete("drills", true);
+
+			expect(typedActor.setImprovementCompleted).toHaveBeenCalledWith("drills", true, { forceR: [true, false, false, true] });
+			expect(typedActor.improvementCompletionPreview).toHaveBeenCalledWith("drills", { forceR: [true, false, false, true] });
+			const { content } = asked.mock.calls[0][0];
+			expect(content).toContain("What changes");
+			expect(content).toContain("Defenses +1");
+			expect(content).toContain("Marked done: A veteran.");
+			expect(content).not.toContain("Cavalry");
 		});
 
 		it("does nothing but revert the checkbox when declined", async () => {

@@ -1,6 +1,7 @@
 import { STONETOP_SCOPE } from "../actors/character/StonetopFlags.js";
 import { postWeather } from "../utils/weather.js";
 import { getStonetopSteadingActor } from "../utils/world.js";
+import { readCurrentSeason, seasonStampKey } from "./current-season.js";
 import { applyWeatherFx, clearWeatherFx, weatherFxPaused, WEATHER_FX_SETTING } from "./weather-fx.js";
 import { setWorldSetting } from "../settings.js";
 
@@ -11,11 +12,11 @@ import { setWorldSetting } from "../settings.js";
 // current-season.js, which this file is deliberately shaped after).
 //
 // Written by the Weather picker when the GM posts a result (dialogs/WeatherDialog.js), which
-// is the only place weather is decided — rolled or chosen, both land here. Nothing keys off it:
-// this is a readout, not a rule. Stonetop has no mechanics that turn on the weather, and the
-// moment one exists it should take the season's `sky` off the row rather than parse this. One
-// thing does read it back — `setWeatherFxPaused`, which has to know which sky to put on the
-// canvas when a paused table resumes. Still a readout; just one with a picture behind it.
+// is the only place weather is decided: rolled or chosen, both land here. Mostly a readout,
+// not a rule. Two things read it back: `setWeatherFxPaused`, which has to know which sky to put
+// on the canvas when a paused table resumes, and the picker, which owes the next roll
+// disadvantage while the standing weather carries the book's "roll again later with
+// disadvantage" rider (the `reroll` it stores). Nothing parses the text.
 //
 // The stored TEXT is the row's own line, not a re-derivation. The glyph says what kind of day
 // it is and the hover says which day exactly, and the second half has to survive the tables
@@ -75,13 +76,31 @@ export function isSky(sky) {
 
 /**
  * Read the weather off a steading actor.
- * @returns {{sky: string, text: string}|null} null when none has been set, or when the stored
- *   sky is not one we know (a flag left by a future version, or a hand-edited one).
+ *
+ * The weather is stamped with the season it was posted in (the clock's "<year>:<season>" key),
+ * and read back against the clock as it stands NOW. A summer's "Blazing heat" is not the sky
+ * over a winter, so once the season has turned the weather comes back `stale`: still there to
+ * say what it was, but softened on the header and the bar and kept off the canvas. A flag
+ * written before the stamp existed has nothing to compare and is taken as current.
+ *
+ * `reroll` is the row's "roll again later with disadvantage" rider, owed by the next roll. A
+ * stale weather owes nothing: "later" did not outlast the season.
+ *
+ * @returns {{sky: string, text: string, reroll: boolean, stale: boolean}|null} null when none has
+ *   been set, or when the stored sky is not one we know (a flag left by a future version, or a
+ *   hand-edited one).
  */
 export function readCurrentWeather(actor) {
 	const stored = actor?.getFlag?.(STONETOP_SCOPE, CURRENT_WEATHER_KEY);
 	if (!isSky(stored?.sky)) return null;
-	return { sky: stored.sky, text: String(stored.text ?? "") };
+	const stale = typeof stored.stamp === "string"
+		&& stored.stamp !== seasonStampKey(readCurrentSeason(actor));
+	return {
+		sky:    stored.sky,
+		text:   String(stored.text ?? ""),
+		reroll: !stale && stored.reroll === true,
+		stale,
+	};
 }
 
 /**
@@ -91,14 +110,20 @@ export function readCurrentWeather(actor) {
  * weather" and "we could not tell what this row was" must not end up looking the same on the
  * header. There is no unset path: weather is not a thing a steading stops having.
  *
+ * Stamped with the season the steading's clock is in, so a later season can tell it is old
+ * (see readCurrentWeather), and carrying the row's rider. Writing the next weather is what
+ * clears a rider: the roll it asked for has been made.
+ *
  * @param {Actor}  actor
- * @param {{sky?: string, text?: string}} row
+ * @param {{sky?: string, text?: string, reroll?: boolean}} row
  */
 export async function recordCurrentWeather(actor, row) {
 	if (!actor || !isSky(row?.sky)) return;
 	await actor.setFlag(STONETOP_SCOPE, CURRENT_WEATHER_KEY, {
-		sky:  row.sky,
-		text: String(row.text ?? ""),
+		sky:    row.sky,
+		text:   String(row.text ?? ""),
+		reroll: row.reroll === true,
+		stamp:  seasonStampKey(readCurrentSeason(actor)),
 	});
 }
 
@@ -127,9 +152,23 @@ export async function recordCurrentWeather(actor, row) {
  *   in which case nothing is written either, so a refused post cannot move the glyph.
  */
 export async function announceWeather(seasonKey, picked) {
+	// A card the steading cannot be told about is refused BEFORE it goes out, rather than posted
+	// and followed by a write that throws: that left the log saying snow over a header that
+	// still said sun, which is the one thing this function exists to prevent. Only a user who
+	// may update the steading gets past this; core's own `isOwner` is the test.
+	const steading = getStonetopSteadingActor();
+	if (steading && steading.isOwner === false) {
+		globalThis.ui?.notifications?.warn?.("Only a GM can set the weather.");
+		return null;
+	}
 	const row = await postWeather(seasonKey, picked);
 	if (!row) return null;
-	await recordCurrentWeather(getStonetopSteadingActor(), row);
+	// No steading: the card still goes out (it is still the weather), but there is nowhere to
+	// record it and so nothing for the canvas to follow. `refreshWeatherFx` reads the sky back
+	// off the steading, and weather put on the map with no steading behind it would be cleared
+	// by the next reconcile, so it is not put there at all.
+	if (!steading) return row;
+	await recordCurrentWeather(steading, row);
 	await applyWeatherFx(row.sky);
 	return row;
 }
@@ -191,7 +230,10 @@ export async function setWeatherFxPaused(paused) {
 export async function refreshWeatherFx() {
 	if (weatherFxPaused()) return clearWeatherFx();
 
-	const sky = readCurrentWeather(getStonetopSteadingActor())?.sky ?? null;
+	// A stale weather (posted in a season the clock has left) is not put on the map: it is not
+	// the sky the world is under any more, only the last one anybody posted.
+	const stored = readCurrentWeather(getStonetopSteadingActor());
+	const sky    = stored && !stored.stale ? stored.sky : null;
 	return sky ? applyWeatherFx(sky) : clearWeatherFx();
 }
 
@@ -205,13 +247,19 @@ export async function refreshWeatherFx() {
  */
 export function currentWeatherView(stored) {
 	const sky = isSky(stored?.sky) ? stored.sky : DEFAULT_SKY;
+	// A weather left over from an earlier season is drawn as softly as one nobody set: it is
+	// not what the GM said about THIS season. Its own line stays in the hover, marked as old,
+	// so the header still says what it was rather than pretending to know nothing.
+	const stale = Boolean(stored?.stale);
+	const line  = stored?.text?.trim() || WEATHER_SKIES[sky].label;
 	return {
 		sky,
 		label:   WEATHER_SKIES[sky].label,
 		// The row's own line when there is one, and the plain name of the sky when there is
 		// not, so the hover always says something rather than going empty on a fresh world.
-		text:    stored?.text?.trim() || WEATHER_SKIES[sky].label,
-		stamped: Boolean(stored),
+		text:    stale ? `${line} (from an earlier season)` : line,
+		stale,
+		stamped: Boolean(stored) && !stale,
 		// The wrapper's classes, RESOLVED here rather than composed in the template.
 		//
 		// The header draws this readout twice — a <button> for the GM, a <span> for everyone
@@ -222,6 +270,6 @@ export function currentWeatherView(stored) {
 		// disagree with the other about what it is under.
 		// The sky's drawing comes off `stonetop-sky--<sky>`, which the top-of-screen bar
 		// (time-banner.js) wears as well.
-		classes: `steading-header-weather stonetop-sky--${sky}${stored ? "" : " steading-header-weather--unset"}`,
+		classes: `steading-header-weather stonetop-sky--${sky}${stored && !stale ? "" : " steading-header-weather--unset"}`,
 	};
 }

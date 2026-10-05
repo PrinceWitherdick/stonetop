@@ -16,13 +16,13 @@ import { escHtml, stripHtmlToText } from "../../utils/strings.js";
 import { applyDamageToActor, readOptionDamage } from "../../utils/damage.js";
 import { askWithButtons } from "../../utils/ask-with-buttons.js";
 import { firstOptionList, postMoveNote, canRewriteCard } from "../../utils/chat.js";
-import { moveCardBody } from "../../utils/move-tiers.js";
 import { withCardLatch } from "../../utils/card-latch.js";
 import { belongsToMessage } from "../../utils/picked-option-button.js";
 import { speakerActor } from "../../utils/speaker-actor.js";
 import { rollDamageAt, rollOptionDamage, pcDamageDie } from "../../combat/attack-flow.js";
-import { haulCard } from "./provisions.js";
+import { rolledTotalCard } from "../../utils/chat.js";
 import { heldOnTrack, takeBackHeld } from "./MoveResources.js";
+import { isPostDeathMove } from "./post-death-moves.js";
 
 export const POLTERGEIST        = "Poltergeist";
 export const BODYSNATCHER       = "Bodysnatcher";
@@ -43,7 +43,13 @@ function furyTrack(actor) {
 
 /** The character's post-death move of that name, or null. */
 function postDeathMove(actor, name) {
-	return (actor?.items ?? []).find(i => i.type === "move" && i.system?.moveType === "post-death" && i.name === name) ?? null;
+	return (actor?.items ?? []).find(i => isPostDeathMove(i) && i.name === name) ?? null;
+}
+
+/** A post-death move's own printed options ("pick 1", "choose 1"), as plain text. */
+function printedOptions(actor, name) {
+	const list = firstOptionList(postDeathMove(actor, name)?.system?.description ?? "");
+	return (list?.items ?? []).map(stripHtmlToText).filter(Boolean);
 }
 
 /** The Thrall's Favor held, 0 to 3. */
@@ -51,32 +57,40 @@ function favorHeld(actor) {
 	return Math.max(0, Math.trunc(Number(actor?.typedActor?.favor?.()) || 0));
 }
 
+const hasFury  = actor => furyTrack(actor)?.held > 0;
+const hasFavor = actor => favorHeld(actor) > 0;
+
 /**
- * The buttons each move's card carries, keyed by move name. `enabled(actor)` answers whether there is
- * anything to spend: a spend with nothing held is a missing choice, not a button that fails.
+ * The buttons each move's card carries, keyed by move name, and what each does: `run(actor, prompt)`
+ * (runPostDeathAction). `enabled(actor)` answers whether there is anything to spend: a spend with
+ * nothing held is a missing choice, not a button that fails.
  */
 const MOVE_ACTIONS = {
 	[POLTERGEIST]: [
-		{ key: "getAngry", icon: "fa-face-angry" },
-		{ key: "shatter",   icon: "fa-burst",        enabled: actor => furyTrack(actor)?.held > 0 },
-		{ key: "hurl",      icon: "fa-meteor",       enabled: actor => furyTrack(actor)?.held > 0 },
-		{ key: "fling",     icon: "fa-hand-sparkles", enabled: actor => furyTrack(actor)?.held > 0 },
+		{ key: "getAngry", icon: "fa-face-angry",   run: getAngry },
+		{ key: "shatter",  icon: "fa-burst",         enabled: hasFury, run: shatter },
+		{ key: "hurl",     icon: "fa-meteor",        enabled: hasFury, run: (actor, prompt) => spendFuryAndRoll(actor, HURL, prompt) },
+		{ key: "fling",    icon: "fa-hand-sparkles", enabled: hasFury, run: (actor, prompt) => spendFuryAndRoll(actor, FLING, prompt) },
 	],
-	[BODYSNATCHER]:      [{ key: "possess",  icon: "fa-person-rays" }],
-	[DISEMBODIED]:       [{ key: "manifest", icon: "fa-ghost" }],
-	[IMPLACABLE]:        [{ key: "push",     icon: "fa-person-running" }],
-	[RED_WRATH]:         [{ key: "lashOut", icon: "fa-fire",  enabled: actor => favorHeld(actor) > 0 }],
-	[TORMENTS_BLESSING]: [{ key: "torment",  icon: "fa-skull", enabled: actor => favorHeld(actor) > 0 }],
+	[BODYSNATCHER]:      [{ key: "possess",  icon: "fa-person-rays",     run: possess }],
+	[DISEMBODIED]:       [{ key: "manifest", icon: "fa-ghost",           run: manifest }],
+	[IMPLACABLE]:        [{ key: "push",     icon: "fa-person-running",  run: pushTheLimits }],
+	[RED_WRATH]:         [{ key: "lashOut",  icon: "fa-fire",  enabled: hasFavor, run: (actor, prompt) => spendFavorAndRoll(actor, RED_WRATH, prompt) }],
+	[TORMENTS_BLESSING]: [{ key: "torment",  icon: "fa-skull", enabled: hasFavor, run: (actor, prompt) => spendFavorAndRoll(actor, TORMENTS_BLESSING, prompt) }],
 };
+
+/** The same actions by key, as a card's button names them. */
+const ACTION_BY_KEY = Object.fromEntries(Object.values(MOVE_ACTIONS).flat().map(a => [a.key, a]));
 
 /**
  * The buttons for the move cards on this character's sheet, keyed by move name as move-group.hbs looks
  * them up: `{ label, icon, action, disabled, tooltip }` each. Only for the post-death moves they own.
  */
 export function moveActionsFor(actor) {
+	const owned = new Set((actor?.items ?? []).filter(isPostDeathMove).map(i => i.name));
 	const out = {};
 	for (const [name, actions] of Object.entries(MOVE_ACTIONS)) {
-		if (!postDeathMove(actor, name)) continue;
+		if (!owned.has(name)) continue;
 		out[name] = actions.map(a => {
 			const disabled = a.enabled ? !a.enabled(actor) : false;
 			return {
@@ -96,23 +110,23 @@ export function moveActionsFor(actor) {
 /**
  * Throw `formula`, take that much HP off `actor`, and post the throw with where HP ended up.
  *
- * `alongside(lost)` is written BEFORE the HP, and answers a line for the card: what the loss bought
- * (Poltergeist's Fury). A loss that takes them to 0 HP opens Death's Door on this client, and what the
- * anger bought should already be on the sheet behind it.
+ * `alongside(lost)` answers what the loss bought (Poltergeist's Fury) as `{update, line}`: the update
+ * lands in the HP's own write, and the line goes on the card. A loss that takes them to 0 HP opens
+ * Death's Door on this client, and what the anger bought is on the sheet behind it.
  *
  * @returns {Promise<{lost: number, oldHp: number, newHp: number}>}
  */
 export async function loseHp(actor, formula, { moveName, detail = "", alongside = null } = {}) {
 	const roll = await new Roll(formula).evaluate();
 	const lost = Math.max(0, Math.trunc(Number(roll.total) || 0));
-	const extra = alongside ? await alongside(lost) : "";
-	const hp = await applyDamageToActor(actor, lost, moveName ? { stonetopMove: moveName } : {});
+	const bought = alongside?.(lost) ?? {};
+	const hp = await applyDamageToActor(actor, lost, moveName ? { stonetopMove: moveName } : {}, bought.update);
 	const oldHp = hp?.oldHp ?? 0;
 	const newHp = hp?.newHp ?? 0;
 	await roll.toMessage({
 		speaker: ChatMessage.getSpeaker({ actor }),
-		flavor:  haulCard(roll, moveName || localize(`${KEY}.hpLost`), localize(`${KEY}.hpLost`),
-			[detail, extra, format(`${KEY}.hpLine`, { from: oldHp, to: newHp })].filter(Boolean)),
+		flavor:  rolledTotalCard(roll, moveName || localize(`${KEY}.hpLost`), localize(`${KEY}.hpLost`),
+			[detail, bought.line, format(`${KEY}.hpLine`, { from: oldHp, to: newHp })].filter(Boolean)),
 	});
 	return { lost, oldHp, newHp };
 }
@@ -130,20 +144,8 @@ export async function loseHp(actor, formula, { moveName, detail = "", alongside 
  */
 export async function runPostDeathAction(actor, action, { prompt = async () => ({}) } = {}) {
 	if (!actor?.isOwner) return false;
-	switch (action) {
-		case "getAngry": return getAngry(actor);
-		case "shatter":   return shatter(actor);
-		case "hurl":      return spendFuryAndRoll(actor, HURL, prompt);
-		case "fling":     return spendFuryAndRoll(actor, FLING, prompt);
-		case "possess":
-			await loseHp(actor, "1d4", { moveName: BODYSNATCHER, detail: localize(`${KEY}.possessDetail`) });
-			return true;
-		case "manifest":  return manifest(actor);
-		case "push":      return pushTheLimits(actor);
-		case "lashOut":  return spendFavorAndRoll(actor, RED_WRATH, prompt);
-		case "torment":   return spendFavorAndRoll(actor, TORMENTS_BLESSING, prompt);
-		default:          return false;
-	}
+	const run = ACTION_BY_KEY[action]?.run;
+	return run ? run(actor, prompt) : false;
 }
 
 /** "When you get angry, lose 1d4 HP and hold that much Fury." Held to the track's max, 4. */
@@ -152,14 +154,22 @@ async function getAngry(actor) {
 	if (!track) return false;
 	await loseHp(actor, "1d4", {
 		moveName: POLTERGEIST,
-		alongside: async lost => {
+		alongside: lost => {
 			// Re-read: a pip ticked by hand since the button was drawn is kept.
 			const now = furyTrack(actor) ?? track;
 			const held = Math.min(now.max, now.held + lost);
-			await actor.typedActor.moveResources.setUses(POLTERGEIST, held, { stonetopMove: POLTERGEIST });
-			return format(`${KEY}.furyHeld`, { held, max: now.max });
+			return {
+				update: actor.typedActor.moveResources.usesUpdate(POLTERGEIST, held),
+				line:   format(`${KEY}.furyHeld`, { held, max: now.max }),
+			};
 		},
 	});
+	return true;
+}
+
+/** Bodysnatcher: "When you possess a body, lose 1d4 HP." */
+async function possess(actor) {
+	await loseHp(actor, "1d4", { moveName: BODYSNATCHER, detail: localize(`${KEY}.possessDetail`) });
 	return true;
 }
 
@@ -244,7 +254,8 @@ async function spendFavorAndRoll(actor, moveName, prompt) {
 		statValue: spend,
 		moveName,
 		moveResults,
-		moveDescription: moveCardBody(item.system?.description ?? "", moveResults),
+		// Raw: rollStat lays it out with its ladder (move-tiers.js#rollCardBody).
+		moveDescription: item.system?.description ?? "",
 		conditionNotes: [format(`${KEY}.favorSpent`, { n: spend })],
 		tierActions: tierDamageButtons(moveResults, { move: moveName }),
 		...prompted,
@@ -258,8 +269,7 @@ async function spendFavorAndRoll(actor, moveName, prompt) {
  * the first is free and each one after it costs a d4.
  */
 async function manifest(actor) {
-	const item = postDeathMove(actor, DISEMBODIED);
-	const options = (firstOptionList(item?.system?.description ?? "")?.items ?? []).map(stripHtmlToText).filter(Boolean);
+	const options = printedOptions(actor, DISEMBODIED);
 	if (!options.length) return false;
 	const boxes = options.map((text, i) =>
 		// `stonetop-check`: the shared spiral skin (stonetop.css), not a native box.
@@ -296,8 +306,7 @@ async function manifest(actor) {
  * question's buttons, each the printed option it takes; closing the window pushes nothing.
  */
 async function pushTheLimits(actor) {
-	const item = postDeathMove(actor, IMPLACABLE);
-	const options = (firstOptionList(item?.system?.description ?? "")?.items ?? []).map(stripHtmlToText).filter(Boolean);
+	const options = printedOptions(actor, IMPLACABLE);
 	if (!options.length) return false;
 	const chosen = await askWithButtons({
 		title:   IMPLACABLE,
@@ -311,16 +320,18 @@ async function pushTheLimits(actor) {
 
 // ── The roll cards' buttons ────────────────────────────────────────────────
 
-/** One button on a roll card's tier row. `key` is its latch on the message: unique on the card. */
+/** One button on a roll card's tier row. `key` is its latch on the message: one press per key, per card. */
 function cardButton(className, { key, label, icon, data = {} }) {
 	const attrs = Object.entries({ key, ...data })
 		.map(([name, value]) => ` data-${name}="${escHtml(String(value))}"`).join("");
 	return `<button type="button" class="stonetop-pd-card-btn ${className}"${attrs}><i class="fas ${icon}"></i> ${escHtml(label)}</button>`;
 }
 
+// The damage buttons latch once per CARD, not per tier: a GM Shift that moves the card between 7-9 and
+// 10+ redraws the other tier's row, and the blow it already dealt is still the one blow the roll owes.
 const TIER_BUTTONS = {
 	"own-damage": (tier, move) => cardButton("stonetop-pd-own-damage", {
-		key: `own-damage-${tier}`, label: localize(`${KEY}.ownDamage`), icon: "fa-burst", data: { move, tags: "forceful" },
+		key: "own-damage", label: localize(`${KEY}.ownDamage`), icon: "fa-burst", data: { move, tags: "forceful" },
 	}),
 	"lose-1d4": (tier, move) => cardButton("stonetop-pd-lose-hp", {
 		key: `lose-hp-${tier}`, label: format(`${KEY}.loseHp`, { formula: "1d4" }), icon: "fa-heart-crack", data: { move, formula: "1d4" },
@@ -344,14 +355,15 @@ export function tierButtons(byTier, { move }) {
  * the 10+'s. A tier that names no damage gets no button.
  */
 export function tierDamageButtons(moveResults, { move }) {
-	const read = tier => readOptionDamage(stripHtmlToText(moveResults?.[tier]?.value ?? ""));
+	const tiers = ["success", "partial"];
+	const text = Object.fromEntries(tiers.map(tier => [tier, stripHtmlToText(moveResults?.[tier]?.value ?? "")]));
 	const out = {};
-	for (const tier of ["success", "partial"]) {
-		const text = stripHtmlToText(moveResults?.[tier]?.value ?? "");
-		const dealt = read(tier) ?? (/^as (?:a )?10\+/i.test(text) ? read("success") : null);
-		if (!dealt) continue;
+	for (const tier of tiers) {
+		const dealt = readOptionDamage(text[tier]) ?? (/^as (?:a )?10\+/i.test(text[tier]) ? readOptionDamage(text.success) : null);
+		// HP a tier costs its roller is a cost, not the move's damage (TIER_BUTTONS' lose-1d4 pays those).
+		if (!dealt || dealt.hpLoss) continue;
 		out[tier] = cardButton("stonetop-pd-move-damage", {
-			key: `move-damage-${tier}`,
+			key: "move-damage",
 			label: format(`${KEY}.moveDamage`, { formula: dealt.formula }),
 			icon: "fa-dice-d6",
 			data: { move, formula: dealt.formula, ignores: dealt.ignoresArmor ? 1 : 0, piercing: dealt.piercing, tags: dealt.tags.join(",") },
@@ -392,6 +404,7 @@ export function wirePostDeathMoveCards(message, html) {
 /** Do what one card button says; the latched ones once. Answers whether it happened. */
 export async function pressCardButton(message, actor, btn) {
 	const { move = "", formula = "" } = btn.dataset;
+	const tags = String(btn.dataset.tags ?? "").split(",").filter(Boolean);
 	if (btn.classList.contains("stonetop-pd-pin")) {
 		btn.disabled = true;
 		try {
@@ -408,7 +421,6 @@ export async function pressCardButton(message, actor, btn) {
 		}
 		if (btn.classList.contains("stonetop-pd-own-damage")) {
 			// "Deal your damage (forceful)": the character's own die, with the tag the move gives the blow.
-			const tags = String(btn.dataset.tags ?? "").split(",").filter(Boolean);
 			return rollDamageAt(actor, {
 				formula: await pcDamageDie(actor),
 				label: move,
@@ -422,7 +434,7 @@ export async function pressCardButton(message, actor, btn) {
 				self: false,
 				ignoresArmor: btn.dataset.ignores === "1",
 				piercing: Number(btn.dataset.piercing) || 0,
-				tags: String(btn.dataset.tags ?? "").split(",").filter(Boolean),
+				tags,
 			} });
 			return !!results;
 		}

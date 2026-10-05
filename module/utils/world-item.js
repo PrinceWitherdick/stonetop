@@ -3,8 +3,11 @@
 // gear): the loose world item is OBSERVER-readable (matching homebrew moves/arcana) so
 // players can drag it too; the embedded copy a drop plants inherits the actor's
 // ownership regardless. `messageKey` is formatted with the created item's name.
-export async function createWorldItem(data, messageKey) {
-	data.ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
+//
+// `ownership` overrides that default for content the players must not read ahead of time
+// (a treasure's write-up and Value), which the GM hands over by dragging it onto a sheet.
+export async function createWorldItem(data, messageKey, { ownership = null } = {}) {
+	data.ownership = ownership ?? { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
 	const item = await Item.create(data);
 	if (item) {
 		ui.notifications?.info?.(game.i18n.format(messageKey, { name: item.name }));

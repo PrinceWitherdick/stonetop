@@ -62,13 +62,23 @@ describe("backfillTreasureWriteups", () => {
 		install(world({ actors: [pc] }));
 
 		expect(await backfillTreasureWriteups()).toBe(1);
+		// Quiet in the ledger: a back-fill on load is not an edit anybody made.
 		expect(pc.updateEmbeddedDocuments).toHaveBeenCalledWith("Item", [
 			{ _id: "owned", "system.artifactLore": DAGGER.writeup },
-		]);
+		], { stonetopLedger: true });
 	});
 
 	it("never overwrites a write-up the GM wrote themselves", async () => {
 		const w = world({ items: [treasure("a", "An old bronze dagger", { artifactLore: "<p>Mine, actually.</p>" })] });
+		install(w);
+
+		expect(await backfillTreasureWriteups()).toBe(0);
+		expect(w.updateDocuments).not.toHaveBeenCalled();
+	});
+
+	it("leaves a write-up the GM cleared on purpose cleared", async () => {
+		const edited = { ...treasure("a", "An old bronze dagger"), flags: { stonetop: { writeupEdited: true } } };
+		const w = world({ items: [edited] });
 		install(w);
 
 		expect(await backfillTreasureWriteups()).toBe(0);

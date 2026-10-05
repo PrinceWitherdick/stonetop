@@ -22,7 +22,8 @@
 // compiler can print a hand-drawn route into a journal from the stored marks alone.
 
 import {
-	MARCH_HOURS, TRAVEL_LEGS, TRAVEL_MAPS, exitsOnMap, isFraction, roundMark, travelMap, travelPlace,
+	BOOK_LEGS, MARCH_HOURS, TRAVEL_LEGS, TRAVEL_MAPS, exitsOnMap, isFraction, roundMark, travelMap,
+	travelPlace,
 } from "../data/travel-times.js";
 // Re-offered, because a reader of a hand-drawn path asks this module what its marks are stored at.
 export { MARK_PRECISION } from "../data/travel-times.js";
@@ -114,13 +115,25 @@ export function startSpot(tier, start) {
  * place's own `spots` entry is looked up at draw time, so a correction to the table's coordinates
  * reaches a path drawn last season. That is the same choice `journeyRoute` makes about the trip as
  * a whole, and for the same reason.
+ *
+ * A PLACE STANDING ON AN ANCHOR IS KEPT, though no click can lay one (the surfaces refuse anything
+ * `markSpot` refuses). It gets there by `seedMarks`: the way to Tor's Fist seeded onto the World's
+ * End runs through the Foothills, which that map draws only as an anchor, and dropping it turned
+ * the book's 2 + 5 days into one ruler-measured leg of "roughly 3-4 days".
  */
 function normalizeMark(point, tier) {
 	if (!point) return null;
 	const place = travelPlace(point.slug);
-	if (place) return markSpot(tier, place.slug) ? { slug: place.slug } : null;
+	if (place) return originSpot(tier, place.slug) ? { slug: place.slug } : null;
 	if (!isFraction(point.fx) || !isFraction(point.fy)) return null;
 	return { fx: roundMark(point.fx), fy: roundMark(point.fy) };
+}
+
+/** Are two stored marks the same stop: the same place, or the same fraction of the map? */
+export function sameMark(a, b) {
+	if (!a || !b) return false;
+	if (a.slug || b.slug) return !!a.slug && a.slug === b.slug;
+	return roundMark(a.fx) === roundMark(b.fx) && roundMark(a.fy) === roundMark(b.fy);
 }
 
 /**
@@ -138,7 +151,11 @@ export function normalizeCustom(custom) {
 	if (!tier) return { on: false, tier: null, points: [] };
 	const points = (Array.isArray(custom?.points) ? custom.points : [])
 		.map(point => normalizeMark(point, tier))
-		.filter(Boolean);
+		.filter(Boolean)
+		// A STOP REPEATED BACK TO BACK IS ONE STOP. Two clicks on the same pin made a leg from
+		// Marshedge to Marshedge that no one could price, and its blank time turned a way the book
+		// prices end to end into "roughly". See `sameMark`.
+		.filter((point, i, run) => i === 0 || !sameMark(point, run[i - 1]));
 	// THE MARKS ARE THE MODE. There is no box to tick: a way is laid out by hand exactly when there
 	// are marks on the map, and it is over the moment the last of them is taken back. `on` is kept
 	// as a field because three surfaces ask this question and "are there points?" is the wrong
@@ -181,7 +198,9 @@ export function customStops(start, custom) {
 	for (const point of points) {
 		if (point.slug) {
 			const place = travelPlace(point.slug);
-			stops.push({ slug: place.slug, name: place.name, spot: markSpot(tier, place.slug), mark: null });
+			// `originSpot`, not `markSpot`, so a seeded stop on an anchor stands where the table
+			// itself draws it (see `normalizeMark`).
+			stops.push({ slug: place.slug, name: place.name, spot: originSpot(tier, place.slug), mark: null });
 			continue;
 		}
 		placed += 1;
@@ -250,11 +269,12 @@ const PACE_CACHE = new Map();
  * chasm as though it were a walk; Tor's Fist is over a mountain range. Both are true facts about
  * those journeys and useless as a scale, and a band drawn wide enough to hold them would say
  * nothing. Replaying the table's own legs back through the middle-half band lands the printed time
- * INSIDE it for twelve of the seventeen legs it is fitted to, and within one rounding step for
- * fourteen. The three it misses are the three that are not walks: the Maw is a climb into a chasm,
- * Barrier Pass to Tor's Fist is a mountain crossing, and Marshedge to the Dread River Ruins is
- * quick going the fit reads as slow. tests/utils/custom-route.test.js holds those counts, so a
- * change to the fit or to a measured spot has to face what it did to the book's own answers.
+ * INSIDE it for ten of the seventeen legs it is fitted to, and within one rounding step for
+ * fourteen (estimates round UP, which lifts a band's low end by up to a step). The three it misses
+ * by more are Barrier Pass to Tor's Fist, a mountain crossing, and Marshedge to the Dread River
+ * Ruins and to Three Coven Lake, quick going the fit reads as slow. tests/utils/custom-route.test.js
+ * holds those counts, so a change to the fit or to a measured spot has to face what it did to the
+ * book's own answers.
  *
  * ANCHORS ARE EXCLUDED, and that is the correction which makes the World's End numbers mean
  * anything at all. The Crossroads' spot on the continental map is an `anchor` — a hint about which
@@ -276,7 +296,9 @@ function measurePace(tier) {
 	const map = travelMap(tier);
 	if (!map) return null;
 	const paces = [];
-	for (const leg of TRAVEL_LEGS) {
+	// The BOOK's rows only: a `ruling` leg is a judgement about the roads, not a measurement of how
+	// far a day's march carries you across this paper.
+	for (const leg of BOOK_LEGS) {
 		const from = placeSpot(tier, leg.from);
 		const to = placeSpot(tier, leg.to);
 		if (!from || !to) continue;
@@ -301,14 +323,70 @@ function measurePace(tier) {
  */
 export function estimateSpan(distance, pace) {
 	if (!(distance > 0) || !pace) return null;
-	const low = distance * pace.low;
-	const high = distance * pace.high;
+	return spanOfHours(distance * pace.low, distance * pace.high);
+}
+
+/**
+ * A range of hours of march, said in the unit it is worth printing in.
+ *
+ * ROUNDED UP, both ends (user ruling, 2026-10-02), which is the rule `oneUnit` and `atLeastDays`
+ * in utils/travel-route.js already follow: a part-day of walking still costs a day of supplies.
+ * This used to round to the nearest, so thirteen hours of measured march came out as "1 day" here
+ * and as "2 days" the moment the same line was split into two legs.
+ *
+ * The epsilon keeps float dust (27.000000001 hours) from rounding a whole day up into another.
+ */
+export function spanOfHours(low, high) {
+	const up = n => Math.ceil(n - 1e-9);
 	if (high >= MARCH_HOURS) {
-		const min = Math.max(1, Math.round(low / MARCH_HOURS));
-		return { min, max: Math.max(min, Math.round(high / MARCH_HOURS)), unit: "days" };
+		const min = Math.max(1, up(low / MARCH_HOURS));
+		return { min, max: Math.max(min, up(high / MARCH_HOURS)), unit: "days" };
 	}
-	const min = Math.max(1, Math.round(low));
-	return { min, max: Math.max(min, Math.round(high)), unit: "hours" };
+	const min = Math.max(1, up(low));
+	return { min, max: Math.max(min, up(high)), unit: "hours" };
+}
+
+/**
+ * Is this place stood for on `tier` by its edge arrow alone: no pin, no anchor, only the arrow at
+ * the border that points at it?
+ */
+export function arrowOnly(tier, slug) {
+	return !!slug && !travelPlace(slug)?.spots?.[tier] && !!arrowSpot(tier, slug);
+}
+
+/**
+ * How much of the journey to an arrow-only place is still left once you stand at its arrow, as a
+ * `{ low, high }` range of hours of march, or null.
+ *
+ * AN ARROW IS NOT THE PLACE. "To Lygos & the South" is lettered at the World's End's bottom edge,
+ * and Lygos is thirty days past Marshedge, most of them off the paper. Measuring a drawn leg to the
+ * arrow and calling that the journey priced Lygos at "roughly 16 days" against the book's 40.
+ *
+ * So the arrow is priced off the book: take the printed leg into the place from whichever of its
+ * neighbours this map draws nearest the arrow (Marshedge, for Lygos), and subtract the part of it
+ * this map shows, measured at the map's own pace. What is left is the walk past the edge. Low end
+ * against the fast pace and high end against the slow one, so the range stays honest about how
+ * little the ruler knows; never below nothing.
+ */
+export function arrowRemainder(tier, slug) {
+	if (!arrowOnly(tier, slug)) return null;
+	const map = travelMap(tier);
+	const pace = tierPace(tier);
+	const arrow = arrowSpot(tier, slug);
+	if (!map || !pace) return null;
+	let best = null;
+	for (const leg of TRAVEL_LEGS) {
+		const other = leg.from === slug ? leg.to : leg.to === slug ? leg.from : null;
+		const spot = other ? placeSpot(tier, other) : null;
+		if (!spot) continue;
+		const distance = spotDistance(spot, arrow, map.printedAspect);
+		if (!best || distance < best.distance) best = { leg, distance };
+	}
+	if (!best) return null;
+	const unit = best.leg.unit === "days" ? MARCH_HOURS : 1;
+	const low = Math.max(0, best.leg.min * unit - best.distance * pace.high);
+	const high = Math.max(low, best.leg.max * unit - best.distance * pace.low);
+	return { low, high };
 }
 
 /**
@@ -328,6 +406,9 @@ export function withMark(points, mark, { append = false, undo = false } = {}) {
 	const run = Array.isArray(points) ? points : [];
 	if (undo) return run.length ? run.slice(0, -1) : run;
 	if (!mark) return run;
+	// The same stop pressed twice adds nothing, and is answered as nothing so no write is made. A
+	// plain press would replace the far end with itself; a shift-press would lay a leg of no length.
+	if (sameMark(mark, run.at(-1))) return run;
 	// An empty path has no far end to move, so the first mark goes down however it was pressed.
 	// The gesture that STARTS a way is the shift-click (the dialogs refuse a plain one on a bare
 	// map, since it has nothing to move), and this is what makes that first press lay a mark
@@ -366,11 +447,16 @@ export function customTierFor(start, showing) {
  * ONLY THE STOPS THIS MAP CAN PLACE, and the truncation is deliberate rather than tolerated: a way
  * to Tor's Fist seeded onto the Vicinity comes back as far as the Foothills, which is exactly as
  * far as this picture can honestly draw it, and the rest is the GM's to lay in by hand.
+ *
+ * ANCHORS COUNT HERE, though no click can lay one. The way to Tor's Fist seeded onto the World's
+ * End runs through the Foothills, which that map draws only as an anchor; leaving it out made the
+ * seeded way one ruler-measured leg straight to Tor's Fist, "roughly 3-4 days" where the book says
+ * 2 + 5, and a way to the Ruined Tower seeded onto that map lost its destination outright.
  */
 export function seedMarks(route, tier) {
 	if (!route?.legs?.length || !travelMap(tier)) return [];
 	return route.legs
 		.map(leg => leg.to)
-		.filter(slug => markSpot(tier, slug))
+		.filter(slug => originSpot(tier, slug))
 		.map(slug => ({ slug }));
 }

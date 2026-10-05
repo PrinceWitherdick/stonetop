@@ -78,7 +78,8 @@ export function onPreUpdateActorDeathsDoor(actor, changes, options = {}) {
 		// offers the HP back (actors/character/unstoppable.js#onUpdateActorUnstoppable). Never for a
 		// write that settles the Door itself (Death's Door's 1 HP, Hard to Kill's trade), which
 		// carries the state flag: rolling is when they stopped fighting.
-		const settlesDoor = foundry.utils.getProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`) !== undefined;
+		const named = foundry.utils.getProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`);
+		const settlesDoor = named !== undefined;
 		const instead = options[UNSTOPPABLE_REGAIN_OPTION] || settlesDoor ? null : regainInstead(actor, { oldHp, newHp });
 		if (instead) {
 			foundry.utils.setProperty(changes, "system.attributes.hp.value", oldHp);
@@ -98,9 +99,7 @@ export function onPreUpdateActorDeathsDoor(actor, changes, options = {}) {
 		// hit points': Undying's "regain half your max HP" beside "you're out of the action until the next
 		// sunset" is HP up AND out of the action, in one write (dialogs/UndeathDialog.js#_onApply), which the
 		// HP rule alone would read as "back up, no state" and overwrite.
-		const next  = settlesDoor
-			? (foundry.utils.getProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`) ?? null)
-			: nextDeathsDoorState({ oldHp, newHp, state });
+		const next  = settlesDoor ? (named ?? null) : nextDeathsDoorState({ oldHp, newHp, state });
 
 		if (next !== state) {
 			if (!settlesDoor) foundry.utils.setProperty(changes, `flags.${STONETOP_SCOPE}.${DEATHS_DOOR_FLAG}`, next ?? null);

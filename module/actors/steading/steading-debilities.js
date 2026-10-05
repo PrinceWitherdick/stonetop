@@ -201,3 +201,138 @@ export function openDebilityPicker({
 	dialog.render(true);
 	return dialog;
 }
+
+// ── Meet With Disaster, below −1 (Book I p. 532) ─────────────────────────────────
+// "If Fortunes would drop below -1 for any reason … the GM picks 1 instead." Three debilities
+// to MARK and a Population loss, where the pickers above offer debilities to clear. Two moments
+// ask it: the move itself on the Moves tab, and a winter the steading cannot feed, which "Meets
+// with Disaster" (p. 84, p. 518) and so lands here whenever Fortunes is already at the floor.
+
+/** The four answers, the debilities' own copy first so the two lists cannot drift apart. */
+const DISASTER_CHOICES = [
+	...DEBILITIES,
+	{ id: "population", label: "Folks start to leave", detail: "reduce Population by 1 (min −1)" },
+];
+
+/** What the picker offers: only what would cost something. A debility already marked is left
+ *  out, since marking it again would write `true` over `true`, and so is the Population at −1,
+ *  where applyDisasterChoice's floor would write −1 over −1. Either way the disaster cost nothing. */
+export function disasterChoices(steading) {
+	const marked = new Set(markedDebilities(steading).map(d => d.id));
+	const floored = steading.getStatValue("population") <= -1;
+	return DISASTER_CHOICES.filter(c => (c.id === "population" ? !floored : !marked.has(c.id)));
+}
+
+/** The flag a disaster met at −1 leaves until its pick is made (StonetopSteading#disasterOwed). */
+export function disasterOwedFlags(cause) {
+	return { disasterOwed: { cause: String(cause ?? "") } };
+}
+
+/**
+ * Write one of the four. Population stops at −1, the floor the sheet's steppers use.
+ * `settlesOwed` clears the owed-disaster flag in the same write: set by every picker that a
+ * write owing one opened, and by the header glyph that reopens it, never by the Moves tab's own.
+ */
+async function applyDisasterChoice(steading, id, stonetopMove, { settlesOwed = false } = {}) {
+	if (!steading) return false;
+	let system;
+	if (id === "population") {
+		system = { "attributes.population.value": Math.max(steading.getStatValue("population") - 1, -1) };
+	} else if (DEBILITIES.some(d => d.id === id)) {
+		system = { [debilityPath(id)]: true };
+	} else return false;
+	await steading.applyChanges({ system, flags: settlesOwed ? { disasterOwed: null } : {} }, { stonetopMove });
+	return true;
+}
+
+/**
+ * The floor rule alone: "reduce Fortunes by 1 (min -1). If Fortunes would drop below -1 … the GM
+ * picks 1 instead." Pure, so every write that Meets with Disaster reads the floor the same way.
+ * @returns {{fortunes: number, disaster: boolean}} `disaster`: the GM's pick is owed instead
+ */
+export function disasterFortunes(current) {
+	return current <= -1 ? { fortunes: current, disaster: true } : { fortunes: current - 1, disaster: false };
+}
+
+/**
+ * Meet With Disaster, applied. For a rule that says "and the steading Meets with Disaster" with
+ * no window of its own to ask in (a failed harvest, Book I p. 516). `alsoFlags` rides the same
+ * write, so a step marker the disaster closes does not cost a second update.
+ *
+ * At −1 that write also records the pick as owed (`cause` names it on the header glyph), because
+ * the marker has closed the step by then and the picker, which has no Cancel, can still be shut.
+ * @returns {Promise<{fortunes: number, disaster: boolean}>} `disaster`: the pick window opened
+ */
+export async function meetWithDisaster(steading, { stonetopMove = "Meet with Disaster", cause = "", introHtml, onApplied, alsoFlags = {} } = {}) {
+	const out = disasterFortunes(steading.getStatValue("fortunes"));
+	await steading.applyChanges({
+		system: out.disaster ? {} : { "stats.fortunes.value": out.fortunes },
+		flags: { ...alsoFlags, ...(out.disaster ? disasterOwedFlags(cause) : {}) },
+	}, { stonetopMove });
+	if (out.disaster) openDisasterPicker(steading, { introHtml, stonetopMove, onApplied, settlesOwed: true });
+	return out;
+}
+
+/**
+ * The GM's pick when Fortunes would drop below −1, on the same pick-then-commit window the
+ * clearing moves use: marking a debility is as permanent a steading edit as clearing one.
+ *
+ * @param {object} steading
+ * @param {object} [opts]
+ * @param {string} [opts.introHtml]    the line above the choices (trusted HTML)
+ * @param {string} [opts.stonetopMove] what the ledger names as the cause
+ * @param {object} [opts.buttons]      further footer buttons (the move's own window offers Cancel;
+ *                                     a winter shortfall does not, since the rule is not optional)
+ * @param {Function} [opts.onApplied]  (choice) => void, after the write
+ * @param {boolean} [opts.settlesOwed] the pick pays an owed disaster (see applyDisasterChoice)
+ */
+export function openDisasterPicker(steading, {
+	introHtml = `<p><em>Fortunes cannot drop below −1.</em> The GM picks 1:</p>`,
+	stonetopMove = "Meet with Disaster",
+	buttons = {},
+	onApplied,
+	settlesOwed = false,
+} = {}) {
+	// All three marked and Population at −1: the book's list has nothing left to take, so there
+	// is no pick to make. Say so rather than open an empty window, and pay off an owed pick, or
+	// the header glyph would wait on a choice that cannot exist.
+	const choices = disasterChoices(steading);
+	if (!choices.length) {
+		globalThis.ui?.notifications?.info?.("The steading has nothing left for the disaster to take: every debility is marked and Population is at −1.");
+		if (settlesOwed) {
+			steading.applyChanges({ flags: { disasterOwed: null } })
+				.then(() => onApplied?.(null))
+				.catch(err => console.error("Stonetop | Could not settle the owed disaster:", err));
+		}
+		return null;
+	}
+	return openDebilityPicker({
+		title: "Meet with Disaster",
+		introHtml,
+		marked: choices,
+		applyLabel: "Pick what it costs",
+		applyLabelFor: c => (c.id === "population" ? "Reduce Population by 1" : `Mark ${c.label}`),
+		choicesLabel: "What the disaster costs",
+		buttons,
+		onApply: async choice => {
+			await applyDisasterChoice(steading, choice.id, stonetopMove, { settlesOwed });
+			onApplied?.(choice);
+		},
+	});
+}
+
+/** The header glyph's way back to a disaster whose pick was closed unmade. */
+export function openOwedDisasterPicker(steading, { onApplied } = {}) {
+	const owed = steading.disasterOwed?.();
+	if (!owed) {
+		globalThis.ui?.notifications?.info?.("No disaster is waiting on a pick.");
+		return null;
+	}
+	const why = owed.cause ? ` after ${escHtml(owed.cause)}` : "";
+	return openDisasterPicker(steading, {
+		introHtml: `<p><em>The steading Met with Disaster${why} at Fortunes −1, and what it costs was never picked.</em> The GM picks 1:</p>`,
+		stonetopMove: "Meet with Disaster",
+		onApplied,
+		settlesOwed: true,
+	});
+}

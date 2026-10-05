@@ -8,19 +8,38 @@
       account is the part that matters; the title is a line to find it by. So the head renders only
       what there is, and a titleless entry reads as its body under its date.
 
-      An AUTO card is one the system wrote for itself (a season turning, a level gained) rather than
-      one somebody typed. It wears its own modifier and a quiet badge, because the one thing a
-      reader must never have to guess is which of these is the record and which is the bookkeeping.
+      An AUTO card is one the system wrote for itself (a season turning, a level gained, a kill)
+      rather than one somebody typed. It wears its KIND as a chip, glyph AND word, at full ink: a
+      reader on a magnifier must never have to guess what a row is from an icon or a faint badge.
+      Typed cards wear no chip; their words are the whole of them.
+
+      An auto card also wears its kind's COLOUR (`stonetop-timeline-kind--<kind>`), on the edge, the
+      spine dot and the chip's rim and glyph, never on a word. The colour is the second way the kind
+      is said; the chip's word is the first, for the readers at this table who cannot tell the
+      colours apart. A GM can repaint a kind for the world from the toolbar.
+
+      A TYPED card wearing a TAG (`isTagged`, timeline-tags.js) wears the same chip and colour: a
+      borrowed kind's, or a custom tag's name with its colour handed in `kindStyle`, one value per
+      skin, which the `stonetop-timeline-kind--custom` rules choose from.
+
+      A KILLS card prints who fell ("Crinwin ×3, Bandit Chief") above whatever note the table added.
 
       Context: one card view-model (timeline-view.js#cardVM), plus `enrichedBody` where the host has
       enriched it. --}}
-<li class="stonetop-timeline-card{{#if isAuto}} stonetop-timeline-card--auto{{/if}}" data-entry-id="{{id}}">
-	{{#if isAuto}}
-	<span class="stonetop-timeline-card-badge">{{localize "stonetop.timeline.auto.badge"}}</span>
+<li class="stonetop-timeline-card{{#if isAuto}} stonetop-timeline-card--auto stonetop-timeline-kind--{{kind}}{{/if}}{{#if isTagged}} stonetop-timeline-card--tagged stonetop-timeline-kind--{{kind}}{{/if}}"{{#if kindStyle}} style="{{kindStyle}}"{{/if}} data-entry-id="{{id}}">
+	{{#if wearsChip}}
+	<span class="stonetop-timeline-card-kind">
+		<i class="fas {{kindIcon}}" aria-hidden="true"></i>
+		<span>{{kindLabel}}</span>
+	</span>
 	{{/if}}
 
 	{{#if title}}
 	<h4 class="stonetop-timeline-card-title">{{title}}</h4>
+	{{/if}}
+
+	{{#if killSummary}}
+	<p class="stonetop-timeline-card-kills">{{killSummary}}</p>
 	{{/if}}
 
 	{{#if place}}
