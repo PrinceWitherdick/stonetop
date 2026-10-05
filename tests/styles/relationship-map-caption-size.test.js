@@ -51,6 +51,20 @@ describe("the size the writing on a line is set in", () => {
 		expect(CAPTION).toMatch(/var\(\s*--relmap-word-scale\s*,\s*1\s*\)/);
 	});
 
+	// A GROUP'S NAME IS SET IN THE SAME TYPE AS AN ORDINARY CAPTION, and the corner's text weight
+	// turns it up and down with them (user, 2026-10-04). The chip is in ems so it grows with its words,
+	// and `groupNestPx` reads it as 1.56em tall to keep a nested outline clear of the inner name.
+	it("sets a group's name at the ordinary caption size, times the same weight", () => {
+		const NAME = declarations(CSS, ".stonetop-relmap-group-name");
+		expect(NAME, ".stonetop-relmap-group-name").toBeTruthy();
+		const said = /calc\(\s*([\d.]+)px\s*\*\s*var\(\s*--relmap-word-scale\s*,\s*1\s*\)\s*\)/.exec(NAME);
+		expect(said, "font-size: calc(<base>px * var(--relmap-word-scale, 1))").toBeTruthy();
+		expect(Number(said[1])).toBe(RELMAP_CAPTION_PX);
+		const lineHeight = Number(/line-height:\s*([\d.]+)/.exec(NAME)?.[1]);
+		const padTop = Number(/padding:\s*([\d.]+)em/.exec(NAME)?.[1]);
+		expect(lineHeight + 2 * padTop).toBeCloseTo(1.56);
+	});
+
 	// ⚠ A PROPERTY AND NOT A `font-size`, so the two rules that have to out-rank a line's own size
 	// still can. See the head of this file.
 	it("hands a chosen size to the sheet as a property rather than as type", () => {

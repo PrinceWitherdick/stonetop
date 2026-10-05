@@ -5,7 +5,7 @@ import {
 	groupMembersPatch, groupPatch, normalizeGraph, relmapPath,
 } from "../../module/relmap/relmap-store.js";
 import {
-	RELMAP_GROUP_NEST_PX, RELMAP_GROUP_PAD_PX, boardBounds, groupOutline, groupShapes, groupsInside,
+	RELMAP_CAPTION_PX, RELMAP_GROUP_PAD_PX, boardBounds, groupNestPx, groupOutline, groupShapes, groupsInside,
 } from "../../module/utils/relmap-geometry.js";
 
 // NAMED GROUPS ON THE RELATIONSHIP MAP: "The hunters", "The elders", an outline round some people.
@@ -307,8 +307,31 @@ describe("the outline round a group", () => {
 		const members = [at(20, 30), at(40, 50)];
 		const flat = groupOutline(members, { board });
 		const outer = groupOutline(members, { board, contain: [flat] });
-		expect(flat.left - outer.left).toBeCloseTo(RELMAP_GROUP_NEST_PX);
+		expect(flat.left - outer.left).toBeCloseTo(groupNestPx());
 		expect(RELMAP_GROUP_PAD_PX).toBeGreaterThan(0);
+	});
+
+	// ⚠ THE NAMES ARE SET AT THE READER'S TEXT WEIGHT, and the inner name sits ON its line, half its
+	// chip above it. A fixed step measured for one size of chip let a doubled name lie across the
+	// outer stroke.
+	it("stands further clear as the reader turns the words up, by half the bigger name chip", () => {
+		expect(groupNestPx(2) - groupNestPx(1)).toBeCloseTo((RELMAP_CAPTION_PX * 1.56) / 2);
+		expect(groupNestPx(0.5)).toBeLessThan(groupNestPx(1));
+		// No weight, or a nonsense one, is the ordinary size.
+		expect(groupNestPx(undefined)).toBe(groupNestPx(1));
+		expect(groupNestPx(0)).toBe(groupNestPx(1));
+		const got = graph({
+			groups: {
+				council: { members: { ordga: true, marrec: true, sela: true } },
+				elders: { members: { ordga: true, marrec: true } },
+			},
+		});
+		const gap = wordScale => {
+			const shapes = groupShapes(got, board, { wordScale });
+			const of = id => shapes.find(shape => shape.id === id).outline;
+			return of("elders").top - of("council").top;
+		};
+		expect(gap(2)).toBeCloseTo(gap(1) + (RELMAP_CAPTION_PX * 1.56) / 2);
 	});
 
 	it("finds which groups lie wholly inside each one, and breaks a tie of the same people by id", () => {
@@ -337,10 +360,10 @@ describe("the outline round a group", () => {
 		const shapes = Object.fromEntries(groupShapes(got, board).map(shape => [shape.id, shape.outline]));
 		const { council, elders } = shapes;
 		for (const side of ["left", "top"]) {
-			expect(council[side]).toBeLessThanOrEqual(elders[side] - RELMAP_GROUP_NEST_PX + 0.01);
+			expect(council[side]).toBeLessThanOrEqual(elders[side] - groupNestPx() + 0.01);
 		}
 		for (const side of ["right", "bottom"]) {
-			expect(council[side]).toBeGreaterThanOrEqual(elders[side] + RELMAP_GROUP_NEST_PX - 0.01);
+			expect(council[side]).toBeGreaterThanOrEqual(elders[side] + groupNestPx() - 0.01);
 		}
 	});
 

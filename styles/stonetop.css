@@ -47073,18 +47073,24 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
 /* THE NAME, sat on the outline's top edge. Body ink on the page tone with the caption's halo,
    NEVER coloured type: the colour is on the outline, and a short tab of it beside the words ties
-   the two together. Fixed pixels like a portrait's name, for the reason given there. */
+   the two together. Board pixels like a portrait's name, for the reason given there.
+
+   ⚠ SET IN THE LINE CAPTIONS' SIZE, AND THE CORNER'S TEXT WEIGHT MULTIPLIES IT the same way
+   (`.stonetop-relmap-label-text`): the reader turning the words up turns these up with them. The
+   chip's padding, gap, tab and cap are in EMS so the whole chip grows with its words, and the
+   outline round a group with another inside it stands further clear to match (`groupNestPx` in
+   utils/relmap-geometry.js, which reads this chip as 1.56em tall: keep the two together). */
 .stonetop-relmap-group-name {
 	position: absolute;
 	display: inline-flex;
 	align-items: center;
-	gap: 5px;
-	max-width: 220px;
-	padding: 1px 7px;
+	gap: 0.35em;
+	max-width: 13.75em;
+	padding: 0.08em 0.45em;
 	border-radius: var(--st-radius-sm);
 	background: var(--st-page);
 	color: var(--st-text-body);
-	font-size: 13px;
+	font-size: calc(16px * var(--relmap-word-scale, 1));
 	font-weight: 700;
 	font-variant: small-caps;
 	letter-spacing: 0.04em;
@@ -47112,8 +47118,8 @@ THE WINDOW'S FIRST ROW, and it reads as its own stratum rather than as chrome: w
 
 .stonetop-relmap-group-tab {
 	flex: none;
-	width: 10px;
-	height: 10px;
+	width: 0.65em;
+	height: 0.65em;
 	border-radius: 2px;
 	background: var(--relmap-ink, var(--st-relmap-ink-slate));
 }

@@ -1244,7 +1244,8 @@ export class RelationshipMapWindow extends StonetopDialog {
 
 		// THE GROUPS, outermost first. Their outlines are worked out from where the members stand and
 		// kept on `_drawn` beside the lines, for the group bar to sit by and the drag preview to move.
-		const outlines = groupShapes(graph, board);
+		// At the reader's word weight, which their names are set at: see `groupNestPx`.
+		const outlines = groupShapes(graph, board, { wordScale: scales.word });
 		this._drawn.groups = new Map(outlines.map(shape => [shape.id, shape]));
 		const groups = outlines.map(({ id, group, members, outline }) => {
 			const named = group.name || localize("stonetop.relmap.groups.unnamed");
@@ -3406,7 +3407,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		// AND EVERY GROUP ANY OF THEM IS IN, whose outline follows its people. Worked out by the same
 		// builder the paint uses, so the drop lands exactly where the reader watched it settle.
 		if (preview.groupIds.size) {
-			const shapes = groupShapes(preview.graph, preview.board, { within: preview.groupsWithin, only: preview.groupIds });
+			const shapes = groupShapes(preview.graph, preview.board, {
+				within: preview.groupsWithin, only: preview.groupIds, wordScale: preview.scales?.word,
+			});
 			for (const { id, outline } of shapes) {
 				if (!preview.groupIds.has(id)) continue;
 				const parts = preview.groupParts.get(id);
@@ -4776,7 +4779,9 @@ export class RelationshipMapWindow extends StonetopDialog {
 		const drawn = this._drawn?.graph === plan?.graph ? this._drawn?.groups : null;
 		const shapes = drawn
 			? [...drawn.values()]
-			: plan?.graph?.groups && plan?.board ? groupShapes(plan.graph, plan.board) : [];
+			: plan?.graph?.groups && plan?.board
+				? groupShapes(plan.graph, plan.board, { wordScale: weightScales().word })
+				: [];
 		const outlines = shapes.map(({ outline }) => outline);
 		return boardBounds(Object.values(plan?.graph?.nodes ?? {}), plan?.board, outlines);
 	}

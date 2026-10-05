@@ -352,10 +352,29 @@ const GROUP_REACH_X = 54;
 const GROUP_REACH_TOP = 36;
 const GROUP_REACH_BOTTOM = 56;
 export const RELMAP_GROUP_PAD_PX = 18;
-/** How far an outline stands clear of a group inside it, so the two are never drawn on top of each
- * other. MEASURED, not picked: the inner group's name sits ON its line, half of a 20px chip above it,
- * and at 16 that chip touched the outer stroke. 24 leaves it about seven pixels of paper. */
-export const RELMAP_GROUP_NEST_PX = 24;
+/** The paper between an inner group's LINE and the outer one, less the half of the inner name chip
+ * that sits above it. MEASURED at a 20px chip: a nest of 16 let the chip touch the outer stroke, and
+ * 24 (fourteen of paper over the chip's half) left it about seven pixels clear of the stroke. */
+const GROUP_NEST_CLEAR_PX = 14;
+/** How tall a group's name chip is, in ems of its own type: `line-height: 1.4` and a padding of
+ * 0.08em top and bottom (`.stonetop-relmap-group-name`). Kept with that rule. */
+const GROUP_NAME_CHIP_EM = 1.56;
+
+/**
+ * How far an outline stands clear of a group inside it, so the two are never drawn on top of each
+ * other.
+ *
+ * ⚠ IT GROWS WITH THE READER'S TEXT SIZE. A group's name is set in the line captions' sixteen times
+ * the corner's word weight (the stylesheet multiplies by the same `--relmap-word-scale`), and the
+ * inner name sits ON its line, half its chip above it. A fixed step was measured for one size of
+ * chip; at twice the words the inner name would lie across the outer stroke.
+ *
+ * @param {number} [wordScale]  the corner's word weight as a multiplier, from `weightScales`.
+ */
+export function groupNestPx(wordScale = 1) {
+	const scale = Number(wordScale) > 0 ? Number(wordScale) : 1;
+	return GROUP_NEST_CLEAR_PX + (RELMAP_CAPTION_PX * scale * GROUP_NAME_CHIP_EM) / 2;
+}
 /** The corner of a box outline. */
 const GROUP_CORNER_PX = 22;
 /** How far in from a box's left corner its name sits. */
@@ -412,11 +431,12 @@ export function groupsInside(groups = {}) {
  * @param {string} [options.shape]  "box" or "oval".
  * @param {Array<{left: number, top: number, right: number, bottom: number}>} [options.contain]
  *        outlines (board pixels) this one must stand clear round: the groups wholly inside it.
+ * @param {number} [options.nestPx]  how far clear of them, from `groupNestPx`.
  * @returns {{shape: string, left: number, top: number, right: number, bottom: number,
  *   cx: number, cy: number, w: number, h: number, rx: number, ry: number,
  *   name: {left: number, top: number, align: string}}|null}  null with nobody to draw round.
  */
-export function groupOutline(members = [], { board, shape = "box", contain = [] } = {}) {
+export function groupOutline(members = [], { board, shape = "box", contain = [], nestPx = groupNestPx() } = {}) {
 	const width = Number(board?.width) || RELMAP_BOARD_WIDTH;
 	const height = Number(board?.height) || width / RELMAP_BOARD_ASPECT;
 	let left = Infinity; let top = Infinity; let right = -Infinity; let bottom = -Infinity;
@@ -434,10 +454,10 @@ export function groupOutline(members = [], { board, shape = "box", contain = [] 
 	// Round every group inside this one, a step clear of its line (and of the name sitting on it).
 	for (const inner of contain ?? []) {
 		if (![inner?.left, inner?.top, inner?.right, inner?.bottom].every(Number.isFinite)) continue;
-		left = Math.min(left, inner.left - RELMAP_GROUP_NEST_PX);
-		right = Math.max(right, inner.right + RELMAP_GROUP_NEST_PX);
-		top = Math.min(top, inner.top - RELMAP_GROUP_NEST_PX);
-		bottom = Math.max(bottom, inner.bottom + RELMAP_GROUP_NEST_PX);
+		left = Math.min(left, inner.left - nestPx);
+		right = Math.max(right, inner.right + nestPx);
+		top = Math.min(top, inner.top - nestPx);
+		bottom = Math.max(bottom, inner.bottom + nestPx);
 	}
 	const cx = (left + right) / 2;
 	const cy = (top + bottom) / 2;
@@ -499,10 +519,11 @@ export function groupPathD({ shape, left, top, right, bottom, cx, cy, rx, ry } =
  * @param {Map<string, string[]>} [opts.within]  `groupsInside(graph.groups)`, worked out once per drag
  *   (membership cannot change under one).
  * @param {Set<string>} [opts.only]  the groups wanted; those and the groups inside them are laid out.
+ * @param {number} [opts.wordScale]  the corner's word weight, which the names are set at: see `groupNestPx`.
  * @returns {Array<{id: string, group: object, members: string[], outline: object}>}  outermost first,
  *   so a nested outline paints over the one round it.
  */
-export function groupShapes(graph, board, { within, only } = {}) {
+export function groupShapes(graph, board, { within, only, wordScale = 1 } = {}) {
 	const groups = graph?.groups ?? {};
 	within ??= groupsInside(groups);
 	const needed = only ? new Set([...only].flatMap(id => [id, ...(within.get(id) ?? [])])) : null;
@@ -512,12 +533,13 @@ export function groupShapes(graph, board, { within, only } = {}) {
 	const order = Object.keys(groups).sort((a, b) => within.get(a).length - within.get(b).length || byId(a, b));
 	const outlines = new Map();
 	const out = [];
+	const nestPx = groupNestPx(wordScale);
 	for (const id of order) {
 		if (needed && !needed.has(id)) continue;
 		const group = groups[id];
 		const members = Object.keys(group?.members ?? {}).filter(nodeId => graph.nodes?.[nodeId]).sort();
 		const outline = groupOutline(members.map(nodeId => graph.nodes[nodeId]), {
-			board, shape: group.shape,
+			board, shape: group.shape, nestPx,
 			contain: within.get(id).map(inner => outlines.get(inner)).filter(Boolean),
 		});
 		if (!outline) continue;
