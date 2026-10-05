@@ -2,11 +2,25 @@
 
 An unofficial [Foundry VTT](https://foundryvtt.com) system for playing [Stonetop](https://plusoneexp.com/collections/stonetop) by Jeremy Strandberg.
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/V8L6287YU9)
+
 ## 🤖 Created in collaboration with AI to facilitate rapid development. Absolutely no image generation was or will be used.
 
 ## Features
 
 Everything below is built into the system. No extra modules required.
+
+### Art from Your Own Books
+
+Lucie Arnoux's illustrations are not open-licensed, so none of them ship with this system. If you own the PDFs, though, the art is already yours, and an **Import Book Art** wizard pulls it out of your own copies and into your own world.
+
+![The Import Book Art wizard asking for the rulebook PDFs](.github/screenshots/import_book_art.webp)
+
+Five steps, each one optional: point it at **Book I** and **Book II** (the "spreads" editions, 308 and 302 pages), at the **GM playbook**, which is a free download and adds five more pictures, and at the **poster maps**. Skip any of them and that part is simply left out; come back for the rest another time and nothing already imported is touched, unless you tick **Force update**.
+
+What lands is every monster portrait, every location illustration, the villagers' faces, treasure and steading art, the GM playbook's flowcharts, and the poster maps as ready-made scenes. Bestiary entries, location journals, and the People gallery pick the pictures up on their own once they are on disk.
+
+The extraction runs locally, in your browser, on the file you chose. Nothing is uploaded, and the images are written into your own Foundry data under `stonetop-book-art/`, never into the system folder and never into a release. If you do not own the books, everything else in this system still works; the illustrated slots just stay empty.
 
 ### For Players
 
@@ -16,19 +30,6 @@ A multi-step onboarding wizard handles everything from playbook selection to the
 
 ![Guided character creation, choosing a playbook](.github/screenshots/character_creation.webp)
 
-#### Level-Up Wizard
-
-Clicking Level Up opens a step-by-step wizard. It shows the XP cost, presents every move the character is eligible for (locking moves whose prerequisites aren't met), and, on even levels, surfaces available Invocations. Picking a move that grants a choice (a stat increase, a move borrowed from another playbook, an extra Sacred Pouch trait) opens the matching chooser inline, and the wizard flags when you still have picks left to spend. Confirming applies the new level, deducts XP, and adds the chosen move to the sheet in one click.
-
-#### Outfit & Inventory Management
-
-The Outfit Move dialog lets players check off items and see their load level update in real time. The system calculates armor automatically from equipped items (base plus modifiers) and tracks pool slots, small-item limits (tied to steading prosperity), and per-item resources like rations and ammo.
-
-#### Followers
-
-Build a follower from scratch with a guided builder, or turn any bestiary monster into a follower in one step. Each follower lives on a single card with per-section editing for instinct, moves, cost, and tags. During play the card handles the follower moves for you: Order rolls, Strengthen Bond, ammo and supply tracks, and a follower's fate at 0 HP. Group warbands, hirelings, and companions to keep the tab tidy.
-
-![The Marshal's Followers tab, with a group follower and a single companion](.github/screenshots/followers_example.webp)
 
 #### Seeker Arcana
 
@@ -48,22 +49,6 @@ Every world gets one **GM Toolkit**, the screen-side companion to the GM playboo
 
 ![The GM Toolkit's GM Moves tab](.github/screenshots/gm_toolkit_moves.webp)
 
-**Homefront** collects life in Stonetop, the year's work, and the Aftermath and Downtime procedures that bracket every expedition. **Threats & Dangers** and **Sites** hold the GM's prep. **Core Loop** reproduces the two flowcharts, the exchange-by-exchange loop and the campaign's flow between adventure and home, in a window you can zoom and pan.
-
-![The Core Loop tab's two flowcharts](.github/screenshots/gm_toolkit_flowcharts.webp)
-
-**I Wonder...** is the one page on the sheet a GM writes rather than reads: a running list of open questions, the things you don't know the answer to yet or want to leave for play to answer. Answer one and it drops to the **Answered** list below, so the top of the page stays the questions still open.
-
-![The I Wonder tab's list of open questions](.github/screenshots/gm_toolkit_i_wonder.webp)
-
-#### GM Result Controls
-
-After any roll, the GM can shift the result up or down by one tier directly from the chat card (Strong Hit to Weak Hit to Miss, and back) without re-rolling. Characters with the Burn Brightly feature can spend 2 XP from the chat card to bump a recent roll by +1.
-
-#### Steading Sheet & Seasonal Automation
-
-The Stonetop steading sheet tracks Fortunes, Prosperity, Population, and Defense alongside the debility system (Diminished, Lacking, Malcontent). Steading moves are wired up: **Meet with Disaster** auto-applies the Fortunes penalty and picks a consequence; **Seasons Change** steps through the full seasonal checklist with automatic resource updates and nudges each player with a personal upkeep reminder; **Muster** deducts Fortunes before the roll. Completing an improvement automatically applies its one-time effect (reversible if you undo it), Places of Interest can be dragged onto a scene to drop a lettered map note, and a seasonal **Weather** oracle plus an **Expedition** GM walkthrough round out the homefront tools.
-
 #### Homebrew Content Creation
 
 A **Create Content** picker mints your own material as reusable world items: homebrew Arcana, custom Moves players can roll, Inventory Items, Steading Improvements, and Threats. Each one is saved once and then dragged onto the sheet or tab where it belongs, so a table can grow its own deck of moves, gear, and dangers alongside the bundled content.
@@ -78,27 +63,11 @@ The system ships with the full bestiary of Books I and II: around 180 creatures,
 
 ![A bestiary stat block, with the creature's illustration imported from Book II](.github/screenshots/monster_example.webp)
 
-#### Locations & Lore
-
-A bundled **Stonetop** journal compendium covers the wider world: all 30 Book II locations plus the setting's gods and factions, cross-linked to one another and to the bestiary so a click carries you from a region to the creatures that haunt it. Hover any link for a one-line summary. Seeded entries refresh automatically when the system updates, unless you've edited them, in which case your version is left untouched.
-
 #### Browse Stonetop
 
 One **Browse Stonetop** window, on the magnifying-glass hotbar macro, answers "what have we got?" across the bundled content: every arcanum, every creature, and the world's own NPCs, each in its own tab. Filter arcana by tier, by what they grant, and by curse; creatures by section, type, and the numbers they come in; people by status and home. It reads the GM-hidden compendia, so it is seeded GM-only.
 
 ![The Browse Stonetop window, filtering the arcana catalog](.github/screenshots/browse_stonetop.webp)
-
-### Art from Your Own Books
-
-Lucie Arnoux's illustrations are not open-licensed, so none of them ship with this system. If you own the PDFs, though, the art is already yours, and an **Import Book Art** wizard pulls it out of your own copies and into your own world.
-
-![The Import Book Art wizard asking for the rulebook PDFs](.github/screenshots/import_book_art.webp)
-
-Five steps, each one optional: point it at **Book I** and **Book II** (the "spreads" editions, 308 and 302 pages), at the **GM playbook**, which is a free download and adds five more pictures, and at the **poster maps**. Skip any of them and that part is simply left out; come back for the rest another time and nothing already imported is touched, unless you tick **Force update**.
-
-What lands is every monster portrait, every location illustration, the villagers' faces, treasure and steading art, the GM playbook's flowcharts, and the poster maps as ready-made scenes. Bestiary entries, location journals, and the People gallery pick the pictures up on their own once they are on disk.
-
-The extraction runs locally, in your browser, on the file you chose. Nothing is uploaded, and the images are written into your own Foundry data under `stonetop-book-art/`, never into the system folder and never into a release. If you do not own the books, everything else in this system still works; the illustrated slots just stay empty.
 
 ## Screenshots
 
