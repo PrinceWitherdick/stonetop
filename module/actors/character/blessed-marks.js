@@ -143,6 +143,13 @@ function coerceKind(raw) {
 }
 
 /**
+ * The ONE reader of a stored row's kind, exported for whatever reads the raw flag rather than
+ * `readMarks` (move-armor.js#barkskinMarks), so the armor and the roster always agree on which
+ * kind a row is.
+ */
+export const markKindKey = coerceKind;
+
+/**
  * Loyalty, which only a Shared Souls row has.
  *
  * Null for every other kind, and clamped to 0..3 for that one. Null rather than 0 on purpose: 0 is

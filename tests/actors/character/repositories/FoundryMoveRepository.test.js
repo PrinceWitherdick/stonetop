@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { FoundryMoveRepository } from "../../../../module/actors/character/repositories/FoundryMoveRepository.js";
+import { FoundryMoveRepository, MOVE_DEFINITION_FIELDS } from "../../../../module/actors/character/repositories/FoundryMoveRepository.js";
 import { resetPackIndexFields } from "../../../../module/utils/pack-index.js";
 import { MoveDefinition } from "../../../../module/model/MoveDefinition.js";
+import { indexingPack } from "../../../fakes/indexing-pack.js";
 
 // -- Fixtures ------------------------------------------------------------------
 
@@ -92,11 +93,7 @@ describe("FoundryMoveRepository", () => {
 			stubGame(pack, null);
 			const repo = new FoundryMoveRepository();
 			await repo.getPlaybookMoves("The Blessed");
-			expect(pack.getIndex).toHaveBeenCalledWith({
-				fields: ["system.playbook", "system.isStartingMove", "system.requirement", "system.replaces",
-				         "system.rollType", "system.description", "system.repeatMax", "system.cap", "system.resource",
-				         "system.hpBonus", "system.armorBonus", "system.loadBonus", "system.maxLoad", "system.requiresUnarmored", "system.markOptions", "system.markBudget", "system.crossPlaybook", "system.asterisk", "system.moveResults"],
-			});
+			expect(pack.getIndex).toHaveBeenCalledWith({ fields: [...MOVE_DEFINITION_FIELDS] });
 		});
 
 		it("caches result — getIndex not called a second time for same playbook", async () => {
@@ -156,7 +153,7 @@ describe("FoundryMoveRepository", () => {
 			stubGame(null, pack);
 			const repo = new FoundryMoveRepository();
 			await repo.getBasicMoves();
-			expect(pack.getIndex).toHaveBeenCalledWith({ fields: ["system.moveType", "system.rollType", "system.description", "system.moveResults"] });
+			expect(pack.getIndex).toHaveBeenCalledWith({ fields: [...MOVE_DEFINITION_FIELDS] });
 		});
 
 		it("caches result — getIndex not called a second time", async () => {
@@ -214,9 +211,7 @@ describe("FoundryMoveRepository", () => {
 			stubGame(null, null, pack);
 			const repo = new FoundryMoveRepository();
 			await repo.getPostDeathMoves("revenant");
-			expect(pack.getIndex).toHaveBeenCalledWith({
-				fields: ["system.playbook", "system.rollType", "system.description", "system.resource", "system.moveResults", "system.loreOption"],
-			});
+			expect(pack.getIndex).toHaveBeenCalledWith({ fields: [...MOVE_DEFINITION_FIELDS] });
 		});
 
 		it("caches result — getIndex not called a second time for same insertSlug", async () => {
@@ -242,6 +237,54 @@ describe("FoundryMoveRepository", () => {
 			const repo = new FoundryMoveRepository();
 			const doc  = await repo.getPostDeathMoveDocument("pd001");
 			expect(doc).toEqual(POST_DEATH_MOVE_A);
+		});
+	});
+	// Every reader through a pack that indexes ONLY the fields asked for, as a live one does. Each
+	// entry sets every field MoveDefinition reads to a non-default value, so a field the shared list
+	// leaves out comes back as its default here, the way it would in a world. The basic store once
+	// asked for four fields, so an expedition move's track or requirement never reached the sheet.
+	describe("index fields cover everything MoveDefinition reads", () => {
+		const everyField = (id, name, moveType, playbook) => ({
+			_id: id, name,
+			system: {
+				moveType, playbook, loreOption: "consequences:poltergeist", rollType: "str",
+				description: "<p>text</p>", moveResults: { success: { label: "10+", value: "win" } },
+				isStartingMove: true, requirement: "Requires level 2+", replaces: "Bulwark",
+				repeatMax: 2, cap: 3, resource: { max: 3, title: "hold", labels: [] },
+				hpBonus: 1, armorBonus: 1, loadBonus: 1, maxLoad: "normal", requiresUnarmored: true,
+				markOptions: [{ label: "x", boxes: 1 }], markBudget: { base: 1, perExtra: 1 },
+				crossPlaybook: { playbooks: ["The Fox"] },
+			},
+		});
+		const expectAll = (move) => expect(move).toMatchObject({
+			loreOption: "consequences:poltergeist", rollType: "str", description: "<p>text</p>",
+			moveResults: { success: { label: "10+", value: "win" } }, isStarting: true,
+			requirement: "Requires level 2+", replaces: "Bulwark", repeatMax: 2, cap: 3,
+			resource: { max: 3, title: "hold" }, hpBonus: 1, armorBonus: 1, loadBonus: 1,
+			maxLoad: "normal", requiresUnarmored: true, markOptions: [{ label: "x", boxes: 1 }],
+			markBudget: { base: 1, perExtra: 1 }, crossPlaybook: { playbooks: ["The Fox"] },
+		});
+
+		it("playbook moves", async () => {
+			stubGame(indexingPack([everyField("pb1", "Armored", "playbook", "The Marshal")]));
+			const [move] = await new FoundryMoveRepository().getPlaybookMoves("The Marshal");
+			expect(move.playbook).toBe("The Marshal");
+			expectAll(move);
+		});
+
+		it("basic moves", async () => {
+			stubGame(indexingPack([everyField("bm1", "Defy Danger", "basic", null)]));
+			expectAll((await new FoundryMoveRepository().getBasicMoves())[0]);
+		});
+
+		it("expedition moves", async () => {
+			stubGame(indexingPack([everyField("ex1", "Forage", "expedition", null)]));
+			expectAll((await new FoundryMoveRepository().getExpeditionMoves())[0]);
+		});
+
+		it("post-death moves", async () => {
+			stubGame(indexingPack([everyField("pd1", "Unliving", "post-death", "revenant")]));
+			expectAll((await new FoundryMoveRepository().getPostDeathMoves("revenant"))[0]);
 		});
 	});
 });

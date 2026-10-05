@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findArcanumMove, markArcanumMoveNames, parseArcanumMoves } from "../../module/data/arcana-moves.js";
+import { CONDENSED_MOVE_SLUG, condensedArcanumMove, findArcanumMove, markArcanumMoveNames, parseArcanumMoves } from "../../module/data/arcana-moves.js";
 import { loadArcanaPackDocs } from "../fakes/sourcePack.js";
 
 const DOCS = loadArcanaPackDocs();
@@ -147,5 +147,36 @@ describe("markArcanumMoveNames", () => {
 	it("returns the description unchanged when the card prints no moves", () => {
 		const back = backOf("gold-ring");
 		expect(markArcanumMoveNames(back, "gold-ring")).toBe(back);
+	});
+});
+
+// A minor arcanum's structured back.move ("When you use ink of powdered cinnabar…") as a move
+// record, so its trigger opens and rolls the way a mystery's name does.
+describe("condensedArcanumMove", () => {
+	const missive = () => DOCS.find(d => d.flags?.stonetop?.slug === "time-worn-missive").flags.stonetop.back.move;
+
+	it("rolls the stat the card names, as a clickable move record", () => {
+		const move = condensedArcanumMove(missive());
+		expect(move.slug).toBe(CONDENSED_MOVE_SLUG);
+		expect(move.roll).toBe("int");
+		expect(move.boxIndex).toBe(null);
+		expect(move.name).toMatch(/^When you use ink of powdered cinnabar/);
+	});
+
+	it("reads the stat off the text when the card sets none, and none when the text rolls none", () => {
+		expect(condensedArcanumMove({ name: "When you pray", description: "<p>roll +WIS: on a 10+…</p>" }).roll).toBe("wis");
+		expect(condensedArcanumMove({ name: "When you pray", rollType: "CHA", description: "<p>roll +WIS</p>" }).roll).toBe("cha");
+		expect(condensedArcanumMove({ name: "When you listen", description: "<p>You hear it.</p>" }).roll).toBe(null);
+	});
+
+	it("is null for a card with no condensed move", () => {
+		expect(condensedArcanumMove(null)).toBe(null);
+		expect(condensedArcanumMove({ name: "", description: "" })).toBe(null);
+	});
+
+	it("can never collide with a mystery's slug", () => {
+		for (const d of DOCS) {
+			for (const m of parseArcanumMoves(d.flags?.stonetop?.back?.description ?? "")) expect(m.slug).not.toBe(CONDENSED_MOVE_SLUG);
+		}
 	});
 });

@@ -7,7 +7,7 @@
     "moveType": "inventory",
     "inventoryColumn": "regular",
     "weight": 1,
-    "note": "magical, <em>fragile</em>, Value 2",
+    "note": "<em>magical</em>, <em>fragile</em>, Value 2",
     "isTreasure": true
   },
   "flags": {
@@ -16,7 +16,7 @@
       "inventoryColumn": "regular",
       "isTreasure": true,
       "weight": 1,
-      "note": "magical, <em>fragile</em>, Value 2"
+      "note": "<em>magical</em>, <em>fragile</em>, Value 2"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

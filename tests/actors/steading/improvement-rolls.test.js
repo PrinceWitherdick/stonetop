@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-	STEADING_MOVE, improvementQuestions, netRollMode, rollAdjustments, rollConditionNotes,
+	STEADING_MOVE, herdShareMet, improvementQuestions, netRollMode, rollAdjustments, rollConditionNotes,
 } from "../../../module/actors/steading/improvement-rolls.js";
+import { builtInImprovementRules } from "../../../module/actors/steading/StonetopSteading.js";
 
 /**
  * What the steading's improvements do to a homefront move at the moment it is rolled (the
@@ -9,7 +10,8 @@ import {
  * season-effects.test.js's; these are the ones that change a MOVE.
  */
 
-const built = (...slugs) => slug => slugs.includes(slug);
+// The rules list (improvement-rules.js) for these book improvements, built: what every reader is handed.
+const built = (...slugs) => builtInImprovementRules(slugs);
 const TACTICS = [
 	{ index: 1, label: "Archery: barrages, ranged ambushes, sniping, etc." },
 	{ index: 3, label: "Formations: shield walls, wedges, phalanx, etc." },
@@ -23,28 +25,38 @@ describe("the questions a move's window asks", () => {
 
 	it("offers the militia's trained tactics, the wall to take advantage of, and the watch", () => {
 		const asks = improvementQuestions(STEADING_MOVE.DEPLOY, "defenses", {
-			has: built("wellTrainedMilitia", "palisade", "standingWatch"), tactics: TACTICS,
+			rules: built("wellTrainedMilitia", "palisade", "standingWatch"), tactics: TACTICS,
 		});
-		expect(names(asks)).toEqual(["strength", "tactic", "wall", "watch"]);
+		expect(names(asks)).toEqual(["strength", "tactic", "advantage-palisade", "watch"]);
 		expect(asks.find(q => q.name === "tactic").options.map(o => o.value)).toEqual(["", "1", "3"]);
-		expect(asks.find(q => q.name === "wall").label).toMatch(/palisade/);
+		expect(asks.find(q => q.name === "advantage-palisade").label).toBe("Taking advantage of the palisade: advantage");
 	});
 
 	it("names the stone wall once it has replaced the palisade", () => {
-		const wall = improvementQuestions(STEADING_MOVE.DEPLOY, "defenses", { has: built("palisade", "stoneWall") })
-			.find(q => q.name === "wall");
-		expect(wall.label).toMatch(/stone wall/);
+		const asks = improvementQuestions(STEADING_MOVE.DEPLOY, "defenses", { rules: built("palisade", "stoneWall") });
+		// The Stone Wall erases the Palisade, so only the one wall is asked about.
+		expect(names(asks)).toEqual(["strength", "advantage-stoneWall"]);
+		expect(asks[1].label).toMatch(/stone wall/);
 	});
 
 	it("asks nothing about a militia with no tactics trained, or improvements not built", () => {
-		expect(names(improvementQuestions(STEADING_MOVE.DEPLOY, "defenses", { has: built("wellTrainedMilitia") }))).toEqual(["strength"]);
+		expect(names(improvementQuestions(STEADING_MOVE.DEPLOY, "defenses", { rules: built("wellTrainedMilitia") }))).toEqual(["strength"]);
 		expect(improvementQuestions(STEADING_MOVE.MUSTER, "population")).toEqual([]);
 	});
 
 	it("asks about the watch on any +Defenses roll, and the herd on Pull Together and Requisition", () => {
-		expect(names(improvementQuestions(STEADING_MOVE.AUROCHS_HUNT, "defenses", { has: built("standingWatch") }))).toEqual(["watch"]);
-		expect(names(improvementQuestions(STEADING_MOVE.PULL_TOGETHER, "population", { has: built("herdOfHorses") }))).toEqual(["herd"]);
-		expect(names(improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", { has: built("herdOfHorses") }))).toEqual(["herdShare"]);
+		expect(names(improvementQuestions(STEADING_MOVE.AUROCHS_HUNT, "defenses", { rules: built("standingWatch") }))).toEqual(["watch"]);
+		expect(names(improvementQuestions(STEADING_MOVE.PULL_TOGETHER, "population", { rules: built("herdOfHorses") }))).toEqual(["herd"]);
+		expect(names(improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", { rules: built("herdOfHorses") }))).toEqual(["herdCount"]);
+	});
+
+	// Ruling: the herd question is a COUNT, capped at the grown horses, and the take uses it too.
+	it("asks Requisition how many horses come from the herd, capped at its grown horses", () => {
+		const ask = improvementQuestions(STEADING_MOVE.REQUISITION, "fortunes", {
+			rules: built("herdOfHorses"), herd: { grown: 9, total: 14 },
+		})[0];
+		expect(ask).toMatchObject({ name: "herdCount", type: "number", min: 0, max: 9, value: 0 });
+		expect(ask.label).toMatch(/of 14/);
 	});
 });
 
@@ -115,26 +127,26 @@ describe("the Ranger's Pathfinder", () => {
 describe("what the improvements do to the roll", () => {
 	it("gives a Township advantage to Muster, Pull Together and Trade & Barter, and nothing else", () => {
 		for (const move of [STEADING_MOVE.MUSTER, STEADING_MOVE.PULL_TOGETHER, STEADING_MOVE.TRADE_BARTER]) {
-			expect(rollAdjustments({ moveName: move, statKey: "x", has: built("township") }).adv, move).toEqual(["Township"]);
+			expect(rollAdjustments({ moveName: move, statKey: "x", rules: built("township") }).adv, move).toEqual(["Township"]);
 		}
-		expect(rollAdjustments({ moveName: STEADING_MOVE.DEPLOY, statKey: "defenses", has: built("township") }).adv).toEqual([]);
+		expect(rollAdjustments({ moveName: STEADING_MOVE.DEPLOY, statKey: "defenses", rules: built("township") }).adv).toEqual([]);
 	});
 
 	it("gives a Deploy advantage only when it takes advantage of the wall", () => {
-		const deploy = answers => rollAdjustments({ moveName: STEADING_MOVE.DEPLOY, statKey: "defenses", has: built("stoneWall"), answers });
-		expect(deploy({ wall: "yes" }).adv).toEqual(["Stone Wall"]);
+		const deploy = answers => rollAdjustments({ moveName: STEADING_MOVE.DEPLOY, statKey: "defenses", rules: built("stoneWall"), answers });
+		expect(deploy({ "advantage-stoneWall": "yes" }).adv).toEqual(["Stone Wall"]);
 		expect(deploy({}).adv).toEqual([]);
 	});
 
 	it("treats Defenses as 1 higher when the standing watch is involved", () => {
-		const adj = rollAdjustments({ moveName: STEADING_MOVE.DEPLOY, statKey: "defenses", has: built("standingWatch"), answers: { watch: "yes" } });
+		const adj = rollAdjustments({ moveName: STEADING_MOVE.DEPLOY, statKey: "defenses", rules: built("standingWatch"), answers: { watch: "yes" } });
 		expect(adj.statBonus).toBe(1);
 		expect(adj.notes).toContain("Standing watch: Defenses +1");
 	});
 
 	it("puts a Deploy in a position of strength by the table's say, or by a trained tactic", () => {
 		const deploy = answers => rollAdjustments({
-			moveName: STEADING_MOVE.DEPLOY, statKey: "defenses", has: built("wellTrainedMilitia"), tactics: TACTICS, answers,
+			moveName: STEADING_MOVE.DEPLOY, statKey: "defenses", rules: built("wellTrainedMilitia"), tactics: TACTICS, answers,
 		});
 		expect(deploy({}).strength).toBe(false);
 		expect(deploy({ strength: "yes" }).strength).toBe(true);
@@ -144,13 +156,35 @@ describe("what the improvements do to the roll", () => {
 	});
 
 	it("counts a Requisition of half the herd or less as a 7-9 on a 6-", () => {
-		const req = answers => rollAdjustments({ moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes", has: built("herdOfHorses"), answers });
+		const req = answers => rollAdjustments({ moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes", rules: built("herdOfHorses"), answers });
 		expect(req({ herdShare: true }).missAsPartial).toMatch(/half the herd/i);
 		expect(req({}).missAsPartial).toBe("");
+		const count = (n, total) => rollAdjustments({
+			moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes", rules: built("herdOfHorses"), answers: { herdCount: n }, herdTotal: total,
+		}).missAsPartial;
+		expect(count("6", 12)).toMatch(/half the herd/i);
+		expect(count("7", 12)).toBe("");
+		expect(count("0", 12)).toBe("");
+		expect(herdShareMet(1, 0)).toBe(false);
+	});
+
+	// Book I p. 509: Size. "Hamlet ... Muster, Pull Together, and Trade & Barter with
+	// disadvantage"; "Town ... with advantage"; "City ... with advantage".
+	it("reads Size on Muster, Pull Together and Trade & Barter, folding a Township into one source", () => {
+		const adj = (moveName, size, rules = built()) => rollAdjustments({ moveName, statKey: "x", rules, size });
+		expect(adj(STEADING_MOVE.MUSTER, "hamlet")).toMatchObject({ adv: [], dis: ["A hamlet"] });
+		expect(adj(STEADING_MOVE.TRADE_BARTER, "town").adv).toEqual(["A town"]);
+		expect(adj(STEADING_MOVE.PULL_TOGETHER, "city").adv).toEqual(["A city"]);
+		expect(adj(STEADING_MOVE.MUSTER, "village")).toMatchObject({ adv: [], dis: [] });
+		// The Township made it a town: one source, not two.
+		expect(adj(STEADING_MOVE.MUSTER, "town", built("township")).adv).toEqual(["Township"]);
+		// A Township shrunk back to a hamlet: the two cancel at the netting.
+		expect(adj(STEADING_MOVE.MUSTER, "hamlet", built("township"))).toMatchObject({ adv: ["Township"], dis: ["A hamlet"] });
+		expect(adj(STEADING_MOVE.DEPLOY, "hamlet").dis).toEqual([]);
 	});
 
 	it("collects Diminished, winter and a held advantage as sources", () => {
-		const muster = rollAdjustments({ moveName: STEADING_MOVE.MUSTER, statKey: "population", has: built("township"), diminished: true });
+		const muster = rollAdjustments({ moveName: STEADING_MOVE.MUSTER, statKey: "population", rules: built("township"), diminished: true });
 		expect(muster).toMatchObject({ adv: ["Township"], dis: ["Diminished"] });
 		expect(rollAdjustments({ moveName: STEADING_MOVE.TRADE_BARTER, statKey: "prosperity", winter: true }).dis).toEqual(["Winter"]);
 		expect(rollAdjustments({ moveName: "Persuade", statKey: "fortunes", held: "A sacrifice" }).adv).toEqual(["A sacrifice"]);

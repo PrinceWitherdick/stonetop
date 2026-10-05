@@ -59,3 +59,19 @@ describe("finishing onboarding exactly once", () => {
 		expect(d.close).toHaveBeenCalled();
 	});
 });
+
+// Back closes the walkthrough and reopens the picker. The button stays live while the window
+// fades out, and core's close() returns at once for a window already closing, so a double-click
+// opened two pickers sharing one DOM id.
+describe("stepping back to the picker exactly once", () => {
+	it("reopens the picker once on a double-click of Back", async () => {
+		const d = makeDialog();
+		d._onBack = vi.fn();
+		d.close = vi.fn(() => new Promise(resolve => setTimeout(resolve, 5)));
+
+		await Promise.all([d._goBack(), d._goBack()]);
+
+		expect(d._onBack).toHaveBeenCalledTimes(1);
+		expect(d._suppressOnClose).toBe(true);
+	});
+});

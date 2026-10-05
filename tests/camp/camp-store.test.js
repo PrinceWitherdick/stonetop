@@ -321,7 +321,12 @@ describe("settling the camp", () => {
 		expect((await settleCamp(camp)).ok).toBe(true);
 		expect(campOf(aeliana).plan.map(entry => [entry.actorId, planExtra(entry, CAMP_EXTRA.BREAK_BREAD)])).toEqual([["aeliana", 3], ["bram", 3]]);
 		expect(toMessage).toHaveBeenCalledTimes(2);
-		expect(toMessage.mock.calls.map(([data]) => data.flavor)).toEqual(["Break Bread (1d8 extra HP)", "Break Bread (1d8 extra HP)"]);
+		const flavors = toMessage.mock.calls.map(([data]) => data.flavor);
+		expect(flavors).toHaveLength(2);
+		for (const flavor of flavors) {
+			expect(flavor).toContain("stonetop-roll-card");
+			expect(flavor).toContain("Break Bread");
+		}
 		// Both dice in one request.
 		expect(ChatMessage.implementation.createDocuments).toHaveBeenCalledTimes(1);
 		expect(ChatMessage.implementation.createDocuments.mock.calls[0][0]).toHaveLength(2);

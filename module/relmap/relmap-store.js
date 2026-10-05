@@ -424,9 +424,39 @@ export function isSafeId(id) {
 	return typeof id === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(id);
 }
 
+/**
+ * THE TWO OUTLINES A GROUP CAN BE DRAWN AS. A key, never a measurement: the outline itself is worked
+ * out from where its members stand on every paint (`groupOutline` in relmap-geometry.js), so the
+ * only thing stored is which of the two the table chose.
+ */
+export const RELMAP_GROUP_SHAPES = Object.freeze(["box", "oval"]);
+export const RELMAP_GROUP_SHAPE_DEFAULT = "box";
+
+/** One stored group shape, read safely. Unknown and absent both read as a box. */
+export function readGroupShape(value) {
+	return RELMAP_GROUP_SHAPES.includes(value) ? value : RELMAP_GROUP_SHAPE_DEFAULT;
+}
+
+/**
+ * THE TWO STROKES A GROUP'S OUTLINE CAN BE DRAWN WITH: whole, or broken into dashes. Two and not the
+ * line's three (RELMAP_DASHES): a group is a region of paper and not a tie, so "the tie nobody is
+ * sure of" has no meaning for it, and dots round a box read as a ruled-off margin. The same KEYS as
+ * the line's, so a stroke means one word wherever it is stored.
+ *
+ * SOLID BY DEFAULT, which every group drawn before this existed reads as: they were all dashed, and
+ * the table asked for whole outlines unless somebody chose otherwise.
+ */
+export const RELMAP_GROUP_DASHES = Object.freeze(["solid", RELMAP_DASH_DASHED]);
+export const RELMAP_GROUP_DASH_DEFAULT = "solid";
+
+/** One stored group stroke, read safely. Unknown and absent both read as solid. */
+export function readGroupDash(value) {
+	return RELMAP_GROUP_DASHES.includes(value) ? value : RELMAP_GROUP_DASH_DEFAULT;
+}
+
 /** A map with nobody on it yet. */
 export function emptyGraph() {
-	return { version: RELMAP_VERSION, nodes: {}, edges: {} };
+	return { version: RELMAP_VERSION, nodes: {}, edges: {}, groups: {} };
 }
 
 const str = (v, max = 0) => {
@@ -498,6 +528,33 @@ export function normalizeGraph(raw) {
 			note: str(edge.note, RELMAP_NOTE_MAX),
 		};
 	}
+
+	// GROUPS: a name, a shape, a stroke, an ink, and WHO IS IN IT. Every field is emitted on every group, even an
+	// empty one, because the undo stack can only reverse a field it can read the old value of.
+	for (const [id, group] of Object.entries(raw.groups ?? {})) {
+		if (!isSafeId(id) || !group || typeof group !== "object") continue;
+		const members = {};
+		for (const [nodeId, on] of Object.entries(group.members ?? {})) {
+			// ⚠ ONLY PEOPLE WHO ARE STANDING ON THE BOARD. Taking somebody off the map deliberately
+			// leaves their membership keys where they are (`dropNodePatch` does not touch groups), so
+			// an undo that puts them back under the same id puts them back in their groups too, with
+			// no bookkeeping. This read is what keeps the stale key from drawing anything meanwhile.
+			if (on && isSafeId(nodeId) && graph.nodes[nodeId]) members[nodeId] = true;
+		}
+		// ⚠ AND A GROUP WITH NOBODY LEFT STANDING IS NOT ON THE BOARD AT ALL. Its last member taken off,
+		// it has no outline to draw, so nothing could select or rub it out, and its colour still counted
+		// as worn (`_makeGroup`) and as already on the map (`_inksInUse`). Skipped here, on the READ: the
+		// stored group stays, so the undo that puts its people back puts it back with them. An outline
+		// round nobody is nothing, which is also why taking the last people out rubs a group out.
+		if (!Object.keys(members).length) continue;
+		graph.groups[id] = {
+			name: str(group.name, RELMAP_LABEL_MAX),
+			shape: readGroupShape(group.shape),
+			dash: readGroupDash(group.dash),
+			ink: readInk(group.ink),
+			members,
+		};
+	}
 	return graph;
 }
 
@@ -555,6 +612,16 @@ const EDGE_GATES = Object.freeze({
 	seat: readSeat,
 	src: readSrc,
 	dir: v => (RELMAP_DIRS.includes(v) ? v : RELMAP_DIR_DEFAULT),
+});
+
+// ⚠ `members` IS NOT A FIELD THIS TABLE WILL WRITE. Membership goes one leaf per person through
+// `groupMembersPatch`, never as an object here: a whole `members` object written by one player
+// replaces the one another player wrote a moment before, and the person they added vanishes.
+const GROUP_GATES = Object.freeze({
+	name: v => str(v, RELMAP_LABEL_MAX),
+	shape: readGroupShape,
+	dash: readGroupDash,
+	ink: readInk,
 });
 
 /**
@@ -653,6 +720,59 @@ export function dropNodePatch(graph, id) {
 export function dropEdgePatch(id) {
 	if (!isSafeId(id)) return null;
 	return Object.fromEntries([deletionEntry(relmapPath("edges", id))]);
+}
+
+/** Rename, recolour or reshape one group. Never its members; see {@link groupMembersPatch}. */
+export function groupPatch(id, fields = {}) {
+	const clean = gated(GROUP_GATES, fields);
+	delete clean.members;
+	return leafPatch("groups", id, clean);
+}
+
+/**
+ * Put people into a group and take people out of it, ONE LEAF PER PERSON.
+ *
+ * `groups.<id>.members.<person>` written `true` to add and deleted to take out, so two players
+ * adding two different people to "The hunters" at the same moment both win. Somebody named in both
+ * lists is added: the later list of the two is the one a caller would have meant to lose.
+ */
+export function groupMembersPatch(id, add = [], remove = []) {
+	if (!isSafeId(id)) return null;
+	const patch = {};
+	for (const nodeId of remove ?? []) {
+		if (!isSafeId(nodeId)) continue;
+		const [key, value] = deletionEntry(relmapPath("groups", id, "members", nodeId));
+		patch[key] = value;
+	}
+	for (const nodeId of add ?? []) {
+		if (!isSafeId(nodeId)) continue;
+		// A deletion of this same person spelled the v13 way would sit under a different key; a write
+		// and a deletion of one leaf in one update is a race the server settles, so drop the deletion.
+		const [gone] = deletionEntry(relmapPath("groups", id, "members", nodeId));
+		delete patch[gone];
+		patch[relmapPath("groups", id, "members", nodeId)] = true;
+	}
+	return Object.keys(patch).length ? patch : null;
+}
+
+/**
+ * Draw a group round some people. Every field written, so the group is whole from its first write.
+ * Null when there is nobody to put in it: a group with no one inside has no outline to draw.
+ */
+export function addGroupPatch(id, {
+	name = "", shape = RELMAP_GROUP_SHAPE_DEFAULT, dash = RELMAP_GROUP_DASH_DEFAULT,
+	ink = RELMAP_INK_DEFAULT, members = [],
+} = {}) {
+	if (!isSafeId(id)) return null;
+	const into = groupMembersPatch(id, members);
+	if (!into) return null;
+	return { ...groupPatch(id, { name, shape, dash, ink }), ...into };
+}
+
+/** Rub out one group. The people in it stay exactly where they are. */
+export function dropGroupPatch(id) {
+	if (!isSafeId(id)) return null;
+	return Object.fromEntries([deletionEntry(relmapPath("groups", id))]);
 }
 
 /**

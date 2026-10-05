@@ -213,6 +213,9 @@ describe("Improvise: an un-learned mystery's own roll", () => {
 	it("lists the unmarked front tasks, and asks with a button per task and one that marks nothing", async () => {
 		expect(unmarkedFrontTasks(MINDGEM.front, { "mindgem:front:1": true, "mindgem:front:3": false }, "mindgem").map(t => t.index)).toEqual([0, 2, 3]);
 		expect(unmarkedFrontTasks(AZURE_HAND.front, {}, "azure-hand")).toEqual([]);
+		// A one-shot □ on a card whose lead names no tasks is not a step towards unlocking it.
+		const oneShot = { description: "<p>□ Once, you may call on it.</p>", unlock: { description: "When you learn its name, see reverse." } };
+		expect(unmarkedFrontTasks(oneShot, {}, "charm")).toEqual([]);
 		const ask = vi.fn(async () => null);
 		await askImproviseTask({ title: "Mindgem", tasks: unmarkedFrontTasks(MINDGEM.front, {}, "mindgem").slice(0, 2) }, { ask });
 		expect(ask.mock.calls[0][0].buttons.map(b => b.label)).toEqual([

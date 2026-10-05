@@ -83,7 +83,8 @@ describe("a follower's edit-mode fields", () => {
 			const borders = decls.match(/border(?:-bottom)?:[^;]*/g) || [];
 			for (const b of borders) {
 				if (!/\d/.test(b) || /none/.test(b)) continue;
-				expect(b, `${field} draws an off-palette edge`).toMatch(/rgba\(0,\s*0,\s*0,\s*0\.25\)/);
+				// Black at 25% on paper, read through the ink channel so the dark palette turns it over.
+				expect(b, `${field} draws an off-palette edge`).toMatch(/rgb\(var\(--st-ink-rgb\)\s*\/\s*0\.25\)/);
 			}
 		}
 	});

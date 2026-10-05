@@ -38,7 +38,7 @@ import { keepsFightingAtZero } from "../actors/character/unstoppable.js";
 import { answersFor, openZeroHpMove } from "../hooks/DeathsDoorPrompt.js";
 import { healTo } from "../camp/camp-rules.js";
 import { each } from "../fight/fight-state.js";
-import { canRewriteCard, postMoveNote } from "../utils/chat.js";
+import { canRewriteCard, postMoveNote, rolledTotalCard } from "../utils/chat.js";
 import { withCardLatch } from "../utils/card-latch.js";
 import { speakerActor } from "../utils/speaker-actor.js";
 import { askWithButtons } from "../utils/ask-with-buttons.js";
@@ -360,6 +360,6 @@ async function regainBattleJoyHp(actor) {
 	if (to > hp) await character.restoreHp(to, BATTLE_JOY);
 	await roll.toMessage({
 		speaker: ChatMessage.getSpeaker({ actor }),
-		flavor: escHtml(format(`${KEY}.regained`, { name: actor.name, amount: roll.total, hp: to })),
+		flavor:  rolledTotalCard(roll, BATTLE_JOY, localize(`${KEY}.regainedLabel`), format(`${KEY}.regainedLine`, { from: hp, to })),
 	});
 }

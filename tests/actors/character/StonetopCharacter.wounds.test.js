@@ -160,6 +160,45 @@ describe("StonetopCharacter wounds", () => {
 		expect(w.planProgress).toEqual({ done: 0, total: 0 });
 	});
 
+	it("addWound tags the write with the move that recorded it", async () => {
+		const { char, actor } = build();
+		await char.addWound({ text: "A brush with death" }, { moveName: "Death's Door" });
+		expect(actor.update).toHaveBeenLastCalledWith(expect.any(Object), { stonetopMove: "Death's Door" });
+		await char.addWound({ text: "Typed on the sheet" });
+		expect(actor.update).toHaveBeenLastCalledWith(expect.any(Object), {});
+	});
+
+	// A record stored with a blank id used to read with a NEW random id every time, so the id the
+	// sheet rendered was never the one Edit, Tend or Remove looked up, and each did nothing.
+	it("reads a blank-id record with the same id every time, so it can be edited and removed", async () => {
+		const { char, actor } = build();
+		actor.system.attributes.wounds = [
+			{ id: "", text: "Old gash", status: "problematic" },
+			{ id: "keep", text: "Bad knee", status: "permanent" },
+		];
+		const first  = (await wounds(char)).map(w => w.id);
+		const second = (await wounds(char)).map(w => w.id);
+		expect(first).toEqual(second);
+		expect(first[1]).toBe("keep");
+		expect(char.woundRecords().map(w => w.id)).toEqual(first);
+
+		await char.updateWound(first[0], { status: "stabilized" });
+		expect((await wounds(char)).find(w => w.text === "Old gash").status).toBe("stabilized");
+
+		await char.removeWound(first[0]);
+		expect((await wounds(char)).map(w => w.text)).toEqual(["Bad knee"]);
+	});
+
+	it("drops non-record entries instead of throwing, and splits a repeated id", async () => {
+		const { char, actor } = build();
+		actor.system.attributes.wounds = [null, "stray", { id: "dup", text: "A" }, { id: "dup", text: "B" }];
+		const list = await wounds(char);
+		expect(list.map(w => w.text)).toEqual(["A", "B"]);
+		expect(new Set(list.map(w => w.id)).size).toBe(2);
+		await char.removeWound(list[1].id);
+		expect((await wounds(char)).map(w => w.text)).toEqual(["A"]);
+	});
+
 	it("carries origin, mechanicalTag and reminderMove through a round-trip", async () => {
 		const { char } = build();
 		const id = await char.addWound({

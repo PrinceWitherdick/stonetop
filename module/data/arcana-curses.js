@@ -6,10 +6,12 @@
  * arcanum does — minors charge you as you go (mark a debility, lose 1d8 HP) rather than
  * ratcheting permanently. So this table is Major-only by nature, not by omission.
  *
- * The rulebook grades none of this, and the tracks are plainly not equal — Shield of the
- * Wisent Witch makes you tall and smelly; the Hungering Maw of Hlad takes 4 max HP, your
- * instinct, and eventually your hand. The tiers below are an editorial reading of the 17
- * tracks, applied by this rubric:
+ * The rulebook grades none of this, and the tracks are plainly not equal: the Mindgem's lands
+ * on the Servant, not on you; the Hungering Maw of Hlad takes 4 max HP, your instinct, and
+ * eventually your hand. The tiers below are an editorial reading of the 17 tracks, applied
+ * by this rubric. A rule that binds a roll (a capped Persuade, a disadvantage, a Make Camp
+ * roll that can cost your rest) is a mechanical burden, so grim at least; an instinct that is
+ * overridden only while you wear the thing (the Demonhide Cloak) is grim, not ruinous.
  *
  *   ruinous — permanently maims or rewrites the character: max HP or a permanent debility
  *             lost, instinct overridden, or a Death's Door 6- that ends them as a player
@@ -83,33 +85,33 @@ export const ARCANA_CURSES = {
 	},
 	"redwood-effigy": {
 		tier: "ruinous",
-		cost: "You can no longer Recover HP, and a 6- at Death's Door hands you the Revenant insert: then the GM plays your wraith",
+		cost: "You can no longer Recover HP, and a 6- at Death's Door hands you the Revenant insert until the effigy is destroyed (you become the GM's wraith) or buried in a Red Grove",
 	},
 	"norubas-ice-sphere": {
 		tier: "ruinous",
 		cost: "Permanently marks weakened, dulls your emotions to nothing, and a 6- at Death's Door makes you a Ghost tethered to the sphere",
 	},
-	"hectumel-codex": {
-		tier: "ruinous",
-		cost: "Remakes your body scale by scale into something that isn't human, and everything you perceive, Hec'tumel perceives too",
-	},
-	"ring-of-daagon": {
-		tier: "ruinous",
-		cost: "Only raw flesh feeds you, sinkholes open wherever you walk, and the ring's Cost becomes living, helpless sacrifices",
-	},
 	"blood-quenched-sword": {
 		tier: "ruinous",
-		cost: "Blood-rage that can't tell friend from bystander; you can't sleep without the Sword, and food stops feeding you",
+		cost: "Blood-rage that can't tell friend from bystander, your instinct becomes Paranoia, you can't sleep without the Sword, and food stops feeding you",
+	},
+	"staff-of-the-lidless-orb": {
+		tier: "ruinous",
+		cost: "Permanently marks miserable, replaces your instinct with Disgust, blinds you to beauty, and El'rash-Orra sets you a task: refuse it and the Orb goes dark",
 	},
 
-	// Grim — permanent, heavy, survivable.
-	"staff-of-the-lidless-orb": {
+	// Grim: permanent, heavy, survivable.
+	"hectumel-codex": {
 		tier: "grim",
-		cost: "One eye bulges, the other withers; you become incapable of seeing beauty, and El'rash-Orra sets you a task you can't refuse twice",
+		cost: "Remakes your body scale by scale into something that isn't human, healing arts and magic stop working on you, and everything you perceive, Hec'tumel perceives too",
+	},
+	"ring-of-daagon": {
+		tier: "grim",
+		cost: "Only raw flesh feeds you, sinkholes open wherever you walk, and the ring's Cost becomes living, helpless sacrifices",
 	},
 	"demonhide-cloak": {
 		tier: "grim",
-		cost: "Your instinct becomes Recklessness, the seams tear, and the demons sewn into it start talking back",
+		cost: "Wear it during a session and your instinct becomes Recklessness; the seams tear, and the demons sewn into it start talking back",
 	},
 	"azure-hand": {
 		tier: "grim",
@@ -132,19 +134,20 @@ export const ARCANA_CURSES = {
 		cost: "Lightning arcs off you at random, you can't hold your temper, and the storms you raise wreck your steading's Surplus for a season",
 	},
 
-	// Mild — cosmetic, social, or aimed elsewhere.
 	"red-scepter": {
-		tier: "mild",
-		cost: "Nine boxes of feverish skin, ember eyes and howling in your ears: mostly it just makes the Scepter harder and uglier to use",
+		tier: "grim",
+		cost: "Feverish skin, ember eyes and a howling in your ears; Persuading by anything but threats, pain or violence tops out at 7-9, and the Scepter demands crueller bloodletting",
 	},
 	"shield-of-the-wisent-witch": {
-		tier: "mild",
-		cost: "You grow huge, loud and musky, eat double rations, and predators decide you look delicious",
+		tier: "grim",
+		cost: "You grow huge, loud and musky, eat double rations, predators single you out, and a slight to you or your allies leaves you at disadvantage until you set it straight",
 	},
 	"twisted-spear": {
-		tier: "mild",
-		cost: "Barely touches you: it's the elder tree that sickens, and the evils bound beneath its roots that get loose",
+		tier: "grim",
+		cost: "Each session's first Make Camp is a +WIS roll that can cost you your rest, while the elder tree sickens and the evils bound beneath its roots get loose",
 	},
+
+	// Mild: cosmetic, social, or aimed elsewhere.
 	"mindgem": {
 		tier: "mild",
 		cost: "Lands on the Servant, not on you: it grows proud, then aggressive, then remembers its purpose and walks away",

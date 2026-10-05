@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	CURRENT_SEASON_KEY,
 	CURRENT_YEAR_KEY,
@@ -7,7 +7,26 @@ import {
 	readCurrentYear,
 	recordCurrentSeason,
 	seasonRank,
+	pickedSeasonYear,
 } from "../../module/seasons/current-season.js";
+
+// A recorded winter pushes the picker to Y+1 while the stamp stays {winter, Y}. Picking Winter
+// again from there is going back to finish it, not jumping to next year's.
+describe("pickedSeasonYear", () => {
+	const winter1 = { season: "winter", year: 1 };
+
+	it("reads Winter picked one year past a stamped winter as that winter", () => {
+		expect(pickedSeasonYear(winter1, "winter", 2)).toBe(1);
+	});
+
+	it("leaves every other pick alone", () => {
+		expect(pickedSeasonYear(winter1, "spring", 2)).toBe(2);
+		expect(pickedSeasonYear(winter1, "winter", 1)).toBe(1);
+		expect(pickedSeasonYear(winter1, "winter", 3)).toBe(3);
+		expect(pickedSeasonYear({ season: "autumn", year: 2 }, "winter", 2)).toBe(2);
+		expect(pickedSeasonYear(null, "winter", 2)).toBe(2);
+	});
+});
 
 // A minimal stand-in for the steading actor: the two flags the clock lives in, through the
 // same getFlag/update pair production uses. `updates` is what pins the ONE-write rule: the
@@ -80,6 +99,22 @@ describe("recordCurrentSeason", () => {
 		const actor = fakeSteading();
 		await recordCurrentSeason(actor, "harvest", 2);
 		expect(readCurrentSeason(actor)).toBeNull();
+	});
+
+	// A turned season makes the posted weather stale, so the map is put back in step at once
+	// rather than at the next pause or settings change. Only when the clock actually moved.
+	it("refreshes the canvas weather when the clock moves, and only then", async () => {
+		const refreshWeatherFx = vi.fn();
+		vi.stubGlobal("game", { stonetop: { refreshWeatherFx } });
+		try {
+			const actor = fakeSteading({ season: "winter", year: 2 });
+			await recordCurrentSeason(actor, "summer", 1, { advanceOnly: true });
+			expect(refreshWeatherFx).not.toHaveBeenCalled();
+			await recordCurrentSeason(actor, "spring", 3);
+			expect(refreshWeatherFx).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 
 	it("survives no actor at all", async () => {

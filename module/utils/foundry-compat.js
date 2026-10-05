@@ -179,6 +179,40 @@ export function deletionEntry(keyPath) {
 }
 
 /**
+ * Build the `document.update()` entry that REPLACES `keyPath` with `value` outright instead of
+ * merging into what is stored there: the way to change a stored value's SHAPE (a list becoming an
+ * object keyed by id) without the server's merge folding one into the other. v14 takes a
+ * `ForcedReplacement` and deprecates the `==` key prefix; v13 knows only the prefix. Gated on the
+ * running generation, as `deletionEntry` is above. Returns `[updateKey, value]`.
+ *
+ * @param {string} keyPath  Dotted path to the value to replace (e.g. "system.entries").
+ * @param {*} value
+ * @returns {[string, *]}
+ */
+export function replacementEntry(keyPath, value) {
+	const ForcedReplacement = foundry.data?.operators?.ForcedReplacement;
+	if (ForcedReplacement?.create && coreGeneration() >= 14) return [keyPath, ForcedReplacement.create(value)];
+	const i = keyPath.lastIndexOf(".");
+	return [`${keyPath.slice(0, i + 1)}==${keyPath.slice(i + 1)}`, value];
+}
+
+/** A v14 ForcedDeletion operator (`deletionEntry`'s v14 spelling), which is never a value to show. */
+export function isForcedDeletion(value) {
+	const ForcedDeletion = globalThis.foundry?.data?.operators?.ForcedDeletion;
+	return !!ForcedDeletion && value instanceof ForcedDeletion;
+}
+
+/**
+ * When something happened, on the server's clock. Every client stamps its own times, and two
+ * machines' clocks can sit minutes apart. `serverTime` is absent outside a running game (tests),
+ * hence the fallback.
+ */
+export function serverNow() {
+	const server = Number(globalThis.game?.time?.serverTime);
+	return Number.isFinite(server) && server > 0 ? server : Date.now();
+}
+
+/**
  * READ ONE BACK: given an update entry, the plain path it deletes, or null when it is an ordinary
  * write of a value.
  *
@@ -196,8 +230,7 @@ export function deletionEntry(keyPath) {
  */
 export function deletionTarget(keyPath, value) {
 	if (typeof keyPath !== "string" || !keyPath) return null;
-	const ForcedDeletion = foundry.data?.operators?.ForcedDeletion;
-	if (ForcedDeletion && value instanceof ForcedDeletion) return keyPath;
+	if (isForcedDeletion(value)) return keyPath;
 	const i = keyPath.lastIndexOf(".");
 	const leaf = keyPath.slice(i + 1);
 	// ⚠ THE VALUE IS PART OF THE QUESTION. A person on this board could be named `-=x`; only the

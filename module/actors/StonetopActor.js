@@ -229,17 +229,29 @@ export function createStonetopActorClass(BaseActor) {
 			const result = await super._preUpdate(changed, options, user);
 			this._syncPrototypeTokenImage(changed);
 			if (!options?.stonetopLedger) {
+				// KEYED BY ACTOR ID. Core hands ONE options object to every document of a batched
+				// `Actor.updateDocuments`, to each `_preUpdate` and again to each `_onUpdate`, so a
+				// plain field held only the last actor's entries, and every actor in the batch
+				// appended those (see _ledgerOptionFor).
+				let entries = null, stats = null;
 				if (this.type === "character") {
-					options.stonetopLedgerEntries = this._tagLedgerMove(await CharacterLedger.entriesForActorUpdate(this, changed), options);
-					options.stonetopStatChanges = this._collectStatChanges(changed, STAT_CHAT_LABELS);
+					entries = this._tagLedgerMove(await CharacterLedger.entriesForActorUpdate(this, changed), options);
+					stats = this._collectStatChanges(changed, STAT_CHAT_LABELS);
 				} else if (this.type === "stonetop" || this.system?.customType === "stonetop") {
-					options.stonetopLedgerEntries = this._tagLedgerMove(SteadingLedger.entriesForActorUpdate(this, changed), options);
-					options.stonetopStatChanges = this._collectStatChanges(changed, STEADING_STAT_CHAT_LABELS);
+					entries = this._tagLedgerMove(SteadingLedger.entriesForActorUpdate(this, changed), options);
+					stats = this._collectStatChanges(changed, STEADING_STAT_CHAT_LABELS);
 				} else if (this.type === "npc") {
-					options.stonetopLedgerEntries = this._tagLedgerMove(NpcLedger.entriesForActorUpdate(this, changed), options);
+					entries = this._tagLedgerMove(NpcLedger.entriesForActorUpdate(this, changed), options);
 				}
+				if (entries) (options.stonetopLedgerEntries ??= {})[this.id] = entries;
+				if (stats) (options.stonetopStatChanges ??= {})[this.id] = stats;
 			}
 			return result;
+		}
+
+		/** This actor's share of a per-actor option written by _preUpdate. */
+		_ledgerOptionFor(options, key) {
+			return options?.[key]?.[this.id] ?? [];
 		}
 
 		/**
@@ -288,18 +300,19 @@ export function createStonetopActorClass(BaseActor) {
 			// back. Running on other clients duplicates the ledger entry and throws a
 			// "lacks permission to update Actor" error for anyone who doesn't own it.
 			if (userId !== globalThis.game?.user?.id) return;
+			const entries = this._ledgerOptionFor(options, "stonetopLedgerEntries");
 			if (this.type === "character") {
-				await CharacterLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
+				await CharacterLedger.append(this, entries, { userId });
 			} else if (this.type === "stonetop" || this.system?.customType === "stonetop") {
-				await SteadingLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
+				await SteadingLedger.append(this, entries, { userId });
 			} else if (this.type === "npc") {
 				// NPCs have no watched stats to echo to chat, so append and stop here.
-				await NpcLedger.append(this, options.stonetopLedgerEntries ?? [], { userId });
+				await NpcLedger.append(this, entries, { userId });
 				return;
 			} else {
 				return;
 			}
-			postStatChangesToChat(this, options.stonetopStatChanges ?? []);
+			postStatChangesToChat(this, this._ledgerOptionFor(options, "stonetopStatChanges"));
 		}
 
 		async _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
@@ -315,14 +328,39 @@ export function createStonetopActorClass(BaseActor) {
 			// to its NPC. Scoped to the LEDGER alone: the playbook init below is the write itself
 			// and must run either way.
 			const silent = !!options?.stonetopLedger;
+			// Named for the move that made them, as an actor update's entries are (_tagLedgerMove).
+			const tag = (entries) => this._tagLedgerMove(entries, options);
 			if (this.typedActor?.type === "character" && collection === "items") {
 				await Promise.all([
-					silent ? null : CharacterLedger.append(this, CharacterLedger.entriesForCreatedItems(documents), { userId }),
+					silent ? null : CharacterLedger.append(this, tag(CharacterLedger.entriesForCreatedItems(documents)), { userId }),
 					this.typedActor._onCreateDescendantDocuments(documents),
 				]);
 			} else if (this.type === "npc" && collection === "items" && !silent) {
-				await NpcLedger.append(this, NpcLedger.entriesForCreatedItems(documents), { userId });
+				await NpcLedger.append(this, tag(NpcLedger.entriesForCreatedItems(documents)), { userId });
 			}
+		}
+
+		/**
+		 * Diff an owned item's edit BEFORE it lands, while the item still holds its old name and
+		 * text: by _onUpdateDescendantDocuments the old values are gone. Character items only, and
+		 * only on the author's client, which is the one that writes the ledger.
+		 */
+		_preUpdateDescendantDocuments(parent, collection, changes, options, userId) {
+			super._preUpdateDescendantDocuments?.(parent, collection, changes, options, userId);
+			if (userId !== globalThis.game?.user?.id || options?.stonetopLedger) return;
+			if (parent !== this || collection !== "items" || this.type !== "character") return;
+			const updates = (changes ?? []).map(change => ({ item: this.items?.get?.(change?._id), change }));
+			const entries = this._tagLedgerMove(CharacterLedger.entriesForUpdatedItems(updates), options);
+			if (entries.length) (options.stonetopItemLedger ??= {})[this.id] = entries;
+		}
+
+		async _onUpdateDescendantDocuments(parent, collection, documents, changes, options, userId) {
+			await super._onUpdateDescendantDocuments?.(parent, collection, documents, changes, options, userId);
+			if (userId !== globalThis.game?.user?.id || options?.stonetopLedger) return;
+			const entries = this._ledgerOptionFor(options, "stonetopItemLedger");
+			if (!entries.length) return;
+			delete options.stonetopItemLedger[this.id];
+			await CharacterLedger.append(this, entries, { userId });
 		}
 
 		async _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
@@ -334,9 +372,9 @@ export function createStonetopActorClass(BaseActor) {
 			// A plain return here, since appending is all this hook does.
 			if (options?.stonetopLedger) return;
 			if (this.type === "character" && collection === "items") {
-				await CharacterLedger.append(this, CharacterLedger.entriesForDeletedItems(documents), { userId });
+				await CharacterLedger.append(this, this._tagLedgerMove(CharacterLedger.entriesForDeletedItems(documents), options), { userId });
 			} else if (this.type === "npc" && collection === "items") {
-				await NpcLedger.append(this, NpcLedger.entriesForDeletedItems(documents), { userId });
+				await NpcLedger.append(this, this._tagLedgerMove(NpcLedger.entriesForDeletedItems(documents), options), { userId });
 			}
 		}
 	};

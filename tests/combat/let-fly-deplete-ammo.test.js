@@ -112,6 +112,28 @@ describe("depleteAmmoAndPost", () => {
 		expect(await depleteAmmoAndPost(makeCard(), pc, { weapon: crossbow }, null)).toBeNull();
 		expect(pc.resources.crossbow).toBe(0);
 	});
+
+	// The ledger names the move that spent the ammo, whichever store the weapon keeps it in.
+	it("names the attack's move on an inventory-track write", async () => {
+		const pc = archer(0);
+		const seen = [];
+		const update = pc.update;
+		pc.update = async (data, options) => { seen.push(options); return update(data); };
+		await depleteAmmoAndPost(makeCard(), pc, { weapon: crossbow, move: "Let Fly" }, "0");
+		expect(seen).toEqual([{ stonetopMove: "Let Fly" }]);
+	});
+
+	it("names the attack's move on a gear-choice write", async () => {
+		const calls = [];
+		const pc = archer(0);
+		pc.typedActor = {
+			subChoiceUses: () => 0,
+			setSubChoiceUses: async (...args) => { calls.push(args); },
+		};
+		const bow = { slug: "weapons-of-war:bow", name: "Bow", ammo: true, ammoStore: "possessions", ammoMax: 2, ammoLabels: null };
+		await depleteAmmoAndPost(makeCard(), pc, { weapon: bow, move: "Let Fly" }, "0");
+		expect(calls).toEqual([["weapons-of-war", "bow", 1, { stonetopMove: "Let Fly" }]]);
+	});
 });
 
 describe("the card's deplete row", () => {
@@ -139,6 +161,10 @@ describe("the card's deplete row", () => {
 
 	it("reads a bullet by its label, so the button under it cannot change what it matches", () => {
 		expect(body("pickedOptionText")).toContain('querySelector("label")');
+	});
+
+	it("names Blot Out the Sun on the arrows it spends", () => {
+		expect(body("askBlotOutTheSun")).toContain("advanceWeaponAmmo(archer, bow, BLOT_OUT_THE_SUN)");
 	});
 });
 

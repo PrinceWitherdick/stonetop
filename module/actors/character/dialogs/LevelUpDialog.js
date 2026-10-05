@@ -161,6 +161,9 @@ export class LevelUpDialog extends StonetopDialog {
 			compendiumId:  m.compendiumId,
 			name:          m.name,
 			description:   m.description,
+			// The move's stored tiers, for the moves whose description states no outcome (Borrow
+			// Power, Veil): without them the card shows no ladder at all (utils/move-tiers.js).
+			moveResults:   m.moveResults ?? null,
 			requiresLabel: m.requiresLabel,
 			groupsAttr:    moveGroupKeys(playbookName, m.name).join(" "),
 			selected:      m.compendiumId === this._selectedMoveId,
@@ -170,6 +173,7 @@ export class LevelUpDialog extends StonetopDialog {
 			compendiumId:  m.compendiumId,
 			name:          m.name,
 			description:   m.description,
+			moveResults:   m.moveResults ?? null,
 			requiresLabel: m.requiresLabel,
 			groupsAttr:    moveGroupKeys(playbookName, m.name).join(" "),
 		}));
@@ -191,6 +195,7 @@ export class LevelUpDialog extends StonetopDialog {
 			compendiumId:  m.compendiumId,
 			name:          m.name,
 			description:   m.description,
+			moveResults:   m.moveResults ?? null,
 			playbook:      m.playbook,
 			requiresLabel: m.requiresLabel ?? null,
 			// "Costs Stock; you have no sacred pouch", or null. Display only (see
@@ -656,11 +661,12 @@ export class LevelUpDialog extends StonetopDialog {
 		// slug left over that must not be learned.
 		const invocationSlug = this._stepActive("invocation") ? this._selectedInvocationSlug : null;
 		// `fromLevel` pins the level these choices were built for, so a stale window (the same
-		// level-up already applied elsewhere, or XP spent meanwhile) writes nothing.
+		// level-up already applied elsewhere, or XP spent meanwhile) writes nothing. `moveName`
+		// rides along to the timeline's "Reached level N" row ("Learned Seasoned Warrior.").
 		const result = await this._character.applyLevelUp(
 			this._selectedMoveId, invocationSlug,
 			Object.keys(choices).length ? choices : null,
-			{ fromLevel: this._data.level },
+			{ fromLevel: this._data.level, moveName: entry?.name ?? "" },
 		);
 		// Closed BEFORE the sheet hears back: when there's XP for another level, the sheet
 		// opens the next level-up, and a window still closing under this id would be found by

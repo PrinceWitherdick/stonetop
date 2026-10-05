@@ -9,9 +9,10 @@
  *  • blessed-marks.js — the Blessed's five marking moves ("so long as the mark remains")
  *
  * Each stores an array of rows on one actor flag, each row naming a person by uuid where there is
- * a document and by name alone where there is not, each row dismissible on its own. The only
- * differences are the id prefix and what extra fields a row carries — so those are the only two
- * things `createRoster` takes.
+ * a document and by name alone where there is not, each row dismissible on its own. The
+ * differences are the id prefix, what extra fields a row carries, and two identity rules (whether
+ * the same person may be listed twice, and whether a row laid on a token names only that token),
+ * so those are what `createRoster` takes.
  *
  * ⚠ EVERY caller writes the WHOLE array back. Foundry's update merge treats an array as an atomic
  * value, so a dotted `oaths.2.note` does not patch element 2: it expands to `{ oaths: { 2: … } }`
@@ -67,6 +68,21 @@ export function actorMatchKeys(actor) {
 	if (id) keys.add(id);
 	keys.delete("");
 	return keys;
+}
+
+/**
+ * The TOKEN a uuid was reached through, as a match key, or "" for a uuid with no token in it.
+ *
+ * `Scene.s.Token.t.Actor.a` (an unlinked token's own actor) and `Scene.s.Token.t` (the token
+ * itself, as a roll's target names it) give the same `token:Scene.s.Token.t`. A roster built with
+ * `tokenScoped` keys a row laid on such a uuid by this rather than by the trailing actor id: the
+ * user's ruling for Condemn and Binding Arbitration is that a brand or an oath laid on ONE bandit
+ * token is on that bandit alone, not on every token of the same base actor. A row laid from the
+ * sidebar has no token in its uuid and still folds onto the actor and all its tokens.
+ */
+export function tokenKey(uuid) {
+	const m = /^(.*?\.Token\.[^.]+)(?:\.Actor\.[^.]+)?$/.exec(String(uuid ?? "").trim());
+	return m ? `token:${m[1]}` : "";
 }
 
 /**
@@ -126,16 +142,49 @@ export function findNamedActor(name, actors) {
  *                              meaningful on a Shared Souls row, and reads `kind` to know.
  * @param {function(object): string} [opts.scope]
  *                              what makes two rows about the same person DIFFERENT rows. Empty by
- *                              default: one brand per person, one oath per person. The Blessed
+ *                              default: one brand per person. The Blessed
  *                              scopes by kind, because the same woman can wear Barkskin and a
  *                              charm at once and only Amulets & Talismans says otherwise ("one can
  *                              benefit from only 1 charm at a time"). Affects `keyOf` — and so the
  *                              duplicate refusal in `add` — and nothing else: `buildIndex` stays
  *                              scope-blind, because "is this person marked at all" is the question
  *                              a tag on their sheet asks.
+ * @param {boolean} [opts.dedupe]
+ *                              whether `add` refuses a second row about the same person at all.
+ *                              Off for Binding Arbitration, where every oath witnessed is its own
+ *                              row (the user's ruling): one person can swear several and break one.
+ * @param {boolean} [opts.tokenScoped]
+ *                              whether a row laid on an unlinked token's uuid names THAT token
+ *                              only (see `tokenKey`). On for Condemn and the oaths; off for the
+ *                              Blessed, whose marks keep folding onto the base actor.
  */
-export function createRoster({ prefix, fields = {}, scope = () => "" }) {
+export function createRoster({ prefix, fields = {}, scope = () => "", dedupe = true, tokenScoped = false }) {
 	const extraKeys = Object.keys(fields);
+
+	/**
+	 * The document a row names, as a match key: its token's key on a token-scoped roster when the
+	 * row was laid through a token, otherwise the trailing actor id. "" for a name-only row.
+	 */
+	function docKeyOf(row) {
+		const uuid = String(row?.uuid ?? "").trim();
+		if (!uuid) return "";
+		return (tokenScoped && tokenKey(uuid)) || trailingActorId(uuid);
+	}
+
+	/** Every key a row naming this actor could carry: the actor's own, and its token's if scoped. */
+	function targetKeys(actor) {
+		const keys = actorMatchKeys(actor);
+		if (tokenScoped) {
+			const token = tokenKey(actor?.uuid);
+			if (token) keys.add(token);
+		}
+		return keys;
+	}
+
+	/** The scope a row is compared within (see `opts.scope`). */
+	function scopeOf(entry) {
+		return String(scope(entry ?? {}) ?? "");
+	}
 
 	/**
 	 * One stored row, normalised.
@@ -176,16 +225,19 @@ export function createRoster({ prefix, fields = {}, scope = () => "" }) {
 	/**
 	 * The identity two rows are compared on, so the same person cannot be listed twice.
 	 *
-	 * An actor-backed row is its uuid; a name-only row is its case-folded name. The two never
-	 * collide, because the name key is prefixed — otherwise a faction literally called after an
-	 * Actor uuid would be a very silly bug to chase.
+	 * An actor-backed row is the document it names, folded exactly as the tags and the suggestions
+	 * fold it (`docKeyOf`), so `Actor.x` and `Scene.s.Token.t.Actor.x` are one person on a roster
+	 * that folds tokens, and two on one that scopes them. A name-only row is its case-folded name.
+	 * The two never collide, because the name key is prefixed; otherwise a faction literally
+	 * called after an actor id would be a very silly bug to chase.
 	 *
 	 * `scope` rides in front of both, so a roster that keeps several kinds of row about one person
 	 * compares them within their kind. The separator is a pipe, which no kind key contains.
 	 */
 	function keyOf(entry) {
-		const base = entry?.uuid ? `uuid:${entry.uuid}` : `name:${normalizeName(entry?.name)}`;
-		const within = String(scope(entry ?? {}) ?? "");
+		const doc = docKeyOf(entry);
+		const base = doc ? `uuid:${doc}` : `name:${normalizeName(entry?.name)}`;
+		const within = scopeOf(entry);
 		return within ? `${within}|${base}` : base;
 	}
 
@@ -204,6 +256,14 @@ export function createRoster({ prefix, fields = {}, scope = () => "" }) {
 	 * The length alone isn't a free slot, because readList numbers by the RAW stored index and then
 	 * DROPS nameless rows: a stored `[{name:""}, {name:"Gethin"}]` leaves one entry, `<prefix>-1`,
 	 * at length 1. So the taken ids are asked directly rather than assumed from the count.
+	 *
+	 * A NAME-ONLY ROW AND A LINKED ONE SPELLING THE SAME NAME ARE ONE PERSON. Typing "Brennan" when
+	 * nobody had made him an Actor stores a name; once the GM makes one, typing him again resolves
+	 * to the Actor. That second row is not refused but folded in: the name-only row (same scope,
+	 * same spelling) takes the link, and the result reports it as `changed` (`added` stays null),
+	 * so the write still happens and the person is on the roster once, now tagging their sheet. The
+	 * other way round, a name-only row spelling somebody already listed is refused. None of this
+	 * applies where `dedupe` is off: every row added there is its own.
 	 */
 	function add(list, entry, makeId = () => "") {
 		const entries = readList(list);
@@ -212,8 +272,21 @@ export function createRoster({ prefix, fields = {}, scope = () => "" }) {
 		while (taken.has(`${prefix}-${slot}`)) slot++;
 		const next = readEntry({ ...entry, id: entry?.id || makeId() }, slot);
 		if (!next.name) return { entries, added: null };
+		if (!dedupe) return { entries: [...entries, next], added: next };
 		const key = keyOf(next);
 		if (entries.some(e => keyOf(e) === key)) return { entries, added: null };
+		const within = scopeOf(next);
+		const name = normalizeName(next.name);
+		const spelt = e => scopeOf(e) === within && normalizeName(e.name) === name;
+		if (!next.uuid) {
+			if (entries.some(spelt)) return { entries, added: null };
+		} else {
+			const at = entries.findIndex(e => !e.uuid && spelt(e));
+			if (at >= 0) {
+				const linked = readEntry({ ...entries[at], name: next.name, uuid: next.uuid }, at);
+				return { entries: entries.map((e, i) => (i === at ? linked : e)), added: null, changed: linked };
+			}
+		}
 		return { entries: [...entries, next], added: next };
 	}
 
@@ -263,20 +336,37 @@ export function createRoster({ prefix, fields = {}, scope = () => "" }) {
 	function buildIndex(list) {
 		const ids = new Set();
 		const names = new Set();
+		// Names of the rows that carry NO document, for `isHeldOnIndex`: only those may be matched
+		// by spelling when a mechanical state is at stake.
+		const bareNames = new Set();
 		for (const row of readList(list)) {
-			if (row.uuid) ids.add(trailingActorId(row.uuid));
+			const doc = docKeyOf(row);
+			if (doc) ids.add(doc);
 			const name = normalizeName(row.name);
 			if (name) names.add(name);
+			if (name && !doc) bareNames.add(name);
 		}
-		return { ids, names };
+		return { ids, names, bareNames };
 	}
 
 	/** Is this actor on a prepared `buildIndex`? See `isOn` for why the name counts too. */
 	function isOnIndex(index, actor) {
 		const name = normalizeName(actor?.name);
 		if (name && index.names.has(name)) return true;
-		for (const key of actorMatchKeys(actor)) if (index.ids.has(key)) return true;
+		for (const key of targetKeys(actor)) if (index.ids.has(key)) return true;
 		return false;
+	}
+
+	/**
+	 * Does a row on a prepared `buildIndex` name this actor, for a MECHANICAL purpose (an oath's
+	 * advantage)? Stricter than `isOnIndex`: a row linked to a document names that document and
+	 * nobody else, so a second actor who merely shares its spelling is not on it. Only a name-only
+	 * row, which names nobody in particular, is matched by name.
+	 */
+	function isHeldOnIndex(index, actor) {
+		for (const key of targetKeys(actor)) if (index.ids.has(key)) return true;
+		const name = normalizeName(actor?.name);
+		return !!name && !!index.bareNames?.has(name);
 	}
 
 	/**
@@ -310,16 +400,16 @@ export function createRoster({ prefix, fields = {}, scope = () => "" }) {
 	 * stored list.
 	 */
 	function holdersOf(actor, holders, readFlag) {
-		const target = actorMatchKeys(actor);
+		const target = targetKeys(actor);
 		if (!target.size) return [];
 		const found = [];
 		for (const holder of holders ?? []) {
 			if (!holder || holder === actor) continue;
 			const rows = readList(readFlag?.(holder));
-			if (rows.some(r => r.uuid && target.has(trailingActorId(r.uuid)))) found.push(holder);
+			if (rows.some(r => r.uuid && target.has(docKeyOf(r)))) found.push(holder);
 		}
 		return found;
 	}
 
-	return { readEntry, readList, keyOf, add, remove, patch, buildIndex, isOnIndex, isOn, holdersOf };
+	return { readEntry, readList, keyOf, add, remove, patch, buildIndex, isOnIndex, isHeldOnIndex, isOn, holdersOf };
 }

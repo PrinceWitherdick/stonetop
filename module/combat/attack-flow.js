@@ -41,7 +41,7 @@ import {rollTargets} from "../fight/fight-targets.js";
 // used are let go once it is (fight/fight-shots.js).
 import {recordShots, releaseSpentTargets, shotOnRecordAt} from "../fight/fight-shots.js";
 // A lone attacker's blow on a token standing for a group hits one member of it (fight/group-hits.js).
-import {isLoneBlowOnGroup, applyMemberHit, applyRosterHit, moveRosterHit, rosterGroupFor} from "../fight/group-hits.js";
+import {isLoneBlowOnGroup, applyMemberHit, applyRosterHit, killsFromHit, moveRosterHit, rosterGroupFor} from "../fight/group-hits.js";
 import {halveDamage, spentOn} from "../fight/defend-spend.js";
 // Playbook moves the fight turns on: Undaunted's +1 armor and +1d6, Big Damn Hero's locked eyes
 // (fight/hero-moves.js).
@@ -51,7 +51,7 @@ import {asteriskMoveUsed} from "../actors/character/WouldBeHeroAsterisk.js";
 import {ownsLearnedMoveNamed, ownsLearnedBookMoveNamed, ownedLearnedBookMove, isPlayerAuthoredMove} from "../actors/character/owns-move.js";
 import {armorGateWords, barkskinMarks, wearsBarkskin, withBarkskinBase} from "../actors/character/move-armor.js";
 import {keepsFightingAtZero, markUnstoppable} from "../actors/character/unstoppable.js";
-import {actorPastDeathKind} from "../actors/character/deaths-door-actor.js";
+import {actorPastDeathKind, isOutOfPlay} from "../actors/character/deaths-door-actor.js";
 import {format, localize} from "../utils/i18n.js";
 import {foldModes} from "../utils/roll-mode.js";
 import {bringDialogToFront} from "../utils/front-on-open.js";
@@ -64,6 +64,7 @@ import {offerBattleJoyOnDamage} from "./battle-joy-offer.js";
 import {revealOnAttack} from "../actors/character/fight-states.js";
 import {playBlowFx, playMissFx, playHitReactions} from "./attack-fx.js";
 import {hitReaction} from "./attack-fx-table.js";
+import {fightsAsGroup} from "../fight/fight-sides.js";
 
 const SCOPE = STONETOP_SCOPE;
 
@@ -279,10 +280,14 @@ export async function letFlyAmmoStatuses(actor) {
 
 // Mark the next ammo status. The slug is a dot-free inventory slug, so a sub-key write is
 // safe and leaves other weapons' resources untouched. Returns the new status.
-async function advanceWeaponAmmo(actor, weapon) {
+//
+// `moveName` is the move that spent the ammo (Let Fly, Blot Out the Sun), and every store's write
+// carries it, so the ledger says "via <move>" whichever track the weapon keeps its ammo on.
+async function advanceWeaponAmmo(actor, weapon, moveName = null) {
 	const track = ammoTrack(weapon);
 	const slug = weapon?.slug;
 	const next = Math.min(weaponAmmoIndex(actor, weapon) + 1, track.max);
+	const ledger = moveName ? { stonetopMove: moveName } : {};
 	if (weapon?.ammoStore === "move") {
 		// The move's own track, through its store's writer (a sub-key, so no sibling move's track is
 		// touched), attributed to the move for the ledger.
@@ -292,9 +297,9 @@ async function advanceWeaponAmmo(actor, weapon) {
 		// gear-choice key contains a colon, and a whole-object write keeps it out of Foundry's
 		// path expansion entirely (the same reason setChoiceUses is written that way).
 		const [possessionSlug, choiceSlug] = String(slug).split(":");
-		await actor.typedActor?.setSubChoiceUses?.(possessionSlug, choiceSlug, next);
+		await actor.typedActor?.setSubChoiceUses?.(possessionSlug, choiceSlug, next, moveName ? ledger : undefined);
 	} else {
-		await actor.update({ [`flags.${SCOPE}.inventory.resources.${slug}`]: next });
+		await actor.update({ [`flags.${SCOPE}.inventory.resources.${slug}`]: next }, ledger);
 	}
 	return { index: next, label: ammoStatusLabel(next, track), allOut: next >= track.max };
 }
@@ -901,7 +906,7 @@ async function askBlotOutTheSun(actor, move, weapon) {
 	// targets; the arrows come off once those are settled (see the caller), because a question backed out
 	// of is a shot never loosed.
 	const spend = async (archer, bow) => {
-		const spent = await advanceWeaponAmmo(archer, bow);
+		const spent = await advanceWeaponAmmo(archer, bow, BLOT_OUT_THE_SUN);
 		await ChatMessage.create({
 			content: stonetopChatCard(BLOT_OUT_THE_SUN, `<div class="card-content"><p>${escHtml(format("stonetop.fight.heroMoves.blotOut.spent", {
 				name: archer.name, weapon: bow?.name ?? "", status: spent.label,
@@ -1952,11 +1957,12 @@ function conditionalArmorOf(actor, barkskin) {
 
 /**
  * A Revenant, whose Undying reads "When you take damage from cutting, stabbing, or crushing, take half
- * damage (after armor, rounded up)." A Revenant who has passed through the Last Door takes no damage worth
- * halving, and reads "dead" here.
+ * damage (after armor, rounded up)." A Revenant who has left play (through the Last Door, or a monster
+ * of the GM's after the Final Consequence) is out of every party list whatever insert they wear
+ * (deaths-door-actor.js#isOutOfPlay), and is no player's Undying to halve by.
  */
 function undyingSufferer(actor) {
-	return actor?.type === "character" && actorPastDeathKind(actor) === "revenant";
+	return actor?.type === "character" && !isOutOfPlay(actor) && actorPastDeathKind(actor) === "revenant";
 }
 
 /**
@@ -2498,7 +2504,7 @@ export async function depleteAmmoAndPost(message, pc, attack, index) {
 	depleting.add(message.id);
 	let status;
 	try {
-		status = await advanceWeaponAmmo(pc, attack.weapon);
+		status = await advanceWeaponAmmo(pc, attack.weapon, attack.move ?? null);
 		await message.setFlag(SCOPE, AMMO_FLAG, { [index]: { label: status.label, allOut: status.allOut } });
 	} finally {
 		depleting.delete(message.id);
@@ -2883,13 +2889,24 @@ async function applyOwedDamage(message, damage) {
 		// Unstoppable: "Each time you take damage while at 0 HP, mark 1". Asked BEFORE the blow, which
 		// is what "while at 0 HP" means: the blow that puts them on 0 marks nothing.
 		const fightingOn = effective > 0 && !damageSet(current, "unstoppableOff").has(r.uuid) && keepsFightingAtZero(targetActor);
+		// A group fought as one pool (p.416) loses MEMBERS as its pool drains, so a blow on it can drop
+		// several: read the headcount before the write, to say how many this one felled.
+		const pool = fightsAsGroup({ type: targetActor.type, fightAsGroup: targetActor.system?.fightAsGroup, organization: targetActor.system?.organization })
+			? { count: targetActor.system?.count, hpMax: targetActor.system?.attributes?.hp?.max }
+			: null;
 		const t = await applyDamageToActor(targetActor, effective);
 		// A target actor with no hp attribute (e.g. a steading token) yields null. Skip it
 		// without recording it as applied, so it can be retried if the actor is fixed —
 		// rather than rendering "undefined → undefined HP" and marking it done forever.
 		if (!t) { lines.push(`<li><strong>${escHtml(r.name)}</strong>: has no HP to damage</li>`); continue; }
 		reactions.push({ uuid: struck, reaction: hitReaction({ raw, effective, lowered: t.newHp < t.oldHp }) });
-		nextApplied.push({ uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp, ...(defender ? { by: standIn.by } : {}) });
+		// How many bodies it dropped, on the row: the kill tally reads it back off the card
+		// (timeline/timeline-watch.js), so the damage path says what happened and nothing more.
+		const felled = killsFromHit({ oldHp: t.oldHp, newHp: t.newHp, group: pool });
+		nextApplied.push({
+			uuid: r.uuid, effective, oldHp: t.oldHp, newHp: t.newHp,
+			...(defender ? { by: standIn.by } : {}), ...(felled ? { felled } : {}),
+		});
 		// Payback: "a foe that has harmed you or one of your allies". Written on the character who took
 		// it, by whoever applied it — the one client certain to be allowed to write anything here.
 		//
@@ -2962,11 +2979,13 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 	if (gate.hide) return;
 	const several = damage.results.filter(r => r.uuid).length > 1;
 	const barkskin = barkskinOnce();
-
-	for (const row of damage.results) {
-		if (!row.uuid || done.has(row.uuid)) continue;
+	// The rows not yet applied, each with whoever takes its blow: resolved once for the three questions below.
+	const pending = damage.results.filter(row => row.uuid && !done.has(row.uuid)).map(row => {
 		const standIn = standIns.get(row.uuid);
-		const target = damageRowActor(resolveSync(standIn?.by ?? row.uuid));
+		return { row, standIn, target: damageRowActor(resolveSync(standIn?.by ?? row.uuid)) };
+	});
+
+	for (const { row, standIn, target } of pending) {
 		const gated = target ? conditionalArmorOf(target, barkskin) : null;
 		// No key means a `conditionalSource` this build does not know (a world written by a later one),
 		// which has no words to offer the armor back with (actors/character/move-armor.js#armorGateWords).
@@ -2980,9 +2999,22 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
 	// And Undaunted's +1 armor where the fight does not show it holding: the same kind of question about
 	// the same armor, drawn under the same gate. Here rather than beside its caller, so every damage card
 	// that asks about armor asks about this too.
-	wireUndauntedArmor(message, actions, { damage, gate, standIns, done, several });
+	const rows = { damage, pending, gate, done, several };
+	wireUndauntedArmor(message, actions, rows);
 	// And a Revenant's Undying, which halves what gets past that armor: the next question down the same sum.
-	wireUndyingHalf(message, actions, { damage, gate, standIns, done, several });
+	wireUndyingHalf(message, actions, rows);
+}
+
+/**
+ * A box (appendRowBox) on each pending row whose sufferer `qualifies`, listed on the damage flag under `key`
+ * and worded by the i18n key `wordsKey`.
+ */
+function wireRowBoxes(message, actions, { damage, pending, gate, done, several }, { qualifies, className, wordsKey, key, listsTicked }) {
+	const listed = damageSet(damage, key);
+	for (const { row, standIn, target } of pending) {
+		if (!qualifies(target)) continue;
+		appendRowBox(message, actions, { row, standIn, target, several, gate, done, className, words: format(wordsKey, {}), key, listed, listsTicked });
+	}
 }
 
 /**
@@ -2996,19 +3028,11 @@ export function wireConditionalArmor(message, html, gateFor = applyGateOnce(mess
  * because being outnumbered or outsized is NOT the ordinary case.) Drawn per row against whoever takes
  * the blow, a Defend's stand-in included, and gated like the armor boxes.
  */
-function wireUndyingHalf(message, actions, { damage, gate, standIns, done, several }) {
-	const off = damageSet(damage, "undyingOff");
-	for (const row of damage.results) {
-		if (!row.uuid || done.has(row.uuid)) continue;
-		const standIn = standIns.get(row.uuid);
-		const target = damageRowActor(resolveSync(standIn?.by ?? row.uuid));
-		if (!undyingSufferer(target)) continue;
-
-		appendRowBox(message, actions, {
-			row, standIn, target, several, gate, done, className: "stonetop-damage-armor-gate stonetop-damage-undying",
-			words: format("stonetop.fight.undying.box", {}), key: "undyingOff", listed: off, listsTicked: false,
-		});
-	}
+function wireUndyingHalf(message, actions, rows) {
+	wireRowBoxes(message, actions, rows, {
+		qualifies: undyingSufferer, className: "stonetop-damage-armor-gate stonetop-damage-undying",
+		wordsKey: "stonetop.fight.undying.box", key: "undyingOff", listsTicked: false,
+	});
 }
 
 /**
@@ -3018,19 +3042,12 @@ function wireUndyingHalf(message, actions, { damage, gate, standIns, done, sever
  * user's ruling (2026-09-27): the table ticks it, and applyOwedDamage then adds the armor. Where the fight
  * DOES show it, the armor is simply on, as it always was, and no box is drawn.
  */
-function wireUndauntedArmor(message, actions, { damage, gate, standIns, done, several }) {
-	const on = damageSet(damage, "undauntedArmor");
-	for (const row of damage.results) {
-		if (!row.uuid || done.has(row.uuid)) continue;
-		const standIn = standIns.get(row.uuid);
-		const target = damageRowActor(resolveSync(standIn?.by ?? row.uuid));
-		if (target?.type !== "character" || !undauntedUnread(target)) continue;
-
-		appendRowBox(message, actions, {
-			row, standIn, target, several, gate, done, className: "stonetop-damage-armor-gate stonetop-damage-undaunted",
-			words: format("stonetop.fight.heroMoves.undaunted.armorBox", {}), key: "undauntedArmor", listed: on, listsTicked: true,
-		});
-	}
+function wireUndauntedArmor(message, actions, rows) {
+	wireRowBoxes(message, actions, rows, {
+		qualifies: target => target?.type === "character" && undauntedUnread(target),
+		className: "stonetop-damage-armor-gate stonetop-damage-undaunted",
+		wordsKey: "stonetop.fight.heroMoves.undaunted.armorBox", key: "undauntedArmor", listsTicked: true,
+	});
 }
 
 /**

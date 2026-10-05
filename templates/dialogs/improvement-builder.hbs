@@ -13,7 +13,7 @@
 				{{#each sections}}
 				<li class="stonetop-guide-toc-item{{#if selected}} is-active{{/if}}">
 					<button type="button" class="stonetop-guide-toc-btn stonetop-improvement-builder-tab" data-tab="{{key}}"{{#if selected}} aria-current="true"{{/if}}>
-						<i class="fas {{icon}} stonetop-guide-toc-icon"></i>
+						<i class="fas {{icon}} stonetop-guide-toc-icon" aria-hidden="true"></i>
 						<span class="stonetop-guide-toc-text">{{title}}</span>
 					</button>
 				</li>
@@ -26,10 +26,10 @@
 			{{!-- Banner: the active section's icon + title + count (updated in JS on tab
 			      switch, so panels never re-render and keep what's been typed). --}}
 			<div class="stonetop-guide-banner">
-				<i class="fas {{active.icon}} stonetop-guide-banner-icon stonetop-improvement-builder-banner-icon"></i>
+				<i class="fas {{active.icon}} stonetop-guide-banner-icon stonetop-improvement-builder-banner-icon" aria-hidden="true"></i>
 				<div class="stonetop-guide-banner-info">
 					<div class="stonetop-guide-banner-title stonetop-improvement-builder-banner-title">{{active.title}}</div>
-					<div class="stonetop-guide-banner-sub">{{hint}}</div>
+					<div class="stonetop-guide-banner-sub stonetop-improvement-builder-banner-sub">{{active.hint}}</div>
 				</div>
 				<div class="stonetop-guide-count stonetop-improvement-builder-banner-count">{{active.count}}</div>
 			</div>
@@ -41,8 +41,8 @@
 				      retyping one of the book's out of the playbook. Fills every panel
 				      (see ImprovementBuilderDialog._fillFrom). --}}
 				<div class="stonetop-improvement-builder-field stonetop-improvement-builder-startfrom">
-					<label for="stonetop-improvement-source">Start from</label>
-					<select id="stonetop-improvement-source" class="stonetop-improvement-builder-source">
+					<label for="{{@root.uid}}-stonetop-improvement-source">Start from</label>
+					<select id="{{@root.uid}}-stonetop-improvement-source" class="stonetop-improvement-builder-source">
 						<option value="">A blank improvement</option>
 						{{#each sourceGroups}}
 						<optgroup label="{{label}}">
@@ -56,13 +56,17 @@
 				</div>
 
 				<div class="stonetop-improvement-builder-field">
-					<label for="stonetop-improvement-name">Name</label>
-					<input type="text" id="stonetop-improvement-name" name="name" placeholder="e.g. Roadbuilding" required autofocus>
+					<label for="{{@root.uid}}-stonetop-improvement-name">Name</label>
+					<input type="text" id="{{@root.uid}}-stonetop-improvement-name" name="name" placeholder="e.g. Roadbuilding" required autofocus>
+					{{!-- Said here rather than only in a fading notice: an empty name or one the
+					      steading already has. Filled, and pointed at by the field's
+					      aria-describedby, by ImprovementBuilderDialog._checkName. --}}
+					<p id="{{@root.uid}}-name-error" class="stonetop-improvement-builder-error stonetop-improvement-builder-name-error" aria-live="polite" hidden></p>
 				</div>
 
 				<div class="stonetop-improvement-builder-field">
-					<label for="stonetop-improvement-category">Category</label>
-					<select id="stonetop-improvement-category" name="category">
+					<label for="{{@root.uid}}-stonetop-improvement-category">Category</label>
+					<select id="{{@root.uid}}-stonetop-improvement-category" name="category">
 						<option value="">None (always shown)</option>
 						{{#each categories}}
 						<option value="{{key}}">{{label}}</option>
@@ -72,8 +76,8 @@
 				</div>
 
 				<div class="stonetop-improvement-builder-field">
-					<label for="stonetop-improvement-flavor">Flavor</label>
-					<textarea id="stonetop-improvement-flavor" name="flavor" rows="2" placeholder="The line in the villagers' own voice, shown under the title. Optional."></textarea>
+					<label for="{{@root.uid}}-stonetop-improvement-flavor">Flavor</label>
+					<textarea id="{{@root.uid}}-stonetop-improvement-flavor" name="flavor" rows="2" placeholder="The line in the villagers' own voice, shown under the title. Optional."></textarea>
 				</div>
 			</section>
 
@@ -97,8 +101,8 @@
 			{{!-- Effect: the prose, then the parts of it the sheet can apply by itself --}}
 			<section class="stonetop-improvement-builder-section" data-tab="effect"{{#unless (eq activeTab "effect")}} hidden{{/unless}}>
 				<div class="stonetop-improvement-builder-field">
-					<label for="stonetop-improvement-effect">What completing it does</label>
-					<textarea id="stonetop-improvement-effect" name="effect" rows="5" placeholder="The effect as the playbook would print it, including any ongoing rule (&quot;Henceforth, when...&quot;)."></textarea>
+					<label for="{{@root.uid}}-stonetop-improvement-effect">What completing it does</label>
+					<textarea id="{{@root.uid}}-stonetop-improvement-effect" name="effect" rows="5" placeholder="The effect as the playbook would print it, including any ongoing rule (&quot;Henceforth, when...&quot;)."></textarea>
 					<p class="stonetop-improvement-builder-hint stonetop-improvement-builder-emphasis-hint">Wrap a move name in *asterisks* for italics, the way the book prints *Pull Together*.</p>
 				</div>
 
@@ -113,32 +117,32 @@
 					<div class="stonetop-improvement-builder-row">
 						{{#each statFields}}
 						<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
-							<label for="stonetop-improvement-grant-{{key}}">{{label}}</label>
-							<input type="number" id="stonetop-improvement-grant-{{key}}" name="grant-{{key}}" step="1" placeholder="0">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-{{key}}">{{label}}</label>
+							<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-{{key}}" name="grant-{{key}}" step="1" placeholder="no change">
 						</div>
 						{{/each}}
 					</div>
 					<p class="stonetop-improvement-builder-hint">A change, not a total: 1 raises Fortunes by one, -1 lowers it.</p>
 
 					<div class="stonetop-improvement-builder-field">
-						<label for="stonetop-improvement-grant-resources">Add to Resources</label>
-						<textarea id="stonetop-improvement-grant-resources" name="grant-resources" rows="2" placeholder="One per line, e.g. Mill"></textarea>
+						<label for="{{@root.uid}}-stonetop-improvement-grant-resources">Add to Resources</label>
+						<textarea id="{{@root.uid}}-stonetop-improvement-grant-resources" name="grant-resources" rows="2" placeholder="One per line, e.g. Mill"></textarea>
 					</div>
 
 					<div class="stonetop-improvement-builder-field">
-						<label for="stonetop-improvement-grant-fortifications">Add to Fortifications</label>
-						<textarea id="stonetop-improvement-grant-fortifications" name="grant-fortifications" rows="2" placeholder="One per line, e.g. Stone Wall"></textarea>
+						<label for="{{@root.uid}}-stonetop-improvement-grant-fortifications">Add to Fortifications</label>
+						<textarea id="{{@root.uid}}-stonetop-improvement-grant-fortifications" name="grant-fortifications" rows="2" placeholder="One per line, e.g. Stone Wall"></textarea>
 					</div>
 
 					<div class="stonetop-improvement-builder-field">
-						<label for="stonetop-improvement-grant-remove-fortifications">Clear from Fortifications</label>
-						<textarea id="stonetop-improvement-grant-remove-fortifications" name="grant-remove-fortifications" rows="2" placeholder="One per line, e.g. Palisade (what the new one replaces)"></textarea>
+						<label for="{{@root.uid}}-stonetop-improvement-grant-remove-fortifications">Clear from Fortifications</label>
+						<textarea id="{{@root.uid}}-stonetop-improvement-grant-remove-fortifications" name="grant-remove-fortifications" rows="2" placeholder="One per line, e.g. Palisade (what the new one replaces)"></textarea>
 					</div>
 
 					<div class="stonetop-improvement-builder-row">
 						<div class="stonetop-improvement-builder-field">
-							<label for="stonetop-improvement-grant-size">Set Size to</label>
-							<select id="stonetop-improvement-grant-size" name="grant-size">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-size">Set Size to</label>
+							<select id="{{@root.uid}}-stonetop-improvement-grant-size" name="grant-size">
 								<option value="">Leave alone</option>
 								{{#each sizes}}
 								<option value="{{value}}">{{label}}</option>
@@ -146,10 +150,144 @@
 							</select>
 						</div>
 						<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
-							<label for="stonetop-improvement-grant-set-population">Set Population to</label>
-							<input type="number" id="stonetop-improvement-grant-set-population" name="grant-set-population" step="1" placeholder="-">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-set-population">Set Population to</label>
+							<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-set-population" name="grant-set-population" step="1" placeholder="leave alone">
 						</div>
 					</div>
+
+					<div class="stonetop-improvement-builder-field">
+						<label for="{{@root.uid}}-stonetop-improvement-grant-replace-assets">Replace on Assets</label>
+						<textarea id="{{@root.uid}}-stonetop-improvement-grant-replace-assets" name="grant-replace-assets" rows="2" placeholder="One per line: the entry it replaces =&gt; the new entry, e.g. draft horses =&gt; A herd of horses"></textarea>
+						<p class="stonetop-improvement-builder-hint">The Assets entry whose name contains the left side is swapped for a plain entry named by the right (added when none matches). The book's Herd of Horses keeps its herd tracker to itself.</p>
+					</div>
+
+					<div class="stonetop-improvement-builder-field">
+						<label for="{{@root.uid}}-stonetop-improvement-grant-mark">Also marks complete</label>
+						<textarea id="{{@root.uid}}-stonetop-improvement-grant-mark" name="grant-mark" rows="2" placeholder="One improvement name per line, e.g. Greater Harvest"></textarea>
+						<p id="{{@root.uid}}-mark-error" class="stonetop-improvement-builder-error stonetop-improvement-builder-mark-error" aria-live="polite" hidden></p>
+					</div>
+
+					<div class="stonetop-improvement-builder-field">
+						<label for="{{@root.uid}}-stonetop-improvement-grant-completion-note">Reminder when it is built</label>
+						<input type="text" id="{{@root.uid}}-stonetop-improvement-grant-completion-note" name="grant-completion-note" placeholder="no reminder (e.g. Draw it on the map.)">
+					</div>
+				</div>
+
+				{{!-- The LIVE ("Henceforth") rules: read by the Seasons Change window, the move windows and
+				      the holds tray every time, so an edit applies as soon as it is saved. The grant keys
+				      are listed in utils/improvement-def.js (LIVE_GRANT_KEYS). --}}
+				<div class="stonetop-improvement-builder-grants stonetop-improvement-builder-rules">
+					<h4 class="stonetop-improvement-builder-grants-title">Henceforth, while it is built</h4>
+					<p class="stonetop-improvement-builder-hint">
+						The ongoing rules the sheet applies for you: in the Seasons Change window, in the move
+						windows and in the steading's header. Changing them later applies at once.
+					</p>
+
+					<fieldset class="stonetop-improvement-builder-fieldset">
+						<legend>Surplus it generates when the Seasons Change</legend>
+						<div class="stonetop-improvement-builder-checks" role="group" aria-label="Seasons it generates Surplus in">
+							{{#each seasons}}
+							<label class="stonetop-improvement-builder-check"><input type="checkbox" class="stonetop-check" name="grant-yield-seasons" value="{{value}}"> <span>{{label}}</span></label>
+							{{/each}}
+						</div>
+						<div class="stonetop-improvement-builder-row">
+							<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+								<label for="{{@root.uid}}-stonetop-improvement-grant-yield-surplus">Surplus</label>
+								<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-yield-surplus" name="grant-yield-surplus" min="0" step="1" placeholder="none">
+							</div>
+							<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+								<label for="{{@root.uid}}-stonetop-improvement-grant-yield-min-population">Only while Population is at least</label>
+								<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-yield-min-population" name="grant-yield-min-population" step="1" placeholder="any">
+							</div>
+							<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+								<label for="{{@root.uid}}-stonetop-improvement-grant-yield-min-surplus">Only if Surplus is at least</label>
+								<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-yield-min-surplus" name="grant-yield-min-surplus" min="0" step="1" placeholder="any">
+							</div>
+						</div>
+						<div class="stonetop-improvement-builder-checks">
+							<label class="stonetop-improvement-builder-check"><input type="checkbox" class="stonetop-check" name="grant-yield-population"> <span>Plus Population (Surplus equal to Population plus the number above)</span></label>
+							<label class="stonetop-improvement-builder-check"><input type="checkbox" class="stonetop-check" name="grant-yield-hit"> <span>Only on a 7+ with Fortunes</span></label>
+							<label class="stonetop-improvement-builder-check"><input type="checkbox" class="stonetop-check" name="grant-yield-while-met"> <span>Only while its requirements are still met</span></label>
+						</div>
+					</fieldset>
+
+					<div class="stonetop-improvement-builder-row">
+						<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-harvest">Autumn harvest</label>
+							<input type="text" id="{{@root.uid}}-stonetop-improvement-grant-harvest" name="grant-harvest" placeholder="no change" aria-describedby="{{@root.uid}}-stonetop-improvement-grant-harvest-hint">
+						</div>
+						<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-surplus-bonus">Bonus on every Surplus generated</label>
+							<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-surplus-bonus" name="grant-surplus-bonus" min="0" step="1" placeholder="no bonus">
+						</div>
+						<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-winter">Winter: Surplus consumed</label>
+							<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-winter" name="grant-winter" step="1" placeholder="no change">
+						</div>
+						<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-winter-population">Winter: Population counted</label>
+							<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-winter-population" name="grant-winter-population" step="1" placeholder="no change">
+						</div>
+					</div>
+					<p class="stonetop-improvement-builder-hint" id="{{@root.uid}}-stonetop-improvement-grant-harvest-hint">Changes, not totals. Harvest: 1, or dice like 1d4. Winter: -1 consumes one less Surplus (the first roll only), and Population -1 counts it one lower.</p>
+
+					<fieldset class="stonetop-improvement-builder-fieldset">
+						<legend>Upkeep: pay it, or lose the improvement</legend>
+						<div class="stonetop-improvement-builder-checks" role="group" aria-label="Seasons the upkeep is owed in">
+							{{#each seasons}}
+							<label class="stonetop-improvement-builder-check"><input type="checkbox" class="stonetop-check" name="grant-upkeep-seasons" value="{{value}}"> <span>{{label}}</span></label>
+							{{/each}}
+						</div>
+						<div class="stonetop-improvement-builder-row">
+							<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+								<label for="{{@root.uid}}-stonetop-improvement-grant-upkeep-surplus">Surplus owed</label>
+								<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-upkeep-surplus" name="grant-upkeep-surplus" min="0" step="1" placeholder="none">
+							</div>
+						</div>
+					</fieldset>
+
+					<fieldset class="stonetop-improvement-builder-fieldset">
+						<legend>Advantage on moves</legend>
+						<div class="stonetop-improvement-builder-checks" role="group" aria-label="Moves it gives advantage to">
+							{{#each advantageMoves}}
+							<label class="stonetop-improvement-builder-check"><input type="checkbox" class="stonetop-check" name="grant-adv-moves" value="{{this}}"> <span>{{this}}</span></label>
+							{{/each}}
+						</div>
+						<div class="stonetop-improvement-builder-field">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-adv-ask">Only when</label>
+							<input type="text" id="{{@root.uid}}-stonetop-improvement-grant-adv-ask" name="grant-adv-ask" placeholder="always (or e.g. Trading for timber, ivory or wool)">
+							<p class="stonetop-improvement-builder-hint">Leave it blank for advantage every time. Filled in, the move's window asks it as a box to tick.</p>
+						</div>
+					</fieldset>
+
+					<fieldset class="stonetop-improvement-builder-fieldset">
+						<legend>While its requirements are not met</legend>
+						<div class="stonetop-improvement-builder-row">
+							{{#each statFields}}
+							<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+								<label for="{{@root.uid}}-stonetop-improvement-grant-lapse-{{key}}">{{label}}</label>
+								<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-lapse-{{key}}" name="grant-lapse-{{key}}" step="1" placeholder="no change">
+							</div>
+							{{/each}}
+						</div>
+					</fieldset>
+
+					<fieldset class="stonetop-improvement-builder-fieldset">
+						<legend>As long as a condition holds</legend>
+						<div class="stonetop-improvement-builder-field">
+							<label for="{{@root.uid}}-stonetop-improvement-grant-condition-text">The condition</label>
+							<input type="text" id="{{@root.uid}}-stonetop-improvement-grant-condition-text" name="grant-condition-text" placeholder="none (e.g. Trading aetherium to the outside world)">
+							<p class="stonetop-improvement-builder-hint">A box on the built improvement's card. While it is ticked, these apply.</p>
+						</div>
+						<div class="stonetop-improvement-builder-row">
+							{{#each statFields}}
+							<div class="stonetop-improvement-builder-field stonetop-improvement-builder-field--num">
+								<label for="{{@root.uid}}-stonetop-improvement-grant-condition-{{key}}">{{label}}</label>
+								<input type="number" id="{{@root.uid}}-stonetop-improvement-grant-condition-{{key}}" name="grant-condition-{{key}}" step="1" placeholder="no change">
+							</div>
+							{{/each}}
+						</div>
+					</fieldset>
 				</div>
 			</section>
 
@@ -161,6 +299,10 @@
 				<p class="stonetop-improvement-builder-hint">
 					How the improvement will read on Stonetop's Improvements tab. The boxes here are inert.
 				</p>
+				{{!-- Soft warnings the card cannot show by itself (no requirements at all, blank
+				      rows the save will leave out). Never blocks Save. Filled by
+				      _renderPreview from utils/improvement-preview.js#improvementPreviewNotes. --}}
+				<div class="stonetop-improvement-builder-preview-notes" aria-live="polite" hidden></div>
 				<div class="stonetop-improvement-builder-preview" aria-live="polite"></div>
 			</section>
 
@@ -187,7 +329,7 @@
 	      once on open). Kept here rather than built as a string in the dialog so all of
 	      this window's markup is in one file. --}}
 	<template class="stonetop-improvement-builder-group-tpl">
-		<div class="stonetop-improvement-builder-group">
+		<div class="stonetop-improvement-builder-group" role="group" aria-label="Requirement group">
 			<div class="stonetop-improvement-builder-group-head">
 				<span class="stonetop-improvement-builder-group-num">Group 1</span>
 				<span class="stonetop-improvement-builder-group-btns">
@@ -200,7 +342,9 @@
 			</div>
 
 			<div class="stonetop-improvement-builder-field">
-				<label>Heading</label>
+				{{!-- `for` and the field's id are set per group by _labelGroup, which numbers
+				      them; a clone of a fixed id would point every label at the first group. --}}
+				<label class="stonetop-improvement-builder-group-heading-label">Heading</label>
 				{{!-- The placeholder is kept in step with the group's own rules by
 				      _syncGroupHeading, so "leave it blank and it is written for you"
 				      shows you what it would write. --}}
@@ -227,7 +371,7 @@
 
 			<div class="stonetop-improvement-builder-field">
 				<label>Requirements</label>
-				<div class="stonetop-improvement-builder-rows"></div>
+				<div class="stonetop-improvement-builder-rows" role="group" aria-label="Requirements"></div>
 				<button type="button" class="stonetop-improvement-builder-add-row">
 					<i class="fas fa-plus" aria-hidden="true"></i> Add requirement
 				</button>

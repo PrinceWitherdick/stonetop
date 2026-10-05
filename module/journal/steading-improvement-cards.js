@@ -18,6 +18,7 @@ import {
 	normalizeImprovementGrants,
 	normalizeImprovementSections,
 	summarizeImprovementGrants,
+	summarizeImprovementRules,
 } from "../utils/improvement-def.js";
 
 export const STEADING_IMPROVEMENT_DRAG_TYPE = "StonetopSteadingImprovement";
@@ -68,6 +69,11 @@ export function renderImprovementCardHtml(def) {
 	const applied = summarizeImprovementGrants(grants);
 	if (applied.length) {
 		body.push(`<p class="stonetop-journal-improvement-grants"><strong>On completion:</strong> ${escHtml(applied.join("; "))}</p>`);
+	}
+	// And the ongoing rules the sheet reads every season and every roll, which an edit changes at once.
+	const henceforth = summarizeImprovementRules(grants);
+	if (henceforth.length) {
+		body.push(`<p class="stonetop-journal-improvement-grants"><strong>Henceforth:</strong> ${escHtml(henceforth.join("; "))}</p>`);
 	}
 
 	return `<div class="stonetop-journal-improvement" draggable="true" data-steading-improvement="${dataAttr}" title="Drag onto the Stonetop steading sheet">`

@@ -20,15 +20,16 @@
  * Every write goes through the character's own seams: HP through restoreHp (the Unliving's own
  * healing is not the magical healing they get nothing from, and Torment's Blessing halves it there),
  * debilities through receiveHealing, Consequences and Marks through markSectionOption /
- * unmarkSectionOption, which is where a Consequence or Mark that brings a move with it is granted.
+ * unmarkSectionOption, which refuse a mark already made. A Consequence or Mark that brings a move with
+ * it is granted by the lore sync, which watches every lore write (post-death-moves.js).
  */
 
 import { askWithButtons, confirmOutcome } from "../../utils/ask-with-buttons.js";
-import { stonetopChatCard } from "../../utils/chat.js";
+import { rolledTotalCard, stonetopChatCard } from "../../utils/chat.js";
 import { escHtml, joinNames } from "../../utils/strings.js";
 import { format, localize } from "../../utils/i18n.js";
-import { DEATHS_DOOR_STATE, FAVOR_TRACK, FINAL_CONSEQUENCE, halfMaxHp } from "./deaths-door.js";
-import { NEVER_CHOSEN_OPTIONS } from "./post-death-choices.js";
+import { DEATHS_DOOR_STATE, FAVOR_MAX, FAVOR_TRACK, FINAL_CONSEQUENCE, halfMaxHp } from "./deaths-door.js";
+import { gainableMarks, markableConsequences, sectionReader } from "./post-death-choices.js";
 import { optionLabel } from "./CharacterPostDeath.js";
 import { LoreSection } from "../../model/CharacterSnapshot.js";
 
@@ -42,9 +43,9 @@ const _MARKS        = "marks";
 
 /**
  * The two lists that ACCUMULATE ("Choose another whenever a move tells you to"). A tick in either is
- * one option taken or given back, and goes through markSectionOption / unmarkSectionOption, never a
- * raw count write: those two are where a Consequence or Mark that brings a move with it hands it over
- * or takes it away. See post-death-choices.js for why the distinction is load-bearing.
+ * one option taken or given back, through markSectionOption / unmarkSectionOption (which refuse a mark
+ * already made) rather than a raw count write. See post-death-choices.js for why the distinction is
+ * load-bearing.
  */
 const _ACCUMULATING = new Set([_CONSEQUENCES, _MARKS]);
 
@@ -76,9 +77,6 @@ const _ACTION = {
 	"indulge":           { key: "indulge",          icon: "fa-utensils" },
 };
 
-/** The most Favor a Thrall can hold: "can go no higher than 3". */
-export const FAVOR_MAX = 3;
-
 // ── The view ───────────────────────────────────────────────────────────────
 
 /**
@@ -94,15 +92,19 @@ export const FAVOR_MAX = 3;
  * @param {boolean} o.outOfPlay  `dead`: nothing on the tab is theirs to press any more
  * @param {number}  o.hp
  * @param {number}  o.maxHp
+ * @param {(section: string) => Promise<object[]>} [o.sections]  the render's shared section reads
+ *   (post-death-choices.js#sectionReader)
  * @returns {Promise<{lore: object, outcomes: object|null, favor: object|null, gainMark: boolean, taskComplete: boolean}|null>}
  */
-export async function buildPostDeathTabView(character, activeInsert, { editMode, canEdit, isGM, outOfPlay, hp, maxHp }) {
+export async function buildPostDeathTabView(character, activeInsert, {
+	editMode, canEdit, isGM, outOfPlay, hp, maxHp, sections = sectionReader(character),
+}) {
 	const entries = activeInsert?.lore?.entries;
 	if (!Array.isArray(entries)) return null;
 
 	const entry = slug => entries.find(e => e.slug === slug) ?? null;
 	const consequences = entry(_CONSEQUENCES)
-		? await character.sectionOptions(_CONSEQUENCES)
+		? await sections(_CONSEQUENCES)
 		: [];
 
 	if (editMode) _decorateForEdit(entries, { consequences, isGM });
@@ -118,7 +120,7 @@ export async function buildPostDeathTabView(character, activeInsert, { editMode,
 			? new LoreSection(entries.filter(e => e !== favorEntry))
 			: activeInsert.lore,
 		outcomes: playing ? _outcomesView(character, entry(PURPOSE_SECTION), consequences, { hp, maxHp }) : null,
-		favor: !editMode && favorEntry ? _favorView(character, { canSet: !!canEdit && !outOfPlay }) : null,
+		favor: !editMode && favorEntry ? _favorView(character, { canSet: !!canEdit && !outOfPlay, task: activeInsert.masterTask }) : null,
 		// Favor's overflow is "Gain a new Mark of your choice", so the owner gains it, not only the GM
 		// (Dark Succor's GM-chosen Mark is taken in the walkthrough's own window).
 		gainMark: !!canEdit && !outOfPlay && !!entry(_MARKS),
@@ -152,13 +154,11 @@ function _decorateForEdit(entries, { consequences, isGM }) {
 	}
 
 	if (!isGM) return;
+	const control = (action, key, name) => ({ action, label: format(`${_I18N}.${key}Label`, { name }), text: localize(`${_I18N}.${key}`) });
 	for (const opt of byEntry(_MARKS)) {
 		const name = optionLabel(opt.description);
-		if (opt.crossedOff) {
-			opt.pdiUncross = { label: format(`${_I18N}.uncrossLabel`, { name }) };
-		} else if (!opt.count) {
-			opt.pdiCrossOff = { label: format(`${_I18N}.crossOffLabel`, { name }) };
-		}
+		if (opt.crossedOff)   opt.pdiMarkControl = control("uncross", "uncross", name);
+		else if (!opt.count)  opt.pdiMarkControl = control("cross-off", "crossOff", name);
 	}
 }
 
@@ -177,56 +177,46 @@ function _action(action, source, { disabled = false, reason = "" } = {}) {
 
 /** The Purpose's row and one row per Consequence that hands its holder something to press. */
 function _outcomesView(character, purposeEntry, consequences, { hp, maxHp }) {
-	const debilities = _markedDebilities(character);
 	const fullHp = Number(maxHp) > 0 && Number(hp) >= Number(maxHp);
-	const hpReason = localize(`${_I18N}.reasonFullHp`);
-	const debilityReason = localize(`${_I18N}.reasonNoDebilities`);
+	const hpGate = { disabled: fullHp, reason: localize(`${_I18N}.reasonFullHp`) };
+	const debilityGate = { disabled: !_markedDebilities(character).length, reason: localize(`${_I18N}.reasonNoDebilities`) };
+	// Why each outcome would have nothing to do, whichever row offers it.
+	const gate = {
+		"regain-all":        hpGate,
+		"regain-d8":         hpGate,
+		"heal-half":         hpGate,
+		"clear-all":         debilityGate,
+		"clear-debility":    debilityGate,
+		"clear-consequence": { disabled: !_clearableConsequences(consequences).length, reason: localize(`${_I18N}.reasonNoConsequence`) },
+		"mark-consequence":  { disabled: !markableConsequences(consequences).length, reason: localize(`${_I18N}.reasonNoneLeft`) },
+	};
+	const row = (title, source, actions) => ({ title, actions: actions.map(action => _action(action, source, gate[action])) });
 
 	const rows = [];
 	const purposes = (purposeEntry?.options ?? []).filter(o => o.count > 0).map(o => optionLabel(o.description));
 	if (purposes.length) {
 		const source = joinNames(purposes);
-		const clearable = consequences.some(o => o.marked && o.slug !== _FINAL);
-		const markable  = _markableConsequences(consequences).length > 0;
-		rows.push({
-			kind:    "purpose",
-			title:   format(`${_I18N}.purposeTitle`, { name: source }),
-			actions: [
-				_action("regain-all", source, { disabled: fullHp, reason: hpReason }),
-				_action("clear-all", source, { disabled: !debilities.length, reason: debilityReason }),
-				_action("clear-consequence", source, { disabled: !clearable, reason: localize(`${_I18N}.reasonNoConsequence`) }),
-				_action("mark-consequence", source, { disabled: !markable, reason: localize(`${_I18N}.reasonNoneLeft`) }),
-				_action("last-door", source),
-			],
-		});
+		rows.push(row(format(`${_I18N}.purposeTitle`, { name: source }), source, PURPOSE_OUTCOMES));
 	}
-
 	for (const opt of consequences) {
 		const outcomes = CONSEQUENCE_OUTCOMES[opt.slug];
-		if (!opt.marked || !outcomes) continue;
-		rows.push({
-			kind:    "consequence",
-			slug:    opt.slug,
-			title:   opt.label,
-			actions: outcomes.map(action => {
-				if (action === "clear-debility") return _action(action, opt.label, { disabled: !debilities.length, reason: debilityReason });
-				if (action === "regain-d8" || action === "heal-half") return _action(action, opt.label, { disabled: fullHp, reason: hpReason });
-				return _action(action, opt.label);
-			}),
-		});
+		if (opt.marked && outcomes) rows.push(row(opt.label, opt.label, outcomes));
 	}
 
 	return rows.length ? { rows } : null;
 }
 
-/** The Thrall's Favor as hold pips: a ticked pip is a point HELD. */
-function _favorView(character, { canSet }) {
+/**
+ * The Thrall's Favor as hold pips: a ticked pip is a point HELD. While a master's task stands Favor stays
+ * at 0 until it is done (Dark Succor), which is FLAGGED, never blocked: the count says so at 0, and Favor
+ * held anyway wears the caution frame. The pips stay settable, since the table may know better.
+ */
+function _favorView(character, { canSet, task = "" }) {
 	const held = Math.max(0, Math.min(FAVOR_MAX, Number(character.favor?.()) || 0));
 	return {
-		held,
-		max: FAVOR_MAX,
 		canSet,
-		heldLabel: format(`${_I18N}.favorHeld`, { held, max: FAVOR_MAX }),
+		caution:   task && held > 0 ? localize(`${_I18N}.favorCautionTask`) : "",
+		heldLabel: task && !held ? localize(`${_I18N}.favorHeldByTask`) : format(`${_I18N}.favorHeld`, { held, max: FAVOR_MAX }),
 		pips: Array.from({ length: FAVOR_MAX }, (_, index) => ({
 			index,
 			filled: index < held,
@@ -237,13 +227,9 @@ function _favorView(character, { canSet }) {
 
 // ── Reading the lists ──────────────────────────────────────────────────────
 
-/**
- * The Consequences a "mark a consequence" may take: UndeathDialog's rule, the one list it reads
- * (CharacterPostDeath#sectionOptions honours `requires`), less NEVER_CHOSEN_OPTIONS. THE FINAL
- * CONSEQUENCE is marked by what happens to a character, never picked.
- */
-function _markableConsequences(options) {
-	return options.filter(o => !o.blocked && !NEVER_CHOSEN_OPTIONS.includes(o.slug));
+/** The Consequences a "clear a consequence" may take: any marked, but THE FINAL CONSEQUENCE, which never is. */
+function _clearableConsequences(options) {
+	return options.filter(o => o.marked && o.slug !== _FINAL);
 }
 
 function _markedDebilities(character) {
@@ -290,18 +276,16 @@ async function _outcome(character, action, source) {
 			return key ? _clearDebilities(character, [key], source) : null;
 		}
 		case "clear-consequence": {
-			const options = (await character.sectionOptions(_CONSEQUENCES)).filter(o => o.marked && o.slug !== _FINAL);
-			const slug = await _pick(format(`${_I18N}.clearConsequenceTitle`, { source }), localize(`${_I18N}.clearConsequenceAsk`),
-				options.map(o => ({ value: o.slug, label: format(`${_I18N}.clearNamed`, { name: o.label }) })));
-			if (!slug || !(await character.unmarkSectionOption(_CONSEQUENCES, slug))) return null;
-			return said(format(`${_I18N}.consequenceCleared`, { name: escHtml(options.find(o => o.slug === slug)?.label ?? slug) }));
+			const picked = await _pickOption(format(`${_I18N}.clearConsequenceTitle`, { source }), localize(`${_I18N}.clearConsequenceAsk`),
+				"clearNamed", _clearableConsequences(await character.sectionOptions(_CONSEQUENCES)));
+			if (!picked || !(await character.unmarkSectionOption(_CONSEQUENCES, picked.slug))) return null;
+			return said(format(`${_I18N}.consequenceCleared`, { name: escHtml(picked.label) }));
 		}
 		case "mark-consequence": {
-			const options = _markableConsequences(await character.sectionOptions(_CONSEQUENCES));
-			const slug = await _pick(format(`${_I18N}.markConsequenceTitle`, { source }), localize(`${_I18N}.markConsequenceAsk`),
-				options.map(o => ({ value: o.slug, label: format(`${_I18N}.markNamed`, { name: o.label }) })));
-			if (!slug || !(await character.markSectionOption(_CONSEQUENCES, slug))) return null;
-			return said(format(`${_I18N}.consequenceMarked`, { name: escHtml(options.find(o => o.slug === slug)?.label ?? slug) }));
+			const picked = await _pickOption(format(`${_I18N}.markConsequenceTitle`, { source }), localize(`${_I18N}.markConsequenceAsk`),
+				"markNamed", markableConsequences(await character.sectionOptions(_CONSEQUENCES)));
+			if (!picked || !(await character.markSectionOption(_CONSEQUENCES, picked.slug))) return null;
+			return said(format(`${_I18N}.consequenceMarked`, { name: escHtml(picked.label) }));
 		}
 		case "last-door": {
 			const name = escHtml(character._actor?.name ?? "");
@@ -349,7 +333,9 @@ async function _rollHeal(character, source) {
 		: format(`${_I18N}.rolledNoGain`, { roll: roll.total });
 	await roll.toMessage({
 		speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: character._actor }),
-		flavor:  `<strong>${escHtml(source)}</strong>: ${line}`,
+		flavor:  rolledTotalCard(roll, source, localize(`${_I18N}.healLabel`), raised
+			? format(`${_I18N}.healLine`, { from, to: character.hp })
+			: localize(`${_I18N}.healFull`)),
 	});
 	return { lines: [line], posted: true };
 }
@@ -374,6 +360,12 @@ async function _pick(title, content, choices) {
 			{ key: "cancel", label: localize(`${_I18N}.cancel`), icon: "fa-xmark", value: null },
 		],
 	});
+}
+
+/** `_pick` over lore options, each button worded by `namedKey`: the option picked (`{slug, label}`), or null. */
+async function _pickOption(title, content, namedKey, options) {
+	const slug = await _pick(title, content, options.map(o => ({ value: o.slug, label: format(`${_I18N}.${namedKey}`, { name: o.label }) })));
+	return slug ? options.find(o => o.slug === slug) ?? { slug, label: slug } : null;
 }
 
 /** The table hears what was pressed, in the same card the 0-HP walkthrough reports in. */
@@ -405,12 +397,15 @@ export async function setFavorFromPip(character, index, filled) {
  * "Gain a new Mark": Favor's overflow (your choice) and Dark Succor (the GM's). The GM's control, so it
  * offers every Mark the Thrall can still gain and lets whoever presses it choose.
  *
+ * Favor goes to 0 in the Mark's own write: the overflow is "reduce your Favor to 0 and choose 1", and
+ * Dark Succor's is "Regardless, reset your Favor to 0", so whichever brought them here, none is left.
+ *
  * With none left it is Unholy Vessel ("When you would gain a Mark but there are none left to gain,
  * your humanity is utterly lost"), resolved the way UndeathDialog resolves it (loseToUnholyVessel).
  * "None left" is UndeathDialog's own test: every Mark held or crossed off.
  */
 export async function gainThrallMark(character) {
-	const options = (await character.sectionOptions(_MARKS)).filter(o => !o.blocked);
+	const options = gainableMarks(await character.sectionOptions(_MARKS));
 	if (!options.length) {
 		const ok = await confirmOutcome({
 			title:   localize("stonetop.undeath.unholyVessel.label"),
@@ -423,23 +418,25 @@ export async function gainThrallMark(character) {
 		await postOutcomeCard(character, localize("stonetop.undeath.unholyVessel.label"), lines);
 		return { unholyVessel: true, lines };
 	}
-	const slug = await _pick(localize(`${_I18N}.gainMarkTitle`), localize(`${_I18N}.gainMarkAsk`),
-		options.map(o => ({ value: o.slug, label: format(`${_I18N}.gainNamed`, { name: o.label }) })));
-	if (!slug || !(await character.markSectionOption(_MARKS, slug))) return null;
-	const lines = [format(`${_I18N}.markGained`, { name: escHtml(options.find(o => o.slug === slug)?.label ?? slug) })];
+	const picked = await _pickOption(localize(`${_I18N}.gainMarkTitle`), localize(`${_I18N}.gainMarkAsk`), "gainNamed", options);
+	const marked = picked ? character.markSectionOptionUpdateData(_MARKS, picked.slug) : null;
+	if (!marked) return null;
+	const hadFavor = Number(character.favor?.()) > 0;
+	await character.applyUpdate({ ...marked, ...character.favorUpdateData(0) }, localize(`${_I18N}.gainMark`));
+	const lines = [format(`${_I18N}.markGained`, { name: escHtml(picked.label) })];
+	if (hadFavor) lines.push(localize(`${_I18N}.favorReset`));
 	await postOutcomeCard(character, localize(`${_I18N}.gainMark`), lines);
-	return { slug, lines };
+	return { slug: picked.slug, lines };
 }
 
 /**
  * Unholy Vessel: the Thrall is lost, a threat in the GM's control. The state goes to `dead` in one
- * write (out of play; deaths-door.js#lostToTheGm names a dead Thrall a threat), attributed to the move,
- * and the summary is the walkthrough's own sentence. The same write UndeathDialog#_applyUnholyVessel
- * makes; that one goes through the dialog's own _write, which owns its failure and retry handling.
+ * write (out of play; deaths-door.js#lostToTheGm names a dead Thrall a threat), attributed to
+ * `moveName` (the 0-HP walkthrough passes its own move, UndeathDialog#_applyUnholyVessel), and the
+ * summary is the walkthrough's own sentence.
  */
-export async function loseToUnholyVessel(character) {
-	await character.restoreHp(0, localize("stonetop.undeath.unholyVessel.label"),
-		{ alsoUpdate: character.deathsDoorStateUpdateData(DEATHS_DOOR_STATE.DEAD) });
+export async function loseToUnholyVessel(character, moveName = localize("stonetop.undeath.unholyVessel.label")) {
+	await character.applyUpdate(character.deathsDoorStateUpdateData(DEATHS_DOOR_STATE.DEAD), moveName);
 	return [format("stonetop.undeath.unholyVessel.summary", { name: escHtml(character._actor?.name ?? "") })];
 }
 
@@ -467,29 +464,28 @@ export async function completeMasterTask(character) {
  *
  *   THE FINAL CONSEQUENCE  asks first, then marks it and sets `dead` in ONE write: it ends them as a
  *                          player character, and a tick that marked it without that left a monster
- *                          sitting at the table as a live party member.
- *   Consequences, Marks    one option taken or given back, through the seams that grant and remove
- *                          the moves some of them bring.
+ *                          sitting at the table as a live party member. Unticked, it asks too (the
+ *                          user's call, 2026-09-30), then both come back off in one write.
+ *   Consequences, Marks    one option taken or given back (markSectionOption / unmarkSectionOption).
  *   anything else          the count, as it always was (a Terrible Purpose, an Impulse, Favor).
+ *
+ * A Consequence or Mark that brings a move with it is granted or taken back by the lore sync, which
+ * watches every lore write (post-death-moves.js).
  */
 export async function tickInsertLore(character, { section, option, count }) {
 	const on = Number(count) > 0;
-	if (section === _CONSEQUENCES && option === _FINAL && on) {
+	if (section === _CONSEQUENCES && option === _FINAL) {
 		const name = escHtml(character._actor?.name ?? "");
+		const key = on ? "final" : "finalUndo";
 		const ok = await confirmOutcome({
-			title:   localize(`${_I18N}.finalTitle`),
-			content: format(`${_I18N}.finalBody`, { name }),
-			yes:     { label: localize(`${_I18N}.finalYes`), icon: "fa-skull" },
-			no:      { label: localize(`${_I18N}.finalNo`) },
+			title:   localize(`${_I18N}.${key}Title`),
+			content: format(`${_I18N}.${key}Body`, { name }),
+			yes:     { label: localize(`${_I18N}.${key}Yes`), icon: on ? "fa-skull" : "fa-rotate-left" },
+			no:      { label: localize(`${_I18N}.${key}No`) },
 		});
 		if (!ok) return false;
-		const update = {
-			...(character.markSectionOptionUpdateData(_CONSEQUENCES, _FINAL) ?? {}),
-			...character.deathsDoorStateUpdateData(DEATHS_DOOR_STATE.DEAD),
-		};
-		// restoreHp with nothing to restore writes `alsoUpdate` alone: the one-write seam the 0-HP
-		// walkthrough lands its decisions through, attributed the same way.
-		await character.restoreHp(0, localize(`${_I18N}.finalMove`), { alsoUpdate: update });
+		const update = on ? character.finalConsequenceUpdateData() : character.finalConsequenceUndoUpdateData();
+		await character.applyUpdate(update, localize(`${_I18N}.finalMove`));
 		return true;
 	}
 	if (_ACCUMULATING.has(section)) {

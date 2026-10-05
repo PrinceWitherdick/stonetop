@@ -231,11 +231,16 @@ async function ensureRecord(actor, struggleId) {
 /** Rows this client is rolling right now: a double click must not roll twice. */
 const rolling = new Set();
 
-/** The move's own printed text: every roll card carries the move's ladder. fetchMoveRef caches it. */
+/**
+ * The move's own printed text: every roll card carries the move's ladder. fetchMoveRef caches it.
+ * Laid out by `moveCardBody` as an item move's card is, since the raw prose has no ladder for
+ * the card to mark the rolled rung on.
+ */
 async function struggleMoveText() {
 	try {
 		const { fetchMoveRef } = await import("../utils/move-refs.js");
-		return (await fetchMoveRef(STRUGGLE_MOVE)) ?? "";
+		const { moveCardBody } = await import("../utils/move-tiers.js");
+		return moveCardBody((await fetchMoveRef(STRUGGLE_MOVE)) ?? "", null);
 	} catch {
 		return "";
 	}

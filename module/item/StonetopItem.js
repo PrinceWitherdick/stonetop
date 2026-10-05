@@ -313,8 +313,14 @@ export function createStonetopItemClass(BaseItem) {
 			// Wielder's buttons, the speech's), its tier actions after any the roll brought.
 			const moveExtras = moveRollOptions(this.name, actor, options.tierActions);
 
+			// "+Fortunes" is the STEADING's stat (a love letter's): a caller that did not hand its
+			// value in gets it read off the character's steading, not the character's own absent one.
+			const steadingFortunes = stat === "fortunes" && options.statValue == null && actor?.type === "character"
+				? actor.typedActor?.getSteadingActor?.()?.typedActor?.getStatValue?.("fortunes")
+				: undefined;
 			if (stat) return rollStat(stat, actor, {
 				...options,
+				...(steadingFortunes != null ? { statValue: steadingFortunes } : {}),
 				messageFlags,
 				moveName,
 				moveDescription: cardDescription,

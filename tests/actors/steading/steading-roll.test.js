@@ -1,15 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { settleSteadingRoll } from "../../../module/actors/steading/steading-roll.js";
 import { STEADING_MOVE } from "../../../module/actors/steading/improvement-rolls.js";
+import { builtInImprovementRules } from "../../../module/actors/steading/StonetopSteading.js";
 
 // Every door to a steading roll settles its terms here: the sheet's rolls, the Seasons Change
 // hand-off, the walkthrough's Requisition, a character's Requisition window. The rules each
 // improvement adds are improvement-rolls.test.js's; this is the netting and the held promise.
 
-function steading({ built = [], diminished = false, held = null, clearFails = false } = {}) {
+function steading({ built = [], diminished = false, held = null, clearFails = false, size, herd } = {}) {
 	const s = {
 		held,
+		...(size ? { steadingSize: () => size } : {}),
+		...(herd ? { getHerd: () => herd } : {}),
 		improvementCompleted: slug => built.includes(slug),
+		// The rules list the roll reads (improvement-rules.js): these book improvements, built.
+		improvementRules: () => builtInImprovementRules(built),
 		getSystemValue: path => (path.includes("diminished") ? diminished : false),
 		fortunesAdvantage: () => s.held,
 		clearFortunesAdvantage: vi.fn(async () => {
@@ -90,5 +95,37 @@ describe("settling a steading roll", () => {
 			moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes", answers: { herdShare: true },
 		});
 		expect(terms.missAsPartial).toMatch(/half the herd/i);
+	});
+
+	// Book I p. 509: "Hamlet ... Muster, Pull Together, and Trade & Barter with disadvantage";
+	// a town or a city does them "with advantage". The Size is read off the steading itself.
+	it("reads the steading's Size: a hamlet at disadvantage, a town at advantage", async () => {
+		const hamlet = await settleSteadingRoll(steading({ size: "hamlet" }), { moveName: STEADING_MOVE.PULL_TOGETHER, statKey: "population" });
+		expect(hamlet.rollMode).toBe("dis");
+		expect(hamlet.conditionNotes).toContain("A hamlet: disadvantage");
+		const town = await settleSteadingRoll(steading({ size: "town" }), { moveName: STEADING_MOVE.TRADE_BARTER, statKey: "prosperity" });
+		expect(town.rollMode).toBe("adv");
+		const village = await settleSteadingRoll(steading({ size: "village" }), { moveName: STEADING_MOVE.MUSTER, statKey: "population" });
+		expect(village.rollMode).toBe("normal");
+		// Not a move the Size names.
+		const deploy = await settleSteadingRoll(steading({ size: "hamlet" }), { moveName: STEADING_MOVE.DEPLOY, statKey: "defenses" });
+		expect(deploy.rollMode).toBe("normal");
+	});
+
+	// The herd's rule reads the NUMBER taken against the herd's size.
+	it("judges half the herd from the count asked for", async () => {
+		const herd = { grown: 10, yearlings: 0, foals: 2, total: 12 };
+		const half = await settleSteadingRoll(steading({ built: ["herdOfHorses"], herd }), {
+			moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes", answers: { herdCount: "6" },
+		});
+		expect(half.missAsPartial).toMatch(/half the herd/i);
+		const more = await settleSteadingRoll(steading({ built: ["herdOfHorses"], herd }), {
+			moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes", answers: { herdCount: "7" },
+		});
+		expect(more.missAsPartial).toBe("");
+		const none = await settleSteadingRoll(steading({ built: ["herdOfHorses"], herd }), {
+			moveName: STEADING_MOVE.REQUISITION, statKey: "fortunes", answers: { herdCount: "0" },
+		});
+		expect(none.missAsPartial).toBe("");
 	});
 });

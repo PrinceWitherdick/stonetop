@@ -32,7 +32,7 @@ import {
 	WE_HAPPY_FEW, inspirationForTier, inspirationHeld, holdInspiration, spendInspiration, refundInspiration, inBattle,
 	canKeepOneHp,
 } from "./inspiration.js";
-import { actsForHelper, boostRoute } from "./roll-boosts.js";
+import { actsForHelper } from "./roll-boosts.js";
 import { ownerUsers, answersFor, becameDyingInDiff, openZeroHpMove } from "../../hooks/DeathsDoorPrompt.js";
 import { pickPersonOnMap } from "../../dialogs/RelationshipLinkDialog.js";
 import { contentElement } from "../../dialogs/content-picker.js";
@@ -41,6 +41,7 @@ import { canRewriteCard, postMoveNote } from "../../utils/chat.js";
 import { belongsToMessage } from "../../utils/picked-option-button.js";
 import { speakerActor } from "../../utils/speaker-actor.js";
 import { inCardTurn } from "../../utils/card-queue.js";
+import { rollCardRoute, writeCardRoll } from "../../utils/roll-card-writer.js";
 import { isPrimaryGM } from "../../utils/primary-gm.js";
 import { askGMClient, queryAsker, resolveSync } from "../../utils/foundry-compat.js";
 import { holdForEach, shareHold } from "../../utils/share-hold.js";
@@ -245,7 +246,8 @@ async function rollInspirationDie() {
 
 /**
  * The die onto a plain card's roll, as a term of its own: the way stonetop.js#_shiftRoll puts a GM's
- * Shift on, so a Shift after this keeps it, and the Roll still adds up to what the card says.
+ * Shift on, so a Shift after this keeps it, and the Roll still adds up to what the card says. Handed the
+ * copy utils/roll-card-writer.js#writeCardRoll lifts, so a refused write leaves the card's own roll as it was.
  */
 async function addToRoll(roll, amount) {
 	const { OperatorTerm, NumericTerm } = globalThis.foundry.dice.terms;
@@ -285,13 +287,9 @@ export function addInspirationDie(message, holder, {
 				const results = damage.results.map(r => ({ ...r, raw: (Number(r.raw) || 0) + amount }));
 				await message.update({ flags: { [scope]: { damage: { results }, [DIE_FLAG]: record } } });
 			} else {
-				const roll = message.rolls.at(0);
-				await addDie(roll, amount);
-				await message.update({
-					rolls: message.rolls,
-					flavor: cardFlavor(message.flavor, Math.max(0, roll.total), roll.formula),
-					flags: { [scope]: { [DIE_FLAG]: record } },
-				});
+				await writeCardRoll(message, roll => addDie(roll, amount), {
+					cardFlavor: (flavor, total, formula) => cardFlavor(flavor, Math.max(0, total), formula),
+				}, { flags: { [scope]: { [DIE_FLAG]: record } } });
 			}
 		} catch (err) {
 			await refundInspiration(holder, scope);
@@ -337,7 +335,7 @@ export function wireInspirationDamage(message, html, deps = {}, { user = globalT
 	if (!row) return;
 	const offer = inspirationDamageOffer(message, { user, scope, ...(deps.holderOf ? { holderOf: deps.holderOf } : {}) });
 	if (!offer) return;
-	const route = boostRoute(message, user);
+	const route = rollCardRoute(message, user);
 	if (!route) return;
 	const button = (root.ownerDocument ?? globalThis.document).createElement("button");
 	button.type = "button";

@@ -318,8 +318,11 @@ const BOUNDS_PAD_BOTTOM = 90;
  *
  * @param {Array<{x: number, y: number}>} nodes  where everybody is, in board percentages.
  * @param {{width: number, height: number}} board  the sheet, from `boardMetrics`.
+ * @param {Array<{left: number, top: number, right: number, bottom: number}>} [boxes]  anything else
+ *   drawn on the board that must be framed with it, in board pixels: a group's outline, which can
+ *   reach further out than the people it is drawn round.
  */
-export function boardBounds(nodes = [], { width = RELMAP_BOARD_WIDTH, height = RELMAP_BOARD_WIDTH / RELMAP_BOARD_ASPECT } = {}) {
+export function boardBounds(nodes = [], { width = RELMAP_BOARD_WIDTH, height = RELMAP_BOARD_WIDTH / RELMAP_BOARD_ASPECT } = {}, boxes = []) {
 	const box = { left: 0, top: 0, right: width, bottom: height };
 	for (const node of nodes) {
 		const x = (Number(node?.x) / 100) * width;
@@ -330,7 +333,222 @@ export function boardBounds(nodes = [], { width = RELMAP_BOARD_WIDTH, height = R
 		box.top = Math.min(box.top, y - BOUNDS_PAD_TOP);
 		box.bottom = Math.max(box.bottom, y + BOUNDS_PAD_BOTTOM);
 	}
+	for (const extra of boxes ?? []) {
+		if (![extra?.left, extra?.top, extra?.right, extra?.bottom].every(Number.isFinite)) continue;
+		box.left = Math.min(box.left, extra.left);
+		box.right = Math.max(box.right, extra.right);
+		box.top = Math.min(box.top, extra.top);
+		box.bottom = Math.max(box.bottom, extra.bottom);
+	}
 	return box;
+}
+
+/**
+ * HOW FAR A GROUP'S OUTLINE STANDS OFF ONE MEMBER'S CENTRE, in board pixels: the face, the name hung
+ * under it (`.stonetop-relmap-name` is capped at 108px wide and sits 2px below the face, 18px tall),
+ * and a margin of paper so the outline never grazes either.
+ */
+const GROUP_REACH_X = 54;
+const GROUP_REACH_TOP = 36;
+const GROUP_REACH_BOTTOM = 56;
+export const RELMAP_GROUP_PAD_PX = 18;
+/** The paper between an inner group's LINE and the outer one, less the half of the inner name chip
+ * that sits above it. MEASURED at a 20px chip: a nest of 16 let the chip touch the outer stroke, and
+ * 24 (fourteen of paper over the chip's half) left it about seven pixels clear of the stroke. */
+const GROUP_NEST_CLEAR_PX = 14;
+/** How tall a group's name chip is, in ems of its own type: `line-height: 1.4` and a padding of
+ * 0.08em top and bottom (`.stonetop-relmap-group-name`). Kept with that rule. */
+const GROUP_NAME_CHIP_EM = 1.56;
+
+/**
+ * How far an outline stands clear of a group inside it, so the two are never drawn on top of each
+ * other.
+ *
+ * ⚠ IT GROWS WITH THE READER'S TEXT SIZE. A group's name is set in the line captions' sixteen times
+ * the corner's word weight (the stylesheet multiplies by the same `--relmap-word-scale`), and the
+ * inner name sits ON its line, half its chip above it. A fixed step was measured for one size of
+ * chip; at twice the words the inner name would lie across the outer stroke.
+ *
+ * @param {number} [wordScale]  the corner's word weight as a multiplier, from `weightScales`.
+ */
+export function groupNestPx(wordScale = 1) {
+	const scale = Number(wordScale) > 0 ? Number(wordScale) : 1;
+	return GROUP_NEST_CLEAR_PX + (RELMAP_CAPTION_PX * scale * GROUP_NAME_CHIP_EM) / 2;
+}
+/** The corner of a box outline. */
+const GROUP_CORNER_PX = 22;
+/** How far in from a box's left corner its name sits. */
+const GROUP_NAME_INSET_PX = 28;
+
+/**
+ * WHICH GROUPS LIE WHOLLY INSIDE WHICH: for every group, the other groups whose people are all in it.
+ *
+ * "The elders" drawn inside "The village council" has to stand clear of it rather than trace the
+ * same rectangle, so the council's outline is drawn round the elders' OUTLINE and not merely round
+ * their faces (see `groupShapes`). Two groups of the very same people are a tie broken by id, so the
+ * two still draw as two outlines and not one.
+ *
+ * @param {Record<string, {members: Record<string, true>}>} groups
+ * @returns {Map<string, string[]>}
+ */
+export function groupsInside(groups = {}) {
+	const sets = Object.entries(groups ?? {}).map(([id, group]) => [id, new Set(Object.keys(group?.members ?? {}))]);
+	const inside = new Map();
+	for (const [id, outer] of sets) {
+		const within = [];
+		for (const [otherId, inner] of sets) {
+			if (otherId === id || !inner.size || inner.size > outer.size) continue;
+			if (![...inner].every(member => outer.has(member))) continue;
+			// The same people in both: the later id counts as the outer one.
+			if (inner.size === outer.size && otherId > id) continue;
+			within.push(otherId);
+		}
+		inside.set(id, within);
+	}
+	return inside;
+}
+
+/**
+ * THE OUTLINE OF ONE GROUP, worked out from where its members stand, in board PIXELS.
+ *
+ * Never stored. A group remembers who is in it and nothing about where, so dragging a hunter
+ * stretches "The hunters" with them and no outline can be left behind on bare paper.
+ *
+ * - A BOX is the rectangle round every member's face and name, plus a margin.
+ * - An OVAL is the ellipse through that rectangle's corners (each half-axis times the square root of
+ *   two), so nobody's face or name pokes out of it at a corner.
+ *
+ * In board pixels and NOT percentages, because the layer it is drawn in keeps its aspect: a rounded
+ * corner or an ellipse drawn in the stretched 0-100 space the lines use comes out sheared.
+ *
+ * ⚠ A GROUP WITH ANOTHER INSIDE IT IS DRAWN ROUND THAT ONE'S OUTLINE (`contain`), not only round
+ * the faces they share. An oval reaches the square root of two past its own box, so padding by a
+ * fixed step left an oval "elders" poking out through the top of a box "council" round it.
+ *
+ * @param {Array<{x: number, y: number}>} members  where each member stands, in board percentages.
+ * @param {object} options
+ * @param {{width: number, height: number}} options.board  the sheet.
+ * @param {string} [options.shape]  "box" or "oval".
+ * @param {Array<{left: number, top: number, right: number, bottom: number}>} [options.contain]
+ *        outlines (board pixels) this one must stand clear round: the groups wholly inside it.
+ * @param {number} [options.nestPx]  how far clear of them, from `groupNestPx`.
+ * @returns {{shape: string, left: number, top: number, right: number, bottom: number,
+ *   cx: number, cy: number, w: number, h: number, rx: number, ry: number,
+ *   name: {left: number, top: number, align: string}}|null}  null with nobody to draw round.
+ */
+export function groupOutline(members = [], { board, shape = "box", contain = [], nestPx = groupNestPx() } = {}) {
+	const width = Number(board?.width) || RELMAP_BOARD_WIDTH;
+	const height = Number(board?.height) || width / RELMAP_BOARD_ASPECT;
+	let left = Infinity; let top = Infinity; let right = -Infinity; let bottom = -Infinity;
+	for (const member of members ?? []) {
+		const x = (Number(member?.x) / 100) * width;
+		const y = (Number(member?.y) / 100) * height;
+		if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+		left = Math.min(left, x - GROUP_REACH_X);
+		right = Math.max(right, x + GROUP_REACH_X);
+		top = Math.min(top, y - GROUP_REACH_TOP);
+		bottom = Math.max(bottom, y + GROUP_REACH_BOTTOM);
+	}
+	if (!Number.isFinite(left)) return null;
+	left -= RELMAP_GROUP_PAD_PX; right += RELMAP_GROUP_PAD_PX; top -= RELMAP_GROUP_PAD_PX; bottom += RELMAP_GROUP_PAD_PX;
+	// Round every group inside this one, a step clear of its line (and of the name sitting on it).
+	for (const inner of contain ?? []) {
+		if (![inner?.left, inner?.top, inner?.right, inner?.bottom].every(Number.isFinite)) continue;
+		left = Math.min(left, inner.left - nestPx);
+		right = Math.max(right, inner.right + nestPx);
+		top = Math.min(top, inner.top - nestPx);
+		bottom = Math.max(bottom, inner.bottom + nestPx);
+	}
+	const cx = (left + right) / 2;
+	const cy = (top + bottom) / 2;
+
+	if (shape === "oval") {
+		const rx = ((right - left) / 2) * Math.SQRT2;
+		const ry = ((bottom - top) / 2) * Math.SQRT2;
+		const oval = {
+			shape, cx, cy, rx, ry,
+			left: cx - rx, top: cy - ry, right: cx + rx, bottom: cy + ry, w: rx * 2, h: ry * 2,
+			// The top of the ellipse, centred: the one point on it a name can sit level on.
+			name: { left: (cx / width) * 100, top: ((cy - ry) / height) * 100, align: "centre" },
+		};
+		return { ...oval, d: groupPathD(oval) };
+	}
+	const w = right - left;
+	const h = bottom - top;
+	const corner = Math.min(GROUP_CORNER_PX, w / 2, h / 2);
+	const box = {
+		shape: "box", cx, cy, rx: corner, ry: corner, left, top, right, bottom, w, h,
+		name: {
+			left: ((left + Math.min(GROUP_NAME_INSET_PX, w / 4)) / width) * 100,
+			top: (top / height) * 100,
+			align: "start",
+		},
+	};
+	return { ...box, d: groupPathD(box) };
+}
+
+/**
+ * One outline as an SVG path, in board pixels.
+ *
+ * A PATH FOR BOTH SHAPES rather than a `<rect>` for one and an `<ellipse>` for the other, so a live
+ * drag can move an outline by rewriting one attribute, and a group switched from box to oval
+ * between two paints is the same element either way.
+ */
+export function groupPathD({ shape, left, top, right, bottom, cx, cy, rx, ry } = {}) {
+	const n = v => round(v);
+	if (shape === "oval") {
+		return `M ${n(cx - rx)} ${n(cy)} A ${n(rx)} ${n(ry)} 0 1 0 ${n(cx + rx)} ${n(cy)} `
+			+ `A ${n(rx)} ${n(ry)} 0 1 0 ${n(cx - rx)} ${n(cy)} Z`;
+	}
+	const r = rx;
+	return `M ${n(left + r)} ${n(top)} H ${n(right - r)} A ${n(r)} ${n(r)} 0 0 1 ${n(right)} ${n(top + r)} `
+		+ `V ${n(bottom - r)} A ${n(r)} ${n(r)} 0 0 1 ${n(right - r)} ${n(bottom)} `
+		+ `H ${n(left + r)} A ${n(r)} ${n(r)} 0 0 1 ${n(left)} ${n(bottom - r)} `
+		+ `V ${n(top + r)} A ${n(r)} ${n(r)} 0 0 1 ${n(left + r)} ${n(top)} Z`;
+}
+
+/**
+ * Every group on a board worked out at once: who is in each, how deep it nests, and its outline.
+ *
+ * ONE BUILDER for the paint and for the drag preview, which has to draw exactly what the paint
+ * will draw when the drop lands. Groups with nobody left standing in them are left out.
+ *
+ * @param {object} graph  a normalized graph (`nodes` and `groups`).
+ * @param {{width: number, height: number}} board  the sheet.
+ * @param {object} [opts]  for the drag preview, which asks sixty times a second about the same groups:
+ * @param {Map<string, string[]>} [opts.within]  `groupsInside(graph.groups)`, worked out once per drag
+ *   (membership cannot change under one).
+ * @param {Set<string>} [opts.only]  the groups wanted; those and the groups inside them are laid out.
+ * @param {number} [opts.wordScale]  the corner's word weight, which the names are set at: see `groupNestPx`.
+ * @returns {Array<{id: string, group: object, members: string[], outline: object}>}  outermost first,
+ *   so a nested outline paints over the one round it.
+ */
+export function groupShapes(graph, board, { within, only, wordScale = 1 } = {}) {
+	const groups = graph?.groups ?? {};
+	within ??= groupsInside(groups);
+	const needed = only ? new Set([...only].flatMap(id => [id, ...(within.get(id) ?? [])])) : null;
+	const byId = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+	// INNERMOST FIRST, so every group inside another has its outline before the one round it asks.
+	// A group can only hold groups with fewer groups inside them, so this order always has them ready.
+	const order = Object.keys(groups).sort((a, b) => within.get(a).length - within.get(b).length || byId(a, b));
+	const outlines = new Map();
+	const out = [];
+	const nestPx = groupNestPx(wordScale);
+	for (const id of order) {
+		if (needed && !needed.has(id)) continue;
+		const group = groups[id];
+		const members = Object.keys(group?.members ?? {}).filter(nodeId => graph.nodes?.[nodeId]).sort();
+		const outline = groupOutline(members.map(nodeId => graph.nodes[nodeId]), {
+			board, shape: group.shape, nestPx,
+			contain: within.get(id).map(inner => outlines.get(inner)).filter(Boolean),
+		});
+		if (!outline) continue;
+		outlines.set(id, outline);
+		out.push({ id, group, members, outline, depth: within.get(id).length });
+	}
+	// Outermost first, then by id, so a nested outline paints over the one round it and the order on
+	// the board never depends on how the flag happened to come back.
+	return out.sort((a, b) => b.depth - a.depth || byId(a.id, b.id));
 }
 
 /**

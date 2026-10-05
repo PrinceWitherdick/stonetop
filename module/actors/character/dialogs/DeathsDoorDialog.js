@@ -21,6 +21,7 @@ import { endBattleJoyUnrolled } from "../../../combat/battle-joy-offer.js";
 import { SYSTEM_ID } from "../../../system-id.js";
 import { format, localize } from "../../../utils/i18n.js";
 import { rollRewrite } from "../../../utils/roll-rewrite.js";
+import { rollCardRoute } from "../../../utils/roll-card-writer.js";
 import { BURN_BRIGHTLY_COST } from "../burn-brightly.js";
 import { GAVE_IT_ALL_FLAG, GIVE_IT_ALL_COSTS, IMPETUOUS_YOUTH, askGiveItAllCost, giveItAllAtDeathsDoor } from "../impetuous-youth.js";
 
@@ -302,7 +303,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 		// questions (buildPostDeathChoices' `carried`), and the words the step opens with when the insert
 		// came from somewhere other than this window's own fates. Both set by openChoices.
 		this._carried = {};
-		this._takenAs = null;
+		this._takenIntro = null;
 		// Which of the insert's questions the rail is showing. Latched on the instance rather than
 		// derived per render because that step re-renders on every answer, and a cursor recomputed
 		// each time would move itself: answering the question you are looking at would swap the
@@ -321,13 +322,13 @@ export class DeathsDoorDialog extends StonetopDialog {
 	 * Undying's 6- that gives up the Revenant for the Ghost (UndeathDialog#_onAlternative). The same step,
 	 * rail and rules as a 6- here, so a Ghost is asked for their first Consequence the one way every Ghost
 	 * is. `carried` is what they held before, which does not answer it; `taken` names the `taken.*` words
-	 * (languages/en.json) the step opens with.
+	 * (languages/en.json) the step opens with: only their `intro`, since no fate card is posted from here.
 	 */
 	static async openChoices(character, onDone, { carried = {}, taken = null } = {}) {
 		const dialog = new DeathsDoorDialog(character, onDone);
 		dialog._step    = "choices";
 		dialog._carried = carried ?? {};
-		dialog._takenAs = taken ? _taken(taken) : null;
+		dialog._takenIntro = taken ? localize(`${_I18N}.taken.${taken}.intro`) : null;
 		await dialog._refreshChoices();
 		dialog.render(true);
 		return dialog;
@@ -513,7 +514,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 			choices:          choices,
 			insertName:       this._choices?.name ?? "",
 			// Told in the terms of the fate that was actually taken — see _INSERT_TAKEN.
-			choicesIntro:     (this._takenAs ?? _INSERT_TAKEN[this._choices?.slug] ?? _REFUSED).intro,
+			choicesIntro:     this._takenIntro ?? (_INSERT_TAKEN[this._choices?.slug] ?? _REFUSED).intro,
 			outstandingLabel: outstandingLabel(this._choices),
 
 			// One rail entry per question. The label is the step's `short` name, the same words the
@@ -850,13 +851,22 @@ export class DeathsDoorDialog extends StonetopDialog {
 	}
 
 	/**
-	 * The boosts that can be pressed here, now: those left (_boostsLeft), while something can rewrite the card.
-	 * A private card is rewritten by the GM's client (_boostViaGM), so with no GM connected none can be, and
-	 * `needsGM` says that is why.
+	 * Where a boost on the Door's card is written (utils/roll-card-writer.js): `local` here, `relay` by the GM's
+	 * client (_boostViaGM), which writes every player's rewrite of a card while a GM is connected, and a private
+	 * card this client was never sent at any time. Null when neither can: no GM, and a card this client may not write.
+	 */
+	_boostRoute() {
+		if (!this._rollMessage) return globalThis.game?.users?.activeGM ? "relay" : null;
+		return rollCardRoute(this._rollMessage);
+	}
+
+	/**
+	 * The boosts that can be pressed here, now: those left (_boostsLeft), while something can rewrite the card
+	 * (_boostRoute). With nothing that can, none can be, and `needsGM` says that is why.
 	 */
 	_boostOffers() {
 		const left = this._boostsLeft();
-		if (left.any && !this._rollMessage && !globalThis.game?.users?.activeGM) {
+		if (left.any && !this._boostRoute()) {
 			return { burn: false, giveAll: false, any: false, needsGM: true };
 		}
 		return { ...left, needsGM: false };
@@ -864,7 +874,8 @@ export class DeathsDoorDialog extends StonetopDialog {
 
 	/**
 	 * Burn Brightly on the Door's roll: the card path's spend (deaths-door-relay.js#burnBrightlyOnDoorCard), from
-	 * here, or from the GM's client for a card this client cannot read. The tier is then read again off the new total.
+	 * here, or from the GM's client when that is the card's writer (_boostRoute). The tier is then read again off
+	 * the new total.
 	 */
 	async _onBurnBrightly() {
 		if (this._boosting || !this._boostsPending || !this._boostOffers().burn) return;
@@ -872,7 +883,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 		try {
 			const from = this._rolledTotal;
 			const note = to => _burnNote(from, to);
-			if (!this._rollMessage) return await this._boostViaGM("burn", { note });
+			if (this._boostRoute() === "relay") return await this._boostViaGM("burn", { note });
 			const burned = await burnBrightlyOnDoorCard(this._rollMessage, this._character._actor, rollRewrite(), {
 				// Latched as the XP goes, so a rewrite that fails after it can't take the 2 XP a second time.
 				onSpent: () => { this._burned = true; },
@@ -894,8 +905,8 @@ export class DeathsDoorDialog extends StonetopDialog {
 	 * Impetuous Youth at the Door: asks the cost with the card's own picker (closing it gives nothing and
 	 * costs nothing), then lifts the card to the next floor of the tier it COUNTS as (so a Destined 6-, a 7-9
 	 * already, goes to a 10+), records the cost on it and rolls "you get hurt"'s 2d4 at the hero, all through
-	 * impetuous-youth.js#giveItAllAtDeathsDoor (on the GM's client, for a card this client cannot read). The tier is
-	 * then read again off the new total.
+	 * impetuous-youth.js#giveItAllAtDeathsDoor (on the GM's client, when that is the card's writer: _boostRoute).
+	 * The tier is then read again off the new total.
 	 */
 	async _onGiveItAll() {
 		if (this._boosting || !this._boostsPending || !this._boostOffers().giveAll) return;
@@ -907,7 +918,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 			const from  = this._rolledTotal;
 			const spent = GIVE_IT_ALL_COSTS.find(c => c.key === cost)?.spent ?? cost;
 			const note  = to => _giveAllNote(from, to, spent);
-			if (!this._rollMessage) return await this._boostViaGM("giveAll", { cost, note });
+			if (this._boostRoute() === "relay") return await this._boostViaGM("giveAll", { cost, note });
 			if (!(await giveItAllAtDeathsDoor(this._rollMessage, actor, cost, rollRewrite()))) return;
 			this._gaveAll = true;
 			this._boostNotes.push(note(this._cardTotal()));
@@ -920,14 +931,15 @@ export class DeathsDoorDialog extends StonetopDialog {
 	}
 
 	/**
-	 * A boost on a card this client was never sent (a private roll, taken over): the GM's client spends it and
-	 * rewrites the card (deaths-door-relay.js#handleDeathsDoorBoostQuery), and this window carries on from the total
-	 * and the counted tier it answers, exactly as from its own rewrite. A refusal changes nothing here but, when the
-	 * GM's client says the boost is gone from the card all the same, the button.
+	 * A boost the GM's client writes (_boostRoute): it spends it and rewrites the card
+	 * (deaths-door-relay.js#handleDeathsDoorBoostQuery), and this window carries on from the total and the counted
+	 * tier it answers, exactly as from its own rewrite: this client's copy of a card it can read may not have heard
+	 * the rewrite yet. A refusal changes nothing here but, when the GM's client says the boost is gone from the card
+	 * all the same, the button.
 	 */
 	async _boostViaGM(boost, { cost = null, note }) {
 		const answer = await askDeathsDoorBoost(this._character?._actor, {
-			nonce: this._rollNonce, messageId: this._privateCardId, boost, cost,
+			nonce: this._rollNonce, messageId: this._rollMessage?.id ?? this._privateCardId, boost, cost,
 		});
 		if (answer?.applied || answer?.spent) {
 			if (boost === "burn") this._burned = true;
@@ -940,7 +952,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 		this._rolledTotal = answer.total;
 		if (answer.tierShift) this._tierShift = answer.tierShift;
 		this._boostNotes.push(note(answer.total));
-		await this._afterBoost(answer.tier ?? null);
+		await this._afterBoost(answer.tier ?? null, answer.total);
 	}
 
 	/** The Door's card's total now, which is what a boost moved. */
@@ -949,12 +961,12 @@ export class DeathsDoorDialog extends StonetopDialog {
 	}
 
 	/**
-	 * Read the tier again after a boost, and settle it once there is nothing left that could move it. `counted` is
-	 * the GM's reading of a private card's tier (_boostViaGM), which stands over this window's. Nothing left means
-	 * nothing left to buy: a private roll's boosts waiting on a GM to come back still wait.
+	 * Read the tier again after a boost, and settle it once there is nothing left that could move it. `counted` and
+	 * `total` are the GM's reading of a card it rewrote (_boostViaGM), which stand over this window's. Nothing left
+	 * means nothing left to buy: a private roll's boosts waiting on a GM to come back still wait.
 	 */
-	async _afterBoost(counted = null) {
-		this._rolledTotal = this._cardTotal();
+	async _afterBoost(counted = null, total = null) {
+		this._rolledTotal = total ?? this._cardTotal();
 		this._readLanded();
 		if (counted) this._landed = counted;
 		const settles = !this._boostsLeft().any;
@@ -1462,7 +1474,7 @@ export class DeathsDoorDialog extends StonetopDialog {
 					text: _markPlaceholder(),
 					status: "permanent",
 					origin: "deaths-door",
-				});
+				}, { moveName: _MOVE.name });
 			} catch (err) {
 				console.error("Stonetop | could not record the Death's-Door mark", err);
 				ui.notifications?.warn?.(localize(`${_I18N}.mark.seedFailed`));

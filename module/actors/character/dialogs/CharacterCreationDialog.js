@@ -8,7 +8,7 @@
 // `openSheetWhenDone`). Until then, the player never sees an empty sheet.
 
 import { findOpenApp } from "../../../utils/open-windows.js";
-import { trackCreationFlow } from "../creation-flow.js";
+import { closeAndSettle, trackCreationFlow } from "../creation-flow.js";
 
 export class CharacterCreationDialog extends Application {
 	constructor(actor, options = {}) {
@@ -27,16 +27,21 @@ export class CharacterCreationDialog extends Application {
 	 */
 	static async open(actor) {
 		const existing = findOpenApp(w => w instanceof CharacterCreationDialog);
-		// Already greeting them about this same character — surface it rather than stack.
-		if (existing?.rendered && existing._actor?.id === actor?.id) {
-			existing.bringToTop();
+		// Already greeting them about this same character — surface it rather than stack. One
+		// still painting counts: it is about to be on screen, and a second would share its id.
+		const states = Application.RENDER_STATES ?? {};
+		const painting = existing?._state === states.RENDERING;
+		if ((existing?.rendered || painting) && existing._actor?.id === actor?.id) {
+			if (existing.rendered) existing.bringToTop();
 			return existing;
 		}
 		// A greeting for a DIFFERENT character (the GM just replaced this player's) points at a
-		// document on its way out; retire it before opening the new one. AWAITED: close() fades
-		// the old element out over 200ms, so injecting the replacement first would put two
-		// elements with this id in the document — the very thing this exists to prevent.
-		if (existing) await existing.close();
+		// document on its way out; retire it before opening the new one, and wait until it has
+		// GONE (closeAndSettle). close() fades the old element out over 200ms, and core's close()
+		// returns at once for a window already fading, which is exactly the state the replace
+		// leaves it in (the delete's cleanup closed it a moment earlier). A replacement opened
+		// then found the old element by its id, drew into it, and vanished with it.
+		if (existing) await closeAndSettle(existing);
 		// Registered against its character so a delete takes it with them (see creation-flow.js).
 		return trackCreationFlow(new CharacterCreationDialog(actor), actor?.id).render(true);
 	}
@@ -69,7 +74,12 @@ export class CharacterCreationDialog extends Application {
 	// pop the sheet open when the player finishes, then close this intro so the
 	// picker has the screen to itself. The sheet instance exists even though it has
 	// never been rendered — `actor.sheet` instantiates it lazily.
+	//
+	// Once only. The button stays live through the intro's 200ms fade-out, so a double-click
+	// started the flow twice: two playbook pickers sharing one DOM id.
 	_onCreate() {
+		if (this._started) return;
+		this._started = true;
 		this._actor?.sheet?._onNewCharacter?.({ openSheetWhenDone: true });
 		this.close();
 	}

@@ -4,6 +4,7 @@ import {
 	buildImprovementDef,
 	defaultSectionHeading,
 	flatRequirementItems,
+	forceCompleteTicks,
 	formatImprovementText,
 	groupsFromSections,
 	improvementRequirementCount,
@@ -13,6 +14,7 @@ import {
 	ordinal,
 	remapRequirementTicks,
 	rowsFromItems,
+	sanitizeImprovementHtml,
 	sectionsFromGroups,
 	summarizeImprovementGrants,
 	unformatImprovementText,
@@ -194,6 +196,15 @@ describe("normalizeImprovementGrants", () => {
 		expect(normalizeImprovementGrants({ setPopulation: null })).toBeNull();
 		expect(normalizeImprovementGrants({ setPopulation: "0" })).toEqual({ setPopulation: 0 });
 		expect(normalizeImprovementGrants({ setPopulation: 0 })).toEqual({ setPopulation: 0 });
+	});
+
+	// "+1 and set to 2" from 2 ended at 3: the set read Population before the delta landed.
+	it("drops a Population delta that rides beside a Population set", () => {
+		expect(normalizeImprovementGrants({ stats: { population: 1, fortunes: 1 }, setPopulation: 2 }))
+			.toEqual({ stats: { fortunes: 1 }, setPopulation: 2 });
+		expect(normalizeImprovementGrants({ stats: { population: 1 }, setPopulation: "0" })).toEqual({ setPopulation: 0 });
+		// A delta on its own still stands.
+		expect(normalizeImprovementGrants({ stats: { population: 1 } })).toEqual({ stats: { population: 1 } });
 	});
 
 	it("refuses a size that is not one of the four tiers", () => {
@@ -477,5 +488,66 @@ describe("alternativeSectionFlags", () => {
 	it("marks nothing on an improvement with no alternatives", () => {
 		const def = IMPROVEMENT_DEFINITIONS.find(d => d.slug === "palisade");
 		expect(alternativeSectionFlags(def.sections).some(Boolean)).toBe(false);
+	});
+});
+
+// Force-completing ("earn it now") ticks the FEWEST boxes that meet the requirements, never both
+// sides of an either/or and never past a section's count (Book I p. 514: "Once the PCs meet all
+// the requirements for an improvement, the steading gains the listed benefit(s)").
+describe("forceCompleteTicks", () => {
+	const def = slug => IMPROVEMENT_DEFINITIONS.find(d => d.slug === slug);
+
+	it("builds Additional Housing on the current land, not on the fields", () => {
+		const r = forceCompleteTicks(def("additionalHousing"), []);
+		expect(r).toEqual([true, false, true, true, true, true, true]);
+		expect(improvementRequirementsMet(def("additionalHousing"), r)).toBe(true);
+	});
+
+	it("keeps a choice already made, and tops up only what is short", () => {
+		const r = forceCompleteTicks(def("additionalHousing"), [false, true, true]);
+		expect(r).toEqual([false, true, true, true, true, true, true]);
+	});
+
+	it("drills the militia in ONE tactic, not all five", () => {
+		const r = forceCompleteTicks(def("wellTrainedMilitia"), []);
+		expect(r.filter(Boolean)).toHaveLength(2);
+		expect(r).toEqual([true, true, false, false, false, false]);
+		// A tactic already drilled is enough.
+		expect(forceCompleteTicks(def("wellTrainedMilitia"), [false, false, false, true])).toEqual([true, false, false, true, false, false]);
+	});
+
+	it("arms Weapons of War one way: the alternative already closest to met", () => {
+		expect(forceCompleteTicks(def("weaponsOfWar"), [])).toEqual([true, false, false, false, false, false, false, true, true]);
+		// The smith's way, five of six done: as short as the purchase, and further along, so it is
+		// finished rather than buying swords as well.
+		const smith = [false, true, true, true, true, true, false];
+		expect(forceCompleteTicks(def("weaponsOfWar"), smith)).toEqual([false, true, true, true, true, true, true, true, true]);
+		// Four of six is two short; the purchase is one.
+		expect(forceCompleteTicks(def("weaponsOfWar"), [false, true, true, true, true]).slice(0, 7))
+			.toEqual([true, true, true, true, true, false, false]);
+		// Already met by the purchase: the smith's half stays as it was.
+		expect(forceCompleteTicks(def("weaponsOfWar"), [true, true])).toEqual([true, true, false, false, false, false, false, true, true]);
+	});
+
+	it("never ticks a 2-of-3 past two, and meets every book improvement", () => {
+		expect(forceCompleteTicks(def("aurochsHunting"), [false, true])).toEqual([true, true, false, true]);
+		for (const d of IMPROVEMENT_DEFINITIONS) {
+			expect(improvementRequirementsMet(d, forceCompleteTicks(d, [])), d.slug).toBe(true);
+		}
+	});
+});
+
+describe("sanitizeImprovementHtml", () => {
+	it("keeps the playbook's inline emphasis and escapes everything else", () => {
+		expect(sanitizeImprovementHtml("<em>Pull Together</em> twice<br/>")).toBe("<em>Pull Together</em> twice<br>");
+		expect(sanitizeImprovementHtml(`<em class="x">a</em>`)).toBe(`&lt;em class="x"&gt;a</em>`);
+		expect(sanitizeImprovementHtml("<script>x</script>")).toBe("&lt;script&gt;x&lt;/script&gt;");
+		expect(sanitizeImprovementHtml("Rock & roll")).toBe("Rock &amp; roll");
+	});
+
+	it("passes the builder's own escaped output through unchanged", () => {
+		const built = formatImprovementText(`*Pull Together* & <b>"stuff"</b> &mdash;`);
+		expect(sanitizeImprovementHtml(built)).toBe(built);
+		expect(sanitizeImprovementHtml("Value 2 &mdash; or &#39;3&#x27;")).toBe("Value 2 &mdash; or &#39;3&#x27;");
 	});
 });

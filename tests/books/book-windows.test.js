@@ -38,8 +38,21 @@ function fakeViewer({ scale = 1, presentation = false, page = 91, pagesCount = 3
 // handed a stylesheet and asked whether it already has one.
 function fakeDoc() {
 	const head = { children: [], append(node) { this.children.push(node); } };
+	const props = new Map();
+	const classes = new Set();
 	return {
 		head,
+		documentElement: {
+			classList: {
+				contains: (name) => classes.has(name),
+				toggle: (name, on) => (on ? classes.add(name) : classes.delete(name)),
+			},
+			style: {
+				setProperty: (name, value) => props.set(name, value),
+				removeProperty: (name) => props.delete(name),
+				getPropertyValue: (name) => props.get(name) ?? "",
+			},
+		},
 		createElement: () => ({ id: "", textContent: "" }),
 		getElementById: (id) => head.children.find(node => node.id === id) ?? null,
 	};
@@ -447,7 +460,7 @@ describe("the reader window", () => {
 		const win = new BookReaderWindow({ book: 1 });
 		const frame = fakeFrame({});
 		win._onFrameLoad(frame);
-		const [style] = frame.contentDocument.head.children;
+		const style = frame.contentDocument.getElementById("stonetop-empty-sidebar-tabs");
 		expect(style.textContent).toContain("#viewAttachments[disabled]");
 		expect(style.textContent).toContain("#viewLayers[disabled]");
 		expect(style.textContent).toContain("display: none");
@@ -456,15 +469,49 @@ describe("the reader window", () => {
 		expect(style.textContent).not.toContain("#viewOutline");
 	});
 
-	// A window renders more than once and its frame fires `load` each time, so the rule has to be
-	// written idempotently or a long session stacks up copies of it.
-	it("writes that rule once however often the frame loads", () => {
+	// A window renders more than once and its frame fires `load` each time, so the rules have to
+	// be written idempotently or a long session stacks up copies of them.
+	it("writes each of its rules once however often the frame loads", () => {
 		withBooks({ 1: "books/one.pdf" });
 		const win = new BookReaderWindow({ book: 1 });
 		const frame = fakeFrame({});
 		win._onFrameLoad(frame);
+		const once = frame.contentDocument.head.children.length;
 		win._onFrameLoad(frame);
-		expect(frame.contentDocument.head.children).toHaveLength(1);
+		expect(frame.contentDocument.head.children).toHaveLength(once);
+		const ids = frame.contentDocument.head.children.map(node => node.id);
+		expect(new Set(ids).size).toBe(ids.length);
+	});
+
+	// White pages glare in a dark palette. The frame cannot see the palette's class on the game's
+	// root, nor the brightness token declared under it, so the resolved value is copied onto the
+	// frame's own root with pdf.js's `is-dark` switch, and both come off again in a light palette.
+	it("dims the book's pages, and darkens the viewer, in a dark palette", () => {
+		withBooks({ 1: "books/one.pdf" });
+		const win = new BookReaderWindow({ book: 1 });
+		const frame = fakeFrame({});
+		const palette = new Set(["stonetop-dark"]);
+		const savedDoc = globalThis.document;
+		const savedStyle = globalThis.getComputedStyle;
+		globalThis.document = { documentElement: { classList: { contains: name => palette.has(name) } } };
+		globalThis.getComputedStyle = () => ({
+			getPropertyValue: name => (name === "--st-book-page-brightness" ? " 0.7" : ""),
+		});
+		try {
+			win._onFrameLoad(frame);
+			const doc = frame.contentDocument;
+			expect(doc.getElementById("stonetop-page-dim").textContent)
+				.toMatch(/\.pdfViewer \.page[^{]*\{ filter: brightness\(var\(--st-book-page-brightness, 1\)\)/);
+			expect(doc.documentElement.style.getPropertyValue("--st-book-page-brightness")).toBe("0.7");
+			expect(doc.documentElement.classList.contains("is-dark")).toBe(true);
+			palette.clear();
+			win._syncPageDim(frame);
+			expect(doc.documentElement.style.getPropertyValue("--st-book-page-brightness")).toBe("");
+			expect(doc.documentElement.classList.contains("is-dark")).toBe(false);
+		} finally {
+			globalThis.document = savedDoc;
+			globalThis.getComputedStyle = savedStyle;
+		}
 	});
 
 	// The frame is the window. Anything that stops it filling the content box shows as the

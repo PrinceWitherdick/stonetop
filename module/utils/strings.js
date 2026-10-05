@@ -202,12 +202,17 @@ export const PICK_SEPARATOR = /\s+\/\s+|\s*;?\s*\bOR\b\s+/;
  *
  * The one pick-list parser: {@link formatOutcomeDetail} renders it, and the move card's tier
  * ladder (utils/move-tiers.js) asks the same question to decide whether a tier's options are
- * already listed in the move's own prose above it. Two parsers would disagree the moment one
- * learned a separator the other didn't.
+ * already listed in the move's own prose above it, and with `rung` set lifts an option list off
+ * the end of a rung. Two parsers would disagree the moment one learned a separator the other
+ * didn't.
+ *
+ * @param {string} text
+ * @param {{rung?: boolean}} [opts]  `rung`: read the list closing a tier rung (see _RUNG_LIST)
  */
-export function splitPickList(text) {
+export function splitPickList(text, { rung = false } = {}) {
 	const raw = String(text ?? "").trim();
 	if (!raw) return null;
+	if (rung) return _splitRungList(raw);
 	const m = raw.match(_PICK_MARKER);
 	if (!m) return null;
 	const markerEnd = m.index + m[0].length;
@@ -216,6 +221,20 @@ export function splitPickList(text) {
 	const options = rest.split(PICK_SEPARATOR).map((s) => s.trim()).filter(Boolean);
 	if (options.length < 2) return null;
 	return { intro, options };
+}
+
+// The `rung` grammar: a list closing one rung of a move's tier ladder (utils/move-tiers.js, the
+// Patch of Rainbow Moss's "on a 7-9, pick 1: a; b; c"). Its lead-in names a count, asks, or ends
+// "from" ("also pick 2 from:"), and its options may also be ";" apart, a last one "; or" — the
+// rung is prose, written as a sentence. Every separator the outcome grammar knows splits here too.
+const _RUNG_LIST = /^([\s\S]*\b(?:picks?|chooses?|ask|all\s+(?:\d+|two|three|four))\b[^:]*?|[\s\S]*\bfrom)\s*:\s+([\s\S]+)$/i;
+const _RUNG_SEPARATOR = new RegExp(`\\s*;\\s*(?:or\\s+)?|${PICK_SEPARATOR.source}`);
+
+function _splitRungList(raw) {
+	const m = raw.match(_RUNG_LIST);
+	if (!m) return null;
+	const options = m[2].split(_RUNG_SEPARATOR).map(o => o.trim().replace(/[.;,]+$/, "")).filter(Boolean);
+	return options.length >= 2 ? { intro: `${m[1].trim()}:`, options } : null;
 }
 
 /**

@@ -90,6 +90,19 @@
 				</div>
 				<p class="stonetop-custom-move-hint">{{localize "stonetop.character.moves.loveLetter.pickCountHint"}}</p>
 			</div>
+			{{! Optional words to go with each result's picks ("and Owain hears of it"). }}
+			<div class="stonetop-custom-move-field">
+				<label for="stonetop-love-letter-list-success">{{localize "stonetop.character.moves.custom.success"}} {{localize "stonetop.character.moves.loveLetter.listTextSuffix"}}</label>
+				<textarea id="stonetop-love-letter-list-success" name="listSuccess" rows="2">{{results.success}}</textarea>
+			</div>
+			<div class="stonetop-custom-move-field">
+				<label for="stonetop-love-letter-list-partial">{{localize "stonetop.character.moves.custom.partial"}} {{localize "stonetop.character.moves.loveLetter.listTextSuffix"}}</label>
+				<textarea id="stonetop-love-letter-list-partial" name="listPartial" rows="2">{{results.partial}}</textarea>
+			</div>
+			<div class="stonetop-custom-move-field">
+				<label for="stonetop-love-letter-list-failure">{{localize "stonetop.character.moves.custom.failure"}} {{localize "stonetop.character.moves.loveLetter.listTextSuffix"}}</label>
+				<textarea id="stonetop-love-letter-list-failure" name="listFailure" rows="2">{{results.failure}}</textarea>
+			</div>
 		</div>
 
 		{{! A miss marks XP regardless of which style the letter uses. }}

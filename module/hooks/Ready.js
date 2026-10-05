@@ -25,7 +25,8 @@ import { MACRO_MODULES } from "../book2-art/macro-modules.js";
 import { openProgressNotification } from "../utils/progress-notification.js";
 import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 import { stampWorldLayoutBaseline } from "../utils/sheet-layout.js";
-import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, applySheetTexture, applyNoItalics, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isTimelineEnabled, isFightTabEnabled, getArraySetting } from "../settings.js";
+import { applySheetFont, applySheetFontScale, applyEditPencilRevealDelay, applyReduceMotion, applySheetContrast, splitLegacyHighContrast, watchFoundryTheme, applySheetTexture, applySheetTextureFade, applyNoItalics, getTimelineKindColours, refuseHiddenFeature, getSetting, setSetting, getSettingOverviewShown, markSettingOverviewShown, migrateFlatSettingOverviewShown, adoptClassicLayoutScope, isFightTabEnabled, getArraySetting } from "../settings.js";
+import { applyTimelineKindColours } from "../timeline/timeline-colours.js";
 import { EndOfSessionDialog } from "../dialogs/EndOfSessionDialog.js";
 import { IntroductionsDialog } from "../dialogs/IntroductionsDialog.js";
 import { SpringBurstDialog } from "../dialogs/SpringBurstDialog.js";
@@ -41,10 +42,10 @@ import { postAttackFxSuggestionOnce } from "../combat/attack-fx-suggestion.js";
 import { WelcomeDialog } from "../dialogs/WelcomeDialog.js";
 import { FoundryBasicsDialog } from "../dialogs/FoundryBasicsDialog.js";
 import { CharacterCreationDialog } from "../actors/character/dialogs/CharacterCreationDialog.js";
-import { creationFlowOpen, registerCreationFlowCleanup } from "../actors/character/creation-flow.js";
-import { progressFor } from "../actors/character/onboarding-progress.js";
+import { creationFlowOpen, holdCreationFlow, registerCreationFlowCleanup } from "../actors/character/creation-flow.js";
+import { isMidCreation, progressFor } from "../actors/character/onboarding-progress.js";
 import { readOnboardingResume, clearOnboardingResume } from "../actors/character/onboarding-resume.js";
-import { playbookSlug } from "../utils/playbook-actors.js";
+import { assignedToAnother, playbookSlug } from "../utils/playbook-actors.js";
 import { rollDieOfFate } from "../utils/die-of-fate.js";
 import { LoveLetterDialog } from "../dialogs/LoveLetterDialog.js";
 import { StonetopArcanaInspireDialog } from "../item/StonetopArcanaInspireDialog.js";
@@ -71,26 +72,31 @@ import { updatePlacedTokens } from "../utils/placed-tokens.js";
 import { grandfatherWeaponsOfWar } from "../migration/weapons-of-war-grandfather.js";
 import { grandfatherRetiredMoves } from "../migration/retired-move-grandfather.js";
 import { grandfatherWouldBeHeroes } from "../migration/would-be-hero-grandfather.js";
+import { grandfatherCreationFinished, CREATION_FINISHED_SWEEP } from "../migration/creation-finished-grandfather.js";
 import { repairAllPossessionGrants } from "../migration/possession-grant-repair.js";
 import { repairMasteredArcanumCircles } from "../migration/mastered-arcanum-circles.js";
 import { settleAllArcanumBoxLayouts, settleOwnArcanumBoxLayouts } from "../migration/tulpa-move-boxes.js";
 import { refreshHeldMoves } from "../migration/move-refresh.js";
+import { refreshSteadingImprovements } from "../migration/improvement-refresh.js";
+import { refreshSeededMonsters } from "../migration/bestiary-refresh.js";
+import { refreshCatalogFollowers } from "../migration/follower-refresh.js";
 
 const _EOS_MACRO_NAME   = "End of Session";
 const _EOS_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/truce.svg";
 const _EOS_MACRO_SCRIPT = "game.stonetop?.openEndOfSession?.()";
 const _EOS_HOTBAR_SLOT  = 10;
 
-// The Chronicle hotbar macro (slot 9): compiles the recorded Introductions + Spring
+// The Chronicle hotbar macro (slot 7): compiles the recorded Introductions + Spring
 // Burst answers and expedition log into the shared "The Chronicle" journal and opens it
 // (GM-only — saveChronicle is seed-once, so re-running it preserves inline edits). Sits
-// just before End of Session and, like it, is handled separately from the slots-1–5
-// _SYSTEM_MACROS set and keyed on its command so it won't collide with a user macro of
-// the same name.
+// straight after the _SYSTEM_MACROS a new world gets and, like End of Session, is handled
+// separately from that set and keyed on its command so it won't collide with a user macro
+// of the same name. It was slot 9 until the two legacy macros left new worlds' bars; a
+// world that already has it placed keeps it where it is.
 const _CHRONICLE_MACRO_NAME   = "The Chronicle";
 const _CHRONICLE_MACRO_IMG    = "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg";
 const _CHRONICLE_MACRO_SCRIPT = "game.stonetop?.saveChronicle?.()";
-const _CHRONICLE_HOTBAR_SLOT  = 9;
+const _CHRONICLE_HOTBAR_SLOT  = 7;
 
 // The "(TEST ONLY) Populate World" dev macro, added to the Macro Directory but never
 // the hotbar. Its body is the create-test-characters dev script — that file is the single
@@ -120,35 +126,46 @@ const _RETIRED_BROWSER_MACROS = [
 	{ name: "Browse the Bestiary", command: "game.stonetop?.openBestiaryBrowser?.()" },
 ];
 
-// The ordered system hotbar macros (slots 1–7), in their canonical order. The
-// single source of truth for both _ensureHotbarMacro (places any that are missing)
-// and _reorderSystemMacros (snaps them into this order). Chronicle (9) / End of Session
-// (10) are handled separately below because they also key on their command. Seasons
-// Change took the spring icon that Welcome used to carry; Welcome now uses the
-// direction-signs. "Write a Love Letter" (slot 5) is GM prep (Book I p.568), and
-// "Browse Stonetop" (slot 7) reads GM-hidden compendia and the GM's own NPC notes — a
-// GM-only block places these, so they never reach a player's hotbar.
+// The ordered system hotbar macros, in their canonical order. The single source of truth
+// for both _ensureHotbarMacro (places any that are missing) and _reorderSystemMacros (snaps
+// them into this order). Chronicle (7) / End of Session (10, the key marked 0) are handled
+// separately below because they also key on their command. "Browse Stonetop" reads
+// GM-hidden compendia and the GM's own NPC notes — a GM-only block places these, so they
+// never reach a player's hotbar.
 //
-// `shared` marks the one macro the whole table uses: the Die of Fate is rolled by whoever
+// `shared` marks a macro the whole table uses: the Die of Fate is rolled by whoever
 // the fiction points at, not just the GM, so it is created readable by everyone and placed
 // on each player's own hotbar at `playerSlot` (see _ensurePlayerHotbarMacros). A player's
-// bar is otherwise empty of system macros, so it starts at slot 1 rather than the GM's 6.
+// bar is otherwise empty of system macros, so it starts at slot 1 rather than the GM's 4.
+//
+// `legacy` marks the two a new world no longer gets: Seasons Change and Weather, which the
+// time banner across the top of the screen opens (seasons/time-banner.js). A legacy
+// macro is never CREATED, only kept up where a world already has one, so an older world's bar
+// is left exactly as it was. Their slots sit after the Chronicle, so a GM's bar in an older
+// world still fills 1-10 with no gap when it is placed or re-snapped; in a new world 8-9 are
+// simply empty. The rest moved left into the slots they vacated (2 and 4); that is NOT a
+// layout-version bump, because an older world's arrangement is not wrong and re-snapping it
+// would undo any arrangement its GM had made.
 const _SYSTEM_MACROS = [
 	{ name: "Welcome to Stonetop", img: "systems/stonetop_pwd/assets/icons/macros/direction-signs.svg", command: "game.stonetop?.openWelcome?.()",        slot: 1 },
-	{ name: "Seasons Change",      img: "systems/stonetop_pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 2 },
-	{ name: "Run an Expedition",   img: "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 3 },
-	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 4 },
-	{ name: "Write a Love Letter", img: "systems/stonetop_pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 5 },
-	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 6, shared: true, playerSlot: 1 },
+	{ name: "Run an Expedition",   img: "systems/stonetop_pwd/assets/icons/macros/treasure-map.svg",     command: "game.stonetop?.openExpedition?.()",     slot: 2 },
+	// GM prep (Book I p.568), and its only door: the character sheet reads, edits and deletes a
+	// letter but never writes a new one.
+	{ name: "Write a Love Letter", img: "systems/stonetop_pwd/assets/icons/macros/love-letter.svg",      command: "game.stonetop?.openLoveLetter?.()",     slot: 3 },
+	{ name: "Die of Fate",         img: "systems/stonetop_pwd/assets/icons/macros/die-of-fate.svg",      command: "game.stonetop?.rollDieOfFate?.()",      slot: 4, shared: true, playerSlot: 1 },
 	// One window over the arcana, the bestiary and the world's people (see
 	// dialogs/StonetopBrowserDialog.js), so a magnifying glass rather than any one list's
 	// symbol — it is the LOOKING that all three tabs have in common.
-	{ name: "Browse Stonetop",     img: "systems/stonetop_pwd/assets/icons/macros/magnifying-glass.svg", command: "game.stonetop?.openBrowser?.()",        slot: 7 },
+	{ name: "Browse Stonetop",     img: "systems/stonetop_pwd/assets/icons/macros/magnifying-glass.svg", command: "game.stonetop?.openBrowser?.()",        slot: 5 },
 	// Shared, unlike its neighbours: everyone at the table owns the relationship maps and edits
 	// them, so a macro only the GM could reach would be a window most of its users could not open.
 	// The picture is the board itself: boxed people joined by lines. Not the truce handshake End
 	// of Session already wears, because two macros on one picture are indistinguishable on the bar.
-	{ name: "Relationship Map",    img: "systems/stonetop_pwd/assets/icons/macros/relationship-map.svg", command: "game.stonetop?.openRelationshipMap?.()", slot: 8, shared: true, playerSlot: 2 },
+	{ name: "Relationship Map",    img: "systems/stonetop_pwd/assets/icons/macros/relationship-map.svg", command: "game.stonetop?.openRelationshipMap?.()", slot: 6, shared: true, playerSlot: 2 },
+	// Seasons Change took the spring icon that Welcome used to carry; Welcome now uses the
+	// direction-signs.
+	{ name: "Seasons Change",      img: "systems/stonetop_pwd/assets/icons/macros/spring.svg",           command: "game.stonetop?.openSeasonsChange?.()", slot: 8, legacy: true },
+	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 9, legacy: true },
 ];
 
 // Bump to re-snap the system macros into their canonical slots once, on every client
@@ -161,7 +178,8 @@ const _SYSTEM_MACROS = [
 // where they were. _ensureHotbarMacro places a missing macro whatever the layout version, and
 // _retireMergedBrowserMacros frees slot 7 for it. Re-snapping would lift every system macro
 // off the hotbar and put it back — undoing any arrangement a GM had made — to fix an order
-// that isn't wrong.
+// that isn't wrong. Not bumped either when the two legacy macros left new worlds and the
+// rest moved left (see _SYSTEM_MACROS), for the same reason.
 const _HOTBAR_LAYOUT_VERSION = 3;
 
 export async function onReady() {
@@ -171,11 +189,20 @@ export async function onReady() {
 	applyReduceMotion(getSetting("reduceMotion"));
 	// The three accessibility skins. Applied here with the rest rather than left to their own
 	// `onChange`, because that only fires when somebody CHANGES the setting — a client that
-	// stored "high" last session would otherwise load every sheet in the palette it could not
-	// read, until it touched the control again.
+	// stored high contrast last session would otherwise load every sheet in the palette it could
+	// not read, until it touched the control again. (The page and the `highContrast` checkbox
+	// both: applySheetContrast reads the checkbox itself.) A page stored as "dark-high" and the
+	// like is first split into the page plus the High Contrast checkbox, so nothing reads it after.
+	try { await splitLegacyHighContrast(); }
+	catch (err) { console.error("Stonetop | high-contrast split failed", err); }
 	applySheetContrast(getSetting("sheetContrast"));
+	// "Follow Foundry" re-resolves whenever Foundry's own theme, or the OS's, changes.
+	watchFoundryTheme();
 	applySheetTexture(getSetting("sheetTexture"));
+	applySheetTextureFade(getSetting("sheetTextureFade"));
 	applyNoItalics(getSetting("noItalics"));
+	// The GM's timeline colours, for the same reason: `onChange` repaints only on a change.
+	applyTimelineKindColours(getTimelineKindColours());
 	// Fold the pre-world-keying Setting Overview gate under this world, so every OTHER
 	// world stops reading it as already-shown (see settings.js).
 	await migrateFlatSettingOverviewShown();
@@ -220,6 +247,29 @@ export async function onReady() {
 		// made at all now, so this is legacy repair and has a last world to run in.
 		try { await oncePerVersion("arcanumSlugs", _stampMissingArcanumSlugs); }
 		catch (err) { console.error("Stonetop | arcanum slug sweep failed", err); }
+		// Bring the moves, treasures and gear characters already hold (and the Items sidebar's) up to
+		// the pack: fill what it has gained, and correct a value it has since changed or dropped where
+		// the copy still holds exactly what an older release shipped (migration/move-refresh.js). Per
+		// VERSION, and what lets every rule read the held copy with no fallback to the pack of its own.
+		// FIRST of the move sweeps: the replacing-move stamp below reads `replaces` and the grant
+		// repair reads `grantsPossession` off the held copy. The grandfathers after it still see each
+		// copy's original release, which the refresh keeps aside (made-under.js) before it writes.
+		try { await oncePerVersion("moveRefresh", refreshHeldMoves); }
+		catch (err) { console.error("Stonetop | refreshing held moves failed", err); }
+		// The same for the Book II improvement cards a steading holds (migration/improvement-refresh.js):
+		// a dropped card is a copy, brought up to the shipped card while it is still one a release
+		// shipped. The GM is whispered which, and which were already built.
+		try { await oncePerVersion("improvementRefresh", refreshSteadingImprovements); }
+		catch (err) { console.error("Stonetop | refreshing steading improvement cards failed", err); }
+		// And the monsters seeded into the Actors sidebar (migration/bestiary-refresh.js), which Deploy
+		// and the monster browser prefer to the pack: a stat-block field or a move still holding what
+		// an older pack shipped is brought up to the pack; a GM's own edit is left.
+		try { await oncePerVersion("bestiaryRefresh", refreshSeededMonsters); }
+		catch (err) { console.error("Stonetop | refreshing seeded monsters failed", err); }
+		// And the follower cards made from the system's own lists (migration/follower-refresh.js): the
+		// good dog's herder default and two summons' notes, wherever a card still holds the old value.
+		try { await oncePerVersion("followerRefresh", refreshCatalogFollowers); }
+		catch (err) { console.error("Stonetop | refreshing catalog followers failed", err); }
 		// Keep a crossbow a character already carries on the sheet now that Weapons of War grants only
 		// the five weapons it names (migration/weapons-of-war-grandfather.js). GATED: it reads the
 		// outfit catalog and then every character's inventory flags, and it is legacy repair — the
@@ -236,17 +286,17 @@ export async function onReady() {
 		// only ever reaches moves made under a release that crossed off on ownership.
 		try { await oncePerVersion("wouldBeHeroGrandfather", grandfatherWouldBeHeroes); }
 		catch (err) { console.error("Stonetop | Would-Be Hero grandfathering failed", err); }
+		// Stamp the characters made before `creationFinished` existed as finished, so a stale progress
+		// flag does not read as half built (migration/creation-finished-grandfather.js). Once per WORLD:
+		// the work itself skips any world that has a stamp for it.
+		try { await oncePerVersion(CREATION_FINISHED_SWEEP, grandfatherCreationFinished); }
+		catch (err) { console.error("Stonetop | creation-finished grandfathering failed", err); }
 		// Bring special-possession gear made before its grant was corrected up to the grant (the
 		// Tannery cuirass made as a stacking modifier; see migration/possession-grant-repair.js).
 		// Per VERSION, because a grant only changes with a release: each new version is one more
 		// chance for a grant to have moved, and between releases there is nothing to find.
 		try { await oncePerVersion("possessionGrantRepair", repairAllPossessionGrants); }
 		catch (err) { console.error("Stonetop | special-possession gear repair failed", err); }
-		// Fill in what the pack has gained on moves characters already hold: a track, a miss that marks
-		// no XP (migration/move-refresh.js). Per VERSION, like the grant repair above, and what lets
-		// every rule read the held copy with no fallback to the pack of its own.
-		try { await oncePerVersion("moveRefresh", refreshHeldMoves); }
-		catch (err) { console.error("Stonetop | refreshing held moves failed", err); }
 		// Tick the rest of the unlock circles on a Seeker's mastered card that the old run-count
 		// grant left at one (migration/mastered-arcanum-circles.js). GATED: legacy repair, and a
 		// world swept once has nothing left to find.
@@ -404,8 +454,10 @@ export async function onReady() {
 	};
 	// The same move with the picker skipped: straight to the season after the one the clock is in
 	// (Winter turns over into Spring of the next year). The top-of-screen bar's "Next Season"
-	// button (seasons/time-banner.js). Warns if there's no steading yet.
+	// button (seasons/time-banner.js). Warns if there's no steading yet. GM-only, like the bar's
+	// button: the move it runs writes the steading's clock, gains and Fortunes.
 	game.stonetop.openNextSeason = () => {
+		if (!game.user?.isGM) return;
 		const steading = getStonetopSteadingActorOrWarn();
 		if (!steading) return;
 		const next = nextSeasonStamp(readCurrentSeason(steading), readCurrentYear(steading));
@@ -418,7 +470,8 @@ export async function onReady() {
 	game.stonetop.saveChronicle     = () => writeChronicle().then(j => j?.sheet?.render(true));
 	game.stonetop.openExpedition    = () => ExpeditionDialog.open();
 	game.stonetop.onExpeditionLog   = (value, userId) => ExpeditionDialog.onLogChanged(value, userId);
-	game.stonetop.openWeather       = () => WeatherDialog.open();
+	// GM-only, here and again in WeatherDialog.open for any caller that reaches the class itself.
+	game.stonetop.openWeather       = () => (game.user?.isGM ? WeatherDialog.open() : null);
 	// Put the canvas weather back in step with the weather-effect settings. Registered here
 	// because settings.js reaches this way rather than importing the seasons module, which reads
 	// settings.js itself; its onChange handlers call this whenever one of those switches moves.
@@ -498,13 +551,10 @@ export async function onReady() {
 	// the record is the table's, not the GM's.
 	//
 	// NO HOTBAR MACRO GOES WITH THIS, and that is a decision rather than an omission: slots 1-10
-	// are all spoken for, and the timeline already has two doors that the macros do not (a tab on
+	// were all spoken for when it shipped (an older world's still are), and the timeline already has two doors that the macros do not (a tab on
 	// the steading sheet and one on every character sheet, each with a button through to here).
 	// This entry is what lets a GM who wants it on the bar make their own.
-	//
-	// BEHIND THE FEATURE FLAG: unreleased, so in a shipped world the property is simply absent
-	// rather than present and broken. See `isTimelineEnabled` in module/settings.js.
-	if (isTimelineEnabled()) game.stonetop.openTimeline = () => openTimelineWindow();
+	game.stonetop.openTimeline = () => openTimelineWindow();
 	// Create a blank homebrew arcanum world Item and open its editor. Minor by default;
 	// pass { major: true } for a major. Callable from a macro/console/hotbar:
 	//   game.stonetop.createArcanum({ name: "My Charm" })
@@ -604,9 +654,10 @@ export async function onReady() {
 		await _clearDanglingHotbarSlots();
 		// Place any missing system macros at their default slots (existing placements
 		// are left alone, so a manual rearrangement sticks). Their fixed starting order
-		// — 1 Welcome · 2 Seasons Change · 3 Run an Expedition · 4 Weather · 5 Write a
-		// Love Letter · 6 Die of Fate · 7 Browse Stonetop · 9 The Chronicle · 10 End of
-		// Session — is applied for the slots-1–6 set per layout version by _reorderSystemMacros, below;
+		// — 1 Welcome · 2 Run an Expedition · 3 Write a Love Letter · 4 Die of Fate ·
+		// 5 Browse Stonetop · 6 Relationship Map · 7 The Chronicle · 10 End of Session, plus
+		// 8 Seasons Change · 9 Weather in an older world that already has them — is
+		// applied for the _SYSTEM_MACROS set per layout version by _reorderSystemMacros, below;
 		// Chronicle and End of Session are placed (but not reordered) by their own
 		// _ensureHotbarMacro calls.
 		for (const macro of _SYSTEM_MACROS) await _ensureHotbarMacro(macro);
@@ -1006,8 +1057,8 @@ function _isMyCharacter(actor) {
 	const mine = game.user.character?.id === actor.id
 		|| (actor.ownership?.[game.user.id] ?? 0) >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
 	if (!mine) return false;
-	const users = game.users?.contents ?? game.users ?? [];
-	return ![...users].some(u => u.id !== game.user.id && u.character?.id === actor.id);
+	// The same test createCharacterForUser lists a player's characters by (charactersPlayedBy).
+	return !assignedToAnother(actor, game.user.id);
 }
 
 // Greet a player with character creation, or resume an interrupted one:
@@ -1021,7 +1072,7 @@ function _isMyCharacter(actor) {
 //     onboarding from themselves.
 // A character that already has a playbook is finished (or was explicitly saved):
 // only a brand-new mint pops its sheet; a reload leaves a finished character alone.
-function _maybeOpenCharacterCreation(actor) {
+export function _maybeOpenCharacterCreation(actor) {
 	if (actor?.type !== "character") return;
 	const mintedForMe = actor.getFlag?.(STONETOP_SCOPE, "autoOpenFor") === game.user.id;
 	if (!mintedForMe && !_isMyCharacter(actor)) return;
@@ -1038,15 +1089,19 @@ function _maybeOpenCharacterCreation(actor) {
 	if (mintedForMe) actor.unsetFlag(STONETOP_SCOPE, "autoOpenFor").catch(() => {});
 
 	if (playbookSlug(actor)) {
-		// Finished — never re-enter creation. Clear any progress flag / resume
-		// snapshot a mid-creation "Save & close" (or an edit pass) left behind, so the
-		// GM roster reads "Finished" rather than a stale "exited"/page note.
+		// A committed playbook — never re-enter creation. Clear any progress flag / resume
+		// snapshot an edit pass left behind on a FINISHED character, so the GM roster reads
+		// "Finished" rather than a stale "exited"/page note.
+		//
+		// NOT on one that was saved and closed part-way through (a playbook, no
+		// `creationFinished`, a live progress flag: isMidCreation). That flag is the only record
+		// the GM has that the character is half built, and what the replace warning reads.
 		//
 		// Only when there IS one: unsetFlag issues its update unconditionally, and this
 		// runs once per character of mine on every load. With a player able to run several,
 		// an unguarded call is a document write and a broadcast per finished sheet per
 		// login, all of them deleting a key that is already gone.
-		if (actor.getFlag?.(STONETOP_SCOPE, "onboardingProgress")) {
+		if (actor.getFlag?.(STONETOP_SCOPE, "onboardingProgress") && !isMidCreation(actor)) {
 			actor.unsetFlag?.(STONETOP_SCOPE, "onboardingProgress").catch(() => {});
 		}
 		clearOnboardingResume(actor);
@@ -1061,9 +1116,15 @@ function _maybeOpenCharacterCreation(actor) {
 	// sheet (see CharacterCreationDialog / _onNewCharacter's `openSheetWhenDone`). This
 	// fires for both a fresh mint and the player's own assigned-but-unstarted character,
 	// so reloading before picking a playbook re-prompts rather than stranding them.
+	//
+	// Both prompts below are HELD (holdCreationFlow) from the moment they start: each can await
+	// before its window registers (the resume fetches its playbook, open() waits out a stale
+	// greeting), and the ready-time sweep is synchronous. Unheld, a player with two half-built
+	// characters got a second flow opened beside the first in that gap.
 	const snap = readOnboardingResume(actor);
 	if (snap?.playbookUuid && snap?.selections) {
-		actor.sheet._onNewCharacter({ openSheetWhenDone: true, resume: true });
+		holdCreationFlow(actor.id, actor.sheet._onNewCharacter({ openSheetWhenDone: true, resume: true }))
+			?.catch?.(err => console.error("Stonetop | failed to resume character creation", err));
 	} else if (!mintedForMe && progressFor(actor).status === "exited") {
 		// They have already been offered this and deliberately backed out, with nothing saved
 		// to resume. Re-modalling them on every load is nagging, and the modal is the thing
@@ -1075,7 +1136,7 @@ function _maybeOpenCharacterCreation(actor) {
 		// Fire-and-forget from a sync hook callback, so catch here: open() awaits a stale
 		// dialog's close, and an unhandled rejection would surface as a bare console error
 		// with no hint that a player simply never got greeted.
-		CharacterCreationDialog.open(actor)
+		holdCreationFlow(actor.id, CharacterCreationDialog.open(actor))
 			.catch(err => console.error("Stonetop | failed to open character creation", err));
 	}
 }
@@ -1157,9 +1218,14 @@ function _firstFreeHotbarSlot(from = 1) {
 // set ownership: a Macro is created at ownership.default NONE, and only a GM may change
 // that. A `shared` macro is raised to OBSERVER — on creation AND on an existing macro in
 // a world that predates the flag, so the fix reaches tables already playing.
-async function _ensureHotbarMacro({ name, img, command, slot, match, shared }) {
+//
+// A `legacy` macro is only ever found, never created (see _SYSTEM_MACROS), and is found by
+// its command as well as its name, so a GM's own "Weather" in a new world is not adopted.
+async function _ensureHotbarMacro({ name, img, command, slot, match, shared, legacy }) {
 	const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+	if (legacy) match ??= m => m.name === name && m.command === command;
 	let macro = game.macros.find(match ?? (m => m.name === name));
+	if (!macro && legacy) return;
 	if (!macro) {
 		macro = await Macro.create({
 			name, type: "script", img, command, scope: "global",
@@ -1202,8 +1268,8 @@ export async function ensurePlayerHotbarMacros() {
 	}
 }
 
-// Snap the system macros into their canonical order (1 Welcome · 2 Seasons Change ·
-// 3 Run an Expedition · 4 Weather · 5 Write a Love Letter · 6 Die of Fate), then leave the arrangement alone
+// Snap the system macros into their canonical order (the _SYSTEM_MACROS slots; a legacy
+// macro the world never had is simply absent from the set), then leave the arrangement alone
 // so the GM is free to rearrange the hotbar. Guarded by a per-client layout version
 // (the hotbar is per-user): it runs once per layout, so bumping _HOTBAR_LAYOUT_VERSION
 // re-snaps everyone once (e.g. when Seasons Change was inserted) but later manual moves
@@ -2117,7 +2183,8 @@ function _buildStartupWelcomeContent() {
 				Open <strong>Configure Settings</strong> and filter for <strong>Stonetop</strong> for the sheet font and size, the hover info, and the rest.
 				Worth installing: <a href="https://foundryvtt.com/packages/dice-so-nice">Dice So Nice!</a> for 3D dice,
 				<a href="https://foundryvtt.com/packages/sequencer">Sequencer</a> and <a href="https://foundryvtt.com/packages/JB2A_DnD5e">JB2A</a> to see swords swing and arrows fly on the map,
-				and <a href="https://foundryvtt.com/packages/soundfxlibrary">SoundFx Library</a> to hear them land.
+				<a href="https://foundryvtt.com/packages/soundfxlibrary">SoundFx Library</a> to hear them land,
+				and <a href="https://foundryvtt.com/packages/fxmaster">FXMaster</a> for the season's weather on the scene.
 			</div>
 		</div>
 	</section>`;
@@ -2140,8 +2207,12 @@ function _buildStartupWelcomeContent() {
  * setup (relmap/relmap-make.js), so a world with none is one whose GM deleted that map -- and
  * minting a second "Stonetop" unasked is undoing a decision rather than saving anybody a keystroke.
  * The same question the steading sheet's empty Relationship Map tab asks, through the same call.
+ *
+ * Nothing while the GM has the map switched off, and above all no new map: `openRelationshipMap`
+ * would refuse the board, but only after the name had been asked and the map made.
  */
 async function _openRelationshipMap(which) {
+	if (refuseHiddenFeature("relationshipMap")) return null;
 	const maps = listRelationshipMaps();
 	if (which) {
 		const wanted = maps.find(m => m.id === which || m.name === which);

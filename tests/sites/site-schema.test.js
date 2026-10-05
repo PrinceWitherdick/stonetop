@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SITE_PAIR_LISTS, keyedRows, pairKeys, shapePairList, someText } from "../../module/sites/site-schema.js";
+import { MAX_ROW_SPAN, SITE_PAIR_LISTS, clampRowSpan, expandTableRows, keyedRows, numberTableRows, pairKeys, shapePairList, someText, tableRowRanges } from "../../module/sites/site-schema.js";
 
 // The one table four things read — the wizard, the shaper, the card view-model and the review
 // tally — and the one rule for what a keyed row is worth keeping. These were three private copies
@@ -90,5 +90,41 @@ describe("shapePairList", () => {
 
 	it("is empty for a list that is not a paired one", () => {
 		expect(shapePairList("dangers", [{ x: "y" }])).toEqual([]);
+	});
+});
+
+// A table row the book prints as a range ("1-3 In shrine, alert") is stored as one row per face.
+describe("tableRowRanges / expandTableRows", () => {
+	it("merges consecutive identical rows into one ranged row, and expands it back", () => {
+		const stored = ["alert", "alert", "alert", "hunting", "hunting", "asleep"];
+		const ranged = tableRowRanges(stored);
+		expect(ranged.map(r => [r.roll, r.text, r.span])).toEqual([["1-3", "alert", 3], ["4-5", "hunting", 2], ["6", "asleep", 1]]);
+		expect(expandTableRows(ranged)).toEqual(stored);
+	});
+
+	it("never merges blank rows (two fresh rows stay two rows) or non-adjacent repeats", () => {
+		expect(tableRowRanges(["", ""]).length).toBe(2);
+		expect(tableRowRanges(["a", "b", "a"]).map(r => r.roll)).toEqual(["1", "2", "3"]);
+	});
+
+	it("splits a run longer than maxSpan rather than letting the editor clamp faces away", () => {
+		const stored = Array(30).fill("Nothing");
+		expect(tableRowRanges(stored).map(r => r.roll)).toEqual(["1-30"]);
+		const ranged = tableRowRanges(stored, { maxSpan: MAX_ROW_SPAN });
+		expect(ranged.map(r => [r.roll, r.span])).toEqual([[`1-${MAX_ROW_SPAN}`, MAX_ROW_SPAN], [`${MAX_ROW_SPAN + 1}-30`, 30 - MAX_ROW_SPAN]]);
+		expect(expandTableRows(ranged)).toEqual(stored);
+	});
+
+	it("numbers ranged rows by the faces they cover", () => {
+		expect(numberTableRows([{ span: 3 }, { span: 1 }]).map(r => [r.from, r.to, r.roll])).toEqual([[1, 3, "1-3"], [4, 4, "4"]]);
+	});
+
+	it("clamps a span to 1..MAX_ROW_SPAN", () => {
+		expect(clampRowSpan("")).toBe(1);
+		expect(clampRowSpan(2.7)).toBe(2);
+		expect(clampRowSpan(999)).toBe(MAX_ROW_SPAN);
+		expect(expandTableRows([{ text: "x", span: 0 }])).toEqual(["x"]);
+		expect(expandTableRows([{ text: "x", span: 999 }]).length).toBe(MAX_ROW_SPAN);
+		expect(expandTableRows([{ text: "x", span: "3" }])).toEqual(["x", "x", "x"]);
 	});
 });

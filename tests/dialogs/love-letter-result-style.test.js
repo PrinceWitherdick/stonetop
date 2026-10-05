@@ -59,4 +59,12 @@ describe("LoveLetterDialog result-style classification", () => {
 			pickOptions: [],
 		})).toBe("prose");
 	});
+
+	it("reopens a list letter that also carries per-result words in list mode", () => {
+		expect(styleFor({
+			rollType: "CHA",
+			moveResults: { success: { pick: 1, value: "" }, partial: { pick: 2, value: "And word gets around." }, failure: {} },
+			pickOptions: ["Owain", "Wini"],
+		})).toBe("list");
+	});
 });

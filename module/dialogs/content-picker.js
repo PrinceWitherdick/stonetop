@@ -19,8 +19,10 @@ import { themedDialogClasses } from "../utils/window-theme.js";
  *
  * @param {object} params
  * @param {string} params.title       Window title.
- * @param {{id: string, label: string, icon: string, hint?: string}[]} params.options
- *                                    The rows, in display order; the first is pre-selected.
+ * @param {({id: string, label: string, icon: string, hint?: string}|{heading: string})[]} params.options
+ *                                    The rows, in display order; the first is pre-selected. A
+ *                                    `{heading}` entry is a small caption over the rows after it,
+ *                                    not a choice: it has no radio and can never be the answer.
  * @param {string} [params.buttonLabel="Continue"]  Confirm-button label.
  * @param {string} [params.selected]  Which row opens picked, by id. Absent (or naming a row that is
  *                                    not there) keeps the first, which is what every other caller
@@ -37,8 +39,12 @@ export function pickContentOption({ title, options, buttonLabel = "Continue", se
 	// Whether the caller's default is actually one of the rows, worked out ONCE: asking per row
 	// would leave a list whose default is missing with nothing checked at all, and a radio group
 	// with no selection is a confirm button that resolves to undefined.
-	const pick = options.some(opt => opt.id === selected) ? selected : options[0]?.id;
-	const rows = options.map(opt => `
+	const pick = options.some(opt => !opt.heading && opt.id === selected)
+		? selected
+		: options.find(opt => !opt.heading)?.id;
+	const rows = options.map(opt => opt.heading
+		? `<div class="stonetop-content-picker-heading">${escHtml(opt.heading)}</div>`
+		: `
 		<label class="stonetop-content-picker-option">
 			<input type="radio" name="contentType" value="${escHtml(opt.id)}"${opt.id === pick ? " checked" : ""}>
 			<i class="fas ${escHtml(opt.icon)}" aria-hidden="true"></i>

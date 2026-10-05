@@ -63,7 +63,7 @@
 		{{#if stonetop.postDeathTab.favor}}
 		<div class="details-section stonetop-pdi-favor">
 			{{> "stonetop.section-heading" title=(localize "stonetop.postDeath.outcomes.favorTitle") collapse="postDeathFavor"}}
-			<div class="stonetop-pdi-favor-row" role="group" aria-label="{{localize "stonetop.postDeath.outcomes.favorTitle"}}">
+			<div class="stonetop-pdi-favor-row{{#if stonetop.postDeathTab.favor.caution}} is-cautioned{{/if}}" role="group" aria-label="{{localize "stonetop.postDeath.outcomes.favorTitle"}}">
 				{{#each stonetop.postDeathTab.favor.pips}}
 				<button type="button" class="stonetop-pdi-favor-pip{{#if filled}} is-filled{{/if}}"
 				        data-pdi-action="favor-pip" data-index="{{index}}"
@@ -71,6 +71,7 @@
 				        {{#unless @root.stonetop.postDeathTab.favor.canSet}}disabled{{/unless}}></button>
 				{{/each}}
 				<span class="stonetop-pdi-favor-count">{{stonetop.postDeathTab.favor.heldLabel}}</span>
+				{{#if stonetop.postDeathTab.favor.caution}}<i class="fas fa-triangle-exclamation stonetop-lore-option-caution" role="img" aria-label="{{stonetop.postDeathTab.favor.caution}}" data-tooltip="{{stonetop.postDeathTab.favor.caution}}" data-tooltip-direction="UP"></i>{{/if}}
 			</div>
 			{{#if stonetop.postDeathTab.favor.canSet}}
 			<p class="stonetop-pdi-hint">{{localize "stonetop.postDeath.outcomes.favorHint"}}</p>

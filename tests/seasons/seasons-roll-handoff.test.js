@@ -75,7 +75,7 @@ describe("how the hand-off is wired", () => {
 	it("spends the held advantage when the roll is handed to the table", () => {
 		const at = SHEET.indexOf("data-action='ask-hopeful'");
 		expect(at).toBeGreaterThan(-1);
-		const body = SHEET.slice(at, at + 1200);
+		const body = SHEET.slice(at, at + 2600);
 		// Settled (and spent) as every steading roll is: tests/actors/steading/steading-roll.test.js.
 		expect(body).toContain("settleSteadingRoll(this._stonetopSteading");
 		expect(body).toContain("canSpend: !!this.actor.isOwner");
@@ -97,6 +97,17 @@ describe("reopening a winter whose consumption is settled", () => {
 		const body = SHEET.slice(at - 200, at + 500);
 		expect(body).toContain("#stonetop-winter-step3");
 		expect(body).toContain("#stonetop-winter-settled");
+	});
+
+	// A user read winter's window as having no +Fortunes roll: the second half was hidden until
+	// the toll was settled. It is on screen from the start now, greyed and inert, and every way
+	// of settling the toll unlocks it.
+	it("shows the +Fortunes roll from the start, locked until the toll is settled", () => {
+		expect(SHEET).toMatch(/id="stonetop-winter-step3" class="stonetop-season-later" inert>/);
+		expect(SHEET).not.toContain('show("#stonetop-winter-step3")');
+		expect(SHEET.match(/unlockWinterFortunes\(\);/g)).toHaveLength(3);
+		expect(declarations(readCss(), ".stonetop-season-later .stonetop-season-later-note"))
+			.toMatch(/display:\s*block/);
 	});
 
 	// `.stonetop-season-actions` sets `display: flex`, which out-specifies the UA's

@@ -1,8 +1,8 @@
 // WHEN EACH SEASON BEGAN, IN REAL TIME.
 //
-// THE PROBLEM THIS SOLVES. The timeline's auto rows are drawn from the per-actor change ledger --
-// levels gained, moves learned, wounds taken -- and a ledger entry carries a wall-clock
-// `timestamp` and no in-game date at all. There is no way to place "Kefta reached level 4" in a
+// THE PROBLEM THIS SOLVES. The timeline's level-up backfill (timeline-backfill.js) reads the
+// per-actor change ledger -- levels gained, moves learned, wounds taken -- and a ledger entry
+// carries a wall-clock `timestamp` and no in-game date at all. There is no way to place "Kefta reached level 4" in a
 // season from the entry alone.
 //
 // TWO WAYS TO FIX THAT, and the one not taken is worth writing down. The obvious one is to stamp

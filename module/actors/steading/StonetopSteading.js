@@ -1,18 +1,24 @@
 import {resolvedFlagProperty, STONETOP_SCOPE} from "../character/StonetopFlags.js";
-import {slugify} from "../../utils/strings.js";
+import {slugify, stripHtmlToText} from "../../utils/strings.js";
 import {OCCUPATIONS, TRAITS, HOMES} from "../../data/steading-members.js";
 import {resolvePersonRow} from "./steading-people.js";
+import {improvementRulesFrom, upkeepsDue} from "./improvement-rules.js";
 import {resolvePortrait, documentPortraitFrame} from "../../utils/portrait-frame.js";
 import {playbookTitle, characterFullName} from "../../utils/playbook-actors.js";
 import {assetTakenTooltip} from "../../utils/requisition-asset.js";
 import {
 	GRANT_STAT_PATHS,
-	statGrantLine,
+	grantKindsChanged,
+	statGrantLines,
+	statChangeLine,
+	listChangeLine,
+	improvementRequirementProgress,
 	alternativeSectionFlags,
 	flatRequirementItems,
 	normalizeImprovementGrants,
 	normalizeImprovementSections,
 	remapRequirementTicks,
+	sanitizeImprovementDef,
 	sectionRequiredCount,
 } from "../../utils/improvement-def.js";
 import {readCurrentSeason, seasonStampKey, seasonStampParts} from "../../seasons/current-season.js";
@@ -22,62 +28,35 @@ import {innGatheringState, INN_SEASON_STEP} from "./inn-gathering.js";
 import {steadingHolds} from "./steading-holds.js";
 import {MILITIA_SEASON_STEP, militiaTactics} from "./season-effects.js";
 import { inTurn } from "../../utils/turn-queue.js";
+import { deletionEntry } from "../../utils/foundry-compat.js";
+import { improvementCategoryKey } from "../../data/improvement-categories.js";
 
-/** Which season's Weapons of War maintenance has been paid ("each spring, 1 Surplus"). */
-export const WEAPONS_SEASON_STEP = "weaponsUpkeep";
+/** Which season's Inn roll ("whoever is friendliest rolls +Fortunes") has been handed to the table. */
+export const INN_ROLL_SEASON_STEP = "innRoll";
 
 /**
  * Which season's standing watch has been fed (or disbanded).
  *
- * NAMED, like its three siblings (WEAPONS_SEASON_STEP here, MILITIA_SEASON_STEP in
- * season-effects.js, INN_SEASON_STEP in inn-gathering.js, RITES_SEASON_STEP in
- * rites-of-the-land.js), because the string is character-identical to the improvement SLUG
+ * NAMED, like its siblings (MILITIA_SEASON_STEP in season-effects.js, INN_SEASON_STEP in
+ * inn-gathering.js, RITES_SEASON_STEP in rites-of-the-land.js; the Weapons of War upkeep's
+ * "weaponsUpkeep" is improvement-rules.js#upkeepStepKey's), because the string is character-identical to the improvement SLUG
  * "standingWatch" a few hundred lines below — two namespaces that look the same at a glance,
  * so a rename of one reads as safe for the other. The slug sites stay literal on purpose:
  * they are not this key, they only spell the same.
  */
 export const WATCH_SEASON_STEP = "standingWatch";
 
-/**
- * The three lenses the Improvements tab filters by — the toggle chips beside its
- * search control. Every built-in improvement below carries exactly one `category`.
- *
- * The split follows what an improvement *feeds*, not what it costs to build, which is
- * what a player is actually shopping for when they open the tab:
- *   hearth — the Surplus engine (housing, food, water); every Fortunes grant but the Inn
- *   renown — Prosperity and everything facing outward (trade, guests, reputation)
- *   wall   — exactly the set of improvements that add to the Fortifications list
- * The Inn straddles hearth/renown (it grants Fortunes, but its ongoing rules are all
- * about guests and news from the wider world) and Township is really a capstone; both
- * are filed under renown.
- *
- * Custom improvements — hand-authored, or dropped in from a journal card, which carries
- * no category — may have none, in which case they're immune to the filter and always
- * shown, so nothing a user added can silently vanish behind a chip.
- */
-export const IMPROVEMENT_CATEGORIES = [
-	{
-		key: "hearth",
-		label: "Hearth & Harvest",
-		icon: "fas fa-wheat-awn",
-		hint: "Housing, food, and water: the Fortunes and Surplus engine.",
-	},
-	{
-		key: "renown",
-		label: "Trade & Renown",
-		icon: "fas fa-coins",
-		hint: "Prosperity, trade, and everything facing the wider world.",
-	},
-	{
-		key: "wall",
-		label: "Wall & Watch",
-		icon: "fas fa-shield-halved",
-		hint: "Defenses and the Fortifications list.",
-	},
-];
+/** Which winter's 7-9 debt has been rolled ("roll what winter still wants"): once a winter. */
+export const WINTER_DEBT_STEP = "winterDebtRolled";
 
-/** Valid `category` values, for validating a hand-authored custom improvement. */
-export const IMPROVEMENT_CATEGORY_KEYS = new Set(IMPROVEMENT_CATEGORIES.map(c => c.key));
+/** Which season's Surplus roll has been made: summer's 1d4-1, or autumn's harvest. */
+export const SURPLUS_SEASON_STEP = "surplus";
+
+/** Which season's upkeep reminder has been posted to chat: once a season, however often the
+ *  Seasons Change window for it is opened. */
+export const REMINDER_SEASON_STEP = "reminderPosted";
+
+export { IMPROVEMENT_CATEGORIES, IMPROVEMENT_CATEGORY_KEYS } from "../../data/improvement-categories.js";
 
 export const IMPROVEMENT_DEFINITIONS = [
 	// ── Page 2 ──────────────────────────────────────────────────
@@ -96,7 +75,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 				],
 			},
 			{
-				heading: "And then — <em>Pulling Together</em> 5 times, each requiring 1 season, 1 Surplus, and a wagonload of timber and other supplies (Value 2), to (re)build homes:",
+				heading: "And then, <em>Pulling Together</em> 5 times, each requiring 1 season, 1 Surplus, and a wagonload of timber and other supplies (Value 2), to (re)build homes:",
 				items: [
 					"<em>Pull Together</em> (1st)",
 					"<em>Pull Together</em> (2nd)",
@@ -117,6 +96,10 @@ export const IMPROVEMENT_DEFINITIONS = [
 			{
 				heading: "Requires 2 of the following:",
 				min: 2,
+				// `links`: the improvement a box NAMES, one entry per item (null for none, or a
+				// list meaning any one of them). Losing that improvement unticks the box (see
+				// linkedRequirementSlugs).
+				links: ["herdOfHorses", null, null],
 				items: [
 					"A Herd of Horses (and hunters to ride them)",
 					"Cooperating with the Hillfolk",
@@ -128,7 +111,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 				items: ["A successful first hunt (played out in detail)"],
 			},
 		],
-		effect: "Add \"Aurochs hunting (meat, hide, horn)\" to the Resources list. Henceforth, when you lead the aurochs hunt in spring, roll +Defenses: on a 10+, gain 1d4 Surplus; on a 7–9, gain 1d4 Surplus but pick 1 from the list below; on a 6–, pick 1 from the list below, or pick 2 and gain 1d4 Surplus. The list: 1d4 of the town's horses are lamed or killed; a number of locals are injured and the steading marks <em>diminished</em> (disadvantage to <em>Deploy</em>, <em>Muster</em>, or <em>Pull Together</em>); the GM picks an NPC present for the hunt — they are killed; the Hillfolk are somehow offended; the herd is weak and if you hunt next year they'll be wiped out.",
+		effect: "Add \"Aurochs hunting (meat, hide, horn)\" to the Resources list. Henceforth, when you lead the aurochs hunt in spring, roll +Defenses: on a 10+, gain 1d4 Surplus; on a 7–9, gain 1d4 Surplus but pick 1 from the list below; on a 6–, pick 1 from the list below, or pick 2 and gain 1d4 Surplus. The list: 1d4 of the town's horses are lamed or killed; a number of locals are injured and the steading marks <em>diminished</em> (disadvantage to <em>Deploy</em>, <em>Muster</em>, or <em>Pull Together</em>); the GM picks an NPC present for the hunt, and they are killed; the Hillfolk are somehow offended; the herd is weak and if you hunt next year they'll be wiped out.",
 	},
 	{
 		slug: "expandedTrades",
@@ -139,6 +122,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 			{
 				heading: "Requires one of the following improvements, to free up enough time to support more tradesfolk:",
 				min: 1,
+				links: ["harnessingStream", "raincatching", "mill"],
 				items: [
 					"Harnessing the Stream",
 					"Raincatching",
@@ -254,8 +238,8 @@ export const IMPROVEMENT_DEFINITIONS = [
 					"A designated building site",
 					"A competent engineer/foreman",
 					"Furnishings, equipment, and material (Value 3)",
-					"<em>Pulling Together</em> (1st — 1 season, 1 Surplus, and timber/supplies, Value 2)",
-					"<em>Pulling Together</em> (2nd — 1 season, 1 Surplus, and timber/supplies, Value 2)",
+					"<em>Pulling Together</em> (1st: 1 season, 1 Surplus, and timber/supplies, Value 2)",
+					"<em>Pulling Together</em> (2nd: 1 season, 1 Surplus, and timber/supplies, Value 2)",
 					"A small, devoted staff (innkeep, cook, ostler, etc.)",
 				],
 			},
@@ -299,8 +283,8 @@ export const IMPROVEMENT_DEFINITIONS = [
 					"An exceptional engineer/foreman",
 					"A convenient, consistent power source (wind on a hill, a waterwheel, a Herd of Horses, magic, etc.)",
 					"A building site able to harness that power source",
-					"<em>Pulling Together</em> (1st — a season, 1 Surplus, a wagonload of timber, Value 2, and a bunch of rope and supplies, Value 2)",
-					"<em>Pulling Together</em> (2nd — a season, 1 Surplus, a wagonload of timber, Value 2, and a bunch of rope and supplies, Value 2)",
+					"<em>Pulling Together</em> (1st: a season, 1 Surplus, a wagonload of timber, Value 2, and a bunch of rope and supplies, Value 2)",
+					"<em>Pulling Together</em> (2nd: a season, 1 Surplus, a wagonload of timber, Value 2, and a bunch of rope and supplies, Value 2)",
 					"A full-time miller",
 				],
 			},
@@ -336,9 +320,9 @@ export const IMPROVEMENT_DEFINITIONS = [
 				items: [
 					"An exceptional engineer/foreman, to design a cunning system of roofs, gutters, and conduits",
 					"Enough slate/terracotta to roof all the buildings and construct the gutters and conduits (Value 3)",
-					"<em>Pulling Together</em> (1st — 1 season and 1 Surplus)",
-					"<em>Pulling Together</em> (2nd — 1 season and 1 Surplus)",
-					"<em>Pulling Together</em> (3rd — 1 season and 1 Surplus)",
+					"<em>Pulling Together</em> (1st: 1 season and 1 Surplus)",
+					"<em>Pulling Together</em> (2nd: 1 season and 1 Surplus)",
+					"<em>Pulling Together</em> (3rd: 1 season and 1 Surplus)",
 				],
 			},
 		],
@@ -373,10 +357,10 @@ export const IMPROVEMENT_DEFINITIONS = [
 					"An exceptional engineer/foreman",
 					"A stonecutter with an able crew",
 					"Equipment, tools, and material (Value 3)",
-					"<em>Pulling Together</em> (1st — 1 season, 1 Surplus, and supplies, Value 2)",
-					"<em>Pulling Together</em> (2nd — 1 season, 1 Surplus, and supplies, Value 2)",
-					"<em>Pulling Together</em> (3rd — 1 season, 1 Surplus, and supplies, Value 2)",
-					"<em>Pulling Together</em> (4th — 1 season, 1 Surplus, and supplies, Value 2)",
+					"<em>Pulling Together</em> (1st: 1 season, 1 Surplus, and supplies, Value 2)",
+					"<em>Pulling Together</em> (2nd: 1 season, 1 Surplus, and supplies, Value 2)",
+					"<em>Pulling Together</em> (3rd: 1 season, 1 Surplus, and supplies, Value 2)",
+					"<em>Pulling Together</em> (4th: 1 season, 1 Surplus, and supplies, Value 2)",
 				],
 			},
 		],
@@ -390,6 +374,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 		sections: [
 			{
 				heading: "Requires all of the following:",
+				links: [null, null, null, null, "additionalHousing", ["raincatching", "harnessingStream"], null, null, null, null, null],
 				items: [
 					"Population +3 for 4 consecutive seasons (1st season)",
 					"Population +3 for 4 consecutive seasons (2nd season)",
@@ -455,6 +440,7 @@ export const IMPROVEMENT_DEFINITIONS = [
 			{
 				heading: "For each tactic below, you must then <em>Pull Together</em>, requiring a season of drills and 1 Surplus:",
 				min: 1,
+				links: [null, "herdOfHorses", null, null, null],
 				items: [
 					"Archery: barrages, ranged ambushes, sniping, etc.",
 					"Cavalry (requires a Herd of Horses): fighting from horseback, charges",
@@ -477,91 +463,187 @@ export const IMPROVEMENT_MOVES = Object.freeze({
 	heroicReputation: { move: "heroicReputation", label: "Meet someone new: roll +Fortunes", icon: "fa-bullhorn" },
 });
 
-/**
- * What an improvement asks of the table the moment it is built that the sheet cannot do for them,
- * said then: "draw it on the map", "add any new homes to the map", "make a note of its size".
- */
-export const IMPROVEMENT_COMPLETION_NOTES = Object.freeze({
-	additionalHousing: "Add the new homes to the map.",
-	herdOfHorses:      "The herd starts at 12 grown horses. If yours is a different size, change the counts on its card.",
-	inn:               "Draw the inn on the map.",
-	mill:              "Draw the mill on the map.",
-	palisade:          "Draw the palisade on the map.",
-	stoneWall:         "Draw the stone wall on the map, and erase the palisade if there was one.",
-});
-
 /** What the Herd of Horses writes onto the Assets list in place of the draft horses. */
 export const HERD_ASSET_NAME = "A herd of horses (its size is kept on the Herd of Horses improvement)";
 
 /**
- * The immediate, mechanical, one-time effects applied automatically when a
- * built-in improvement is marked complete (and reversed when it's un-completed),
- * keyed by improvement slug. Only the parts of an improvement's `effect` prose
- * that map cleanly to sheet state live here; the ongoing "Henceforth…" rules and
- * map/asset bookkeeping stay as prose reminders on the card. Improvements whose
- * only effect is conditional or narrative (heroicReputation, wellTrainedMilitia)
- * are intentionally absent — nothing is auto-applied for them.
+ * The herd row's `beast` (see STEADING_DEFAULTS.assets): horses, how many asked at the take, and
+ * taken out of the tracked herd rather than the row going out whole. The draft pair's own
+ * `{count: 2, traits: ["hardy"]}` must not ride across onto it, or Requisitioning "a herd of
+ * horses" handed out exactly two hardy horses and the herd never shrank.
+ */
+export const HERD_ASSET_BEAST = Object.freeze({ slug: "horse", herd: true });
+
+/**
+ * Whether an asset row is the herd's (by its `beast`, or by name for a row written before it had
+ * one). A row whose `beast` is an explicit null is never the herd, whatever it is called: that is a
+ * HOMEBREW improvement's swap (a custom `replaceAssets` writes a plain asset), and the herd's tracker
+ * and its horses belong to the book's Herd of Horses alone.
+ */
+export function isHerdAsset(row) {
+	return row?.beast?.herd === true || (row?.name === HERD_ASSET_NAME && row?.beast !== null);
+}
+
+/**
+ * The improvements a requirement box names, flat and aligned with the stored `r` array: one
+ * entry per box, each an array of slugs (any one of which satisfies it) or null. Read off the
+ * built-in definition's `links`, never matched out of the box's text.
  *
+ * A custom improvement carries no `links` (the builder does not author them), so a box of one
+ * borrows the link of a built-in box with the SAME text: a copy made through "Start from" keeps
+ * the book's "Mill" box word for word, and losing the Mill unticks it as it does the book's.
+ * @param {{slug?: string, sections?: Array}} def
+ * @returns {Array<string[]|null>}
+ */
+export function linkedRequirementSlugs(def) {
+	const custom = !BUILTIN_IMPROVEMENT_SLUGS.has(def?.slug);
+	return (def?.sections ?? []).flatMap(section => (section?.items ?? []).map((item, i) => {
+		const link = section?.links?.[i] ?? (custom ? builtInLinkByText().get(requirementText(item)) : null) ?? null;
+		if (!link) return null;
+		return Array.isArray(link) ? [...link] : [link];
+	}));
+}
+
+/** A requirement box's text as compared between definitions: plain, trimmed, lower-cased. */
+function requirementText(item) {
+	return stripHtmlToText(String(item ?? "")).trim().toLowerCase();
+}
+
+const BUILTIN_IMPROVEMENT_SLUGS = new Set(IMPROVEMENT_DEFINITIONS.map(d => d.slug));
+let _builtInLinkByText = null;
+/** Each linked built-in box's text to its link, built once (the definitions are frozen data). */
+function builtInLinkByText() {
+	if (_builtInLinkByText) return _builtInLinkByText;
+	_builtInLinkByText = new Map();
+	for (const def of IMPROVEMENT_DEFINITIONS) {
+		for (const section of def.sections ?? []) {
+			(section?.items ?? []).forEach((item, i) => {
+				const link = section?.links?.[i];
+				if (link) _builtInLinkByText.set(requirementText(item), link);
+			});
+		}
+	}
+	return _builtInLinkByText;
+}
+
+/**
+ * What each of the book's improvements DOES, keyed by slug: the built-in twin of a custom
+ * improvement's `def.grants`, in exactly the same shape (utils/improvement-def.js normalizes the
+ * custom one, and lists the keys). Two kinds, as that file explains:
+ *
+ * ONE-TIME, applied when the improvement is completed and recorded on `applied` so un-completing
+ * reverses exactly that:
  *   stats                — integer deltas to fortunes / defenses / prosperity / population
  *   resources            — names appended to the Resources list (as active/checked)
  *   fortifications       — names appended to the Fortifications list (as active/checked)
  *   removeFortifications — names cleared from the Fortifications list, if present
  *   setSize              — set the steading's Size
  *   setPopulation        — set Population to an exact value
- *   replaceAssets        — `{match, name}`: rename the Assets entry whose name contains `match`
- *                          (Herd of Horses: "replace 'a pair of sturdy draft horses' with 'a herd
- *                          of horses' on the Assets list"), or add `name` when none does
+ *   replaceAssets        — `{match, name}`: replace the Assets entry whose name contains `match`
+ *                          with a fresh row named `name`, or add one when none does. Nothing of the
+ *                          row it replaced rides across. `beast` is the BUILT-IN herd's alone (the
+ *                          normalizer drops it from a custom grant, whose row is a plain asset).
+ *   markImprovements     — other improvements to mark complete too (Book II's Golden Sapling)
+ *   completionNote       — what the table is told to do the moment it is built ("draw it on the map")
+ *
+ * LIVE ("Henceforth"), read by improvement-rules.js's readers every time, never written on completion:
+ *   seasonalYield  harvestBonus  winterConsumption  winterPopulation  surplusBonus
+ *   upkeep         rollAdvantage lapse              condition
+ *
+ * Still keyed by slug, because no grant can say them: Herd of Horses' tracker, foals, feed,
+ * half-cost Pull Together and Requisition count; the Inn's name, gathering and seasonal roll; the
+ * militia's tactics (its +1 Defenses at 2+, its summer drills, its position of strength); the
+ * watch's "+1 Defenses when involved"; Weapons of War's common weapons and x piercing; the Mill's
+ * extra use per supply; Additional Housing's fields; the two improvement-moves (IMPROVEMENT_MOVES).
  */
 export const IMPROVEMENT_GRANTS = {
-	additionalHousing: { stats: { fortunes: 1 } },
+	additionalHousing: { stats: { fortunes: 1 }, winterPopulation: -1, completionNote: "Add the new homes to the map." },
 	aurochsHunting:    { resources: ["Aurochs hunting (meat, hide, horn)"] },
-	expandedTrades:    { stats: { prosperity: 1 } },
-	greaterHarvest:    { stats: { fortunes: 1 } },
-	harnessingStream:  { stats: { fortunes: 1 }, resources: ["Harnessing the Stream"] },
-	herdOfHorses:      { stats: { fortunes: 1 }, replaceAssets: [{ match: "draft horses", name: HERD_ASSET_NAME }] },
-	inn:               { stats: { fortunes: 1 }, resources: ["Inn"] },
-	market:            { stats: { prosperity: 1 } },
-	mill:              { stats: { fortunes: 1 }, resources: ["Mill"] },
-	palisade:          { stats: { fortunes: 1 }, fortifications: ["Palisade"] },
-	raincatching:      { stats: { fortunes: 1 }, resources: ["Raincatching"] },
-	standingWatch:     { fortifications: ["Standing Watch"] },
-	stoneWall:         { fortifications: ["Stone Wall"], removeFortifications: ["Palisade"] },
-	township:          { setSize: "town", setPopulation: 0 },
-	weaponsOfWar:      { stats: { defenses: 1 }, fortifications: ["Weapons of War"] },
+	expandedTrades:    { stats: { prosperity: 1 }, lapse: { stats: { prosperity: -1 } } },
+	greaterHarvest:    { stats: { fortunes: 1 }, harvestBonus: "1d4" },
+	harnessingStream:  { stats: { fortunes: 1 }, resources: ["Harnessing the Stream"], seasonalYield: { seasons: ["spring"], surplus: 1, needsHit: true } },
+	herdOfHorses:      { stats: { fortunes: 1 }, replaceAssets: [{ match: "draft horses", name: HERD_ASSET_NAME, beast: HERD_ASSET_BEAST }],
+		completionNote: "The herd starts at 12 grown horses. If yours is a different size, change the counts on its card." },
+	inn:               { stats: { fortunes: 1 }, resources: ["Inn"], completionNote: "Draw the inn on the map." },
+	market:            { stats: { prosperity: 1 }, lapse: { stats: { prosperity: -1 } },
+		seasonalYield: { seasons: ["spring", "summer", "autumn"], surplus: 1, minPopulation: 1, whileMet: true } },
+	mill:              { stats: { fortunes: 1 }, resources: ["Mill"], harvestBonus: 1, completionNote: "Draw the mill on the map." },
+	palisade:          { stats: { fortunes: 1 }, fortifications: ["Palisade"],
+		rollAdvantage: { moves: ["Deploy"], ask: "Taking advantage of the palisade" }, completionNote: "Draw the palisade on the map." },
+	raincatching:      { stats: { fortunes: 1 }, resources: ["Raincatching"], seasonalYield: { seasons: ["summer"], surplus: 1, needsHit: true } },
+	standingWatch:     { fortifications: ["Standing Watch"], upkeep: { seasons: ["spring", "summer", "autumn", "winter"], surplus: 1 } },
+	stoneWall:         { fortifications: ["Stone Wall"], removeFortifications: ["Palisade"], winterConsumption: -1,
+		rollAdvantage: { moves: ["Deploy"], ask: "Taking advantage of the stone wall" },
+		completionNote: "Draw the stone wall on the map, and erase the palisade if there was one." },
+	township:          { setSize: "town", setPopulation: 0, rollAdvantage: { moves: ["Muster", "Pull Together", "Trade & Barter"] },
+		seasonalYield: { seasons: ["spring", "summer"], surplus: 1, plusPopulation: true } },
+	weaponsOfWar:      { stats: { defenses: 1 }, fortifications: ["Weapons of War"], upkeep: { seasons: ["spring"], surplus: 1 } },
 };
 
-/** "If you cease to meet the requirements, decrease Prosperity by 1." */
-const LAPSING_IMPROVEMENTS = new Set(["expandedTrades", "market"]);
+/**
+ * An improvement's grants: the book's table for a built-in, the definition's own for a custom one.
+ * The table wins, so a custom improvement can never take over a built-in slug's effects.
+ */
+export function improvementGrantsFor(slug, def = null) {
+	return IMPROVEMENT_GRANTS[slug] ?? def?.grants ?? null;
+}
+
+/**
+ * The rules list (improvement-rules.js) for a set of built-in slugs taken as completed, with
+ * nothing on the lists: what a test, or a caller with no steading to hand, needs to ask the readers.
+ * @param {string[]} slugs
+ * @param {{requirementsMet?: (slug: string) => boolean}} [opts]
+ */
+export function builtInImprovementRules(slugs = [], { requirementsMet = () => true } = {}) {
+	return improvementRulesFrom({
+		defs: IMPROVEMENT_DEFINITIONS,
+		grantsFor: def => improvementGrantsFor(def.slug, def),
+		improvements: Object.fromEntries(slugs.map(slug => [slug, { completed: true }])),
+		requirementsMet: def => requirementsMet(def.slug),
+	});
+}
 
 /**
  * An improvement's STANDING effect: a stat change that holds only while something about the built
- * improvement stays true, as opposed to its one-time grant (IMPROVEMENT_GRANTS). Null when there
- * is none right now.
+ * improvement stays true, as opposed to its one-time grant. Null when there is none right now.
  *
- *   wellTrainedMilitia  "When the militia has trained in 2+ tactics, increase Defenses by 1."
- *   expandedTrades,     "If you cease to meet the requirements, decrease Prosperity by 1." Taken
- *   market              back again once the requirements are met.
+ *   `lapse`        "If you cease to meet the requirements, decrease Prosperity by 1" (Market,
+ *                  Expanded Trades): its stats while the requirements are NOT met, taken back again
+ *                  once they are.
+ *   `condition`    Book II's Aetherium Crucible, "As long as you trade aetherium to the outside
+ *                  world, increase Prosperity by 1": its stats while the table has ticked the
+ *                  condition on the improvement's card (`entry.condition`).
+ *   wellTrainedMilitia (bespoke) "When the militia has trained in 2+ tactics, increase Defenses by 1."
  *
  * @param {string} slug
- * @param {object} def    the improvement's definition
- * @param {{completed?: boolean, r?: boolean[]}} entry  its tracking entry
+ * @param {object} def    the improvement's definition (a custom one carries its grants)
+ * @param {{completed?: boolean, r?: boolean[], condition?: boolean}} entry  its tracking entry
  * @returns {{[stat: string]: number}|null}
  */
 export function standingGrantFor(slug, def, entry) {
-	if (!hasStandingGrant(slug) || !entry?.completed || !def) return null;
+	if (!hasStandingGrant(slug, def) || !entry?.completed || !def) return null;
 	if (slug === "wellTrainedMilitia") return militiaTactics(def, entry.r ?? []).length >= 2 ? { defenses: 1 } : null;
-	if (LAPSING_IMPROVEMENTS.has(slug)) return improvementRequirementsMet(def, entry.r ?? []) ? null : { prosperity: -1 };
-	return null;
+	const grants = improvementGrantsFor(slug, def) ?? {};
+	const total = {};
+	const add = stats => { for (const [k, d] of Object.entries(stats ?? {})) total[k] = (total[k] ?? 0) + d; };
+	if (grants.lapse && !improvementRequirementsMet(def, entry.r ?? [])) add(grants.lapse.stats);
+	if (grants.condition && entry.condition === true) add(grants.condition.stats);
+	for (const k of Object.keys(total)) if (!total[k]) delete total[k];
+	return Object.keys(total).length ? total : null;
 }
 
 /** Whether an improvement has a standing effect at all, so every other one's entry stays as it was. */
-export function hasStandingGrant(slug) {
-	return slug === "wellTrainedMilitia" || LAPSING_IMPROVEMENTS.has(slug);
+export function hasStandingGrant(slug, def = null) {
+	if (slug === "wellTrainedMilitia") return true;
+	const grants = improvementGrantsFor(slug, def);
+	return !!(grants?.lapse || grants?.condition);
 }
 
 /** Why a standing effect just moved a stat, for the notification. */
-function standingReason(slug, delta) {
+function standingReason(slug, delta, def = null, why = "") {
 	if (slug === "wellTrainedMilitia") return delta > 0 ? "the militia trains in 2+ tactics" : "the militia no longer trains in 2+ tactics";
+	const condition = improvementGrantsFor(slug, def)?.condition;
+	if (why === "condition" && condition) return `${condition.text}: ${delta > 0 ? "yes" : "no longer"}`;
 	return delta < 0 ? "its requirements are no longer met" : "its requirements are met again";
 }
 
@@ -634,11 +716,16 @@ export const STEADING_DEFAULTS = {
 		{ name: "", checked: false },
 		{ name: "", checked: false },
 	],
+	// `beast` says what Requisition offers as followers (see beastFollowerForAsset in
+	// data/beasts.js): the catalog slug, how many, and the either/or tags already picked.
+	// `null` = not an animal, so "horse-drawn" and "horse harness" never read as horses.
+	// A row stored before this field existed gets it back by name: see getNamedAssets.
 	assets: [
-		{ name: "A pair of hardy draft horses — HP 10 each; d6+3 dmg (hand, close, forceful); Instinct: to panic; Cost: care & grooming", checked: true },
-		{ name: "A pair of horse-drawn plows, iron", checked: true },
-		{ name: "A pair of carts (plus horse harness)", checked: true },
-		{ name: "A wagon (plus horse harness)", checked: true },
+		{ name: "A pair of hardy draft horses — HP 10 each; d6+3 dmg (hand, close, forceful); Instinct: to panic; Cost: care & grooming", checked: true,
+			beast: { slug: "horse", count: 2, traits: ["hardy"] } },
+		{ name: "A pair of horse-drawn plows, iron", checked: true, beast: null },
+		{ name: "A pair of carts (plus horse harness)", checked: true, beast: null },
+		{ name: "A wagon (plus horse harness)", checked: true, beast: null },
 		{ name: "", checked: false },
 		{ name: "", checked: false },
 		{ name: "", checked: false },
@@ -760,13 +847,34 @@ export class StonetopSteading {
 		const flagEntries = Object.entries(flags);
 		if (!systemEntries.length && !flagEntries.length) return;
 
-		// A flag-only change stays on setFlag with the whole steading object, which is the path
-		// every flag write has always taken: there is no stat for the ledger to card, so it has
-		// nothing to batch WITH, and whole-object replacement is the semantics callers that drop
-		// a subkey (an emptied list, a cleared pick) already rely on.
+		// A flag-only change writes ONLY the keys it was given, each as its own dotted path.
+		//
+		// It used to write the whole steading object, rebuilt from the CACHED flags, which are only
+		// refreshed when the server echoes a write. So any flag write issued inside the round trip
+		// of another (a Resources tick while a Palisade completion was in flight) put back the
+		// steading as it was before that other write: the completion, its Fortification and its
+		// mirrored stat were reverted, while its `applied` record survived to be reversed again
+		// later. A whole-object write never dropped a subkey either: a flag object is MERGED on
+		// write (setFlag included), so nothing here relied on replacement that it actually got.
+		//
+		// Except once: a steading whose flags still live only in a legacy scope (not yet cut over)
+		// gets the whole object, so the active scope is seeded complete rather than with one key
+		// that would then hide every other.
 		if (!systemEntries.length) {
-			const merged = { ...foundry.utils.deepClone(this._flags), ...flags };
-			await this._actor.setFlag(STONETOP_SCOPE, "steading", merged);
+			const seeded = this._actor.flags?.[STONETOP_SCOPE]?.steading !== undefined;
+			if (!seeded) {
+				const merged = { ...foundry.utils.deepClone(this._flags), ...flags };
+				// setFlag takes no options, so a caller's `stonetopMove` goes through update.
+				if (Object.keys(options ?? {}).length) {
+					await this._actor.update({ [`flags.${STONETOP_SCOPE}.steading`]: merged }, options);
+				} else {
+					await this._actor.setFlag(STONETOP_SCOPE, "steading", merged);
+				}
+				return;
+			}
+			const data = {};
+			for (const [key, value] of flagEntries) data[`flags.${STONETOP_SCOPE}.steading.${key}`] = value;
+			await this._actor.update(data, options);
 			return;
 		}
 
@@ -774,8 +882,10 @@ export class StonetopSteading {
 		// as ONE update, so the ledger appends once and cards the stats together. Both halves
 		// are written as targeted dotted keys: the whole flag object cannot be replaced here
 		// without colliding with the `…steading.system.*` mirrors in the same payload. That
-		// makes the flag half a MERGE, so this path sets values and must not be used to drop a
-		// key (see setFlags above for that).
+		// makes the flag half a MERGE, so this path sets values and cannot drop a key. Nothing
+		// here can: setFlags (below) comes through this same method and merges too. Dropping a
+		// key takes an explicit deletion entry in the payload (`-=key`, see deletionEntry in
+		// utils/foundry-compat.js), the way removing a custom improvement drops its record.
 		const data = {};
 		for (const [path, value] of systemEntries) {
 			data[`system.${path}`] = value;
@@ -789,6 +899,25 @@ export class StonetopSteading {
 
 	async setFlags(updates) {
 		await this.applyChanges({ flags: updates });
+	}
+
+	/**
+	 * Read-modify-write one of the steading's lists (Resources, Fortifications, Assets, ...) in the
+	 * steading's turn, the same line every improvement write queues on. The list is read INSIDE the
+	 * turn: read before it, a tick pressed while a completion was in flight copied the list from
+	 * the cache the completion had not refreshed yet, and its write took back the Fortification the
+	 * completion had just added.
+	 * @param {string} list  the flag key
+	 * @param {(arr: object[]) => (void|false)} edit  changes the copy in place; `false` writes nothing
+	 * @returns {Promise<boolean>} whether anything was written
+	 */
+	async editList(list, edit) {
+		return inTurn(`steading:${this._actor.id}`, async () => {
+			const arr = foundry.utils.deepClone(this._flags[list] ?? STEADING_DEFAULTS[list] ?? []);
+			if (edit(arr) === false) return false;
+			await this.setFlags({ [list]: arr });
+			return true;
+		});
 	}
 
 	getSystemValue(path, defaultValue = 0) {
@@ -816,10 +945,26 @@ export class StonetopSteading {
 		return Number(this.getSystemValue(`stats.${statKey}.value`, statDefaults[statKey] ?? 0));
 	}
 
-	/** Slug for a journal-sourced custom improvement, namespaced so it never collides
-	 *  with the camelCase built-in slugs and so re-dropping the same card is idempotent. */
+	/**
+	 * A fresh slug for a custom improvement: `custom-<slugified name>`, namespaced so it never
+	 * collides with the camelCase built-ins, and made UNIQUE here rather than assumed to be.
+	 *
+	 * A slug is an id, not a name (the ticks, the `applied` record and the season rules are keyed
+	 * by it, and it is kept across a rename), so two improvements must never share one. They
+	 * used to whenever their names slugified alike: every all-emoji or non-Latin name slugified to
+	 * nothing and minted a bare `custom-`, and a renamed improvement kept its old slug, so its old
+	 * name minted a clash. A name that slugifies to nothing gets a random id; a slug in use (by a
+	 * custom improvement, or by a tracking entry a removal left behind) gets -2, -3 ...
+	 */
 	_customImprovementSlug(name) {
-		return `custom-${slugify(name)}`;
+		const base = slugify(name) || String(foundry.utils.randomID(8)).toLowerCase();
+		const taken = new Set([
+			...this.customImprovements.map(d => d.slug),
+			...Object.keys(this._flags.improvements ?? {}),
+		]);
+		let slug = `custom-${base}`;
+		for (let n = 2; taken.has(slug); n++) slug = `custom-${base}-${n}`;
+		return slug;
 	}
 
 	/**
@@ -889,26 +1034,34 @@ export class StonetopSteading {
 	 * @param {{name:string, flavor?:string, effect?:string, category?:string, sections?:Array, grants?:object}} def
 	 */
 	async addCustomImprovement(def) {
+		// In the steading's turn, like every write that rewrites `improvements`-side state: the
+		// list it appends to is read inside, after any write ahead of it has landed.
+		return inTurn(`steading:${this._actor.id}`, () => this._addCustomImprovement(def));
+	}
+
+	async _addCustomImprovement(def) {
 		const name = String(def?.name ?? "").trim();
 		if (!name) return { ok: false, reason: "empty" };
 
-		const slug = this._customImprovementSlug(name);
 		const existing = this._flags.customImprovements ?? [];
 		if (this.improvementNameTaken(name)) {
-			return { ok: false, reason: "duplicate", slug, label: name };
+			return { ok: false, reason: "duplicate", label: name };
 		}
+		const slug = this._customImprovementSlug(name);
 
-		const normalized = {
+		// Heading, requirements and effect are painted unescaped, so a dropped card's are
+		// sanitized here (sanitizeImprovementDef): a page edited by hand could carry anything.
+		const normalized = sanitizeImprovementDef({
 			slug,
 			label: name,
-			category: IMPROVEMENT_CATEGORY_KEYS.has(def.category) ? def.category : "",
+			category: improvementCategoryKey(def.category),
 			flavor: String(def.flavor ?? ""),
 			sections: normalizeImprovementSections(def.sections),
 			effect: String(def.effect ?? ""),
 			// null rather than absent: a custom improvement with no automatic effects still
 			// says so, and setImprovementCompleted reads `?? null` either way.
 			grants: normalizeImprovementGrants(def.grants),
-		};
+		});
 		await this.setFlags({ customImprovements: [...existing, normalized] });
 		return { ok: true, slug, label: name };
 	}
@@ -929,21 +1082,21 @@ export class StonetopSteading {
 	 * "Start from", which offers a free name up front rather than letting the author fill in
 	 * a whole copy of Palisade and only then be told the steading has a Palisade.
 	 *
-	 * Names, not slugs: a custom slug is minted `custom-…`, so it can never collide with a
-	 * built-in's, and what is being prevented here is two cards on one sheet reading alike.
+	 * NAMES, compared as trimmed lower-cased labels, never slugs: what is being prevented is two
+	 * cards on one sheet reading alike, and a slug is not a name. Compared by slug, every
+	 * all-emoji or non-Latin name clashed with every other (all slugify to nothing), and a
+	 * renamed improvement kept its old slug, so its NEW name could be added a second time while
+	 * its old one was refused.
 	 *
 	 * @param {string} name
-	 * @param {{except?: string}} [opts] a custom slug that is allowed to hold the name, for
-	 *   an EDIT: an improvement keeping its own name is not clashing with itself. Matched on
-	 *   slug rather than on label, so a rename that lands on the same slug ("Roadbuilding!"
-	 *   to "Roadbuilding") is correctly seen as this improvement keeping its place.
+	 * @param {{except?: string}} [opts] a custom slug whose own label does not count, for an
+	 *   EDIT: an improvement keeping its own name is not clashing with itself.
 	 */
 	improvementNameTaken(name, { except = null } = {}) {
-		const trimmed = String(name ?? "").trim();
-		if (!trimmed) return false;
-		const slug = this._customImprovementSlug(trimmed);
-		return BUILTIN_IMPROVEMENT_LABELS.has(trimmed.toLowerCase())
-			|| this.customImprovements.some(d => d.slug !== except && d.slug === slug);
+		const target = String(name ?? "").trim().toLowerCase();
+		if (!target) return false;
+		return BUILTIN_IMPROVEMENT_LABELS.has(target)
+			|| this.customImprovements.some(d => d.slug !== except && String(d.label ?? "").trim().toLowerCase() === target);
 	}
 
 	/** Resolve an improvement definition by slug — built-in first, then custom. */
@@ -992,6 +1145,10 @@ export class StonetopSteading {
 	 *      grantsChanged: boolean, completed: boolean}}
 	 */
 	async updateCustomImprovement(slug, def) {
+		return inTurn(`steading:${this._actor.id}`, () => this._updateCustomImprovement(slug, def));
+	}
+
+	async _updateCustomImprovement(slug, def) {
 		const existing = this.customImprovements;
 		const current = existing.find(d => d.slug === slug);
 		if (!current) return { ok: false, reason: "missing" };
@@ -1004,36 +1161,57 @@ export class StonetopSteading {
 
 		const sections = normalizeImprovementSections(def.sections);
 		const grants = normalizeImprovementGrants(def.grants);
-		const oldItems = flatRequirementItems(current);
-		const newItems = flatRequirementItems({ sections });
-		const structureChanged = oldItems.length !== newItems.length
-			|| oldItems.some((item, i) => item !== newItems[i]);
-
-		const updated = {
+		const updated = sanitizeImprovementDef({
 			...current,
 			label: name,
-			category: IMPROVEMENT_CATEGORY_KEYS.has(def.category) ? def.category : "",
+			category: improvementCategoryKey(def.category),
 			flavor: String(def.flavor ?? ""),
 			sections,
 			effect: String(def.effect ?? ""),
 			grants,
-		};
+		});
+		const oldItems = flatRequirementItems(current);
+		const newItems = flatRequirementItems(updated);
+		const structureChanged = oldItems.length !== newItems.length
+			|| oldItems.some((item, i) => item !== newItems[i]);
+
 		const flagUpdates = { customImprovements: existing.map(d => (d.slug === slug ? updated : d)) };
 
 		const entry = this._flags.improvements?.[slug];
-		if (structureChanged && entry) {
+		const kinds = grantKindsChanged(current.grants ?? null, grants);
+		const system = {};
+		let standingLines = [];
+		if (entry && (structureChanged || (entry.completed && kinds.live))) {
 			const improvements = foundry.utils.deepClone(this._flags.improvements ?? {});
-			improvements[slug] = { ...entry, r: remapRequirementTicks(oldItems, newItems, entry.r ?? []) };
+			const next = { ...improvements[slug] };
+			if (structureChanged) next.r = remapRequirementTicks(oldItems, newItems, entry.r ?? []);
+			// A LIVE grant edited on a built improvement applies as soon as it is saved, the standing
+			// ones included: a `lapse` or `condition` added (or changed) moves its stat now, not at the
+			// next tick. What the edit itself did not apply before is not presumed applied.
+			if (next.completed) {
+				next.standing ??= null;
+				const data = {};
+				standingLines = this._reconcileStandingGrant(slug, updated, next, data);
+				for (const [key, value] of Object.entries(data)) {
+					if (key.startsWith("system.")) system[key.slice("system.".length)] = value;
+				}
+			}
+			improvements[slug] = next;
 			flagUpdates.improvements = improvements;
 		}
-		await this.setFlags(flagUpdates);
+		await this.applyChanges({ system, flags: flagUpdates });
 
 		return {
 			ok: true,
 			slug,
 			label: name,
 			structureChanged,
-			grantsChanged: JSON.stringify(current.grants ?? null) !== JSON.stringify(grants),
+			grantsChanged: kinds.oneTime || kinds.live || kinds.note,
+			// Which kind moved: a one-time edit is not retroactive on a built improvement, a live one
+			// already applies (see editSavedNotice in ImprovementBuilderDialog.js).
+			oneTimeChanged: kinds.oneTime,
+			liveChanged: kinds.live,
+			standingChanged: standingLines,
 			completed: !!entry?.completed,
 		};
 	}
@@ -1048,29 +1226,40 @@ export class StonetopSteading {
 	 * Fortifications list, with nothing on the sheet left to explain either and no way to take
 	 * them back. Reachable from one unconfirmed click on the card's trash button.
 	 *
-	 * The reversal goes through setImprovementCompleted rather than being done here, for two
-	 * reasons: it owns that arithmetic (including the back-fill for improvements completed
-	 * before the grant engine existed), and its targeted dotted-key write is a flag MERGE,
-	 * which cannot drop `improvements[slug]`. Dropping a key needs the whole-object flag
-	 * replacement below (see applyChanges), so these stay two writes rather than one.
+	 * The reversal goes through _setImprovementCompleted rather than being done here, for two
+	 * reasons: it owns that arithmetic, and its dotted-key write is a flag MERGE, which cannot
+	 * drop `improvements[slug]`. Dropping a key needs an explicit deletion, so these stay two
+	 * writes, both inside ONE turn of the steading's queue so nothing lands between them. The
+	 * INNER method, not the queued one: queued from inside this turn it would wait on itself.
 	 *
 	 * @returns {false|{label: string, reverted: string[]}} false when there was no such
 	 *   improvement; otherwise its label and a description of what was given back.
 	 */
 	async removeCustomImprovement(slug) {
+		return inTurn(`steading:${this._actor.id}`, () => this._removeCustomImprovement(slug));
+	}
+
+	async _removeCustomImprovement(slug) {
 		const existing = this.customImprovements;
 		const def = existing.find(d => d.slug === slug);
 		if (!def) return false;
 
 		const reverted = this.improvementCompleted(slug)
-			? (await this.setImprovementCompleted(slug, false))?.summary ?? []
+			? (await this._setImprovementCompleted(slug, false))?.summary ?? []
 			: [];
 
 		// Re-read: the await above rewrote the flags this is filtering.
 		const next = this.customImprovements.filter(d => d.slug !== slug);
-		const improvements = { ...(this._flags.improvements ?? {}) };
-		delete improvements[slug];
-		await this.setFlags({ customImprovements: next, improvements });
+		// The list, and an explicit deletion of the slug's tracking entry: nothing else. A flag
+		// object is written by MERGING, so leaving the slug out of a rewritten map left it stored,
+		// ticks and all, and a card re-added under the same slug came back with them. And the
+		// rest of the steading is not written at all: rebuilt from the cached flags, it put back
+		// whatever another write had changed inside this one's round trip.
+		const [deleteKey, deleteValue] = deletionEntry(`flags.${STONETOP_SCOPE}.steading.improvements.${slug}`);
+		await this._actor.update({
+			[`flags.${STONETOP_SCOPE}.steading.customImprovements`]: next,
+			[deleteKey]: deleteValue,
+		});
 		return { label: def.label ?? slug, reverted };
 	}
 
@@ -1086,26 +1275,43 @@ export class StonetopSteading {
 	 *
 	 * @param {string} slug
 	 * @param {boolean} checked  Completing (true) or un-completing (false).
-	 * @param {{forceR?: Array<boolean>}} [opts]  Overwrite the requirement-tracking array
-	 *   (used when the user force-completes an improvement whose steps aren't all met).
+	 * @param {{forceR?: Array<boolean>, seasonStep?: {step: string, year: number, seasonId: string}}} [opts]
+	 *   `forceR` overwrites the requirement-tracking array (used when the user force-completes an
+	 *   improvement whose steps aren't all met). `seasonStep` closes a once-per-season step in the
+	 *   SAME write (the watch disbanding, the weapons lost for want of upkeep), so a failure can
+	 *   never leave the improvement gone and the season's question still open.
 	 * @returns {{label: string, summary: string[], reverted: boolean}}  A description of
 	 *   the auto-applied (or reversed) changes, for a user-facing notification.
 	 */
-	async setImprovementCompleted(slug, checked, { forceR } = {}) {
+	async setImprovementCompleted(slug, checked, { forceR, seasonStep } = {}) {
 		// The same line as setImprovementRequirement, and the same document: completing an improvement
 		// and ticking one of its boxes both rewrite the whole `improvements` flag.
-		return inTurn(`steading:${this._actor.id}`, () => this._setImprovementCompleted(slug, checked, { forceR }));
+		return inTurn(`steading:${this._actor.id}`, () => this._setImprovementCompleted(slug, checked, { forceR, seasonStep }));
 	}
 
-	async _setImprovementCompleted(slug, checked, { forceR } = {}) {
+	/**
+	 * LOSE an improvement for want of its upkeep (Book I p. 514: "If the PCs fail to pay that cost,
+	 * they lose the improvement"): un-complete it, with the season's step closed in the same write,
+	 * and take off the lists any entry of its own name still standing there. That last part is for an
+	 * improvement in force only BY its entry (improvement-rules.js): a "Standing Watch" written on the
+	 * Fortifications list by hand owes the watch's upkeep, so not paying it has to take the entry.
+	 * @returns {Promise<{label: string, summary: string[], reverted: boolean}>}
+	 */
+	async loseImprovement(slug, { seasonStep } = {}) {
+		return inTurn(`steading:${this._actor.id}`, () => this._setImprovementCompleted(slug, false, { seasonStep, clearEntries: true }));
+	}
+
+	async _setImprovementCompleted(slug, checked, { forceR, seasonStep, clearEntries = false } = {}) {
 		const def = this.improvementDef(slug);
 		// A built-in improvement's grants are keyed by slug; a custom one carries its own
 		// on the definition (authored in the builder dialog, or riding in on a dropped
 		// card). The table wins, so a custom improvement can never take over a built-in
 		// slug's effects by name collision.
-		const grants = IMPROVEMENT_GRANTS[slug] ?? def?.grants ?? null;
+		const builtInGrants = IMPROVEMENT_GRANTS[slug] ?? null;
+		const grants = improvementGrantsFor(slug, def);
 		const improvements = foundry.utils.deepClone(this._flags.improvements ?? {});
 		const entry = improvements[slug] ?? { completed: false, r: [] };
+		const wasCompleted = !!entry.completed;
 		if (Array.isArray(forceR)) entry.r = forceR;
 
 		// Back-fill for improvements completed under a version BEFORE this grants engine:
@@ -1116,36 +1322,59 @@ export class StonetopSteading {
 		// the first toggle reverses/re-applies symmetrically. Normalize an empty reconstruction
 		// to null (matching the fresh-apply convention) so nothing is falsely reported reverted.
 		// A fresh completion — `entry.completed` still false here — skips this untouched.
-		if (grants && entry.completed && entry.applied === undefined) {
-			const presumed = this._presumeAppliedGrants(grants);
+		//
+		// BUILT-INS ONLY. A custom improvement with no `applied` is one whose definition had no
+		// grants when it was completed (completion now always writes the key, null for nothing).
+		// If an edit has given it grants since, presuming them applied made un-completing it, or
+		// removing it, take back effects it never gave. Nothing was applied, so nothing is.
+		if (entry.completed && entry.applied === undefined) {
+			const presumed = builtInGrants ? this._presumeAppliedGrants(builtInGrants) : {};
 			entry.applied = Object.keys(presumed).length ? presumed : null;
 		}
 		// The same back-fill for a standing effect (setImprovementRequirement), read while the
 		// entry still says what it said before this toggle.
-		if (hasStandingGrant(slug) && entry.completed && entry.standing === undefined) entry.standing = standingGrantFor(slug, def, entry);
+		this._backfillStanding(slug, def, entry);
 
 		const data = {};
 		let summary = [];
 		let reverted = false;
+		// Other improvements this one marks complete too, done AFTER this write (each is its own
+		// completion, with its own grants); and the ones it marked, un-marked when it goes.
+		let toMark = [];
+		let toUnmark = [];
 
 		if (checked) {
 			entry.completed = true;
 			// Apply grants once, on the transition into completion. `applied` gates against
-			// re-applying if a completed improvement is toggled complete again somehow.
-			if (grants && !entry.applied) {
-				const applied = this._collectGrantEffects(grants, data);
+			// re-applying if a completed improvement is toggled complete again somehow. Written
+			// on EVERY completion, `null` when nothing applied, so no completed entry is left
+			// looking like one from before the grant engine (see the back-fill above).
+			if (!wasCompleted && !entry.applied) {
+				const applied = grants ? this._collectGrantEffects(grants, data) : {};
+				// "Automatically mark the Greater Harvest improvement" (Book II's Golden Sapling): the
+				// ones not already built, recorded so un-completing this one takes back what it marked.
+				toMark = this._improvementsToMark(slug, grants);
+				if (toMark.length) applied.markedImprovements = [...toMark];
 				entry.applied = Object.keys(applied).length ? applied : null;
-				summary = this._summarizeGrantChanges(entry.applied);
+				summary = this._summarizeGrantChanges(entry.applied, { data });
 			}
 		} else {
+			toUnmark = (entry.applied?.markedImprovements ?? []).filter(other => this.improvementCompleted(other));
 			entry.completed = false;
 			if (entry.applied) {
-				this._revertGrantEffects(entry.applied, data);
-				summary = this._summarizeGrantChanges(entry.applied);
+				const { done, kept } = this._revertGrantEffects(entry.applied, data);
+				summary = [...this._summarizeGrantChanges(done, { data, reverting: true }), ...kept];
 				reverted = true;
 				// Null (not delete): a merged flag write can't drop a sub-key, so overwrite it.
 				entry.applied = null;
 			}
+			// A box elsewhere that NAMED this improvement ("Mill", "A Herd of Horses") is no longer
+			// met, and an improvement standing on it may lose a standing effect (Expanded Trades'
+			// "If you cease to meet the requirements, decrease Prosperity by 1").
+			improvements[slug] = entry;
+			summary = [...summary, ...this._untickLinkedRequirements(slug, improvements, data)];
+			// Lost for want of upkeep: an entry of its own name still on a list goes too (loseImprovement).
+			if (clearEntries) summary = [...summary, ...this._clearOwnEntries(grants, data)];
 		}
 
 		// Herd of Horses tracks a herd of horses ("make a note of its size"). Seed a
@@ -1162,9 +1391,181 @@ export class StonetopSteading {
 
 		improvements[slug] = entry;
 		data[`flags.${STONETOP_SCOPE}.steading.improvements`] = improvements;
+		this._foldSeasonStep(data, seasonStep);
 		await this._actor.update(data);
 
+		// Each improvement it marks (or marked) is its OWN completion, run after this write so it
+		// reads the flags this one just wrote: its own grants, its own record, its own revert.
+		for (const other of toMark) {
+			const done = await this._setImprovementCompleted(other, true);
+			summary = [...summary, ...done.summary.map(line => `${done.label}: ${line}`)];
+		}
+		for (const other of toUnmark) {
+			const done = await this._setImprovementCompleted(other, false);
+			summary = [...summary, `${done.label} un-marked`, ...done.summary.map(line => `${done.label}: ${line}`)];
+		}
+
 		return { label: def?.label ?? slug, summary, reverted };
+	}
+
+	/**
+	 * The standing record's back-fill for an entry that has none (`standing === undefined`), read
+	 * before a change. A BUILT-IN completed before standing effects were tracked had its standing
+	 * applied by hand, so whatever its boxes said until now is presumed applied (the way
+	 * _presumeAppliedGrants presumes its one-time grant). A CUSTOM one presumes nothing: one without a
+	 * record never had a standing grant applied (any it has now came from an edit, which reconciles).
+	 */
+	_backfillStanding(slug, def, entry) {
+		if (!hasStandingGrant(slug, def) || !entry.completed || entry.standing !== undefined) return;
+		entry.standing = IMPROVEMENT_GRANTS[slug] || slug === "wellTrainedMilitia" ? standingGrantFor(slug, def, entry) : null;
+	}
+
+	/**
+	 * Take off the Fortifications and Resources lists every entry an improvement's grants add that is
+	 * still there, into `data` (on top of any list the same write already rewrote). Returns the lines.
+	 */
+	_clearOwnEntries(grants, data) {
+		const lines = [];
+		for (const listKey of ["fortifications", "resources"]) {
+			const names = grants?.[listKey] ?? [];
+			if (!names.length) continue;
+			const path = `flags.${STONETOP_SCOPE}.steading.${listKey}`;
+			const list = foundry.utils.deepClone(data[path] ?? this._flags[listKey] ?? STEADING_DEFAULTS[listKey]);
+			const cleared = names.filter(name => this._clearNamedInList(list, name));
+			if (!cleared.length) continue;
+			data[path] = list;
+			lines.push(...cleared.map(name => listChangeLine(name, listKey, false)));
+		}
+		return lines;
+	}
+
+	/** What the book asks the table to do the moment this improvement is built ("draw it on the map"). */
+	improvementCompletionNote(slug) {
+		return this.improvementGrants(slug)?.completionNote ?? "";
+	}
+
+	/** This improvement's grants (IMPROVEMENT_GRANTS for a built-in, the definition's own otherwise). */
+	improvementGrants(slug) {
+		return improvementGrantsFor(slug, this.improvementDef(slug));
+	}
+
+	/**
+	 * The improvements completing `slug` marks too ("automatically mark the Greater Harvest
+	 * improvement"): the ones that exist here and are not already built. The completion and its
+	 * preview both ask this, so the confirm never promises what the write won't do.
+	 */
+	_improvementsToMark(slug, grants) {
+		return (grants?.markImprovements ?? []).filter(other =>
+			other !== slug && this.improvementDef(other) && !this.improvementCompleted(other));
+	}
+
+	/**
+	 * The improvements whose "Henceforth" rules are in force on this steading, with their grants:
+	 * THE list every reader asks (see improvement-rules.js for what "in force" means).
+	 */
+	improvementRules() {
+		const f = this._flags;
+		const stored = f.improvements ?? {};
+		return improvementRulesFrom({
+			defs: [...IMPROVEMENT_DEFINITIONS, ...this.customImprovements],
+			grantsFor: def => improvementGrantsFor(def.slug, def),
+			improvements: stored,
+			lists: {
+				resources: f.resources ?? STEADING_DEFAULTS.resources,
+				fortifications: f.fortifications ?? STEADING_DEFAULTS.fortifications,
+			},
+			requirementsMet: def => improvementRequirementsMet(def, stored[def.slug]?.r ?? []),
+		});
+	}
+
+	/**
+	 * Tick or untick an improvement's CONDITION (a `condition` grant: Book II's Aetherium Crucible,
+	 * "As long as you trade aetherium to the outside world, increase Prosperity by 1"), moving its
+	 * stat in the same write.
+	 * @returns {Promise<{label: string, summary: string[]}>}
+	 */
+	async setImprovementCondition(slug, on) {
+		return inTurn(`steading:${this._actor.id}`, async () => {
+			const def = this.improvementDef(slug);
+			const improvements = foundry.utils.deepClone(this._flags.improvements ?? {});
+			const entry = improvements[slug] ?? { completed: false, r: [] };
+			this._backfillStanding(slug, def, entry);
+			entry.condition = !!on;
+			const data = {};
+			const summary = this._reconcileStandingGrant(slug, def, entry, data, "condition");
+			improvements[slug] = entry;
+			data[`flags.${STONETOP_SCOPE}.steading.improvements`] = improvements;
+			await this._actor.update(data);
+			return { label: def?.label ?? slug, summary };
+		});
+	}
+
+	/** Close a once-per-season step inside `data`, the write already being built (see seasonStepFlags). */
+	_foldSeasonStep(data, seasonStep) {
+		if (!seasonStep?.step || !seasonStep.seasonId) return;
+		const { seasonSteps } = this.seasonStepFlags(seasonStep.step, seasonStep.year, seasonStep.seasonId);
+		data[`flags.${STONETOP_SCOPE}.steading.seasonSteps`] = seasonSteps;
+	}
+
+	/**
+	 * Untick, on every OTHER improvement, the requirement boxes that name `lost` (its definition's
+	 * `links`, see linkedRequirementSlugs), unless another improvement the box names still stands
+	 * (Township's "Raincatching OR Harnessing the Stream"). Edits `improvements` in place, writes any
+	 * standing effect that changes with it into `data`, and returns the notification lines.
+	 *
+	 * Book I p. 514: an improvement that is lost takes "its benefits" with it, and Expanded Trades
+	 * says outright "If you cease to meet the requirements, decrease Prosperity by 1." A box left
+	 * ticked for a Mill that has burned down kept that Prosperity standing. Nothing is ticked the
+	 * other way when an improvement is BUILT: the book never says building one meets another's
+	 * requirement for you, and some of those boxes are a choice (the militia's Cavalry is a tactic
+	 * to drill, not a horse to own).
+	 */
+	_untickLinkedRequirements(lost, improvements, data) {
+		const lines = [];
+		const stands = slug => slug !== lost && !!improvements[slug]?.completed;
+		for (const def of [...IMPROVEMENT_DEFINITIONS, ...this.customImprovements]) {
+			if (def.slug === lost) continue;
+			const entry = improvements[def.slug];
+			if (!Array.isArray(entry?.r)) continue;
+			const links = linkedRequirementSlugs(def);
+			if (!links.some(slugs => slugs?.includes(lost))) continue;
+			// Read what the entry's standing effect was BEFORE the untick, as a requirement tick does.
+			this._backfillStanding(def.slug, def, entry);
+			const items = flatRequirementItems(def);
+			const unticked = [];
+			links.forEach((slugs, i) => {
+				if (!slugs?.includes(lost) || entry.r[i] !== true || slugs.some(stands)) return;
+				entry.r[i] = false;
+				unticked.push(stripHtmlToText(items[i] ?? "").split(":")[0].trim());
+			});
+			if (!unticked.length) continue;
+			lines.push(`${def.label}: unticked ${unticked.map(t => `"${t}"`).join(", ")}`);
+			lines.push(...this._reconcileStandingGrant(def.slug, def, entry, data));
+		}
+		return lines;
+	}
+
+	/**
+	 * What completing this improvement would apply, in words, WITHOUT writing anything: the
+	 * force-complete confirm's "What changes" block. The same arithmetic completion runs, into a
+	 * throwaway payload, so the window cannot promise something the write would not do.
+	 * @param {string} slug
+	 * @param {{forceR?: boolean[]}} [opts]  the ticks the completion would write
+	 * @returns {string[]}
+	 */
+	improvementCompletionPreview(slug, { forceR } = {}) {
+		const def = this.improvementDef(slug);
+		const grants = improvementGrantsFor(slug, def);
+		const entry = foundry.utils.deepClone(this._flags.improvements?.[slug] ?? { completed: false, r: [] });
+		if (entry.completed) return [];
+		if (Array.isArray(forceR)) entry.r = forceR;
+		const scratch = {};
+		const applied = grants && !entry.applied ? this._collectGrantEffects(grants, scratch) : {};
+		const marks = this._improvementsToMark(slug, grants);
+		if (marks.length && !entry.applied) applied.markedImprovements = marks;
+		const lines = this._summarizeGrantChanges(Object.keys(applied).length ? applied : null, { data: scratch });
+		entry.completed = true;
+		return [...lines, ...this._reconcileStandingGrant(slug, def, entry, scratch)];
 	}
 
 	/**
@@ -1175,16 +1576,16 @@ export class StonetopSteading {
 	 *
 	 * @returns {Promise<{label: string, summary: string[]}>}  what changed, for a notification
 	 */
-	async setImprovementRequirement(slug, index, checked) {
+	async setImprovementRequirement(slug, index, checked, { seasonStep } = {}) {
 		// IN TURN, because this is a read-modify-write and the control is a checkbox: two boxes pressed
 		// inside one round trip both read the same `improvements` and the same stat, and the second
 		// write lands on top of the first. Since a standing effect started MOVING A STAT that is no
 		// longer a lost tick — Prosperity came off twice for one lapse, and `entry.standing` was left
 		// claiming an effect that had already been taken back.
-		return inTurn(`steading:${this._actor.id}`, () => this._setImprovementRequirement(slug, index, checked));
+		return inTurn(`steading:${this._actor.id}`, () => this._setImprovementRequirement(slug, index, checked, { seasonStep }));
 	}
 
-	async _setImprovementRequirement(slug, index, checked) {
+	async _setImprovementRequirement(slug, index, checked, { seasonStep } = {}) {
 		const def = this.improvementDef(slug);
 		const improvements = foundry.utils.deepClone(this._flags.improvements ?? {});
 		const entry = improvements[slug] ?? { completed: false, r: [] };
@@ -1193,11 +1594,13 @@ export class StonetopSteading {
 		// An improvement built before standing effects were tracked: whatever its boxes said
 		// until now is presumed already applied by hand, the way _presumeAppliedGrants presumes
 		// a one-time grant. Only the change this tick makes is applied.
-		if (hasStandingGrant(slug) && entry.completed && entry.standing === undefined) entry.standing = standingGrantFor(slug, def, entry);
+		this._backfillStanding(slug, def, entry);
 		entry.r[index] = !!checked;
 		const summary = this._reconcileStandingGrant(slug, def, entry, data);
 		improvements[slug] = entry;
 		data[`flags.${STONETOP_SCOPE}.steading.improvements`] = improvements;
+		// The militia forgetting a tactic for want of drills settles the summer in this same write.
+		this._foldSeasonStep(data, seasonStep);
 		await this._actor.update(data);
 		return { label: def?.label ?? slug, summary };
 	}
@@ -1206,8 +1609,11 @@ export class StonetopSteading {
 	 * Bring an improvement's standing effect in line with its entry, writing the stat change into
 	 * `data` and recording what is now applied on `entry.standing`. Returns notification lines.
 	 */
-	_reconcileStandingGrant(slug, def, entry, data) {
-		if (!hasStandingGrant(slug)) return [];
+	_reconcileStandingGrant(slug, def, entry, data, why = "") {
+		// An effect still applied is reconciled even once the definition has none: a `lapse` or
+		// `condition` edited off a built custom improvement gives back what it took.
+		const granted = hasStandingGrant(slug, def);
+		if (!granted && !Object.keys(entry.standing ?? {}).length) return [];
 		const want = standingGrantFor(slug, def, entry) ?? {};
 		const have = entry.standing ?? {};
 		const lines = [];
@@ -1218,7 +1624,8 @@ export class StonetopSteading {
 			const from = Number(data[`system.${path}`] ?? this.getSystemValue(path, 0));
 			data[`system.${path}`] = from + delta;
 			data[`flags.${STONETOP_SCOPE}.steading.system.${path}`] = from + delta;
-			lines.push(`${statGrantLine(key, delta)} (${standingReason(slug, delta)})`);
+			const reason = granted ? standingReason(slug, delta, def, why) : "its standing effect was removed";
+			lines.push(`${statChangeLine(key, from, from + delta)} (${reason})`);
 		}
 		entry.standing = Object.keys(want).length ? want : null;
 		return lines;
@@ -1232,6 +1639,12 @@ export class StonetopSteading {
 	 * @returns {Promise<string|null>} the Resources entry as written, or null when there was nothing to name
 	 */
 	async nameInn(name) {
+		// In the steading's turn: it rewrites `improvements`, which the Inn's own completion (asked
+		// just before this) may still be writing.
+		return inTurn(`steading:${this._actor.id}`, () => this._nameInn(name));
+	}
+
+	async _nameInn(name) {
 		const clean = String(name ?? "").trim();
 		const improvements = foundry.utils.deepClone(this._flags.improvements ?? {});
 		const entry = improvements.inn;
@@ -1283,6 +1696,44 @@ export class StonetopSteading {
 	}
 
 	/**
+	 * How many horses a Requisition may take from the herd: its GROWN horses (a yearling is Value 2
+	 * and untrained, a foal is a foal). 0 when the steading has no Herd of Horses.
+	 */
+	herdRequisitionCap() {
+		return this.improvementCompleted("herdOfHorses") ? this.getHerd().grown : 0;
+	}
+
+	/**
+	 * Take `count` grown horses out of the tracked herd for a Requisition (ruling: the table is
+	 * asked how many, and they leave the herd). Capped at the grown horses. The herd's row on the
+	 * Assets list is never marked out itself: the herd stays home, and what comes back is added to
+	 * its card again by hand, as a winter's losses are taken off it.
+	 * @returns {Promise<number|null>} horses taken, or null when there is no tracked herd
+	 */
+	async requisitionFromHerd(count, { stonetopMove = "Requisition" } = {}) {
+		if (!this.improvementCompleted("herdOfHorses")) return null;
+		const herd = this.getHerd();
+		const take = Math.min(herd.grown, Math.max(0, Math.trunc(Number(count) || 0)));
+		if (!take) return 0;
+		await this.setHerd({ ...herd, grown: herd.grown - take }, { stonetopMove });
+		return take;
+	}
+
+	/**
+	 * Put `count` grown horses back in the tracked herd: a requisition from the herd taken back
+	 * (the expedition picker's row clicked again).
+	 * @returns {Promise<number|null>} horses returned, or null when there is no tracked herd
+	 */
+	async returnToHerd(count, { stonetopMove = "Requisition" } = {}) {
+		if (!this.improvementCompleted("herdOfHorses")) return null;
+		const back = Math.max(0, Math.trunc(Number(count) || 0));
+		if (!back) return 0;
+		const herd = this.getHerd();
+		await this.setHerd({ ...herd, grown: herd.grown + back }, { stonetopMove });
+		return back;
+	}
+
+	/**
 	 * The steading's tracked Herd of Horses, normalized to non-negative integer tiers
 	 * with a computed total. Defaults to the starting herd when no counts are stored yet
 	 * (e.g. a herd earned before this tracker existed) so the tracker and season math
@@ -1331,6 +1782,19 @@ export class StonetopSteading {
 	/** Record that a once-per-season step ran for this year+season (see seasonStepApplied). */
 	async setSeasonStepApplied(step, year, seasonId) {
 		await this.setFlags(this.seasonStepFlags(step, year, seasonId));
+	}
+
+	/** A `{ stamp, ... }` flag, if it was stamped for this year+season; null otherwise. What
+	 *  every value the season window has to remember across a reopen is read back through. */
+	_stampedFlag(key, year, seasonId) {
+		const held = this._flags[key] ?? null;
+		return held && seasonId && held.stamp === `${year}:${seasonId}` ? held : null;
+	}
+
+	/** The flag that stamps `fields` to this year+season, WITHOUT writing it. Empty with no
+	 *  season to stamp against: a stamp that could never match would neither show nor clear. */
+	_stampedFlags(key, fields, year, seasonId) {
+		return seasonId ? { [key]: { stamp: `${year}:${seasonId}`, ...fields } } : {};
 	}
 
 	/**
@@ -1505,33 +1969,133 @@ export class StonetopSteading {
 	 * So unlike the other holds this one is stored rather than derived: `{ stamp, amount }`, where
 	 * the stamp is the "<year>:<season>" it was rolled for, exactly like Tor's blessing.
 	 *
-	 * That stamp is also its expiry, and it expires by ceasing to match the clock rather than by
-	 * being swept up. "Before winter ends" is the deadline, so when the clock leaves that winter
-	 * the debt stops being collectable and the glyph goes out. What an unpaid winter cost is the
-	 * GM's to narrate: the book says "suffer the consequences again", and a system that quietly
-	 * charged a steading for it on the way into spring would be inventing a ruling.
+	 * That stamp is also when the glyph goes out: when the clock leaves that winter. The debt
+	 * itself does not lapse with it. "Before winter ends, or suffer the consequences again", so
+	 * the next spring's Seasons Change reads it back by its stamp (`winterDebtFor`) and opens on
+	 * it, pay or suffer, in the window the GM is already walking.
 	 */
 	winterDebt() {
+		const now = seasonStampKey(readCurrentSeason(this._actor));
+		return now ? this.winterDebtFor(now) : null;
+	}
+
+	/** The debt rolled for one "<year>:<season>" stamp, whatever the clock says. Spring of year
+	 *  Y asks for "<Y-1>:winter", which still finds it if the clock was corrected by hand.
+	 *  Carries its `stamp`, so a window settling it can re-read it by that stamp when clicked. */
+	winterDebtFor(stamp) {
 		const held = this._flags.winterDebt ?? null;
 		const amount = Math.max(0, Math.trunc(Number(held?.amount) || 0));
-		if (!amount) return null;
-		const now = seasonStampKey(readCurrentSeason(this._actor));
-		if (!now || held.stamp !== now) return null;
-		return { amount, surplus: this.getStatValue("surplus") };
+		if (!amount || !stamp || held.stamp !== stamp) return null;
+		return { stamp, amount, surplus: this.getStatValue("surplus") };
+	}
+
+	/**
+	 * Is this autumn's harvest still to be rolled? "When the harvest is complete, roll 1d4": the
+	 * end of autumn, not its first day, so it is owed for as long as the clock reads that autumn
+	 * and its Surplus roll (SURPLUS_SEASON_STEP, the same marker the season window's button sets)
+	 * has not been made.
+	 */
+	harvestOwed(year, seasonId) {
+		return seasonId === "autumn" && !this.seasonStepApplied(SURPLUS_SEASON_STEP, year, seasonId);
+	}
+
+	/** The steading's Size: hamlet, village, town or city (the Size radios on the sheet). */
+	steadingSize() {
+		return this._flags.size ?? STEADING_DEFAULTS.size;
 	}
 
 	/** Record what winter still wants, for the year+season it was rolled in. Writes nothing at
 	 *  all with no season to stamp against: a debt rolled before any Seasons Change has nothing
-	 *  to expire against, and a stamp it could never match would neither show nor clear. */
+	 *  to expire against, and a stamp it could never match would neither show nor clear.
+	 *
+	 *  Closes the once-per-season WINTER_DEBT_STEP in the same write: a reopened window must not
+	 *  roll the debt a second time, nor bring back one already paid by rolling it afresh. */
 	async setWinterDebt(amount, year, seasonId) {
 		if (!seasonId) return;
-		await this.setFlags({ winterDebt: { stamp: `${year}:${seasonId}`, amount } });
+		await this.setFlags({
+			...this._stampedFlags("winterDebt", { amount }, year, seasonId),
+			...this.seasonStepFlags(WINTER_DEBT_STEP, year, seasonId),
+		});
 	}
 
-	/** Settle it. Null rather than a "-=" deletion: the tray reads the AMOUNT, so a zeroed debt
-	 *  is already invisible, and a null leaves the flag readable by anything auditing the year. */
-	async clearWinterDebt() {
-		await this.setFlags({ winterDebt: null });
+	/**
+	 * Winter's first consumption as ROLLED, before it is taken: `{ stamp, amount }`.
+	 *
+	 * Rolling and taking are two clicks with a window between them (enough Surplus: Apply; not
+	 * enough: pick a consequence), and the season step only closes on the second. Without this a
+	 * GM who closed the window in between reopened it on a fresh roll button, and could roll
+	 * winter again until they liked the number. So the roll is kept, and a reopen resumes it.
+	 * @returns {number|null} the amount rolled for that year+season (0 is a real roll), or null
+	 */
+	winterConsumptionRolled(year, seasonId) {
+		const held = this._stampedFlag("winterConsumption", year, seasonId);
+		return held ? Math.max(0, Math.trunc(Number(held.amount) || 0)) : null;
+	}
+
+	/**
+	 * The Fortunes a season OPENED with, before its roll's "reset Fortunes to +1".
+	 *
+	 * The Herd of Horses reads it: "When the Seasons Change to summer … the herd gains foals equal
+	 * to 1d4+Fortunes." That fires with the move, off the Fortunes the roll itself was made with,
+	 * and the herd's button sits after the reset in the window, where the live figure is always
+	 * the reset's +1. So the figure is noted when the window sees the roll made (or handed over),
+	 * or failing that with the reset, and never by merely opening the window: one opened early
+	 * to look would lock in a mid-play figure. Once noted it is kept.
+	 * @returns {number|null} null when nothing was noted for that year+season
+	 */
+	openingFortunes(year, seasonId) {
+		const held = this._stampedFlag("seasonOpeningFortunes", year, seasonId);
+		const value = held ? Number(held.value) : NaN;
+		return Number.isFinite(value) ? value : null;
+	}
+
+	/** The flag that notes {@link openingFortunes}, WITHOUT writing it; empty once noted. */
+	openingFortunesFlags(year, seasonId) {
+		if (this.openingFortunes(year, seasonId) !== null) return {};
+		return this._stampedFlags("seasonOpeningFortunes", { value: this.getStatValue("fortunes") }, year, seasonId);
+	}
+
+	/** Keep the consumption just rolled, for {@link winterConsumptionRolled}. */
+	async setWinterConsumptionRolled(amount, year, seasonId) {
+		if (!seasonId) return;
+		await this.setFlags(this._stampedFlags("winterConsumption", { amount }, year, seasonId));
+	}
+
+	/**
+	 * The improvements map with every completed improvement's one-time Fortunes taken off its
+	 * `applied` record, or `{}` when none carries one. WITHOUT writing it.
+	 *
+	 * Book I p. 514: "'increase Fortunes by 1.' This is a one-time gain; when Seasons Change and
+	 * Fortunes reset, this benefit no longer matters." So once Fortunes resets, losing the
+	 * improvement takes back only what lasts (Defenses, Prosperity, the lists, Size), and not a
+	 * Fortunes the reset already spent. Zeroed rather than deleted: the flag is written by merging,
+	 * which cannot drop a key, and a zero delta reverts and reports as nothing.
+	 */
+	fortunesSpentFlags() {
+		const improvements = foundry.utils.deepClone(this._flags.improvements ?? {});
+		let changed = false;
+		for (const entry of Object.values(improvements)) {
+			if (entry?.completed && entry.applied?.stats?.fortunes) {
+				entry.applied.stats.fortunes = 0;
+				changed = true;
+			}
+		}
+		return changed ? { improvements } : {};
+	}
+
+	/**
+	 * "Whatever the result, reset Fortunes to +1" (+0 while malcontent): the value, whatever flags
+	 * the caller closes with it (built INSIDE the turn by `flags()`, so a season-step map is read
+	 * fresh), and the spent one-time Fortunes grants (fortunesSpentFlags), in ONE write and in the
+	 * steading's turn, since it rewrites `improvements`.
+	 * @param {number} to
+	 * @param {{flags?: () => object, options?: object}} [opts]
+	 */
+	async resetFortunes(to, { flags = () => ({}), options = {} } = {}) {
+		return inTurn(`steading:${this._actor.id}`, () => this.applyChanges({
+			system: { "stats.fortunes.value": to },
+			flags: { ...flags(), ...this.fortunesSpentFlags() },
+		}, options));
 	}
 
 	/** Has this improvement been built? What gates every improvement-fed seasonal obligation. */
@@ -1551,7 +2115,13 @@ export class StonetopSteading {
 	 * grants and reverted the old ones.
 	 */
 	improvementGivesBack(slug) {
-		return this._summarizeGrantChanges(this._flags.improvements?.[slug]?.applied);
+		const applied = this._flags.improvements?.[slug]?.applied;
+		if (!applied) return [];
+		// A dry run of the reversal itself, so what it would leave alone (a Size changed since)
+		// is said as left alone rather than promised back.
+		const scratch = {};
+		const { done, kept } = this._revertGrantEffects(applied, scratch);
+		return [...this._summarizeGrantChanges(done, { data: scratch, reverting: true }), ...kept];
 	}
 
 	/**
@@ -1570,21 +2140,29 @@ export class StonetopSteading {
 		// can never disagree about whether the herd has been seen to.
 		const herd = this.improvementCompleted("herdOfHorses");
 		const herdCost = herd ? StonetopSteading.herdWinterCost(this.getHerd()) : 0;
+		// Every upkeep owed this season and not yet settled (paid, or the improvement lost), off the
+		// improvements' own `upkeep` grants. The watch and the weapons keep their own rows (their
+		// own glyphs and words); any other improvement's, a homebrew one's, shares the generic row.
+		const owed = seasonId
+			? upkeepsDue(this.improvementRules(), seasonId).filter(u => !this.seasonStepApplied(u.key, year, seasonId))
+			: [];
+		const owes = slug => owed.some(u => u.slug === slug);
+		const otherUpkeep = owed.filter(u => u.slug !== "standingWatch" && u.slug !== "weaponsOfWar");
 		return steadingHolds({
 			fortunesAdvantage: this.fortunesAdvantage(),
 			muster: this.musterHold(),
 			torsBlessing: this.torsBlessingActive(),
 			herdAdvance: seasonId === "summer" && herd
 				&& !this.seasonStepApplied("advanceHerd", year, seasonId),
+			// All autumn, until the harvest is rolled: its roll comes when the harvest is complete,
+			// which is the season's end, so it outlives the window that opened the season.
+			harvest: this.harvestOwed(year, seasonId),
 			// Only when it would actually do something: an inn with no debility to clear, or
 			// no Surplus to spend, is not an unspent opportunity, it is just an inn.
 			innGathering: !!inn?.canGather,
-			standingWatch: !!seasonId
-				&& this.improvementCompleted("standingWatch")
-				&& !this.seasonStepApplied(WATCH_SEASON_STEP, year, seasonId),
-			weaponsUpkeep: seasonId === "spring"
-				&& this.improvementCompleted("weaponsOfWar")
-				&& !this.seasonStepApplied(WEAPONS_SEASON_STEP, year, seasonId),
+			standingWatch: owes("standingWatch"),
+			weaponsUpkeep: owes("weaponsOfWar"),
+			upkeep: otherUpkeep.length ? { items: otherUpkeep.map(u => ({ label: u.label, surplus: u.surplus })) } : null,
 			// Summer's drills, read exactly like the weapons' spring bill. The improvements'
 			// seasonal YIELDS are deliberately not here beside it: what the Market and the
 			// Township generate is collected inside the Seasons Change window, like the season's
@@ -1600,7 +2178,21 @@ export class StonetopSteading {
 				? { needed: herdCost, surplus: this.getStatValue("surplus") }
 				: null,
 			winterDebt: this.winterDebt(),
+			disasterOwed: this.disasterOwed(),
 		});
+	}
+
+	/**
+	 * A Meet with Disaster the steading has met but not yet paid: `{ cause }`, or null.
+	 *
+	 * At Fortunes −1 the cost is the GM's pick, made in a window that opens AFTER the write that
+	 * caused it (a failed harvest's step marker, a winter shortfall's Surplus to 0). That write
+	 * carries this flag and the pick clears it, so a window closed unpicked leaves a header glyph
+	 * behind rather than nothing at all. Not stamped to a season: the rule does not lapse.
+	 */
+	disasterOwed() {
+		const held = this._flags.disasterOwed ?? null;
+		return held ? { cause: String(held.cause ?? "") } : null;
 	}
 
 	/** Herd shaped for the improvement card: the three tiers (with labels/Values) plus total. */
@@ -1642,6 +2234,7 @@ export class StonetopSteading {
 	/** Winter Surplus needed to feed the herd (pure): 1 per HERD_SURPLUS_PER grown-or-yearling
 	 *  horses. Shared by feedHerdForWinter and the sheet's pre-roll shortfall/dice-count check. */
 	static herdWinterCost(herd) {
+		// Rounds DOWN ("1 Surplus per 6": 11 horses eat 1), by the user's ruling of 2026-10-03.
 		return Math.floor(((herd?.grown || 0) + (herd?.yearlings || 0)) / HERD_SURPLUS_PER);
 	}
 
@@ -1706,6 +2299,9 @@ export class StonetopSteading {
 		if (grants.stats) {
 			const stats = {};
 			for (const [key, delta] of Object.entries(grants.stats)) {
+				// Not Fortunes: an improvement built before the grant engine has seen a Seasons
+				// Change since, and the reset spent its one-time +1 (fortunesSpentFlags).
+				if (key === "fortunes") continue;
 				if (GRANT_STAT_PATHS[key] && delta) stats[key] = delta;
 			}
 			if (Object.keys(stats).length) applied.stats = stats;
@@ -1783,14 +2379,24 @@ export class StonetopSteading {
 		if (grants.replaceAssets?.length) {
 			const assets = foundry.utils.deepClone(this._flags.assets ?? STEADING_DEFAULTS.assets);
 			const replaced = [];
-			for (const { match, name } of grants.replaceAssets) {
+			for (const { match, name, beast } of grants.replaceAssets) {
 				if (this._listHasName(assets, name)) continue;
 				const at = assets.findIndex(a => String(a?.name ?? "").toLowerCase().includes(String(match).toLowerCase()));
+				// A FRESH row, not the old one renamed: the draft pair's `beast` (two hardy horses),
+				// its `takenBy` and its tick are the pair's, and spread across they made the herd
+				// requisition as exactly two horses, or start life already out on an expedition.
+				// Only the book's Herd of Horses carries a `beast`; any other swap (a homebrew
+				// improvement's) is a plain asset, `beast: null`, so it is never read as animals to
+				// requisition, nor as the herd whose tracker lives on that one improvement.
+				const row = { name, checked: true, beast: beast ? { ...beast } : null };
 				if (at >= 0) {
-					replaced.push({ from: assets[at].name, to: name });
-					assets[at] = { ...assets[at], name };
+					// The whole row it replaced, so un-completing puts back exactly that.
+					replaced.push({ from: assets[at].name, to: name, fromRow: foundry.utils.deepClone(assets[at]) });
+					assets[at] = row;
 				} else {
-					this._addNamedToList(assets, name, true);
+					const empty = assets.findIndex(a => !String(a?.name ?? "").trim());
+					if (empty >= 0) assets[empty] = row;
+					else assets.push(row);
 					replaced.push({ from: null, to: name });
 				}
 			}
@@ -1820,19 +2426,41 @@ export class StonetopSteading {
 		return applied;
 	}
 
-	/** Reverse a previously-applied grant record into `data` (negate stats, remove added
-	 *  list entries, restore removed ones, roll size/population back). */
+	/**
+	 * Reverse a previously-applied grant record into `data` (negate stats, remove added list
+	 * entries, restore removed ones, roll size/population back).
+	 *
+	 * A reversal takes back what completing DID, and only while it is still there to take. Two of
+	 * these are not deltas but overwrites, and used to put the old value back whatever had happened
+	 * since: a Township lost a year later reset Size and Population to what they were the day it
+	 * was built. So:
+	 *
+	 *   Size, Population  restored only while they still hold what completion set (`to`);
+	 *   a removed Fortification  put back only while the improvement that grants it is still
+	 *                     built (Stone Wall's "erase Palisade": a Palisade un-completed, or never
+	 *                     built and only presumed by the legacy back-fill, does not come back),
+	 *                     and never twice.
+	 *
+	 * @returns {{done: object, kept: string[]}} `done` is the part of the record actually reversed,
+	 *   in the record's own shape, for _summarizeGrantChanges; `kept` says what was left alone, and why.
+	 */
 	_revertGrantEffects(applied, data) {
 		const scope = STONETOP_SCOPE;
+		const done = {};
+		const kept = [];
 
 		if (applied.stats) {
+			const stats = {};
 			for (const [key, delta] of Object.entries(applied.stats)) {
 				const path = GRANT_STAT_PATHS[key];
-				if (!path) continue;
+				// A zero is a delta the Fortunes reset already spent (fortunesSpentFlags).
+				if (!path || !delta) continue;
 				const next = Number(this.getSystemValue(path, 0)) - delta;
 				data[`system.${path}`] = next;
 				data[`flags.${scope}.steading.system.${path}`] = next;
+				stats[key] = delta;
 			}
+			if (Object.keys(stats).length) done.stats = stats;
 		}
 
 		for (const listKey of ["resources", "fortifications"]) {
@@ -1841,55 +2469,144 @@ export class StonetopSteading {
 			if (!addedNames.length && !restore.length) continue;
 			const list = foundry.utils.deepClone(this._flags[listKey] ?? STEADING_DEFAULTS[listKey]);
 			for (const name of addedNames) this._clearNamedInList(list, name);
-			for (const item of restore) this._addNamedToList(list, item.name, item.checked);
+			if (addedNames.length) done[listKey] = [...addedNames];
+			const restored = [];
+			for (const item of restore) {
+				// Put back while ANY improvement that grants it is built: a homebrew one can grant
+				// the same Fortification as the book's.
+				const owners = this._fortificationOwners(item.name);
+				if (owners.length && !owners.some(o => this.improvementCompleted(o.slug))) {
+					kept.push(`${item.name} not put back (${owners.map(o => o.label).join(" or ")} is not built)`);
+					continue;
+				}
+				if (this._listHasName(list, item.name)) continue;
+				this._addNamedToList(list, item.name, item.checked);
+				restored.push(item);
+			}
+			if (restored.length) done.removedFortifications = restored;
 			data[`flags.${scope}.steading.${listKey}`] = list;
 		}
 
 		if (applied.replacedAssets?.length) {
 			const assets = foundry.utils.deepClone(this._flags.assets ?? STEADING_DEFAULTS.assets);
-			for (const { from, to } of applied.replacedAssets) {
+			for (const { from, to, fromRow } of applied.replacedAssets) {
 				const at = assets.findIndex(a => a?.name === to);
 				if (at < 0) continue;
-				if (from) assets[at] = { ...assets[at], name: from };
-				else this._clearNamedInList(assets, to);
+				if (fromRow) assets[at] = foundry.utils.deepClone(fromRow);
+				else if (from) {
+					// A record from before the whole row was kept: the name back, and none of the
+					// herd's own fields (getNamedAssets gives a seeded row its `beast` back by name).
+					const { beast, takenBy, ...rest } = assets[at];
+					assets[at] = { ...rest, name: from };
+				} else this._clearNamedInList(assets, to);
 			}
 			data[`flags.${scope}.steading.assets`] = assets;
+			done.replacedAssets = applied.replacedAssets;
 		}
 
-		if (applied.setSize) data[`flags.${scope}.steading.size`] = applied.setSize.from;
-
-		if (applied.setPopulation) {
-			data["system.attributes.population.value"] = applied.setPopulation.from;
-			data[`flags.${scope}.steading.system.attributes.population.value`] = applied.setPopulation.from;
-		}
-	}
-
-	/** Human-readable one-liners describing an `applied` grant record, for a notification. */
-	_summarizeGrantChanges(applied) {
-		if (!applied) return [];
-		const parts = [];
-		if (applied.stats) {
-			for (const [key, delta] of Object.entries(applied.stats)) {
-				parts.push(statGrantLine(key, delta));
+		if (applied.setSize) {
+			const now = this._flags.size ?? STEADING_DEFAULTS.size;
+			if (now === applied.setSize.to) {
+				data[`flags.${scope}.steading.size`] = applied.setSize.from;
+				done.setSize = applied.setSize;
+			} else {
+				kept.push(`Size stays ${now} (it has changed since)`);
 			}
 		}
-		if (applied.resources?.length) parts.push(`Resources +${applied.resources.join(", ")}`);
-		if (applied.fortifications?.length) parts.push(`Fortifications +${applied.fortifications.join(", ")}`);
-		if (applied.removedFortifications?.length) parts.push(`Fortifications −${applied.removedFortifications.map(e => e.name).join(", ")}`);
+
+		if (applied.setPopulation) {
+			const now = Number(this.getSystemValue("attributes.population.value", 0));
+			if (now === applied.setPopulation.to) {
+				data["system.attributes.population.value"] = applied.setPopulation.from;
+				data[`flags.${scope}.steading.system.attributes.population.value`] = applied.setPopulation.from;
+				done.setPopulation = applied.setPopulation;
+			} else {
+				kept.push(`Population stays ${now >= 0 ? "+" : ""}${now} (it has changed since)`);
+			}
+		}
+
+		return { done, kept };
+	}
+
+	/**
+	 * Every improvement whose completion adds a Fortification by this name, possibly none: the
+	 * book's own first, then the custom ones, read through the same grants lookup as
+	 * improvementRules().
+	 */
+	_fortificationOwners(name) {
+		const target = String(name ?? "").trim().toLowerCase();
+		return [...IMPROVEMENT_DEFINITIONS, ...this.customImprovements]
+			.filter(d => (improvementGrantsFor(d.slug, d)?.fortifications ?? []).some(f => String(f).trim().toLowerCase() === target))
+			.map(def => ({ slug: def.slug, label: def.label ?? def.name ?? def.slug }));
+	}
+
+	/**
+	 * Human-readable one-liners describing an `applied` grant record, for a notification or a
+	 * confirm's "What changes" block. Every stat is said as the transition it makes, "Fortunes +1
+	 * → +2", read off the live value (before) and the payload the write is about to send (after):
+	 * call this BEFORE the update lands, with the `data` the change was collected into. Entries are
+	 * said as sentences ("Mill added to Resources"), since "Resources +Mill" after "Reverted" read
+	 * as an addition.
+	 * @param {object|null} applied  the record (or the part of it a reversal actually did)
+	 * @param {{data?: object, reverting?: boolean}} [opts]  `reverting` when the record is being
+	 *   taken back, so every list change and overwrite reads the other way round
+	 */
+	_summarizeGrantChanges(applied, { data = {}, reverting = false } = {}) {
+		if (!applied) return [];
+		const parts = [];
+		const sign = reverting ? -1 : 1;
+		if (applied.stats) {
+			for (const [key, delta] of Object.entries(applied.stats)) {
+				// A zero is a one-time Fortunes the reset already spent: nothing to say.
+				const path = GRANT_STAT_PATHS[key];
+				if (!delta || !path) continue;
+				const from = Number(this.getSystemValue(path, 0)) || 0;
+				const to = Number(data[`system.${path}`] ?? from + sign * delta);
+				parts.push(statChangeLine(key, from, to));
+			}
+		}
+		for (const listKey of ["resources", "fortifications"]) {
+			for (const name of applied[listKey] ?? []) parts.push(listChangeLine(name, listKey, !reverting));
+		}
+		for (const { name } of applied.removedFortifications ?? []) parts.push(listChangeLine(name, "fortifications", reverting));
 		for (const { from, to } of applied.replacedAssets ?? []) {
 			const short = String(to).split(" (")[0];
-			parts.push(from ? `Assets: ${String(from).split(" — ")[0]} → ${short}` : `Assets +${short}`);
+			const was = from ? String(from).split(" — ")[0] : "";
+			if (!was) parts.push(listChangeLine(short, "assets", !reverting));
+			else parts.push(reverting ? `Assets: ${short} → ${was}` : `Assets: ${was} → ${short}`);
 		}
-		if (applied.setSize) parts.push(`Size → ${applied.setSize.to}`);
-		if (applied.setPopulation) parts.push(`Population → ${applied.setPopulation.to}`);
+		const size = s => String(s ?? "").charAt(0).toUpperCase() + String(s ?? "").slice(1);
+		if (applied.setSize) {
+			const { from, to } = applied.setSize;
+			parts.push(reverting ? `Size ${size(to)} → ${size(from)}` : `Size ${size(from)} → ${size(to)}`);
+		}
+		if (applied.setPopulation) {
+			const { from, to } = applied.setPopulation;
+			parts.push(reverting ? statChangeLine("population", to, from) : statChangeLine("population", from, to));
+		}
+		if (applied.markedImprovements?.length && !reverting) {
+			parts.push(`Also marked complete: ${applied.markedImprovements.map(s => this.improvementDef(s)?.label ?? s).join(", ")}`);
+		}
 		return parts;
 	}
 
-	/** Every named asset, on hand or out, each carrying its index in the stored list. */
+	/** Every named asset, on hand or out, each carrying its index in the stored list. A
+	 *  seeded asset stored before rows carried a `beast` field gets its default's back. */
 	getNamedAssets() {
 		const assets = this._flags.assets ?? STEADING_DEFAULTS.assets;
 		return assets
-			.map((asset, index) => ({ ...asset, index }))
+			.map((asset, index) => {
+				const row = { ...asset, index };
+				// The herd's row, whatever `beast` an older replacement carried across from the
+				// draft pair (see HERD_ASSET_BEAST).
+				// Not a row a homebrew swap wrote, whose `beast` is an explicit null (see isHerdAsset).
+				if (row.name === HERD_ASSET_NAME && row.beast !== null && row.beast?.herd !== true) row.beast = { ...HERD_ASSET_BEAST };
+				if (row.beast === undefined) {
+					const seeded = STEADING_DEFAULTS.assets.find(d => d.name && d.name === row.name);
+					if (seeded && seeded.beast !== undefined) row.beast = seeded.beast;
+				}
+				return row;
+			})
 			.filter(asset => asset.name);
 	}
 
@@ -2051,7 +2768,10 @@ export class StonetopSteading {
 				img: portrait.src, imgStyle: portrait.style };
 		});
 
-		const mapImprovement = (def, custom) => {
+		const mapImprovement = (rawDef, custom) => {
+			// A custom definition stored before its HTML was sanitized on the way IN is sanitized
+			// on the way out too: the tab paints heading, requirements and effect unescaped.
+			const def = custom ? sanitizeImprovementDef(rawDef) : rawDef;
 			const stored = storedImps[def.slug] ?? {};
 			let idx = 0;
 			// A section that continues an either/or (it shares its predecessor's group id)
@@ -2069,9 +2789,21 @@ export class StonetopSteading {
 			}));
 			const completed = stored.completed ?? false;
 			const earned = completed || (stored.r ?? []).some(Boolean);
+			// A `condition` grant ("As long as you trade aetherium to the outside world, increase
+			// Prosperity by 1"): a box on the built improvement's card, ticked while it holds.
+			const condition = completed ? improvementGrantsFor(def.slug, def)?.condition ?? null : null;
 			// An improvement can only be marked complete once its requirements are
 			// met; an already-complete one stays toggleable so it can be undone.
 			const requirementsMet = improvementRequirementsMet(def, stored.r ?? []);
+			// Where it stands, in words, on the header (closed cards included): the built border
+			// and the dimmed box said it only in colour and opacity. Counted the way requirements
+			// are MET (improvementRequirementProgress), so an either/or isn't two requirements owed.
+			const progress = improvementRequirementProgress(def, stored.r ?? []);
+			const status = completed
+				? { kind: "built", text: "Built" }
+				: requirementsMet
+					? { kind: "ready", text: "Ready to mark complete" }
+					: { kind: "progress", text: `${progress.ticked} of ${progress.needed} ticked` };
 			return {
 				slug: def.slug,
 				label: def.label,
@@ -2083,6 +2815,7 @@ export class StonetopSteading {
 				earned,
 				requirementsMet,
 				completeLocked: !requirementsMet && !completed,
+				status,
 				sections,
 				effect: def.effect,
 				custom: !!custom,
@@ -2090,8 +2823,19 @@ export class StonetopSteading {
 				herd: def.slug === "herdOfHorses" && completed ? this._herdView() : null,
 				// The Inn carries its once-per-season gathering once built.
 				innGathering: def.slug === "inn" && completed ? this._innGatheringView() : null,
+				// ...and its name ("Name the inn, add it to both the Resources list and map"): asked
+				// when it is built, and answerable from the card at any time after (nameInn), while
+				// the Resources entry its completion added is there to carry the name.
+				innName: def.slug === "inn" && completed && !custom && stored.applied?.resources?.[0]
+					? { name: stored.name ?? "" }
+					: null,
 				// An improvement that IS a move rolls from its own card too, once built.
 				rollsMove: completed ? IMPROVEMENT_MOVES[def.slug] ?? null : null,
+				condition: condition ? {
+					text: condition.text,
+					checked: stored.condition === true,
+					effect: statGrantLines(condition.stats),
+				} : null,
 			};
 		};
 		// Built-in improvements first, then any journal-sourced custom ones (dropped

@@ -2,9 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
 	SITE_MANNERS, REGIONS, siteManner, region, visibleTables, pickLines,
 	rollMannerTable, rollTerrain, rollOnTable,
-	COMBINE_SEP, againSpec, combinableRows, combineMax,
+	COMBINE_SEP, againPool, againSpec, combinableRows, combineMax,
 	joinCombined, splitCombined, primaryPick,
+	findRow, currentPickText, stripRollInstruction, slotOwners, slotPool, claimedAfter,
+	regionTables, regionPickLines, REGION_TABLE_PREFIX,
 } from "../../module/data/site-tables.js";
+import { SITE_FEATURES, SITE_CAUSES } from "../../module/data/things-below-tables.js";
 
 /** The die a table declares, as a number ("1d12" -> 12). */
 const dieSize = (die) => Number(String(die).split("d")[1]);
@@ -12,10 +15,11 @@ const dieSize = (die) => Number(String(die).split("d")[1]);
 /** Every table of every manner, flattened, with enough context to name a failure. */
 const allTables = SITE_MANNERS.flatMap(m => m.tables.map(t => ({ manner: m.id, ...t })));
 
-/** Every rollable table in the file: the manners' own, plus each region's terrain. */
+/** Every rollable table in the file: the manners' own, plus each region's terrain and further tables. */
 const everyTable = [
 	...allTables,
 	...REGIONS.map(r => ({ manner: r.id, ...r.terrain })),
+	...REGIONS.flatMap(r => (r.tables ?? []).map(t => ({ manner: r.id, ...t }))),
 ];
 
 describe("Book II site tables", () => {
@@ -181,7 +185,7 @@ describe("combining picks", () => {
 				const spec = againSpec(row);
 				if (!spec) continue;
 				found++;
-				const pool = combinableRows(t.rows, spec.max);
+				const pool = againPool(t.rows, row);
 				expect(pool.length, `${t.manner}.${t.key} pool`).toBeGreaterThan(0);
 				// The sub-die stops short of the instruction row, which is how the book keeps a
 				// "roll again" from landing on itself and asking to be rolled again.
@@ -227,8 +231,8 @@ describe("combining picks", () => {
 	it("asks for nothing of a row that says nothing", () => {
 		expect(againSpec({ text: "A ruin" })).toBe(null);
 		expect(againSpec(undefined)).toBe(null);
-		expect(againSpec({ again: 10 })).toEqual({ max: 10, count: 1 });
-		expect(againSpec({ again: 10, againCount: 2 })).toEqual({ max: 10, count: 2 });
+		expect(againSpec({ again: { max: 10 } })).toEqual({ min: null, max: 10, group: null, count: 1 });
+		expect(againSpec({ again: { max: 10 }, againCount: 2 })).toMatchObject({ max: 10, count: 2 });
 	});
 
 	it("offers the whole table when no sub-die is named", () => {
@@ -282,5 +286,226 @@ describe("how many answers a table takes", () => {
 			"primordial.theme", "primordial.features", "sacred.theme", "cave.inhabitant",
 			"forestFolk.site", "corrupted.theme",
 		]);
+	});
+});
+
+describe("the corrupted-site rows that say to roll again (Book II p. 422)", () => {
+	const corrupted = (key) => siteManner("corrupted").tables.find(t => t.key === key).rows;
+
+	it("keeps the book's instruction on the rows the Create a Corrupted Site wizard shows", () => {
+		expect(SITE_FEATURES.find(r => r.min === 9).text)
+			.toBe("Deep water, the depths obscure, conceals the site (roll 1d8)");
+		expect(SITE_CAUSES.find(r => r.min === 11).text)
+			.toBe("A seal or binding that kept prior corruption in check, now weakened (roll d10 again for the original corruption)");
+	});
+
+	it("performs them in the site wizard, off rows that no longer print them", () => {
+		const deep = corrupted("feature").find(r => r.min === 9);
+		expect(deep.text).toBe("Deep water, the depths obscure, conceals the site");
+		expect(againSpec(deep)).toMatchObject({ max: 8, count: 1 });
+		const seal = corrupted("cause").find(r => r.min === 11);
+		expect(seal.text).toBe("A seal or binding that kept prior corruption in check, now weakened");
+		expect(againSpec(seal)).toMatchObject({ max: 10, count: 1 });
+		// Still the Die of Fate prompt the other wizard reads.
+		expect(seal.fateful).toBe(true);
+	});
+});
+
+describe("the regions' terrain tables", () => {
+	it("cites the page each Terrain table is printed on", () => {
+		expect(Object.fromEntries(REGIONS.map(r => [r.id, r.page]))).toEqual({
+			greatWood: "Book II p. 202", steplands: "Book II p. 374", foothills: "Book II p. 147",
+			ferriersFen: "Book II p. 118", flats: "Book II p. 128", huffelPeaks: "Book II p. 238",
+			whitefangs: "Book II p. 482", northManmarch: "Book II p. 284", southManmarch: "Book II p. 352",
+			dreadRiver: "Book II p. 88", blackwaterLake: "Book II p. 50", threeCovenBluffs: "Book II p. 441",
+			threeCovenShore: "Book II p. 441", frozenWastes: "Book II p. 174", labyrinth: "Book II p. 244",
+			ruinedTower: "Book II p. 336", vorSvetelikSurface: "Book II p. 470", vorSvetelikUndercity: "Book II p. 470",
+		});
+		expect(siteManner("sacred").page).toBe("Book II p. 362");
+		expect(siteManner("forestFolk").page).toBe("Book II p. 153");
+	});
+
+	it("covers the die of every region's further table exactly once", () => {
+		const further = REGIONS.flatMap(r => (r.tables ?? []).map(t => ({ id: `${r.id}.${t.key}`, t })));
+		expect(further.map(f => f.id)).toEqual(["ruinedTower.building", "ruinedTower.purpose"]);
+		for (const { id, t } of further) {
+			const covered = t.rows.flatMap(row => Array.from({ length: row.max - row.min + 1 }, (_, i) => row.min + i));
+			expect(covered, id).toEqual(Array.from({ length: Number(t.die.split("d")[1]) }, (_, i) => i + 1));
+		}
+	});
+
+	it("transcribes the Ruined Tower's terrain, building and purpose (p. 336)", () => {
+		const tower = region("ruinedTower");
+		expect(tower.terrain.rows.map(r => [r.min, r.max, r.text])).toEqual([
+			[1, 1, "Barren patch of sand/dust/glass"],
+			[2, 2, "Mud/standing water/deep snow"],
+			[3, 3, "Ditch, gully, or embankment; the outline of buried ruins"],
+			[4, 4, "Exposed wall(s), crumbling and covered in moss/lichen"],
+			[5, 6, "Stretch of grass, 1d6+2 feet tall"],
+			[7, 7, "Shrubs, thicket, tree(s), maybe even dool trees"],
+			[8, 8, "Huge stone slab, partly buried; a fallen piece of the tower"],
+			[9, 10, "Pile of dirt/stone and a nearby pit; an excavation or burrow"],
+			[11, 12, "A building, at least somewhat intact"],
+		]);
+		const [building, purpose] = tower.tables;
+		expect(building.rows.map(r => [r.min, r.max, r.text])).toEqual([
+			[1, 8, "From before the tower's fall"],
+			[9, 11, "Built after the tower's fall"],
+			[12, 12, "A barrow (roll 1d8 for size)"],
+		]);
+		expect(purpose.rows.map(r => r.text)).toEqual([
+			"Home/barracks/living space", "Kitchen/laundry/bath/latrine", "Gathering/meetings/civic life",
+			"Storage/cellar/stable/tomb", "Work/production/creation", "Esoterica/experimentation",
+		]);
+	});
+
+	it("transcribes both halves of Vor Svetelik (p. 470)", () => {
+		expect(region("vorSvetelikSurface").terrain.rows.map(r => [r.min, r.max, r.text])).toEqual([
+			[1, 1, "Stretch of true death, where nothing has grown or decayed for hundreds of years"],
+			[2, 2, "Pool/fountain/stream/standing water: dark and unwholesome"],
+			[3, 3, "Hill/cliff/outcrop, perhaps a place where the land buckled and split*"],
+			[4, 5, "Stretch of sickly white trees"],
+			[6, 7, "Infrastructure/bridge/aqueduct/cistern/sewer*"],
+			[8, 9, "A Green Lord ruin*"],
+			[10, 11, "Rubble, peeking out from dirt and groundcover"],
+			[12, 12, "Crevasse/sinkhole, like a scar in the earth*"],
+		]);
+		expect(region("vorSvetelikUndercity").terrain.rows.map(r => [r.min, r.max, r.text])).toEqual([
+			[1, 1, "Flooded chamber"],
+			[2, 2, "Running water"],
+			[3, 4, "Old tunnels/shafts, some stretching for miles"],
+			[5, 6, "A Green Lord ruin or part of one, buried/sunken/toppled*"],
+			[7, 8, "Burrow/warren/tunnels, dug out by... something*"],
+			[9, 10, "Stairs/shaft/ladder/ramp, going up and/or further down*"],
+			[11, 11, "Crevasse, maybe open to the sky, maybe not*"],
+			[12, 12, "Sinkhole, leading down down down"],
+		]);
+		expect(region("vorSvetelikSurface").note).toBe("*Might connect to the undercity.");
+		expect(region("vorSvetelikUndercity").note).toBe("*Might connect to the surface.");
+	});
+
+	it("opens the Ruined Tower's building off its terrain, and the purpose off the building", () => {
+		const keys = (terrain, picks) => regionTables("ruinedTower", terrain, picks).map(t => t.key);
+		expect(keys(["Barren patch of sand/dust/glass"], {})).toEqual([]);
+		// Combined in second still opens it: terrain takes two answers.
+		expect(keys(["Barren patch of sand/dust/glass", "A building, at least somewhat intact"], {})).toEqual(["building"]);
+		expect(keys(["A building, at least somewhat intact"], { building: ["From before the tower's fall"] }))
+			.toEqual(["building", "purpose"]);
+		expect(keys(["A building, at least somewhat intact"], { building: ["A barrow (roll 1d8 for size)"] }))
+			.toEqual(["building"]);
+		// The purpose closes with the building that opened it.
+		expect(keys(["Mud/standing water/deep snow"], { building: ["From before the tower's fall"] })).toEqual([]);
+		expect(regionTables("greatWood", ["Dense thicket"], {})).toEqual([]);
+	});
+
+	it("writes the further picks under keys no manner table can take", () => {
+		const lines = regionPickLines("ruinedTower", "A building, at least somewhat intact", {
+			building: ["Built after the tower's fall"], purpose: "Esoterica/experimentation",
+		});
+		expect(lines).toEqual([
+			{ key: `${REGION_TABLE_PREFIX}building`, label: "Building", value: "Built after the tower's fall" },
+			{ key: `${REGION_TABLE_PREFIX}purpose`, label: "Purpose", value: "Esoterica/experimentation" },
+		]);
+		for (const t of allTables) expect(t.key.startsWith(REGION_TABLE_PREFIX)).toBe(false);
+	});
+});
+
+describe("which row owns a combined slot", () => {
+	const theme = (manner) => siteManner(manner).tables.find(t => t.key === "theme").rows;
+	const greenThemes = theme("greenLord");
+	const plain = greenThemes.filter(r => !r.again).map(r => r.text);
+
+	it("gives a giant-sized row combined in second its own 1d8, not the whole table", () => {
+		const values = [plain[0], "Sized for giants", plain[1]];
+		expect(slotOwners(greenThemes, values)).toEqual([-1, -1, 1]);
+		expect(slotPool(greenThemes, values, 2)).toHaveLength(8);
+		expect(slotPool(greenThemes, values, 1)).toEqual(greenThemes);
+	});
+
+	it("gives a free combine beside a giant-sized pick the whole table, not the 1d8", () => {
+		const values = ["Sized for giants", plain[0], ""];
+		expect(slotOwners(greenThemes, values)).toEqual([-1, 0, -1]);
+		expect(slotPool(greenThemes, values, 1)).toHaveLength(8);
+		expect(slotPool(greenThemes, values, 2)).toEqual(greenThemes);
+	});
+
+	it("lets a roll-again rolled by a roll-again own the slot after it", () => {
+		// Green Lord 8, "Corruption by the Things Below", reached on the giant-sized 1d8, owes a 1d7.
+		const values = ["Sized for giants", "Corruption by the Things Below", ""];
+		expect(slotOwners(greenThemes, values)).toEqual([-1, 0, 1]);
+		expect(slotPool(greenThemes, values, 2)).toHaveLength(7);
+		// Re-picking the giant-sized row's slot takes the corruption's own roll with it.
+		expect(claimedAfter(greenThemes, values, 1)).toBe(1);
+		expect(claimedAfter(greenThemes, values, 0)).toBe(2);
+	});
+
+	it("spreads a roll-twice row over both of its slots", () => {
+		const markers = siteManner("primordial").tables.find(t => t.key === "marker").rows;
+		const values = ["Two markers at once", "A veil, hiding it from the world", "Desolation/radiation"];
+		expect(slotOwners(markers, values)).toEqual([-1, 0, 0]);
+		expect(slotPool(markers, values, 2)).toHaveLength(markers.filter(r => r.max <= 10).length);
+	});
+});
+
+describe("answers saved under older wording", () => {
+	const rowsOf = (manner, key) => siteManner(manner).tables.find(t => t.key === key).rows;
+
+	it("takes the old roll-again instruction off the end, in each of the book's phrasings", () => {
+		expect(stripRollInstruction("Sized for giants, and roll 1d8 again")).toBe("Sized for giants");
+		expect(stripRollInstruction("Island/sandbar and roll 1d10 again")).toBe("Island/sandbar");
+		expect(stripRollInstruction("Sky-island, crashed/grounded (and roll 1d6 again)")).toBe("Sky-island, crashed/grounded");
+		expect(stripRollInstruction("A ruin of multiple groups (roll 1d10 twice)")).toBe("A ruin of multiple groups");
+		expect(stripRollInstruction("Deep water, the depths obscure, conceals the site (roll 1d8)"))
+			.toBe("Deep water, the depths obscure, conceals the site");
+		// A parenthesis that is not a roll stays.
+		expect(stripRollInstruction("Dwelling (home, barracks, dormitory, etc.)")).toBe("Dwelling (home, barracks, dormitory, etc.)");
+		// A row whose own text ends in a roll is found by that text before anything is stripped.
+		const feature = rowsOf("barrowBuilder", "feature");
+		expect(findRow(feature, "Treasure (roll 1d6 to inform how much remains)").min).toBe(9);
+	});
+
+	it("finds the row each one was made on", () => {
+		expect(currentPickText(rowsOf("greenLord", "theme"), "Sized for giants, and roll 1d8 again")).toBe("Sized for giants");
+		expect(currentPickText(rowsOf("greenLord", "theme"), "Corruption by the Things Below, and roll again"))
+			.toBe("Corruption by the Things Below");
+		expect(currentPickText(rowsOf("tempestLord", "structure"), "Sky-island, free-floating across the landscape (and roll 1d6 again)"))
+			.toBe("Sky-island, free-floating across the landscape");
+		expect(currentPickText(rowsOf("barrowBuilder", "origin"), "A ruin of multiple groups (roll 1d10 twice)"))
+			.toBe("A ruin of multiple groups");
+		expect(currentPickText(rowsOf("barrowBuilder", "barrowPurpose"), "Roll 1d10, twice")).toBe("Two purposes at once");
+		expect(currentPickText(rowsOf("barrowBuilder", "feature"), "Roll again, twice")).toBe("Two features at once");
+		expect(currentPickText(rowsOf("primordial", "marker"), "Roll 1d10 twice and combine")).toBe("Two markers at once");
+		expect(currentPickText(rowsOf("sacred", "marker"), "Roll twice with a 1d10, combine")).toBe("Two markers at once");
+		expect(currentPickText(rowsOf("faeDomain", "entrance"), "Only active at certain times (in moonlight, at sunset, in winter, etc.) and roll again"))
+			.toBe("Only active at certain times (in moonlight, at sunset, in winter, etc.)");
+		expect(currentPickText(rowsOf("faeDomain", "anchor"), "Roll again, but it's failing, fickle, unstable, possibly abandoned"))
+			.toBe("Failing, fickle, unstable, possibly abandoned");
+		expect(currentPickText(region("threeCovenShore").terrain.rows, "Island/sandbar and roll 1d10 again")).toBe("Island/sandbar");
+		expect(currentPickText(region("labyrinth").terrain.rows, "An obstruction, and roll 1d10 again")).toBe("An obstruction");
+	});
+
+	it("leaves an answer no row carries exactly as written", () => {
+		expect(findRow(rowsOf("greenLord", "theme"), "A theme of my own")).toBeUndefined();
+		expect(currentPickText(rowsOf("greenLord", "theme"), "A theme of my own")).toBe("A theme of my own");
+	});
+
+	it("keeps a branch open when the row that opened it is worded differently now", () => {
+		// The site table's answer matches no row, but the lingering-signs table holds an answer:
+		// that branch stays, and saving keeps its pick rather than hiding and dropping it.
+		const picks = { site: "Lingering signs of their presence", sign: "Strange plants" };
+		expect(visibleTables("greenLord", picks).map(t => t.key)).toEqual(["theme", "site", "sign"]);
+		expect(pickLines("greenLord", picks).map(l => l.key)).toEqual(["site", "sign"]);
+	});
+
+	it("reads the branch off a legacy answer to the branching table", () => {
+		const picks = { site: "A reclaimed Maker-ruin", origin: "A ruin of multiple groups (roll 1d10 twice)" };
+		expect(visibleTables("barrowBuilder", picks).map(t => t.key)).toContain("origin");
+	});
+});
+
+describe("tables the book makes conditional", () => {
+	it("flags exactly the haunted feature, the cause of death and the cave's beast", () => {
+		expect(allTables.filter(t => t.conditional).map(t => `${t.manner}.${t.key}`))
+			.toEqual(["haunted.feature", "haunted.causeOfDeath", "cave.beast"]);
 	});
 });

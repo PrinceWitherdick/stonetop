@@ -17,18 +17,21 @@
 // so re-expressing "5-7 hours" as a fraction of a day would invent precision nobody wrote down.
 // Totals therefore carry days and hours as two separate running sums. The single number used to
 // COMPARE two routes scores a day as one day of march (MARCH_HOURS) — but it is only ever used
-// to pick a winner, never shown. As it happens the table's hour-legs all hang off Stonetop and never
-// chain into a day-leg, so no route the book can express actually mixes the two; the arithmetic
-// is written to survive the table growing anyway.
+// to pick a winner, never shown. Solved routes DO mix the two, and hour-legs do chain: the Maw to
+// Marshedge is "10 days and 5-7 hours", the Ruined Tower to Lygos is 5-6 hours to the Crossroads
+// and then 40 days of road, and Stonetop to the Ruined Tower is two hour-legs end to end. Both
+// buckets are printed as they stand, and only the Chart a Course day count rolls the hours up (see
+// `atLeastDays`).
 //
 // ON RANGES. "2-3 days" is a range, so a total has a low and a high end. The ROUTE is chosen on
 // the low end, matching the book's own "It'll take at least ___ days".
 
 import {
-	MARCH_HOURS, TRAVEL_LEGS, TRAVEL_PLACES, travelMap, travelPlace, homePlace,
+	MARCH_HOURS, TRAVEL_LEGS, TRAVEL_PLACES, exitsOnMap, travelMap, travelPlace, homePlace,
 } from "../data/travel-times.js";
 import {
-	customStops, estimateSpan, normalizeCustom, placeSpot, pricedLeg, spotDistance, tierPace,
+	arrowOnly, arrowRemainder, customStops, estimateSpan, normalizeCustom, placeSpot, pricedLeg,
+	spanOfHours, spotDistance, tierPace,
 } from "./custom-route.js";
 import { hasStart, normalizeStart, startKey, startName, storedStart } from "./journey-start.js";
 import { hasFillBlank, fillBlank } from "./fill-blanks.js";
@@ -230,36 +233,54 @@ function solveFromMark(start) {
 	// with. Anchors are not among them (`placeSpot` refuses one): an anchor is a hint about which
 	// way a line should leave a pin, not a claim about where anything stands, so joining a journey
 	// to one would price a walk against a position nobody put there.
-	const joins = TRAVEL_PLACES
-		.map(place => ({ slug: place.slug, spot: placeSpot(start.tier, place.slug) }))
-		.filter(join => join.spot)
+	const places = TRAVEL_PLACES
+		.map(place => ({ slug: place.slug, spot: placeSpot(start.tier, place.slug), arrow: false }))
+		.filter(join => join.spot);
+	// AND THE EDGE ARROWS THAT STAND FOR A PLACE PAST THE BORDER. A party camped beside "To Gordin's
+	// Delve" is already most of a day down the West Road, and joining them only to lettered places
+	// sent them back east to the Crossroads and then the whole printed 4 days, "roughly 6-7 days".
+	// An arrow joins at the walk to it plus what the book leaves of the journey past the edge (see
+	// `arrowRemainder`).
+	const arrows = exitsOnMap(start.tier)
+		.filter(exit => arrowOnly(start.tier, exit.node))
+		.map(exit => ({ slug: exit.node, spot: exit, arrow: true }));
+	const near = [...places, ...arrows]
 		.map(join => ({ ...join, distance: spotDistance(start, join.spot, map.printedAspect) }))
-		.filter(join => join.distance > 0)
-		.sort((a, b) => a.distance - b.distance)
-		.slice(0, MARK_JOINS)
-		.map(join => ({ ...join, span: estimateSpan(join.distance, pace) }))
-		.filter(join => join.span);
-	if (!joins.length) return new Map();
+		.filter(join => Number.isFinite(join.distance))
+		.sort((a, b) => a.distance - b.distance);
 
+	// STANDING ON A PIN IS STANDING IN THE PLACE. A mark exactly on Stonetop used to be refused as a
+	// join (a leg of no length is not a leg), so the trip set out via the Crossroads and walked back:
+	// "roughly 11 days" to Marshedge, and six to nine hours to the very place it stood in.
+	const on = near.find(join => !join.arrow && join.distance === 0);
 	const name = startName(start);
-	const routes = solveTravel(MARK_NODE, {
-		legs: [
-			...TRAVEL_LEGS,
-			...joins.map(join => ({
-				from: MARK_NODE, to: join.slug,
-				min: join.span.min, max: join.span.max, unit: join.span.unit,
-				// No road to name: nobody printed this leg, which is what `estimated` says out loud
-				// and what puts the tilde beside it in the readout.
-				via: null, estimated: true,
-			})),
-		],
-		places: [...TRAVEL_PLACES, { slug: MARK_NODE, name }],
-	});
-
-	// The virtual node never leaves this function. It is a solving convenience and not a place, so
-	// a caller asking the returned map for a time is asking about the seventeen real ones — and its
-	// slug appearing in a leg, a readout or a Chronicle line would be a name nothing can resolve.
-	routes.delete(MARK_NODE);
+	let routes;
+	if (on) {
+		routes = solveTravel(on.slug);
+	} else {
+		const joins = near
+			.slice(0, MARK_JOINS)
+			.map(join => ({ ...join, span: joinSpan(join, start.tier, pace) }))
+			.filter(join => join.span);
+		if (!joins.length) return new Map();
+		routes = solveTravel(MARK_NODE, {
+			legs: [
+				...TRAVEL_LEGS,
+				...joins.map(join => ({
+					from: MARK_NODE, to: join.slug,
+					min: join.span.min, max: join.span.max, unit: join.span.unit,
+					// No road to name: nobody printed this leg, which is what `estimated` says out
+					// loud and what puts the tilde beside it in the readout.
+					via: null, estimated: true,
+				})),
+			],
+			places: [...TRAVEL_PLACES, { slug: MARK_NODE, name }],
+		});
+		// The virtual node never leaves this function. It is a solving convenience and not a place,
+		// so a caller asking the returned map for a time is asking about the seventeen real ones,
+		// and its slug in a leg, a readout or a Chronicle line would be a name nothing can resolve.
+		routes.delete(MARK_NODE);
+	}
 	for (const route of routes.values()) {
 		const first = route.legs[0];
 		if (!first) continue;
@@ -285,10 +306,23 @@ function solveFromMark(start) {
 		// hours — exactly the sort of thing Book II prints in hours — and re-saying "12-18 hours to
 		// the Maw" as "2 days" would be less faithful than the book, not more. What it does carry,
 		// and the table never could, is one measured leg bolted onto a chain of printed days. That
-		// is the mixing, and that is what this corrects.
-		if (mixesUnits(route.total)) route.total = oneUnit(route.total);
+		// is the mixing, and that is what this corrects. A start standing ON a place has no measured
+		// leg at all, so its mixed totals are the table's own and are left as the table prints them.
+		if (route.estimated && mixesUnits(route.total)) route.total = oneUnit(route.total);
 	}
 	return routes;
+}
+
+/** The time of one join from a hand-placed start: measured, plus the book's remainder past an arrow. */
+function joinSpan(join, tier, pace) {
+	if (!join.arrow) return estimateSpan(join.distance, pace);
+	const rest = arrowRemainder(tier, join.slug);
+	return rest ? pastArrowSpan(join.distance, rest, pace) : null;
+}
+
+/** A measured walk to an arrow at `pace`, plus the book's `rest` of the way past it, in hours. */
+function pastArrowSpan(distance, rest, pace) {
+	return spanOfHours(distance * pace.low + rest.low, distance * pace.high + rest.high);
 }
 
 /**
@@ -411,10 +445,9 @@ export function customRoute(journey) {
 
 	const legs = stops.slice(1).map((to, i) => {
 		const from = stops[i];
-		const priced = from.slug && to.slug ? pricedLeg(from.slug, to.slug) : null;
-		const span = priced
-			? { min: priced.min, max: priced.max, unit: priced.unit }
-			: estimateSpan(spotDistance(from.spot, to.spot, aspect), pace);
+		const priced = drawnLegTime(from, to, custom.tier, aspect, pace);
+		if (priced.none) return null;
+		const { span } = priced;
 		return {
 			from: from.slug, to: to.slug,
 			fromName: from.name, toName: to.name,
@@ -423,11 +456,16 @@ export function customRoute(journey) {
 			fromSpot: from.slug ? null : from.spot,
 			toSpot: to.slug ? null : to.spot,
 			min: span?.min ?? 0, max: span?.max ?? 0, unit: span?.unit ?? "hours",
-			via: priced?.via ?? null,
-			estimated: !priced,
+			via: priced.via ?? null,
+			// The places a leg the book prices only by way of other places passes through, so the
+			// Chart a Course "first travel to ___" still names them (see `stopsAlongTheWay`).
+			through: priced.through ?? [],
+			estimated: priced.estimated,
 			time: span ? formatSpan(span.min, span.max, span.unit) : null,
 		};
-	});
+	}).filter(Boolean);
+	// A way that only ever goes back to where it stood is no journey.
+	if (!legs.length) return null;
 
 	// Any estimate at all makes the whole answer an estimate, which is what `routePhrase` turns
 	// into the word "roughly": a total is only as sure as its least sure part.
@@ -448,6 +486,64 @@ export function customRoute(journey) {
 }
 
 /**
+ * What one leg of a hand-drawn way takes: `{ span, via, through, estimated }`, or `{ none: true }`
+ * for a leg that goes nowhere.
+ *
+ * IN ORDER OF HOW MUCH THE BOOK KNOWS ABOUT IT:
+ *  1. The table prints this very pair: the printed time, as it always was.
+ *  2. Both ends are places, but the table prices them only by way of others (Stonetop to Tor's
+ *     Fist, Stonetop to Lygos): the table's own route between them, in the book's time, said in one
+ *     unit. A ruler laid across the map had them at "roughly 3-4 days" and "roughly 14-17 days"
+ *     where the book says 7 and 40. The places it goes by are kept as `through`.
+ *  3. One end is a place this map stands for only by its edge arrow, and the other is a bare mark:
+ *     the walk to the arrow, measured, plus what the book leaves of the journey past the edge (see
+ *     `arrowRemainder`). Measuring to the arrow alone priced Lygos as though it stood on the border.
+ *  4. Anything else is measured off the map, as every leg touching a bare mark always was.
+ *
+ * A LEG OF NO LENGTH IS NONE: the same place twice, or a mark exactly on the stop before it. It used
+ * to come out as a leg with no time and `estimated` set, which turned a way the book prices end to
+ * end into "roughly".
+ */
+function drawnLegTime(from, to, tier, aspect, pace) {
+	if (from.slug && from.slug === to.slug) return { none: true };
+	if (from.slug && to.slug) {
+		const printed = pricedLeg(from.slug, to.slug);
+		if (printed) {
+			return { span: { min: printed.min, max: printed.max, unit: printed.unit }, via: printed.via, estimated: false };
+		}
+		const solved = solveTravel(from.slug).get(to.slug);
+		if (solved?.legs?.length) {
+			const through = solved.legs.slice(0, -1).map(leg => leg.toName);
+			return { span: spanOfTotal(solved.total), via: through.join(", ") || null, through, estimated: false };
+		}
+	}
+	const distance = spotDistance(from.spot, to.spot, aspect);
+	if (distance === 0) return { none: true };
+	const arrowed = !from.slug && arrowOnly(tier, to.slug) ? to.slug
+		: !to.slug && arrowOnly(tier, from.slug) ? from.slug
+			: null;
+	const rest = arrowed ? arrowRemainder(tier, arrowed) : null;
+	if (rest && distance > 0 && pace) {
+		return {
+			span: pastArrowSpan(distance, rest, pace),
+			estimated: true,
+		};
+	}
+	return { span: estimateSpan(distance, pace), estimated: true };
+}
+
+/**
+ * A solved total as ONE span, for a drawn leg that has to carry one unit. A total that mixes the
+ * table's days and hours rolls the hours up into whole days, as `atLeastDays` does.
+ */
+function spanOfTotal(total) {
+	const t = mixesUnits(total) ? oneUnit(total) : total;
+	return t.days.max > 0
+		? { min: t.days.min, max: t.days.max, unit: "days" }
+		: { min: t.hours.min, max: t.hours.max, unit: "hours" };
+}
+
+/**
  * Does this total mix the book's days with hours?
  *
  * Asked of a route setting out from a mark, which is the one kind that can chain a measured walk
@@ -465,8 +561,9 @@ const mixesUnits = total => total?.days?.max > 0 && total?.hours?.max > 0;
  * wrote down. That argument is about the BOOK's numbers, and it has no purchase on a figure this
  * system got with a ruler — which is already approximate, and is about to be read aloud.
  *
- * WHAT IT FIXES. The table's hour-legs all hang off Stonetop and never chain, so a solved route
- * never carries more than one of them. A hand-drawn way chains them freely: four bare marks across
+ * WHAT IT FIXES. The table's hour-legs are few and short: the longest chain a solved route can make
+ * of them is Stonetop to the Crossroads to the Ruined Tower, 8-10 hours, which the book itself calls
+ * "a long day's march". A hand-drawn way chains them freely: four bare marks across
  * the Vicinity summed to "roughly 13-22 hours", which a GM reads as one long day and is really the
  * better part of three days of marching. Saying "roughly 2-3 days" is the same measurement, in the
  * unit the answer is actually in.
@@ -563,13 +660,17 @@ export function atLeastDays(total) {
  * intermediate stop does not need it, and one with several names the first.
  */
 export function stopsAlongTheWay(route) {
-	return (route?.legs ?? []).slice(0, -1)
+	const legs = route?.legs ?? [];
+	// A drawn leg the book prices only by way of other places (Stonetop to Tor's Fist goes by the
+	// Foothills) carries those places as `through`, and they are stops on the way like any other.
+	return legs.flatMap((leg, i) => [
+		...(leg.through ?? []),
 		// NAMED STOPS ONLY, which is a no-op on a solved route (every stop of one is a place) and
 		// load-bearing on a hand-drawn one. Chart a Course's blank reads "you must first travel to
 		// ___", and filling it with "point 2" would hand the GM a requirement they cannot say out
 		// loud. A bend in the way is a thing the line shows and not a thing to travel to first.
-		.filter(leg => !!leg.to)
-		.map(leg => leg.toName);
+		...(i < legs.length - 1 && leg.to ? [leg.toName] : []),
+	]);
 }
 
 /** "Stonetop to Marshedge to Lygos" — the route as one line, for a notes field. */
@@ -600,18 +701,22 @@ export function routeLegLines(route) {
  * THE TICK AND THE FILL ASK THIS SAME QUESTION. A requirement whose box is ticked but whose text
  * still reads "at least ___ days" is worse than either state on its own — it tells the GM the
  * answer has been worked out and then declines to say what it is — and that is exactly what a
- * separate "does it have legs?" test for the tick produced: five of the eighteen destinations
- * from Stonetop (the Crossroads, the Maw, the Red Grove, the cave bears' den and the Ruined
- * Tower) are measured only in hours, so they have legs and no day count. So there is one
+ * separate "does it have legs?" test for the tick produced: four of the eighteen destinations
+ * from Stonetop (the Crossroads, the Maw, the Red Grove and the cave bears' den) are measured only
+ * in hours that fall short of a day's march, so they have legs and no day count. So there is one
  * predicate, `!== null`, and both sides read it.
  */
 export function chartBlankValue(key, route) {
 	if (!route) return null;
 	if (key === "days") {
-		// A trip measured only in hours has no day count worth printing, and "at least 1 days" for
-		// a morning's walk would read worse than the blank does.
-		if (!route.total?.days?.max) return null;
-		return String(atLeastDays(route.total));
+		// A trip measured in hours that can run to a full day's march (MARCH_HOURS) is a day: Book
+		// II p.334 writes the Ruined Tower's 8-10 hours up as "It'll take at least a day each way",
+		// and Book I p.305 has the GM jot "at least 1 day there and back" for the cave bears. One
+		// shorter than that has no day count worth printing; "at least 1 days" for a morning's
+		// walk would read worse than the blank does.
+		const total = route.total;
+		if (!total?.days?.max && !(total?.hours?.max >= MARCH_HOURS)) return null;
+		return String(Math.max(1, atLeastDays(total)));
 	}
 	// A single-leg journey has nowhere to travel to first.
 	if (key === "firstTravel") return stopsAlongTheWay(route)[0] ?? null;

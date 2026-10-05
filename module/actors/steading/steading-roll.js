@@ -19,7 +19,7 @@ import { netRollMode, rollAdjustments, rollConditionNotes } from "./improvement-
  * hand-off, the expedition walkthrough's Requisition, a character's Requisition window), so they
  * agree on what a roll is owed. Kept out of improvement-rolls.js, which is pure.
  *
- * @param {object} steading  the StonetopSteading wrapper, or anything with its improvementCompleted,
+ * @param {object} steading  the StonetopSteading wrapper, or anything with its improvementRules,
  *   getSystemValue, fortunesAdvantage and clearFortunesAdvantage
  * @param {object} o
  * @param {string} o.moveName
@@ -38,10 +38,17 @@ export async function settleSteadingRoll(steading, {
 	const held = statKey === "fortunes" && canSpend ? steading.fortunesAdvantage?.() ?? null : null;
 	const adjusted = rollAdjustments({
 		moveName, statKey,
-		has: slug => !!steading.improvementCompleted?.(slug),
+		// The improvements in force and their grants (improvement-rules.js): what gives advantage
+		// to which move, a homebrew one included.
+		rules: steading.improvementRules?.() ?? [],
 		answers, tactics, winter,
 		diminished: !!steading.getSystemValue?.("attributes.debilities.options.diminished.value", false),
 		held: held?.source ?? "",
+		torsBlessing: !!steading.torsBlessingActive?.(),
+		// Size: a hamlet Musters, Pulls Together and Trades & Barters at disadvantage, a town or
+		// a city at advantage (Book I p. 509).
+		size: steading.steadingSize?.() ?? "",
+		herdTotal: steading.getHerd?.()?.total ?? 0,
 	});
 	return {
 		...adjusted,

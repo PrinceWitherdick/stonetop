@@ -33,44 +33,35 @@ export const TIMELINE_KEY_PREFIX = "timeline:";
 export const UNDATED_PERIOD_KEY = "undated";
 
 /**
- * What wrote an entry.
+ * What wrote an entry. EVERY ROW IS STORED: there are no derived rows any more.
  *
- * `hand` was typed by somebody; `season` is the row a Seasons Change records, which is stored and
- * can be edited like any other. `ledger` is the odd one: those rows are DERIVED at render time from
- * the change ledger and never stored, but they still pass through `normalizeEntry` on their way
- * into a view model, so the source has to be a value this file accepts or they would all come back
- * marked as hand-typed and read as somebody's own writing.
+ * `hand` was typed by somebody. Every other source is a MILESTONE the system wrote when the thing
+ * happened -- a Seasons Change, a level gained, a kill, an expedition home, a site visited, a death,
+ * a lasting wound, an arcanum, a follower gained or lost -- and each is an ordinary entry that can be
+ * edited or deleted like a typed one. The source is what the reader's "Filter" menu and the card's
+ * kind chip read.
+ *
+ * ⚠ ORDER IS THE FILTER MENU'S ORDER (less `season`, which is no card; see TIMELINE_SEASON_SOURCE).
+ * And a new source must be added HERE, or `normalizeEntry` files every row it writes as hand-typed.
  */
-export const TIMELINE_SOURCES = ["hand", "season", "ledger"];
+export const TIMELINE_SOURCES = [
+	"hand", "season", "levelup", "kills", "expedition", "site", "death", "wound", "arcana", "follower",
+];
+
+/** The source of the one row per season that collects a character's kills. See `addKills`. */
+export const TIMELINE_KILLS_SOURCE = "kills";
 
 /**
- * The sources whose rows are DERIVED: built at render time from another record, never stored,
- * and so with nothing here to edit.
+ * The source of the one row per season a Seasons Change writes (timeline-season-entry.js).
  *
- * ⚠ ONE HOME FOR THIS FACT, deliberately. It is asked two ways -- of an entry, which knows its
- * own source, and of a bare id, which is all a click handler gets from a dataset. Those were
- * two independent tests (`source === "ledger"` in the view, `startsWith("ledger:")` in the
- * window) with the id convention enforced only by a comment, so a second derived source would
- * have come out editable in the window unless whoever added it remembered to prefix its ids too.
- * Both tests now read this list, and `derivedEntryId` is what mints the ids they recognise.
+ * ⚠ NOT A CARD. Its gains and Surplus print INSIDE that season's heading (user's call, 2026-10-03:
+ * a card repeating the season it was filed under said nothing the heading did not), so it is in no
+ * Filter menu, wears no kind colour and cannot be borrowed as a tag. See `TIMELINE_CARD_SOURCES`.
  */
-export const TIMELINE_DERIVED_SOURCES = ["ledger"];
+export const TIMELINE_SEASON_SOURCE = "season";
 
-/** Is this row a view of another record rather than a stored entry? */
-export function isDerivedEntry(entry) {
-	return TIMELINE_DERIVED_SOURCES.includes(entry?.source);
-}
-
-/** The id a derived row carries, namespaced by its source so it cannot collide with a stored one. */
-export function derivedEntryId(source, id) {
-	return `${source}:${String(id ?? "")}`;
-}
-
-/** The same question asked of a bare id, which is all a delegated click handler has to go on. */
-export function isDerivedEntryId(id) {
-	const raw = String(id ?? "");
-	return TIMELINE_DERIVED_SOURCES.some(source => raw.startsWith(`${source}:`));
-}
+/** The sources that print as CARDS: every one but the season's, which prints in its heading. */
+export const TIMELINE_CARD_SOURCES = TIMELINE_SOURCES.filter(source => source !== TIMELINE_SEASON_SOURCE);
 
 /**
  * The `chronicleKey` a track's page is found by.
@@ -127,7 +118,26 @@ export function normalizeEntry(raw, index = 0) {
 		source,
 		createdAt: Number(raw?.createdAt) || 0,
 		authorId:  String(raw?.authorId ?? "").trim(),
+		// What a milestone row IS, so the same event recorded twice patches the row it already wrote
+		// instead of adding a second (`levelup:4`, `expedition:<trip id>`). Blank on a typed entry.
+		// See `upsertByKey`.
+		key:       String(raw?.key ?? "").trim(),
+		// The foes on a kills row, one name per kill. Empty on every other kind.
+		foes:      Array.isArray(raw?.foes) ? raw.foes.map(f => String(f ?? "").trim()).filter(Boolean) : [],
+		// The ONE tag a typed row wears: a kind's id it borrows, or a custom tag's id. Blank for none,
+		// and never read on a milestone row, whose source is its kind. See timeline-tags.js.
+		tag:       String(raw?.tag ?? "").replace(/\./g, "").trim(),
 	};
+}
+
+/** Two string lists, equal item for item. */
+function sameList(a, b) {
+	return a.length === b.length && a.every((item, i) => item === b[i]);
+}
+
+/** Two normalised entries, equal field for field. `foes` is a list, so it is compared by value. */
+function sameEntry(a, b) {
+	return Object.keys(a).every(k => (k === "foes" ? sameList(a.foes, b.foes) : a[k] === b[k]));
 }
 
 /**
@@ -135,11 +145,62 @@ export function normalizeEntry(raw, index = 0) {
  *
  * Nothing is dropped. A roster drops a nameless row because a row that names nobody is not a
  * roster entry, but a timeline entry with no title is still a dated thing that happened, and the
- * card renders its body instead.
+ * card renders its body instead. The one row left out is a leftover (`isLeftover`), which is not an
+ * entry at all.
  */
 export function readEntries(raw) {
-	if (!Array.isArray(raw)) return [];
-	return raw.map(normalizeEntry);
+	if (Array.isArray(raw)) return raw.map(normalizeEntry);
+	// A page stores its entries KEYED BY ID (TimelinePageModel).
+	if (!raw || typeof raw !== "object") return [];
+	return Object.entries(raw)
+		.filter(([, entry]) => !isLeftover(entry))
+		.map(([id, entry], index) => normalizeEntry({ ...entry, id: entry?.id || id }, index));
+}
+
+/**
+ * Is this stored row a LEFTOVER rather than an entry? Every row is first written whole, its own `id`
+ * with it (`writeEntries`, `migrateData`). A row stored with no id was never written whole: it is
+ * what a field-by-field patch leaves behind when it lands after another client deleted that row.
+ * It is the row somebody deleted, so it stays deleted.
+ */
+export function isLeftover(entry) {
+	return !String(entry?.id ?? "").trim();
+}
+
+/** Entries as a page stores them: one key per entry, the key its id. */
+export function entriesById(entries) {
+	return Object.fromEntries(readEntries(entries).map(entry => [entry.id, entry]));
+}
+
+/**
+ * What it takes to turn one list of entries into another, ENTRY BY ENTRY: each entry added (whole),
+ * each one changed (only the fields that changed), each one gone.
+ *
+ * This is what lets a write touch only what it changed. Two clients writing the same track at once
+ * -- a GM's kill and a player's level-up, a player retitling one row while another adds a row --
+ * then each land their own keys, where a whole-list write would have the last one back erase the
+ * other's work.
+ *
+ * @returns {{added: Record<string, object>, changed: Record<string, object>, removed: string[]}|null}
+ *   null when the two are the same.
+ */
+export function entriesDiff(stored, next) {
+	const was = new Map(readEntries(stored).map(entry => [entry.id, entry]));
+	const now = readEntries(next);
+	const added = {};
+	const changed = {};
+	for (const entry of now) {
+		const old = was.get(entry.id);
+		was.delete(entry.id);
+		if (!old) { added[entry.id] = entry; continue; }
+		if (sameEntry(old, entry)) continue;
+		changed[entry.id] = Object.fromEntries(Object.keys(entry)
+			.filter(key => (key === "foes" ? !sameList(old.foes, entry.foes) : old[key] !== entry[key]))
+			.map(key => [key, entry[key]]));
+	}
+	const removed = [...was.keys()];
+	if (!Object.keys(added).length && !Object.keys(changed).length && !removed.length) return null;
+	return { added, changed, removed };
 }
 
 /**
@@ -290,7 +351,7 @@ export function patchEntry(list, id, changes) {
 	if (at < 0) return { entries, changed: null };
 	const before = entries[at];
 	const merged = normalizeEntry({ ...before, ...changes, id: before.id }, at);
-	if (Object.keys(merged).every(k => merged[k] === before[k])) return { entries, changed: null };
+	if (sameEntry(merged, before)) return { entries, changed: null };
 
 	const fromKey = periodKey(before);
 	const toKey = periodKey(merged);
@@ -329,4 +390,120 @@ export function moveEntry(list, id, delta) {
 	const swap = new Map([[members[at].id, members[to].order], [members[to].id, members[at].order]]);
 	const next = entries.map(e => (swap.has(e.id) ? { ...e, order: swap.get(e.id) } : e));
 	return { entries: renumber(next, key), moved: target };
+}
+
+/**
+ * Write a milestone ONCE: add it if no row carries its `key`, and otherwise patch only the fields
+ * named in `refresh` (or leave the row alone when there are none).
+ *
+ * This is what lets a milestone be recorded from wherever it happens without each caller asking
+ * "did I already?": a level gained twice in one evening (a correction, a reload mid-dialog) is
+ * still one "Reached level 4". Only the fields in `refresh` follow a re-record -- the GM may have
+ * re-dated or retitled the row, and a refresh must not undo that.
+ *
+ * An entry with no key is simply added.
+ *
+ * @returns {{entries, added, changed}}  `added` or `changed` is the row written; both null when
+ *          nothing moved.
+ */
+export function upsertByKey(list, entry, { refresh = [], makeId = () => "" } = {}) {
+	const key = String(entry?.key ?? "").trim();
+	const entries = readEntries(list);
+	const found = key ? entries.find(e => e.key === key) : null;
+	if (!found) {
+		const { entries: next, added } = addEntry(entries, entry, makeId);
+		return { entries: next, added, changed: null };
+	}
+	const changes = Object.fromEntries(refresh.filter(field => field in (entry ?? {})).map(field => [field, entry[field]]));
+	if (!Object.keys(changes).length) return { entries, added: null, changed: null };
+	const { entries: next, changed } = patchEntry(entries, found.id, changes);
+	return { entries: next, added: null, changed };
+}
+
+/**
+ * Add kills to the ONE row that collects them for a season.
+ *
+ * ⚠ FOUND BY ITS DATE, NOT BY A KEY. The row IS "the kills of Summer, Year Two", the same way a
+ * Seasons Change row is that season's; a key minted from the date would keep collecting for the
+ * season it named after a GM re-dated the row, which is a row sitting in one season holding another
+ * season's kills.
+ *
+ * @param {Array}    list
+ * @param {{season: string, year: number}} when
+ * @param {string[]} names  One name per kill. Blank names are dropped.
+ * @param {object}   [meta]  Extra fields for a NEW row (createdAt, authorId).
+ * @returns {{entries, added, changed}}
+ */
+export function addKills(list, { season = "", year = 1 } = {}, names = [], meta = {}, makeId = () => "") {
+	const slain = (Array.isArray(names) ? names : []).map(n => String(n ?? "").trim()).filter(Boolean);
+	const entries = readEntries(list);
+	if (!slain.length) return { entries, added: null, changed: null };
+	const when = normalizeEntry({ season, year });
+	const row = entries.find(e => e.source === TIMELINE_KILLS_SOURCE && e.season === when.season && e.year === when.year);
+	if (row) {
+		const { entries: next, changed } = patchEntry(entries, row.id, { foes: [...row.foes, ...slain] });
+		return { entries: next, added: null, changed };
+	}
+	const { entries: next, added } = addEntry(entries, {
+		...meta, season: when.season, year: when.year, source: TIMELINE_KILLS_SOURCE, title: "", foes: slain,
+	}, makeId);
+	return { entries: next, added, changed: null };
+}
+
+/** How many kills a track's rows hold between them. */
+export function killTotal(entries) {
+	return readEntries(entries)
+		.filter(e => e.source === TIMELINE_KILLS_SOURCE)
+		.reduce((sum, e) => sum + e.foes.length, 0);
+}
+
+/**
+ * A kills row's foes counted by name, in the order each name first fell: "Crinwin" ×3 then
+ * "Bandit Chief". Names compare exactly; the token names a table sees are what is stored.
+ *
+ * @returns {Array<{name: string, count: number}>}
+ */
+export function foeSummary(foes) {
+	const counts = new Map();
+	for (const raw of Array.isArray(foes) ? foes : []) {
+		const name = String(raw ?? "").trim();
+		if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+	}
+	return [...counts].map(([name, count]) => ({ name, count }));
+}
+
+/** The most kills one "Name ×N" line may stand for, so a typo cannot mint ten thousand. */
+export const MAX_KILLS_PER_LINE = 99;
+
+/** A kills row's foes, one line per name: "Crinwin ×3" for repeats. */
+export function foeLines(foes) {
+	return foeSummary(foes).map(({ name, count }) => (count > 1 ? `${name} ×${count}` : name));
+}
+
+/** A kills row's foes as editable text, one line per name. */
+export function foesToLines(foes) {
+	return foeLines(foes).join("\n");
+}
+
+/**
+ * The text of the "Slain" field back into one name per kill. A line may end in "×3" or "x3" (with or
+ * without a space before the number) to stand for that many; anything else is one kill named by the
+ * line.
+ *
+ * ⚠ A LETTER X COUNTS ONLY WITH A SPACE BEFORE IT: "Crinwin x3", never the last letter of a name.
+ * "Max 3" is one foe called Max 3, not three called Ma. The "×" sign is never a letter, so it needs
+ * no space ("Crinwin×3").
+ */
+export function linesToFoes(text) {
+	const foes = [];
+	for (const raw of String(text ?? "").split(/\r?\n/)) {
+		const line = raw.trim();
+		if (!line) continue;
+		const match = line.match(/^(.*?)(?:\s*×|\s+x)\s*(\d+)$/i);
+		const name = match ? match[1].trim() : line;
+		const count = match ? Math.min(MAX_KILLS_PER_LINE, Math.max(1, Number(match[2]) || 1)) : 1;
+		if (!name) continue;
+		for (let i = 0; i < count; i++) foes.push(name);
+	}
+	return foes;
 }

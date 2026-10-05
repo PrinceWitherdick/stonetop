@@ -14,6 +14,7 @@ import {
 import { WEATHER_SEASONS } from "../../module/utils/weather.js";
 import { FXMASTER_ID, FX_KEY_PREFIX } from "../../module/seasons/weather-fx.js";
 import { STONETOP_SCOPE } from "../../module/actors/character/StonetopFlags.js";
+import { CURRENT_SEASON_KEY } from "../../module/seasons/current-season.js";
 
 // The sky over Stonetop, shown as a glyph beside the steading header's season clock. Set by the
 // Weather picker when the GM posts a result; fine weather until they do. Same shape as the clock
@@ -21,10 +22,17 @@ import { STONETOP_SCOPE } from "../../module/actors/character/StonetopFlags.js";
 // what the template paints, and the default is a DISPLAY default that must not look like a
 // decision the GM made.
 
-function steading(flag = undefined) {
+// `clock` is the steading's Seasons Change stamp, `{season, year}`, or undefined for a world that
+// has never had one.
+function steading(flag = undefined, clock = undefined) {
 	return {
 		type: "stonetop",
-		getFlag: (scope, key) => (scope === STONETOP_SCOPE && key === CURRENT_WEATHER_KEY ? flag : undefined),
+		getFlag: (scope, key) => {
+			if (scope !== STONETOP_SCOPE) return undefined;
+			if (key === CURRENT_WEATHER_KEY) return flag;
+			if (key === CURRENT_SEASON_KEY) return clock;
+			return undefined;
+		},
 		setFlag: vi.fn(),
 	};
 }
@@ -97,18 +105,65 @@ describe("reading the steading's weather", () => {
 
 	it("reads back what was stored", () => {
 		expect(readCurrentWeather(steading({ sky: "snow", text: "Blizzard: wind, snow, all of it" })))
-			.toEqual({ sky: "snow", text: "Blizzard: wind, snow, all of it" });
+			.toEqual({ sky: "snow", text: "Blizzard: wind, snow, all of it", reroll: false, stale: false });
+	});
+
+	// The rider ("roll again later with disadvantage") is owed while the weather that carried it
+	// is the season's.
+	it("reads back a rider still owed in the season it was posted in", () => {
+		const actor = steading({ sky: "cloud", text: "Chilly", reroll: true, stamp: "1:autumn" }, { season: "autumn", year: 1 });
+		expect(readCurrentWeather(actor)).toMatchObject({ reroll: true, stale: false });
+	});
+
+	// A summer's weather under an autumn clock is not the sky over autumn. It still reads back
+	// (the header says what it was), but stale, and owing nothing.
+	it("reads a weather from an earlier season as stale, its rider lapsed", () => {
+		const actor = steading({ sky: "heat", text: "Blazing heat", reroll: true, stamp: "1:summer" }, { season: "autumn", year: 1 });
+		expect(readCurrentWeather(actor)).toEqual({ sky: "heat", text: "Blazing heat", reroll: false, stale: true });
+	});
+
+	it("reads the same season of a later year as stale too", () => {
+		const actor = steading({ sky: "heat", text: "Blazing heat", stamp: "1:summer" }, { season: "summer", year: 2 });
+		expect(readCurrentWeather(actor).stale).toBe(true);
+	});
+
+	it("reads a weather posted before any season was stamped as stale once one is", () => {
+		const actor = steading({ sky: "rain", text: "Steady, chilly rain", stamp: "" }, { season: "spring", year: 1 });
+		expect(readCurrentWeather(actor).stale).toBe(true);
+	});
+
+	// A flag from before the stamp existed has nothing to compare, and is taken as current.
+	it("takes an unstamped flag from an older build as current", () => {
+		const actor = steading({ sky: "rain", text: "Steady, chilly rain" }, { season: "winter", year: 3 });
+		expect(readCurrentWeather(actor).stale).toBe(false);
 	});
 });
 
 describe("recording the steading's weather", () => {
-	it("writes the row's sky and its own line", async () => {
-		const actor = steading();
+	it("writes the row's sky, its own line, its rider and the season it was posted in", async () => {
+		const actor = steading(undefined, { season: "winter", year: 2 });
 		await recordCurrentWeather(actor, WEATHER_SEASONS.at(-1).rows[0]);
 		expect(actor.setFlag).toHaveBeenCalledWith(STONETOP_SCOPE, CURRENT_WEATHER_KEY, {
-			sky:  "blizzard",
-			text: "Blizzard: wind, snow, all of it",
+			sky:    "blizzard",
+			text:   "Blizzard: wind, snow, all of it",
+			reroll: false,
+			stamp:  "2:winter",
 		});
+	});
+
+	it("records a row's rider as owed, and the next weather clears it", async () => {
+		const actor  = steading(undefined, { season: "autumn", year: 1 });
+		const autumn = WEATHER_SEASONS.find(s => s.key === "autumn");
+		await recordCurrentWeather(actor, autumn.rows[2]);      // clouds on the horizon, rider
+		await recordCurrentWeather(actor, autumn.rows[3]);      // crisp, breezy
+		expect(actor.setFlag.mock.calls[0][2].reroll).toBe(true);
+		expect(actor.setFlag.mock.calls[1][2].reroll).toBe(false);
+	});
+
+	it("stamps a weather posted in a world with no clock with the empty key", async () => {
+		const actor = steading();
+		await recordCurrentWeather(actor, WEATHER_SEASONS[0].rows[0]);
+		expect(actor.setFlag.mock.calls[0][2].stamp).toBe("");
 	});
 
 	// "The GM set fine weather" and "we could not tell what this row was" must not end up
@@ -149,6 +204,17 @@ describe("the header's weather readout", () => {
 
 	it("falls back rather than painting a glyph it hasn't got", () => {
 		expect(currentWeatherView({ sky: "drizzle", text: "spit" }).sky).toBe(DEFAULT_SKY);
+	});
+
+	// Last summer's heat over an autumn clock: drawn as softly as the unset sun, since it is not
+	// what anyone said about this season, with its own line still in the hover, marked as old.
+	it("softens a weather left over from an earlier season", () => {
+		const view = currentWeatherView({ sky: "heat", text: "Blazing heat", stale: true });
+		expect(view.sky).toBe("heat");
+		expect(view.stale).toBe(true);
+		expect(view.stamped).toBe(false);
+		expect(view.classes).toContain("steading-header-weather--unset");
+		expect(view.text).toBe("Blazing heat (from an earlier season)");
 	});
 
 	// The header draws this readout twice — a <button> for the GM, a <span> for everyone else —
@@ -207,6 +273,18 @@ describe("announcing the weather", () => {
 		expect(actor.setFlag).not.toHaveBeenCalled();
 	});
 
+	// A user who cannot write the steading used to get the card out and then a throw from the
+	// flag write: snow in the log, sun on the header. Refused before anything goes out instead.
+	it("refuses, posting nothing, for a user who cannot write the steading", async () => {
+		const actor = { ...steading(), isOwner: false };
+		restore = world(actor);
+
+		expect(await announceWeather(WEATHER_SEASONS[0].key, { row: WEATHER_SEASONS[0].rows[0] })).toBeNull();
+
+		expect(globalThis.ChatMessage.create).not.toHaveBeenCalled();
+		expect(actor.setFlag).not.toHaveBeenCalled();
+	});
+
 	// The canvas is the third part of the act, and the one most easily left behind: the optional
 	// FXMaster integration was written against `WeatherDialog._post`, which is no longer where
 	// announcing happens. Driven through a stood-up FXMaster world rather than a spy on
@@ -236,6 +314,26 @@ describe("announcing the weather", () => {
 		expect(Object.keys(scene.update.mock.calls[0][0]).join(" "))
 			.toContain("flags." + FXMASTER_ID + ".effects." + FX_KEY_PREFIX);
 	});
+
+	// No steading: the card still says what the weather is, but nothing records it, so nothing
+	// goes on the map either (the next reconcile would only take it off again).
+	it("posts the card but leaves the scene alone when there is no steading", async () => {
+		const undoWorld = world(null);
+		globalThis.game.actors = [];
+		const saved = { modules: globalThis.game.modules, scenes: globalThis.game.scenes, user: globalThis.game.user };
+		const scene = { update: vi.fn(), getFlag: () => ({}), canUserModify: () => true };
+		globalThis.game.modules  = { get: id => (id === FXMASTER_ID ? { active: true } : undefined) };
+		globalThis.game.scenes   = { active: scene };
+		globalThis.game.user     = {};
+		globalThis.game.settings = { get: (_sys, key) => (key === "weatherSceneFx" ? true : "publicroll") };
+		restore = () => { Object.assign(globalThis.game, saved); undoWorld(); };
+
+		const season = WEATHER_SEASONS.find(s => s.key === "winter");
+		expect(await announceWeather(season.key, { row: season.rows[0] })).toBe(season.rows[0]);
+
+		expect(globalThis.ChatMessage.create).toHaveBeenCalledTimes(1);
+		expect(scene.update).not.toHaveBeenCalled();
+	});
 });
 
 // ── Pausing the weather on the canvas ────────────────────────────────────────
@@ -252,8 +350,9 @@ describe("pausing the weather on the canvas", () => {
 	// switch starts. The stored value is REAL rather than a constant: what these tests are
 	// mostly checking is the order of the two writes, so a `get` that could not see the `set`
 	// would pass whichever way round they went.
-	function fxWorld(sky, { sceneFx = true, effects = {}, off = [] } = {}) {
-		const actor     = steading(sky ? { sky, text: "a line from the table" } : undefined);
+	function fxWorld(sky, { sceneFx = true, effects = {}, off = [], stamp, clock } = {}) {
+		const flag      = sky ? { sky, text: "a line from the table", ...(stamp === undefined ? {} : { stamp }) } : undefined;
+		const actor     = steading(flag, clock);
 		const undoWorld = world(actor);
 		const saved     = { modules: globalThis.game.modules, scenes: globalThis.game.scenes, user: globalThis.game.user };
 		const scene     = { update: vi.fn(), getFlag: () => effects, canUserModify: () => true };
@@ -349,6 +448,24 @@ describe("pausing the weather on the canvas", () => {
 	// No weather has ever been posted here, so there is no sky to put back. A default sun would
 	// draw nothing anyway; saying so honestly is what keeps "nobody has set the weather" from
 	// looking like a decision downstream.
+	// Last season's snow is not this season's sky. The reconcile takes ours off rather than
+	// laying it down again.
+	it("keeps a weather from an earlier season off the map", async () => {
+		const { scene } = fxWorld("snow", {
+			stamp: "1:winter", clock: { season: "spring", year: 2 },
+			effects: { [`${FX_KEY_PREFIX}snow`]: {} },
+		});
+		expect(await refreshWeatherFx()).toBe(true);
+		expect(Object.keys(scene.update.mock.calls[0][0]))
+			.toEqual([`flags.${FXMASTER_ID}.effects.-=${FX_KEY_PREFIX}snow`]);
+	});
+
+	it("still lays down a weather posted in the season the clock is in", async () => {
+		const { scene } = fxWorld("snow", { stamp: "1:winter", clock: { season: "winter", year: 1 } });
+		expect(await refreshWeatherFx()).toBe(true);
+		expect(scene.update.mock.calls[0][0]).toHaveProperty(`flags.${FXMASTER_ID}.effects.${FX_KEY_PREFIX}snow`);
+	});
+
 	it("has nothing to put back in a world that has never had weather", async () => {
 		const { scene } = fxWorld(null, { sceneFx: false });
 		expect(await setWeatherFxPaused(false)).toBe(false);

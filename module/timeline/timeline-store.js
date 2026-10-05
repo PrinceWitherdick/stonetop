@@ -21,7 +21,11 @@
 import { ensureChronicleFolder, findChronicleFolder, ensureChronicleJournal } from "../utils/chronicle-journals.js";
 import { isSteadingActor, getStonetopSteadingActor } from "../utils/world.js";
 import { SYSTEM_ID } from "../system-id.js";
-import { TIMELINE_TRACK_STEADING, trackKey, trackIdFromKey, readEntries, sortEntries } from "./timeline-core.js";
+import { inTurn } from "../utils/turn-queue.js";
+import {
+	TIMELINE_TRACK_STEADING, entriesById, entriesDiff, isLeftover, trackKey, trackIdFromKey, readEntries, sortEntries,
+} from "./timeline-core.js";
+import { deletionEntry, replacementEntry } from "../utils/foundry-compat.js";
 
 /** The journal, inside The Chronicle folder. */
 export const TIMELINE_JOURNAL_NAME = "Timeline";
@@ -149,43 +153,78 @@ function trackPageData(track, sort) {
 		name: track.name || track.trackId,
 		type: TIMELINE_PAGE_TYPE,
 		sort,
-		system: { trackKind: track.trackKind, trackId: track.trackId, entries: [] },
+		system: { trackKind: track.trackKind, trackId: track.trackId, entries: {}, keyed: true },
 		flags: { [SYSTEM_ID]: { chronicleKey: trackKey(track.trackId) } },
 	};
 }
+
+/**
+ * The turn every page (and the journal itself) is minted in on this client. See `syncTrackPages`.
+ */
+const PAGES_TURN = "timeline:pages";
 
 export async function ensureTrackPage(track) {
 	if (!track?.trackId) return null;
 	const existing = findTrackPage(track.trackId);
 	if (existing) return existing;
 
-	const journal = game.user?.isGM ? await ensureTimelineJournal() : findTimelineJournal();
-	if (!journal?.isOwner) return null;
+	return inTurn(PAGES_TURN, async () => {
+		// Asked again in turn: a sync queued ahead of this one may have minted it meanwhile.
+		const minted = findTrackPage(track.trackId);
+		if (minted) return minted;
 
-	const [page] = await journal.createEmbeddedDocuments(
-		"JournalEntryPage",
-		[trackPageData(track, maxSort(journal) + SORT_STEP)],
-	);
-	return page ?? null;
+		const journal = game.user?.isGM ? await ensureTimelineJournal() : findTimelineJournal();
+		if (!journal?.isOwner) return null;
+
+		const [page] = await journal.createEmbeddedDocuments(
+			"JournalEntryPage",
+			[trackPageData(track, maxSort(journal) + SORT_STEP)],
+		);
+		return page ?? null;
+	});
 }
 
 /**
- * Write a track's entries back.
+ * Write a track's entries back: ONLY WHAT MOVED. An entry added is written whole at
+ * `system.entries.<id>`, a changed one only in the fields that changed, a removed one deleted by its
+ * key, so a write from another client to some other row (or some other field) is left standing.
+ * See TimelinePageModel for why the entries are keyed.
  *
- * ⚠ THE WHOLE ARRAY, ALWAYS. Foundry's update merge treats an array as one atomic value, so a
- * dotted `system.entries.2.title` does not patch element 2: it expands to `{ entries: { 2: ... } }`
- * and replaces the array with an object, destroying the track. The same trap the character rosters
- * document at `StonetopCharacter#_rosterWrite`.
+ * ⚠ A PAGE STILL STORING A LIST is replaced whole, once, and marked `keyed`. The server merges an
+ * update into what it STORES, and a keyed patch merged into a list would fold the two together;
+ * the model already reads such a page as keyed, so the client cannot tell from the entries alone.
  */
 export async function writeEntries(page, entries) {
 	if (!page) return null;
-	await page.update({ "system.entries": readEntries(entries) });
+	if (!page.system?.keyed) {
+		await page.update(Object.fromEntries([
+			replacementEntry("system.entries", entriesById(entries)),
+			["system.keyed", true],
+		]));
+		return page;
+	}
+	const diff = entriesDiff(page.system?.entries, entries);
+	if (!diff) return page;
+	const update = {};
+	for (const [id, entry] of Object.entries(diff.added)) update[`system.entries.${id}`] = entry;
+	for (const [id, fields] of Object.entries(diff.changed)) {
+		for (const [field, value] of Object.entries(fields)) update[`system.entries.${id}.${field}`] = value;
+	}
+	// ⚠ A FIELD PATCH CAN LAND ON A ROW ANOTHER CLIENT HAS JUST DELETED, and the server then keeps a
+	// partial row under that key. Nobody reads it (timeline-core.js#isLeftover); the next write clears
+	// it out of storage too.
+	const leftovers = Object.entries(page.system?.entries ?? {}).filter(([, entry]) => isLeftover(entry)).map(([id]) => id);
+	for (const id of [...diff.removed, ...leftovers]) {
+		const [key, value] = deletionEntry(`system.entries.${id}`);
+		update[key] = value;
+	}
+	await page.update(update);
 	return page;
 }
 
 /**
  * THE ONE WRITE PATH for a track's entries: read the page, run a pure mutator over what it holds,
- * write the whole array back.
+ * write back what the mutator moved.
  *
  * Down HERE rather than on the window, because the window is not the only writer. A Seasons Change
  * records its own line, and a future one (an expedition, a death) will too; each of those
@@ -204,16 +243,50 @@ export async function writeEntries(page, entries) {
  */
 export async function mutateTrack(track, mutate, { create = false } = {}) {
 	if (!track?.trackId) return null;
-	let page = findTrackPage(track.trackId);
-	if (!page && create) page = await ensureTrackPage(track);
-	if (!page) return null;
+	return inTurn(trackTurnKey(track.trackId), async () => {
+		let page = findTrackPage(track.trackId);
+		if (!page && create) page = await ensureTrackPage(track);
+		if (!page) return null;
 
-	const result = mutate(page.system?.entries ?? []);
-	const moved = result?.added ?? result?.removed ?? result?.changed ?? result?.moved ?? null;
-	if (!moved) return null;
+		const result = mutate(readEntries(page.system?.entries));
+		const moved = result?.added ?? result?.removed ?? result?.changed ?? result?.moved ?? null;
+		if (!moved) return null;
 
-	await writeEntries(page, result.entries);
-	return { page, moved };
+		await writeEntries(page, result.entries);
+		return { page, moved };
+	});
+}
+
+/**
+ * The turn-queue key for one track, so two writes to the same track on this client never interleave.
+ *
+ * ⚠ EVERY WRITE IS WORKED OUT FROM WHAT THE PAGE HELD WHEN IT STARTED, and milestones arrive in
+ * BURSTS: one Apply-damage press that drops three foes, an arcanum gained and identified by two flag
+ * writes in one `Promise.all`, a level gained with a move learned in the same breath. Two upserts of
+ * the same key, or two appends to one season's kills row, that both read before either landed
+ * would write the same row twice or keep only one list of foes. Taking turns means each write reads
+ * only after the previous one has RESOLVED, which is exactly when the page holds what it stored.
+ *
+ * Writes from DIFFERENT clients are not ordered by this, and do not need to be for the common case:
+ * the entries are keyed (TimelinePageModel), so writers to different rows both land. Two clients
+ * changing the SAME field of the same row at the same instant still leave the later one.
+ */
+export const trackTurnKey = trackId => `timeline:${trackId}`;
+
+/**
+ * Keep a track page's NAME in step with its actor's.
+ *
+ * A page is minted once, usually while the character is still "New Character", and the Journal
+ * sidebar reads the page's own name. The sheets and the aggregate already read the live actor's
+ * name; this is only so the sidebar row agrees with them. Answers the page, or null if there was
+ * nothing to rename.
+ */
+export async function renameTrackPage(trackId, name) {
+	const page = findTrackPage(trackId);
+	const next = String(name ?? "").trim();
+	if (!page || !next || page.name === next || !page.isOwner) return null;
+	await page.update({ name: next });
+	return page;
 }
 
 /**
@@ -227,11 +300,16 @@ export async function mutateTrack(track, mutate, { create = false } = {}) {
 export function allTracks() {
 	const journal = findTimelineJournal();
 	if (!journal) return [];
+	// ⚠ ONE LANE PER TRACK, even if two clients minted a page for it at the same instant. The page
+	// kept is the one `findTrackPage` answers (the first in the journal), which is the one every
+	// write goes to.
+	const seen = new Set();
 	return (journal.pages ?? [])
 		.filter(p => p.type === TIMELINE_PAGE_TYPE)
-		.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-		.map(page => {
-			const trackId = trackIdFromKey(page.getFlag?.(SYSTEM_ID, "chronicleKey")) || page.system?.trackId || "";
+		.map(page => ({ page, trackId: trackIdFromKey(page.getFlag?.(SYSTEM_ID, "chronicleKey")) || page.system?.trackId || "" }))
+		.filter(({ trackId }) => !trackId || (!seen.has(trackId) && seen.add(trackId)))
+		.sort((a, b) => (a.page.sort ?? 0) - (b.page.sort ?? 0))
+		.map(({ page, trackId }) => {
 			const actor = trackActor(trackId);
 			return {
 				trackId,
@@ -252,23 +330,31 @@ export function allTracks() {
  * deletion of a track page comes back on the next load -- which is the right answer for a page that
  * is the storage rather than a view of it, and matches how the Places of Interest pages behave.
  *
+ * ⚠ RUN IN TURN (`PAGES_TURN`). Characters arrive in batches -- a compendium import, several made in
+ * one `createDocuments` -- and each fires its own `createActor`. Run side by side, every one of those
+ * syncs would read the journal before any of the others' pages landed and mint the same pages again.
+ * In turn, each reads what the one before it made. A fresh world's journal is minted in the same
+ * turn, so it is not made twice either.
+ *
  * @returns {Promise<number>} how many pages were minted.
  */
 export async function syncTrackPages() {
 	if (!game.user?.isGM) return 0;
-	const tracks = worldTracks();
-	if (!tracks.length) return 0;
-	const journal = await ensureTimelineJournal();
-	if (!journal) return 0;
+	return inTurn(PAGES_TURN, async () => {
+		const tracks = worldTracks();
+		if (!tracks.length) return 0;
+		const journal = await ensureTimelineJournal();
+		if (!journal) return 0;
 
-	const have = new Set((journal.pages ?? []).map(p => p.getFlag?.(SYSTEM_ID, "chronicleKey")).filter(Boolean));
-	const missing = tracks.filter(t => !have.has(trackKey(t.trackId)));
-	if (!missing.length) return 0;
+		const have = new Set((journal.pages ?? []).map(p => p.getFlag?.(SYSTEM_ID, "chronicleKey")).filter(Boolean));
+		const missing = tracks.filter(t => !have.has(trackKey(t.trackId)));
+		if (!missing.length) return 0;
 
-	let sort = maxSort(journal);
-	await journal.createEmbeddedDocuments(
-		"JournalEntryPage",
-		missing.map(track => trackPageData(track, sort += SORT_STEP)),
-	);
-	return missing.length;
+		let sort = maxSort(journal);
+		await journal.createEmbeddedDocuments(
+			"JournalEntryPage",
+			missing.map(track => trackPageData(track, sort += SORT_STEP)),
+		);
+		return missing.length;
+	});
 }

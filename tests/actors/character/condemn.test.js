@@ -77,11 +77,14 @@ describe("reading stored brands", () => {
 		expect(b.id).toBe("condemned-1");
 	});
 
-	// The prefix is what keeps a faction named after a uuid from colliding with that actor.
-	it("keys an actor-backed row on its uuid and a name-only row on its name", () => {
-		expect(condemnKey({ name: "Brennan", uuid: "Actor.x" })).toBe("uuid:Actor.x");
+	// The prefix is what keeps a faction named after a uuid from colliding with that actor. The
+	// uuid is folded the way the tags fold it, so the key is the document, not the spelling of
+	// the path that reached it; a row laid through an unlinked token keys on that token.
+	it("keys an actor-backed row on the document it names and a name-only row on its name", () => {
+		expect(condemnKey({ name: "Brennan", uuid: "Actor.x" })).toBe("uuid:x");
+		expect(condemnKey({ name: "Brennan", uuid: "Scene.s.Token.t.Actor.x" })).toBe("uuid:token:Scene.s.Token.t");
 		expect(condemnKey({ name: "The Claws" })).toBe("name:the claws");
-		expect(condemnKey({ name: "Actor.x" })).not.toBe(condemnKey({ name: "n", uuid: "Actor.x" }));
+		expect(condemnKey({ name: "x" })).not.toBe(condemnKey({ name: "n", uuid: "Actor.x" }));
 	});
 });
 
@@ -101,13 +104,28 @@ describe("laying a brand", () => {
 		expect(entries).toHaveLength(1);
 	});
 
-	// A name-only brand and one linked to an actor are keyed differently on purpose: the first
-	// tags nobody's sheet and the second does, so they are not the same record even when the
-	// spelling agrees. Reachable when an Actor is created after the name was branded.
-	it("treats a name-only brand and a linked one as different records", () => {
-		const one = addCondemned([], { name: "The Claws" }, ids()).entries;
-		const { added } = addCondemned(one, { name: "The Claws", uuid: "Actor.y" }, ids());
-		expect(added).not.toBeNull();
+	// Reachable when an Actor is created after the name was branded: typing the name again resolves
+	// to the Actor. That is the same person, so the name-only brand takes the link rather than a
+	// second brand appearing beside it.
+	it("links a name-only brand in place when the same name comes back with an actor", () => {
+		const one = addCondemned([], { name: "The Claws", note: "raided the mill" }, ids()).entries;
+		const result = addCondemned(one, { name: "the claws", uuid: "Actor.y" }, ids());
+		expect(result.added).toBeNull();
+		expect(result.changed).toMatchObject({ id: "id0", uuid: "Actor.y", note: "raided the mill" });
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries[0].uuid).toBe("Actor.y");
+	});
+
+	// The other way round: the actor is gone (or the drop came from a compendium), so the name comes
+	// back with no link, spelling somebody already branded.
+	it("refuses a name-only brand spelling somebody already branded by link", () => {
+		const one = addCondemned([], { name: "Brennan", uuid: "Actor.x" }, ids()).entries;
+		expect(addCondemned(one, { name: "BRENNAN" }, ids()).added).toBeNull();
+	});
+
+	it("still brands two different actors who share a name", () => {
+		const one = addCondemned([], { name: "Guard", uuid: "Actor.g1" }, ids()).entries;
+		expect(addCondemned(one, { name: "Guard", uuid: "Actor.g2" }, ids()).added).not.toBeNull();
 	});
 
 	it("refuses a nameless brand", () => {
@@ -257,8 +275,15 @@ describe("is this person already on the roster", () => {
 		expect(isBranded([{ id: "1", name: "  brennan THE claw " }], brennan)).toBe(true);
 	});
 
-	it("matches a brand recorded against their token", () => {
-		expect(isBranded([{ id: "1", name: "B", uuid: "Scene.s.Token.t.Actor.brennan" }], brennan)).toBe(true);
+	// The user's ruling: a brand laid through one unlinked token is on that token, not on the base
+	// actor or its other tokens. One laid from the sidebar is on the actor and every token of it.
+	it("matches a brand recorded against a token on that token only", () => {
+		const brands = [{ id: "1", name: "B", uuid: "Scene.s.Token.t.Actor.brennan" }];
+		expect(isBranded(brands, brennan)).toBe(false);
+		expect(isBranded(brands, { name: "Brennan the Claw", id: "brennan", uuid: "Scene.s.Token.t.Actor.brennan" })).toBe(true);
+		expect(isBranded(brands, { name: "Brennan the Claw", id: "brennan", uuid: "Scene.s.Token.u.Actor.brennan" })).toBe(false);
+		expect(isBranded([{ id: "1", name: "B", uuid: "Actor.brennan" }],
+			{ name: "x", id: "brennan", uuid: "Scene.s.Token.u.Actor.brennan" })).toBe(true);
 	});
 
 	it("leaves everyone else alone", () => {
@@ -302,11 +327,17 @@ describe("who is holding a brand on this person", () => {
 		expect(condemnersOf({ uuid: "", id: "" }, [aldric], read)).toEqual([]);
 	});
 
-	// The same person reached through a token gives Scene.…Token.…Actor.<id>; comparing the
-	// trailing id folds both onto the document the sheet is showing either way.
-	it("matches a brand recorded against a token's actor", () => {
-		const aldric = judge("Aldric", [{ name: "Brennan", uuid: "Scene.s1.Token.t1.Actor.brennan" }]);
-		expect(condemnersOf(brennan, [aldric], read).map(j => j.name)).toEqual(["Aldric"]);
+	// A brand laid from the sidebar names the actor, so every token of it wears the tag. One laid
+	// through an unlinked token names that token alone (the user's ruling).
+	it("tags every token of an actor branded from the sidebar, and only the token branded through one", () => {
+		const fromSidebar = judge("Aldric", [{ name: "Brennan", uuid: "Actor.brennan" }]);
+		const tokenSheet = { uuid: "Scene.s1.Token.t1.Actor.brennan", id: "brennan" };
+		expect(condemnersOf(tokenSheet, [fromSidebar], read).map(j => j.name)).toEqual(["Aldric"]);
+
+		const fromToken = judge("Aldric", [{ name: "Brennan", uuid: "Scene.s1.Token.t1.Actor.brennan" }]);
+		expect(condemnersOf(tokenSheet, [fromToken], read).map(j => j.name)).toEqual(["Aldric"]);
+		expect(condemnersOf(brennan, [fromToken], read)).toEqual([]);
+		expect(condemnersOf({ uuid: "Scene.s1.Token.t2.Actor.brennan", id: "brennan" }, [fromToken], read)).toEqual([]);
 	});
 
 	it("never brands the Judge into their own header", () => {

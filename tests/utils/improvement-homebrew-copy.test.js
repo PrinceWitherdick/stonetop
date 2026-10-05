@@ -10,7 +10,9 @@ import {
 	unformatImprovementText,
 } from "../../module/utils/improvement-def.js";
 import { renderImprovementCardHtml } from "../../module/journal/steading-improvement-cards.js";
-import { freeImprovementName, improvementCardSaver } from "../../module/dialogs/ImprovementBuilderDialog.js";
+import {
+	freeImprovementName, grantFormValues, grantsFromFormValues, improvementCardSaver,
+} from "../../module/dialogs/ImprovementBuilderDialog.js";
 import {
 	IMPROVEMENT_DEFINITIONS,
 	IMPROVEMENT_GRANTS,
@@ -27,8 +29,22 @@ import {
 // requirement check answer the same for every possible pattern of ticked boxes, does
 // completing it apply the same effects, does the card read the same.
 
-/** The four stat keys the Effect panel offers, in the dialog's order. */
-const STAT_KEYS = ["fortunes", "defenses", "prosperity", "population"];
+/** The Effect panel's "Also marks complete" field names an improvement; the definition stores its slug. */
+const LABEL = slug => IMPROVEMENT_DEFINITIONS.find(d => d.slug === slug)?.label ?? slug;
+const SLUG = name => IMPROVEMENT_DEFINITIONS.find(d => d.label.toLowerCase() === String(name).toLowerCase())?.slug ?? name;
+
+/**
+ * A built-in's grants as a homebrew copy can carry them: EXACTLY the table's, less the one field a
+ * custom improvement is not given on purpose. The Herd of Horses' asset swap carries `beast` (its
+ * row is the herd, with a tracker on that one improvement); a custom swap writes a plain asset, so
+ * the copy's swap is `{match, name}` and nothing else (see StonetopSteading#_collectGrantEffects).
+ */
+function copyable(grants) {
+	if (!grants) return null;
+	const out = structuredClone(grants);
+	if (out.replaceAssets) out.replaceAssets = out.replaceAssets.map(({ match, name }) => ({ match, name }));
+	return out;
+}
 
 /**
  * One improvement through the builder and back out, modelling what the form does to it: the
@@ -45,15 +61,8 @@ function copyThroughTheForm(def, grants) {
 		flavor: def.flavor ?? "",
 		effect: unformatImprovementText(def.effect ?? ""),
 		groups: groupsFromSections(def.sections ?? []),
-		grants: {
-			stats: Object.fromEntries(STAT_KEYS.map(key =>
-				[key, grants?.stats?.[key] === undefined ? "" : String(grants.stats[key])])),
-			resources: (grants?.resources ?? []).join("\n"),
-			fortifications: (grants?.fortifications ?? []).join("\n"),
-			removeFortifications: (grants?.removeFortifications ?? []).join("\n"),
-			setSize: grants?.setSize ?? "",
-			setPopulation: Number.isFinite(grants?.setPopulation) ? String(grants.setPopulation) : "",
-		},
+		// The Effect panel, every field of it, through the dialog's own pair of conversions.
+		grants: grantFormValues(grants, { improvementLabel: LABEL }),
 	};
 	// What _readDef reads back out of it.
 	return buildImprovementDef({
@@ -62,7 +71,7 @@ function copyThroughTheForm(def, grants) {
 		flavor: filled.flavor,
 		effect: filled.effect,
 		sections: sectionsFromGroups(filled.groups),
-		grants: filled.grants,
+		grants: grantsFromFormValues(filled.grants, { improvementSlug: SLUG }),
 	});
 }
 
@@ -111,8 +120,10 @@ describe.each(BOOK)("a homebrew copy of $def.label", ({ def, grants, copy }) => 
 		expect(alternativeSectionFlags(copy.sections)).toEqual(alternativeSectionFlags(def.sections));
 	});
 
-	it("applies the same effects on completion", () => {
-		expect(copy.grants).toEqual(normalizeImprovementGrants(grants));
+	// Against the RAW table, not the table normalized: normalizing the expected side too hid every
+	// kind the normalizer dropped (an asset swap used to vanish from every copy of the Herd).
+	it("carries the same effects, one-time and henceforth alike", () => {
+		expect(copy.grants).toEqual(copyable(grants));
 	});
 
 	// Prose compared as authored text on both sides, because a re-saved definition escapes

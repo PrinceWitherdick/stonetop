@@ -1,7 +1,17 @@
 import Handlebars from "handlebars";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
 import { readRepo, readCss, stripComments, declarations } from "../fakes/css.js";
-import { ImprovementBuilderDialog, improvementCardSaver, improvementEditSaver } from "../../module/dialogs/ImprovementBuilderDialog.js";
+import { stubConfirm } from "../fakes/confirm.js";
+import {
+	ImprovementBuilderDialog,
+	SECTIONS,
+	editSavedNotice,
+	improvementCardSaver,
+	improvementEditSaver,
+	journalImprovementSources,
+	steadingImprovementSaver,
+} from "../../module/dialogs/ImprovementBuilderDialog.js";
+import { StonetopDialog } from "../../module/utils/stonetop-dialog.js";
 import { MAX_REQUIREMENT_REPEAT } from "../../module/utils/improvement-def.js";
 import { IMPROVEMENT_CATEGORIES, IMPROVEMENT_DEFINITIONS } from "../../module/actors/steading/StonetopSteading.js";
 
@@ -265,5 +275,388 @@ describe("the window's chrome", () => {
 	it("hides the at-least box and the either/or tick until they apply", () => {
 		expect(declarations(CSS, ".is-hidden.stonetop-improvement-builder-group-min-wrap")).toContain("display: none");
 		expect(declarations(CSS, ".is-hidden.stonetop-improvement-builder-group-alt")).toContain("display: none");
+	});
+});
+
+// ── The audit pass (2026-10-03) ──────────────────────────────────────────────
+// vitest runs under `node`, so these drive the dialog's methods against small stand-ins for
+// the elements they touch. The DOM wiring itself (focus after a move or remove, the per-row
+// labels, the placeholder colour) is driven in a real browser by
+// z:/tmp/foundry-verify/improvement-builder-verify.mjs.
+
+/** A stand-in element: only the members the code under test reaches for. */
+function fakeEl(props = {}) {
+	const attrs = {};
+	return {
+		disabled: false, value: "", hidden: true, textContent: "", id: "",
+		setAttribute(k, v) { attrs[k] = String(v); },
+		getAttribute: k => attrs[k] ?? null,
+		removeAttribute(k) { delete attrs[k]; },
+		focus: vi.fn(),
+		attrs,
+		...props,
+	};
+}
+
+/** A root whose querySelector answers from a selector map. */
+function fakeRoot(map = {}) {
+	return { querySelector: sel => map[sel] ?? null, querySelectorAll: () => [] };
+}
+
+function dialogWith(saver) {
+	const dialog = Object.create(ImprovementBuilderDialog.prototype);
+	dialog._saver = saver;
+	dialog._activeTab = "improvement";
+	dialog._saving = false;
+	return dialog;
+}
+
+afterEach(() => { vi.restoreAllMocks(); });
+
+describe("saving", () => {
+	function saveRig(create, { name = "Roadbuilding", nameTaken } = {}) {
+		const button = fakeEl();
+		const field = fakeEl({ value: name });
+		const error = fakeEl({ id: "err" });
+		const root = fakeRoot({
+			".stonetop-improvement-builder-save": button,
+			"[name=name]": field,
+			".stonetop-improvement-builder-name-error": error,
+		});
+		const dialog = dialogWith({ create, nameTaken });
+		dialog._readDef = () => ({ name: name.trim() });
+		dialog._selectTab = vi.fn();
+		dialog.close = vi.fn();
+		return { dialog, root, button, field, error };
+	}
+
+	// A double click on "Create card" wrote two homebrew pages, and on first use could make two
+	// homebrew journals, because nothing stopped the second press while the first was writing.
+	it("ignores a second press while the first is still writing, and greys the button", async () => {
+		let finish;
+		const create = vi.fn(() => new Promise(done => { finish = done; }));
+		const { dialog, root, button } = saveRig(create);
+		const first = dialog._save(root);
+		const second = dialog._save(root);
+		expect(create).toHaveBeenCalledTimes(1);
+		expect(button.disabled).toBe(true);
+		finish({ ok: true });
+		await Promise.all([first, second]);
+		expect(create).toHaveBeenCalledTimes(1);
+		// A successful save is not a discard, so the close does not ask.
+		expect(dialog.close).toHaveBeenCalledWith({ discard: true });
+	});
+
+	it("gives Save back when the write is refused, so the author can fix it and try again", async () => {
+		const { dialog, root, button } = saveRig(vi.fn(async () => ({ ok: false, reason: "duplicate" })));
+		await dialog._save(root);
+		expect(button.disabled).toBe(false);
+		expect(dialog._saving).toBe(false);
+		expect(dialog.close).not.toHaveBeenCalled();
+	});
+
+	it("gives Save back when the write throws, and says so", async () => {
+		const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+		const said = vi.spyOn(ui.notifications, "error");
+		const { dialog, root, button } = saveRig(vi.fn(async () => { throw new Error("no permission"); }));
+		await dialog._save(root);
+		expect(button.disabled).toBe(false);
+		expect(dialog._saving).toBe(false);
+		expect(said).toHaveBeenCalled();
+		expect(logged).toHaveBeenCalled();
+	});
+
+	// A taken name used to get as far as the write, be refused there, and be reported only in a
+	// notice that fades, with the window left on whatever panel Save was pressed from.
+	it("stops a taken name at the window, on the name's own panel, with the reason beside the field", async () => {
+		const create = vi.fn();
+		const { dialog, root, field, error } = saveRig(create, { name: "Palisade", nameTaken: n => n === "Palisade" });
+		await dialog._save(root);
+		expect(create).not.toHaveBeenCalled();
+		expect(dialog._selectTab).toHaveBeenCalledWith(root, "improvement");
+		expect(field.focus).toHaveBeenCalled();
+		expect(field.getAttribute("aria-invalid")).toBe("true");
+		expect(field.getAttribute("aria-describedby")).toBe("err");
+		expect(error.hidden).toBe(false);
+		expect(error.textContent).toMatch(/already has an improvement called Palisade/);
+	});
+
+	it("says an empty name the same way", async () => {
+		const create = vi.fn();
+		const { dialog, root, field, error } = saveRig(create, { name: "  " });
+		await dialog._save(root);
+		expect(create).not.toHaveBeenCalled();
+		expect(field.getAttribute("aria-invalid")).toBe("true");
+		expect(error.textContent).toBe("Enter a name for the improvement.");
+	});
+
+	it("checks for a clash when the name field is left, but not for an empty one", () => {
+		const taken = saveRig(vi.fn(), { name: "Palisade", nameTaken: () => true });
+		taken.dialog._checkName(taken.root, { onlyTaken: true });
+		expect(taken.field.getAttribute("aria-invalid")).toBe("true");
+
+		const empty = saveRig(vi.fn(), { name: "" });
+		empty.dialog._checkName(empty.root, { onlyTaken: true });
+		expect(empty.field.getAttribute("aria-invalid")).toBeNull();
+		expect(empty.error.hidden).toBe(true);
+	});
+
+	// The journal-card target declares no `nameTaken`: a reusable card keeps the book's name.
+	it("lets the journal-card target keep any name", () => {
+		expect(dialogWith(improvementCardSaver())._nameProblem("Palisade")).toBeNull();
+	});
+});
+
+describe("work is not thrown away unasked", () => {
+	it("asks before closing over unsaved work, and stays open on Keep editing", async () => {
+		const closed = vi.spyOn(StonetopDialog.prototype, "close").mockResolvedValue(undefined);
+		const asked = stubConfirm(false);
+		const dialog = dialogWith(improvementCardSaver());
+		dialog._isDirty = () => true;
+		await dialog.close();
+		expect(closed).not.toHaveBeenCalled();
+		const config = asked.mock.calls[0][0];
+		// Buttons that name the outcome, affirmative first, and Enter on the one that loses nothing.
+		expect(config.buttons.map(b => b.label)).toEqual(["Discard this improvement", "Keep editing"]);
+		expect(config.buttons.find(b => b.default)?.action).toBe("no");
+	});
+
+	it("closes on Discard", async () => {
+		const closed = vi.spyOn(StonetopDialog.prototype, "close").mockResolvedValue(undefined);
+		stubConfirm(true);
+		const dialog = dialogWith(improvementCardSaver());
+		dialog._isDirty = () => true;
+		await dialog.close();
+		expect(closed).toHaveBeenCalledTimes(1);
+	});
+
+	it("closes without asking when nothing was typed, or when the work was just saved", async () => {
+		const closed = vi.spyOn(StonetopDialog.prototype, "close").mockResolvedValue(undefined);
+		const asked = stubConfirm(false);
+		const clean = dialogWith(improvementCardSaver());
+		clean._isDirty = () => false;
+		await clean.close();
+		const saved = dialogWith(improvementCardSaver());
+		saved._isDirty = () => true;
+		await saved.close({ discard: true });
+		expect(closed).toHaveBeenCalledTimes(2);
+		expect(asked).not.toHaveBeenCalled();
+	});
+
+	it("names the edit's own loss when an edit is closed", async () => {
+		vi.spyOn(StonetopDialog.prototype, "close").mockResolvedValue(undefined);
+		const asked = stubConfirm(false);
+		const dialog = dialogWith({ editing: { name: "Roadbuilding" } });
+		dialog._isDirty = () => true;
+		await dialog.close();
+		expect(asked.mock.calls[0][0].buttons[0].label).toBe("Discard my changes");
+	});
+
+	it("asks before Start from replaces a form with work in it", async () => {
+		const asked = stubConfirm(false);
+		const dialog = dialogWith(improvementCardSaver());
+		dialog._sources = new Map([["builtin:palisade", { name: "Palisade" }]]);
+		dialog._isDirty = () => true;
+		dialog._fillFrom = vi.fn();
+		const select = { value: "builtin:palisade" };
+		await dialog._onPickSource(fakeRoot(), select);
+		expect(asked).toHaveBeenCalledTimes(1);
+		expect(asked.mock.calls[0][0].buttons[0].label).toBe("Replace it with Palisade");
+		expect(dialog._fillFrom).not.toHaveBeenCalled();
+		// Put back to its blank entry either way, so the same one can be picked again.
+		expect(select.value).toBe("");
+	});
+
+	it("asks before removing a group that holds requirements, and not before an empty one", async () => {
+		const dialog = dialogWith(improvementCardSaver());
+		dialog._renumberGroups = vi.fn();
+		dialog._groupNumber = () => 2;
+		dialog._readRows = () => [{ text: "A", repeat: "1" }, { text: "B", repeat: "2" }];
+		const group = () => ({ remove: vi.fn(), nextElementSibling: null, previousElementSibling: null });
+
+		let asked = stubConfirm(false);
+		dialog._groupIsWritten = () => true;
+		const kept = group();
+		await dialog._removeGroup(fakeRoot(), kept);
+		expect(kept.remove).not.toHaveBeenCalled();
+		expect(asked.mock.calls[0][0].content).toContain("3 requirements");
+		expect(asked.mock.calls[0][0].buttons.map(b => b.label)).toEqual(["Remove group 2", "Keep it"]);
+
+		asked = stubConfirm(false);
+		dialog._groupIsWritten = () => false;
+		const blank = group();
+		await dialog._removeGroup(fakeRoot(), blank);
+		expect(asked).not.toHaveBeenCalled();
+		expect(blank.remove).toHaveBeenCalled();
+	});
+});
+
+describe("saving an edit", () => {
+	// The re-tick instruction rode in a notice that faded on a timer, taking the instruction with it.
+	it("keeps a notice that asks for something on screen until it is dismissed", () => {
+		const [message, options] = editSavedNotice({ label: "Palisade", grantsChanged: true, completed: true });
+		expect(options).toEqual({ permanent: true });
+		expect(message).toMatch(/un-tick it complete and tick it again/);
+		expect(message).not.toMatch(/\u2014/);
+	});
+
+	it("lets a plain notice fade as usual", () => {
+		expect(editSavedNotice({ label: "Palisade" })).toEqual(["Saved Palisade.", {}]);
+		expect(editSavedNotice({ label: "Palisade", structureChanged: true })[1]).toEqual({});
+		// Changed grants on an improvement that was never completed have applied nothing yet.
+		expect(editSavedNotice({ label: "Palisade", grantsChanged: true, completed: false })[1]).toEqual({});
+	});
+});
+
+describe("starting from a card in the journals", () => {
+	// Node has no DOM, so the cards are found in the HTML by their attribute, decoded once the way
+	// the browser's parser decodes it.
+	const decode = s => s.replace(/&quot;/g, "\"").replace(/&#x27;|&#39;/g, "'")
+		.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+	const parse = html => [...html.matchAll(/data-steading-improvement="([^"]*)"/g)]
+		.map(m => ({ dataset: { steadingImprovement: decode(m[1]) } }));
+	const payload = def => `<div class="stonetop-journal-improvement" data-steading-improvement="${
+		JSON.stringify(def).replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"></div>`;
+	let pageSerial = 0;
+	const page = (html, extra = {}) => ({ uuid: `JournalEntry.x.JournalEntryPage.p${++pageSerial}`, _source: { text: { content: html } }, ...extra });
+
+	// The seven Book II cards are baked into Location and Lore pages, in `system.sections[].body`
+	// rather than `text.content`. A world seeded from the pack holds these same pages.
+	it("finds the Book II cards wherever a page type keeps its prose", () => {
+		const files = [
+			"stonetop-locations/byways/the-makers-roads.json",
+			"stonetop-locations/regions/the-foothills.json",
+			"stonetop-locations/regions/the-great-wood.json",
+			"stonetop-locations/settlements/barrier-pass.json",
+			"stonetop-locations/settlements/the-golden-oak.json",
+			"stonetop-lore/factions/green-lords.json",
+			"stonetop-lore/factions/tempest-lords.json",
+		].map(f => JSON.parse(readRepo(`packs/src/${f}`)));
+		const journals = files.map(entry => ({ id: entry._id, pages: entry.pages.map(p => ({ uuid: p._id, _source: p })) }));
+		const group = journalImprovementSources(journals, { parse, user: null });
+		expect(group.label).toBe("Cards in the journals");
+		expect(group.options).toHaveLength(7);
+		for (const option of group.options) {
+			expect(option.def.name).toBeTruthy();
+			expect(option.def.sections.flatMap(s => s.items).length).toBeGreaterThan(0);
+		}
+	});
+
+	it("reads a card through the drop path's normalizers", () => {
+		const html = payload({
+			name: "Roadbuilding", category: "not-a-category", flavor: "Dust.",
+			sections: [{ heading: "Requires:", items: ["A surveyor", ""] }],
+			grants: { stats: { prosperity: 1 } },
+		});
+		const [option] = journalImprovementSources([{ pages: [page(html)] }], { parse, user: null }).options;
+		expect(option.def.category).toBe("");
+		expect(option.def.sections[0].items).toEqual(["A surveyor"]);
+		expect(option.def.grants?.stats?.prosperity).toBe(1);
+		expect(option.value).toMatch(/^journal:/);
+	});
+
+	it("offers a card once however many pages carry it, and none the viewer cannot read", () => {
+		const html = payload({ name: "Roadbuilding", sections: [{ items: ["A"] }] });
+		const hidden = payload({ name: "Secret Works", sections: [{ items: ["B"] }] });
+		const journals = [
+			{ pages: [page(html), page(html)] },
+			{ pages: [page(hidden, { testUserPermission: () => false })] },
+		];
+		const group = journalImprovementSources(journals, { parse, user: { id: "player" } });
+		expect(group.options.map(o => o.label)).toEqual(["Roadbuilding"]);
+	});
+
+	it("is left out of the picker when the world has none", () => {
+		expect(journalImprovementSources([], { parse, user: null })).toBeNull();
+		expect(journalImprovementSources(undefined, { parse, user: null })).toBeNull();
+	});
+
+	it("is offered on the steading target, after the book's and the steading's own", () => {
+		const source = stripComments(readRepo("module/dialogs/ImprovementBuilderDialog.js"));
+		const steadingSaver = source.slice(source.indexOf("export function steadingImprovementSaver"));
+		expect(steadingSaver.slice(0, 1600)).toContain("worldJournalCardSources()");
+		// Read once per window, and cached across windows until a journal changes: the scan
+		// walks every readable journal page.
+		expect(source).toContain("this._sourceGroups = saver.sources?.() ?? [];");
+		const groups = steadingImprovementSaver({ customImprovements: [] }).sources();
+		expect(groups[0].label).toBe("From the playbook");
+	});
+});
+
+describe("the audit's markup fixes", () => {
+	it("hides the rail's and the banner's icons from screen readers", () => {
+		expect(markup).toMatch(/stonetop-guide-toc-icon" aria-hidden="true"/);
+		expect(markup).toMatch(/stonetop-improvement-builder-banner-icon" aria-hidden="true"/);
+	});
+
+	// The same saver hint sat under every panel's title.
+	it("gives each panel its own banner subtitle", () => {
+		const hints = SECTIONS.slice(1).map(s => s.hint);
+		expect(new Set(hints).size).toBe(hints.length);
+		expect(hints.every(Boolean)).toBe(true);
+		expect(markup).toContain(`stonetop-improvement-builder-banner-sub">${improvementCardSaver().hint.replace(/'/g, "&#x27;")}`);
+	});
+
+	// A grant box showing "0" read as a 0 somebody had typed.
+	it("hints the grant boxes as no change rather than as zero", () => {
+		expect(markup).toContain(`name="grant-fortunes" step="1" placeholder="no change"`);
+		expect(markup).not.toMatch(/name="grant-\w+" step="1" placeholder="0"/);
+	});
+
+	it("labels each group's heading field for real, and groups its rows", () => {
+		expect(markup).toContain(`class="stonetop-improvement-builder-group-heading-label"`);
+		expect(markup).toContain(`class="stonetop-improvement-builder-group" role="group"`);
+		expect(markup).toContain(`class="stonetop-improvement-builder-rows" role="group"`);
+	});
+
+	it("has somewhere beside the name to say what is wrong with it, and somewhere on Preview for notes", () => {
+		expect(markup).toMatch(/stonetop-improvement-builder-name-error" aria-live="polite" hidden/);
+		expect(markup).toMatch(/stonetop-improvement-builder-preview-notes" aria-live="polite" hidden/);
+	});
+
+	// Moving the row that holds the pressed button out and back in drops the keyboard to <body>.
+	it("moves the neighbour rather than the row holding the focused button", () => {
+		const source = stripComments(readRepo("module/dialogs/ImprovementBuilderDialog.js"));
+		const swap = source.slice(source.indexOf("function swapSibling"), source.indexOf("function keepMoveFocus"));
+		expect(swap).toContain("el.after(sibling)");
+		expect(swap).toContain("el.before(sibling)");
+		expect(swap).not.toContain("sibling.before(el)");
+	});
+
+	it("paints placeholders muted and italic, and rings the focused control", () => {
+		const placeholder = declarations(CSS, ".stonetop-improvement-builder .stonetop-improvement-builder-form :is(input, textarea)::placeholder");
+		expect(placeholder).toContain("var(--st-text-muted");
+		expect(placeholder).toContain("font-style: italic");
+		const ring = declarations(CSS, ".stonetop-improvement-builder :is(button, select, input, textarea):focus-visible");
+		expect(ring).toMatch(/outline: 2px solid var\(--st-on-dark-ink,/);
+	});
+
+	it("draws the row's box as a picture of one, not a control", () => {
+		const box = declarations(CSS, ".stonetop-improvement-builder-req-box");
+		expect(box).toContain("dashed");
+		expect(box).toContain("pointer-events: none");
+		expect(markup).toContain(`class="stonetop-improvement-builder-req-box" aria-hidden="true"`);
+	});
+});
+
+describe("the improvement builder's ids", () => {
+	// Two builders open at once (one per steading, or a card and an improvement) must not share an
+	// id, or a label in the second focuses a field in the first and a screen reader reads the wrong
+	// description. The prefix is in the template, so a new id or reference can't miss it.
+	it("prefixes every id, label and description with the window's own uid", () => {
+		const uid = markup.match(/id="(stonetop-ib-\d+)-/)?.[1];
+		expect(uid).toBeTruthy();
+		const refs = [...markup.matchAll(/\s(?:id|for|aria-describedby)="([^"]*)"/g)].map(m => m[1]);
+		expect(refs.length).toBeGreaterThan(40);
+		for (const ref of refs) expect(ref.startsWith(`${uid}-`), ref).toBe(true);
+	});
+
+	it("gives a second window ids of its own", async () => {
+		const other = Object.create(ImprovementBuilderDialog.prototype);
+		other._saver = improvementCardSaver();
+		other._activeTab = "improvement";
+		const second = await renderTemplate("systems/stonetop_pwd/templates/dialogs/improvement-builder.hbs", other.getData());
+		const first = markup.match(/id="(stonetop-ib-\d+)-/)?.[1];
+		expect(second).not.toContain(`id="${first}-`);
 	});
 });

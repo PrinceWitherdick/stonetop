@@ -9,7 +9,7 @@
 		<div class="steading-improvements-controls">
 			<label class="steading-hide-unearned-improvements-label">
 				<input type="checkbox" class="stonetop-hide-unselected-check steading-hide-unearned-improvements-check"{{#if stonetop.hideUnearnedImprovements}} checked{{/if}}>
-				Hide un-earned improvements
+				Hide improvements not started
 			</label>
 			{{> "stonetop.tab-search-control" title="Search improvements" placeholder="Filter improvements…"}}
 
@@ -33,16 +33,25 @@
 			{{#each stonetop.improvements}}
 			<div class="steading-improvement {{#if completed}}is-complete{{/if}}{{#if earned}} is-earned{{/if}}{{#if custom}} is-custom{{/if}}{{#if isOpen}} is-open{{/if}}{{#if filtered}} steading-improvement-filtered{{/if}}" data-slug="{{slug}}" data-category="{{category}}">
 
+				{{!-- The header toggles the card open on a click anywhere in it (the sheet's capture
+				      handler); the chevron is that toggle as a real button, so the keyboard can open a
+				      card and a screen reader hears whether it is open. The status line says in words
+				      what the border and the lock only show: built, ready, or how far along. --}}
 				<div class="steading-improvement-header">
 					<label class="steading-improvement-complete-label{{#if completeLocked}} is-locked{{/if}}"
 					       data-tooltip="{{#if completeLocked}}Requirements not all met. Tap to mark them complete, earn this improvement, and apply its effects{{else}}Mark complete: automatically applies its effects (Fortunes/Defenses, new resources, etc.){{/if}}"
 					       data-tooltip-direction="UP">
 						<input type="checkbox" class="steading-improvement-complete"
-						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}>
+						       data-slug="{{slug}}" {{#if completed}}checked{{/if}}
+						       aria-label="Mark {{label}} complete" aria-describedby="{{domId}}-status">
+						{{#if completeLocked}}<i class="fas fa-lock steading-improvement-lock" aria-hidden="true"></i>{{/if}}
 					</label>
 					<div class="steading-improvement-summary">
 						<h4 class="steading-improvement-title">{{label}}{{#if custom}} <span class="steading-improvement-custom-tag">added</span>{{/if}}</h4>
-						<p class="steading-improvement-flavor">{{flavor}}</p>
+						<p class="steading-improvement-status steading-improvement-status--{{status.kind}}" id="{{domId}}-status">
+							{{#if completed}}<i class="fas fa-check" aria-hidden="true"></i> {{/if}}{{status.text}}
+						</p>
+						{{#if flavor}}<p class="steading-improvement-flavor">{{flavor}}</p>{{/if}}
 					</div>
 					{{#if (and custom @root.stonetop.edit.improvements)}}
 					{{!-- Edit in place, keeping the ticked steps: the alternative was copying it,
@@ -50,20 +59,22 @@
 					<button type="button" class="steading-improvement-edit" data-slug="{{slug}}"
 					        data-tooltip="Edit this added improvement" data-tooltip-direction="UP"
 					        aria-label="Edit {{label}}">
-						<i class="fas fa-pen"></i>
+						<i class="fas fa-pen" aria-hidden="true"></i>
 					</button>
 					<button type="button" class="steading-improvement-remove" data-slug="{{slug}}"
 					        data-tooltip="Remove this added improvement" data-tooltip-direction="UP"
 					        aria-label="Remove {{label}}">
-						<i class="fas fa-trash"></i>
+						<i class="fas fa-trash" aria-hidden="true"></i>
 					</button>
 					{{/if}}
-					<span class="steading-improvement-chevron">
-						<i class="fas fa-chevron-up"></i>
-					</span>
+					<button type="button" class="steading-improvement-toggle"
+					        aria-expanded="{{#if isOpen}}true{{else}}false{{/if}}" aria-controls="{{domId}}-body"
+					        aria-label="{{label}}: requirements and effect">
+						<i class="fas fa-chevron-down steading-improvement-chevron" aria-hidden="true"></i>
+					</button>
 				</div>
 
-				<div class="steading-improvement-body">
+				<div class="steading-improvement-body" id="{{domId}}-body">
 					{{#each sections}}
 					{{#if alternative}}<p class="steading-req-or">or</p>{{/if}}
 					<p class="steading-req-heading">{{{heading}}}</p>
@@ -83,6 +94,17 @@
 
 					<div class="steading-improvement-effect">{{{effect}}}</div>
 
+					{{!-- A `condition` grant (Book II's Aetherium Crucible: "As long as you trade
+					      aetherium to the outside world, increase Prosperity by 1"): ticked while it
+					      holds, and its stat follows the box (StonetopSteading#setImprovementCondition). --}}
+					{{#if condition}}
+					<label class="steading-improvement-condition-label">
+						<input type="checkbox" class="steading-improvement-condition stonetop-check" data-slug="{{slug}}"
+						       {{#if condition.checked}}checked{{/if}} {{#unless @root.stonetop.canEdit}}disabled{{/unless}}>
+						<span>{{condition.text}} <span class="steading-improvement-condition-effect">({{condition.effect}} while ticked)</span></span>
+					</label>
+					{{/if}}
+
 					{{!-- An improvement that is a move (Aurochs Hunting, Heroic Reputation) rolls
 					      from here as well as from the Homefront list. Rolling is play, open to
 					      anyone who can see the sheet, so it is not gated on canEdit. --}}
@@ -95,7 +117,7 @@
 					{{#if herd}}
 					<div class="steading-herd" data-slug="{{slug}}">
 						<div class="steading-herd-header">
-							<span class="steading-herd-title"><i class="fas fa-horse"></i> The Herd</span>
+							<span class="steading-herd-title"><i class="fas fa-horse" aria-hidden="true"></i> The Herd</span>
 							<span class="steading-herd-total">Total <strong>{{herd.total}}</strong></span>
 						</div>
 						<div class="steading-herd-tiers">
@@ -103,9 +125,9 @@
 							<div class="steading-herd-tier">
 								<span class="steading-herd-tier-label">{{label}} <span class="steading-herd-tier-value">V{{value}}</span></span>
 								<div class="steading-herd-stepper">
-									<button type="button" class="steading-herd-step" data-slug="{{../slug}}" data-tier="{{key}}" data-delta="-1" {{#unless @root.stonetop.canEdit}}disabled{{/unless}} aria-label="Fewer {{label}}"><i class="fas fa-minus"></i></button>
-									<input type="number" class="steading-herd-input" data-slug="{{../slug}}" data-tier="{{key}}" value="{{count}}" min="0" {{#unless @root.stonetop.canEdit}}disabled{{/unless}}>
-									<button type="button" class="steading-herd-step" data-slug="{{../slug}}" data-tier="{{key}}" data-delta="1" {{#unless @root.stonetop.canEdit}}disabled{{/unless}} aria-label="More {{label}}"><i class="fas fa-plus"></i></button>
+									<button type="button" class="steading-herd-step" data-slug="{{../slug}}" data-tier="{{key}}" data-delta="-1" {{#unless @root.stonetop.canEdit}}disabled{{/unless}} aria-label="Fewer {{label}}"><i class="fas fa-minus" aria-hidden="true"></i></button>
+									<input type="number" class="steading-herd-input" data-slug="{{../slug}}" data-tier="{{key}}" value="{{count}}" min="0" aria-label="{{label}}: how many" {{#unless @root.stonetop.canEdit}}disabled{{/unless}}>
+									<button type="button" class="steading-herd-step" data-slug="{{../slug}}" data-tier="{{key}}" data-delta="1" {{#unless @root.stonetop.canEdit}}disabled{{/unless}} aria-label="More {{label}}"><i class="fas fa-plus" aria-hidden="true"></i></button>
 								</div>
 							</div>
 							{{/each}}
@@ -120,19 +142,31 @@
 					{{#if innGathering}}
 					<div class="steading-inn-gathering" data-slug="{{slug}}">
 						<div class="steading-inn-gathering-header">
-							<span class="steading-inn-gathering-title"><i class="fas fa-hand-holding-heart"></i> Bring Folks Together</span>
+							<span class="steading-inn-gathering-title"><i class="fas fa-hand-holding-heart" aria-hidden="true"></i> Bring Folks Together</span>
 							<span class="steading-inn-gathering-season">{{innGathering.seasonLabel}}</span>
 						</div>
 						<button type="button" class="steading-inn-gathering-btn" data-action="inn-gathering"
 						        {{#unless innGathering.canGather}}disabled{{/unless}}
 						        {{#unless @root.stonetop.canEdit}}disabled{{/unless}}>
-							<i class="fas fa-beer-mug-empty"></i> Spend 1 Surplus, clear a debility
+							<i class="fas fa-beer-mug-empty" aria-hidden="true"></i> Spend 1 Surplus, clear a debility
 						</button>
 						{{!-- One sentence, chosen by the state itself (GATHERING_HINT in
 						      inn-gathering.js) rather than re-derived from booleans here: the
 						      window says the same thing, and a rule written in two languages
 						      is a rule that drifts. --}}
 						<p class="steading-inn-gathering-hint">{{innGathering.hint}}</p>
+					</div>
+					{{/if}}
+
+					{{!-- "Name the inn": asked when it is built, and here any time after, which is
+					      what that window's "Not yet" promises (StonetopSteadingSheet#_onNameInn). --}}
+					{{#if innName}}
+					<div class="steading-inn-name">
+						<span class="steading-inn-name-text">{{#if innName.name}}Named <strong>{{innName.name}}</strong>{{else}}Not named yet{{/if}}</span>
+						<button type="button" class="steading-inn-name-btn" data-current="{{innName.name}}"
+						        {{#unless @root.stonetop.canEdit}}disabled{{/unless}}>
+							<i class="fas fa-signature" aria-hidden="true"></i> {{#if innName.name}}Rename the inn{{else}}Name the inn{{/if}}
+						</button>
 					</div>
 					{{/if}}
 				</div>

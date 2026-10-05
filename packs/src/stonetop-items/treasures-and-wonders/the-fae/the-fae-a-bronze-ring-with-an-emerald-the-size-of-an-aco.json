@@ -6,7 +6,7 @@
   "system": {
     "moveType": "inventory",
     "inventoryColumn": "small",
-    "note": "beautiful, magical, Value 4",
+    "note": "<em>beautiful</em>, <em>magical</em>, Value 4",
     "isTreasure": true
   },
   "flags": {
@@ -14,7 +14,7 @@
       "slug": "a-bronze-ring-with-an-emerald-the-size-of-an-acorn-its-wearer-ages-not-but-the-years-catch-up-all-at-once-if-removed",
       "inventoryColumn": "small",
       "isTreasure": true,
-      "note": "beautiful, magical, Value 4"
+      "note": "<em>beautiful</em>, <em>magical</em>, Value 4"
     }
   },
   "img": "systems/stonetop_pwd/assets/icons/treasures/vase.svg",

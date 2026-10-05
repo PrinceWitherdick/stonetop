@@ -10,6 +10,39 @@
       that utils/zoom-pan-surface.js scales and moves as a whole. So one set of numbers serves the
       stroke, the labels and the portraits at any magnification. --}}
 
+{{!-- THE GROUPS: a box or an oval drawn round some people, "The hunters", "The elders".
+
+      FIRST, SO UNDER EVERYTHING. An outline is a region of paper, and the lines, the captions and
+      the faces inside it are drawn over it.
+
+      IN BOARD PIXELS AND NOT THE LINES' STRETCHED 0-100 SPACE, so a rounded corner and an oval keep
+      their shape. Worked out from where the members stand on every paint (`groupOutline`), never
+      stored, so an outline follows its people when they are dragged.
+
+      ONLY THE STROKE TAKES A CLICK (`data-relmap-group-hit`, invisible and wide). The inside is
+      paper: a press there pans the board, and the faces inside it are still clicked as faces.
+
+      ONLY ON A BOARD THAT HAS GROUPS: one with none is drawn exactly as it always was. Safe behind
+      an `{{#if}}` because this whole partial is re-rendered on every change. --}}
+{{#if groups.length}}
+<svg class="stonetop-relmap-groups" viewBox="0 0 {{boardWidth}} {{boardHeight}}"
+     aria-hidden="true" focusable="false">
+  {{#each groups}}
+  {{!-- `stonetop-relmap-line--<ink>` as well, for the ink's own dash pattern, which the
+        high-contrast skin draws the outline in so its colour is never the only thing saying it.
+        `is-dashed` is the stroke somebody CHOSE for it; whole is the absence of the modifier. --}}
+  <g class="stonetop-relmap-group stonetop-relmap-ink--{{inkKey}} stonetop-relmap-line--{{inkKey}}{{#if dashed}} is-dashed{{/if}}"
+     data-relmap-group-shape="{{id}}"
+     {{#if inkHex}}style="--relmap-ink-raw:{{inkHex}}"{{/if}}>
+    <path class="stonetop-relmap-group-fill" d="{{d}}"></path>
+    <path class="stonetop-relmap-group-line" d="{{d}}" vector-effect="non-scaling-stroke"></path>
+    <path class="stonetop-relmap-group-hit" data-relmap-group-hit="{{id}}" d="{{d}}"
+          vector-effect="non-scaling-stroke"></path>
+  </g>
+  {{/each}}
+</svg>
+{{/if}}
+
 {{!-- THE LINES. One stretched SVG for all of them, in the same 0-100 space everything else is
       placed in: preserveAspectRatio="none" maps that space onto the board whatever shape it is,
       and stretching a quadratic leaves a quadratic. `vector-effect` then keeps the stroke an even
@@ -148,6 +181,24 @@
   </g>
   {{/each}}
 </svg>
+
+{{!-- EACH GROUP'S NAME, SET ON ITS OUTLINE. HTML placed by percentage, like a portrait, because
+      type in a scaled SVG is sheared or resampled and a name is read more than anything else here.
+      Body ink on the page tone, never coloured type: the colour is the outline's, and a short tab
+      of it beside the words ties the two together.
+
+      THE NAME IS THE BUTTON, for the keyboard as much as the mouse: Enter raises the group's bar,
+      the arrow keys move everybody in it, Delete rubs the outline out (the people stay). An empty
+      name still has a target, which says "Unnamed group" in italics. --}}
+{{#each groups}}
+<div class="stonetop-relmap-group-name stonetop-relmap-ink--{{inkKey}} is-{{align}}{{#unless name}} is-unnamed{{/unless}}"
+     data-relmap-group="{{id}}" role="button" tabindex="0"
+     style="left:{{nameLeft}}%;top:{{nameTop}}%{{#if inkHex}};--relmap-ink-raw:{{inkHex}}{{/if}}"
+     data-tooltip-text="{{tooltip}}" aria-label="{{ariaLabel}}">
+  <span class="stonetop-relmap-group-tab" aria-hidden="true"></span>
+  <span class="stonetop-relmap-group-words">{{#if name}}{{name}}{{else}}{{../unnamedGroup}}{{/if}}</span>
+</div>
+{{/each}}
 
 {{!-- THE PEOPLE. A round portrait, a name under it, and a handle on the rim for drawing a line to
       somebody else.
