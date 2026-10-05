@@ -45250,7 +45250,8 @@ a.stonetop-share-journal > i { margin-right: 3px; }
    two flowcharts, which are page-sized line art and unreadable at tab size.
 
    AppV1, so core lights the window for us (see the force-light note); the
-   viewport is pinned white either way, because what goes in it is ink on paper. */
+   viewport is white, because what goes in it is ink on paper. A dark palette
+   turns it to the page and the book pages down (DARK PALETTE section). */
 .stonetop-image-zoom .window-content {
 	display: flex;
 	flex-direction: column;
@@ -50897,6 +50898,9 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--stonetop-blood-icon:            url('/systems/stonetop-pwd/assets/icons/playbooks/blood-light.svg');
 	--stonetop-blood-filled-icon:     url('/systems/stonetop-pwd/assets/icons/playbooks/blood-filled-light.svg');
 	--stonetop-blood-dotted-icon:     url('/systems/stonetop-pwd/assets/icons/playbooks/blood-dotted-light.svg');
+
+	/* How far the books' white pages come down (see "White book pages" below). */
+	--st-book-page-brightness: 0.92;
 }
 
 /* Two panels that were ALWAYS dark, and inverted the ink spiral with `filter: invert(1)` to show
@@ -51169,6 +51173,20 @@ html.stonetop-high-contrast .stonetop-timeline-kind--custom { --tl-kind: var(--t
 	--tc-rule:      #6f5e45;
 	--tc-rule-hard: #9c8768;   /* 5.1:1 against the page, the card's edge */
 	--ll-seal-text: #f6eddc;   /* 6.9:1 on the maroon seal */
+}
+
+/* White book pages: the GM Toolkit's two Core Loop flowcharts, the zoom window they open in, and
+   the rulebook reader's pages, whose frame BookReaderWindow#_syncPageDim hands the same token.
+   Near-white scans, the brightest thing on a dark screen by a long way, so every dark palette
+   turns them down; the imported poster maps have their own slider (Map Brightness) instead. The
+   zoom window's ground, white for ink on paper, goes to the page, so a picture panned or zoomed
+   out sits on the dark rather than in a white frame. */
+:where(:root.stonetop-dark) .stonetop-gm-diagram-img,
+:where(:root.stonetop-dark) .stonetop-image-zoom--book-page .stonetop-image-zoom-img {
+	filter: brightness(var(--st-book-page-brightness));
+}
+:where(:root.stonetop-dark) .stonetop-image-zoom-view {
+	background: var(--st-page);
 }
 
 /* ── Dark + High Contrast ────────────────────────────────────────────────────────────────────
