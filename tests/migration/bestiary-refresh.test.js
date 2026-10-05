@@ -80,7 +80,7 @@ describe("monsterRefresh", () => {
 describe("bestiarySourceId", () => {
 	it("is the pack id a monster was seeded from, under any id the system has had", () => {
 		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop_pwd.stonetop-bestiary.Actor.abc" } })).toBe("abc");
-		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop_pwd.stonetop-bestiary.Actor.abc" } })).toBe("abc");
+		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop.stonetop-bestiary.Actor.abc" } })).toBe("abc");
 		expect(bestiarySourceId({ _stats: { compendiumSource: "Compendium.stonetop_pwd.stonetop-items.Item.abc" } })).toBeNull();
 		expect(bestiarySourceId({ _stats: {} })).toBeNull();
 	});

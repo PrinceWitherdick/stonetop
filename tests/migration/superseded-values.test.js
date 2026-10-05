@@ -15,11 +15,11 @@ describe("canonicalText", () => {
 	});
 
 	it("reads a link or an asset path under an old system id as the current one", () => {
-		expect(canonicalText("@UUID[Compendium.stonetop_pwd.stonetop-items.Item.x]"))
+		expect(canonicalText("@UUID[Compendium.stonetop.stonetop-items.Item.x]"))
 			.toBe("@UUID[Compendium.stonetop_pwd.stonetop-items.Item.x]");
-		expect(canonicalText("systems/stonetop_pwd/assets/a.webp")).toBe("systems/stonetop_pwd/assets/a.webp");
+		expect(canonicalText("systems/stonetop/assets/a.webp")).toBe("systems/stonetop_pwd/assets/a.webp");
 		// Prose that merely says the word is not a link.
-		expect(canonicalText("the stonetop_pwd system")).toBe("the stonetop_pwd system");
+		expect(canonicalText("the stonetop system")).toBe("the stonetop system");
 	});
 });
 

@@ -5,399 +5,432 @@
 export const SUPERSEDED_FORMAT = 1;
 
 export const SUPERSEDED_BESTIARY = {
-	"05mh4Ag0uKxRVY8j": {"paths":{"system.entry":["34e5afbb5a6a44ac"]},"items":{}}, // Hillfolk Rider
-	"0E5ih40SJt6W1nDp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["37262d52476d4509","9b55e0da69fcb93a"],"system.qualities":["2bcd04205299a32c"]},"items":{"fJ3RPZUU5SdJuvZu":{"img":["f99e66800d55a5fc"]}}}, // Clockwork Spider
-	"0ZKo6trYa54afrSZ": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","b1e8f7fcdcdc9995"],"system.qualities":["daf711b7735272f3"]},"items":{}}, // Hollow Fae
-	"1C0Jhihrg28bX7Ry": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["54628677183100ed","9b55e0da69fcb93a"],"system.qualities":["06a88fd2fe6c25c8"]},"items":{}}, // The Quiet Twins
-	"1U5ExYjZPgmW0Gck": {"paths":{"system.entry":["75dab4fdbd610800","9620a1797c77dea9"]},"items":{"fViR9ADcwGjbltdr":{"img":["7cf47f9b83df3cea"]},"uixmFWulXtQRgnKg":{"img":["7cf47f9b83df3cea"]},"yW1MedphYW13Pn9i":{"img":["7cf47f9b83df3cea"]}}}, // Fire Vortex
-	"2UnnOaKPTABc13S4": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1ad976e5f3c2bfe2","9b55e0da69fcb93a"],"system.qualities":["433bff75f13ea163"]},"items":{"EUajwTRoxK7KgE4f":{"img":["c7194771a342f89c"]},"usRMuwpNRkeGNVPS":{"img":["c7194771a342f89c"]}}}, // The Chained Beast
-	"30NDurP2YczoGj6B": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["67853016c8bcf9ae","9b55e0da69fcb93a"],"system.qualities":["6f1bc79cd8578b82"]},"items":{}}, // Feathered Drake
-	"33Tx0FhrgXcTwtlC": {"paths":{"system.entry":["7981ce0c415b2203"]},"items":{"65ScDcozxAhjH4HB":{"img":["f99e66800d55a5fc"]}}}, // Guardian
-	"3bGjXtEOne32k1cr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a","bf9e38d11b41b335"],"system.entry":["5ac5ba36f3890247","9b55e0da69fcb93a"],"system.qualities":["14976e1514416f62"]},"items":{"SQufow2G8uQk81dZ":{"img":["7cf47f9b83df3cea"]}}}, // Specter
-	"3DlUOSnpOxSzU7BO": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3abdfa29a4a1dfe6","9b55e0da69fcb93a"],"system.qualities":["1d4699cfe28f78a3"]},"items":{}}, // Pyped
-	"3JaMhYyy0qDzf06q": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["955baeb0abfdea44","9b55e0da69fcb93a"],"system.qualities":["b69d8d4a84377b01"]},"items":{}}, // Zrajedak
-	"3WXpoW1ajr2PCDC9": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["6740ec611ecc1561","ff6f87339eda73fb"],"system.qualities":["729dd438343548b8"]},"items":{"XxCDRDtDnRDplMBq":{"img":["c7194771a342f89c"]}}}, // Ghostly Hounds
-	"4Ah0RoLTY5wSRvAF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["65b57c1a3ba7f9c7","9b55e0da69fcb93a"],"system.qualities":["2b82be22a3d2456c"]},"items":{}}, // Fen-Troll
-	"4EAwSShKj05G2Dls": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["45958c4a40f22473","9b55e0da69fcb93a"],"system.qualities":["747ece4f8efabbe1"]},"items":{"m22bVx0LQvucKo8H":{"img":["7cf47f9b83df3cea"]},"RiWIog3KU3ZKODSX":{"img":["7cf47f9b83df3cea"]}}}, // Cinderwraith
-	"4vXt3vYLBjH8b18j": {"paths":{"system.entry":["951e858230b30ca1","9b55e0da69fcb93a"]},"items":{}}, // Totnatter
-	"58UtB8l8G68t9nRI": {"paths":{"system.entry":["637634ed98636223"]},"items":{}}, // Necromancer
-	"59u1Y4Rjasgp0Ylr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8a0f5781ccdc3f4e","9b55e0da69fcb93a"],"system.qualities":["03e3ad9a78b90ce2"]},"items":{}}, // Pacifier
-	"5nfugU7444Jh6D0e": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["4a01add776bc9ba6","9b55e0da69fcb93a"],"system.qualities":["ab14028af2ff04b1"]},"items":{"Lduw74x2lBGXgGMh":{"img":["f99e66800d55a5fc"]}}}, // Bronze Colossus
-	"6DnSbIHLqXCaV1vp": {"paths":{"system.entry":["68c3501965daa438"]},"items":{}}, // Legionary
-	"6dXBK2ZSWVk51wAp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","b0c9e21a592fa7e8"],"system.qualities":["3f9b715247e9e785"]},"items":{}}, // Singing Sword
-	"6jDwnqjA3VmyKZ9F": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1d5c2a9e6fd75ae8","9b55e0da69fcb93a"],"system.qualities":["c9bb7a4524df2055"]},"items":{"SlZAgN9wco3qUuFQ":{"img":["7cf47f9b83df3cea"]}}}, // Cinderboar
-	"6N5pRiBkQwkblpAq": {"paths":{"system.entry":["5753ad2d495c0f39"]},"items":{}}, // Cavalry
-	"6NAKPaUXIxy6zZl8": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","b60cb39b7ea14c5a"],"system.qualities":["b1a78dcf8352abb0"]},"items":{}}, // The Ghostly Legion
-	"6RhD3Vrdb3B9GXTA": {"paths":{"system.entry":["3006ac987ac25de3","a53e29dd3296cd1a"]},"items":{"zVxOuTGRJSIL286Z":{"img":["7cf47f9b83df3cea"]}}}, // Hennain
-	"7asroHGGJFfVbq74": {"paths":{"system.entry":["fba6bbcd21fff89a"]},"items":{}}, // Adept
-	"7GtbWc7kafUVk6dI": {"paths":{"system.entry":["3006ac987ac25de3","a53e29dd3296cd1a"]},"items":{"BjlrTEzq1GqE1Z12":{"img":["7cf47f9b83df3cea"]}}}, // Glasbren
-	"7ID9ieGRtwH4QoE8": {"paths":{"system.entry":["4a04e91f73be7409"]},"items":{}}, // Spirit-talker
-	"89ZjFUUS1I9bP2MH": {"paths":{"system.entry":["00d88a5d34e6fd61","9b55e0da69fcb93a"]},"items":{"lVA2EfHmWqGlFK42":{"img":["ac42d357268b8d4d"]}}}, // Star-Mole
-	"8KHfTcPYblTJRpV1": {"paths":{"system.entry":["75dab4fdbd610800","9620a1797c77dea9"]},"items":{"EnGEGTq6bRl68aoM":{"img":["c7194771a342f89c"]},"XOMK2oWGB8J9seTb":{"img":["c7194771a342f89c"]}}}, // Earth Vortex
-	"8nNyWAoSsT3VXRx5": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","fd8b4c03edaaa1f4"],"system.qualities":["0a3f814fc8db8d1d"]},"items":{"CMVWW4cSMZbLkOIO":{"img":["c7194771a342f89c"]}}}, // Kleztigr
-	"8T8jqS04adlc5107": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7b9dd961837917b1","9b55e0da69fcb93a"],"system.qualities":["42d88afd2b727156"]},"items":{}}, // Phantom Rider
-	"9kcSzC3uPavigsyF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["482b57815a9c50f7","9b55e0da69fcb93a"],"system.qualities":["bc2502e0a185a0c9"]},"items":{"CPfpYWGEdpl3PMxE":{"img":["7cf47f9b83df3cea"]},"fvN8MpkjzSZl2gE4":{"img":["c7194771a342f89c"]}}}, // Draventao
-	"9wN9UhM3IORfcw0J": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","dbd484a1257d2efb"],"system.qualities":["321c42e9f70afc77"]},"items":{}}, // Anan Gllo
-	"aAknV9EMnUjJvRL3": {"paths":{"system.entry":["4942a825075c7a6d"]},"items":{}}, // Adventurer
-	"anJdI79iSTgmf0JB": {"paths":{"system.entry":["a0072e2fb72eeccd"]},"items":{}}, // War-chariot
-	"aQJLVwGdeHskspzS": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["4069be70ba40a127","9b55e0da69fcb93a"],"system.qualities":["ab29ed98ca13ce91"]},"items":{"vGLWF5dJCxzuJ4mQ":{"img":["c7194771a342f89c"]},"Xp1qUYvQXdhpjcfC":{"img":["7cf47f9b83df3cea"]}}}, // Prenysbyrd
-	"ASyoP5BXGukeIrG5": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","d59248283d39b211"],"system.qualities":["562b6afd317c1ce6"]},"items":{"CE0aSf7ulgk2BpSe":{"img":["c7194771a342f89c"]}}}, // Mountain Ape
-	"aWbHPmGW9htXdyUN": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["33a0cfded72a9478","9b55e0da69fcb93a"],"system.qualities":["14f92c37db12b4fc"]},"items":{}}, // Jellied Horror
-	"B0W8jT7lRFLJK4ds": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["01dd87aae7d8b833","9b55e0da69fcb93a"],"system.qualities":["f9b293bd3e74f992"]},"items":{"BVGHREcQCmeVKfhh":{"img":["c7194771a342f89c"]}}}, // The Gwraig Wen
-	"baV7yiVwXMTKa49B": {"paths":{"system.entry":["75dab4fdbd610800","9620a1797c77dea9"]},"items":{}}, // Lightning Vortex
-	"BCA8xC2gsvHO43ou": {"paths":{"system.entry":["9b55e0da69fcb93a","dee7817fbe835dd1"]},"items":{"dh7kF2MB1qAzPUDh":{"img":["ac42d357268b8d4d"]},"Sd1ggc27CFuwgQpI":{"img":["c7194771a342f89c"]},"SfqeG9rO4CCQ0nEQ":{"img":["c7194771a342f89c"]}}}, // Servant of Daagon
-	"BgPtjVOTWvJBYE7z": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8cdd49c2642e6b9e","9b55e0da69fcb93a"],"system.qualities":["feed009c02447df6"]},"items":{}}, // Iron Hound
-	"BHYJDndAivdji0kq": {"paths":{"system.entry":["4dffe27c93caad78"]},"items":{}}, // Novice
-	"bmmVVWAh7h2uAPJp": {"paths":{"system.entry":["af4d5802c607df9c"]},"items":{}}, // Mammoth Herder
-	"BVvWxKNlDdOzu9Ac": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","d8a5ba5471133b43"],"system.qualities":["bbe4e3ca4958aaab"]},"items":{}}, // Cynddaraig
-	"BwDgsHeLfhJWrS5w": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","d76bfe93eb4bf898"],"system.qualities":["7c15fbcda8974ed5"]},"items":{}}, // Patchwork Construct
-	"bZKtYZmapDExeAJU": {"paths":{"system.entry":["9e5fa1e4dc3181a1"]},"items":{}}, // Antiquarian
-	"C08Lry85Ftk9psXO": {"paths":{},"items":{"b10cwJRuRBkL5J4f":{"img":["0ac3887c7302bd8c"]}}}, // Infected Hagr
-	"cAurDbvbZfzfFMAf": {"paths":{"system.entry":["8ed11df1f9652cfd"]},"items":{"OjDB2UTmPDPiTWsZ":{"img":["c7194771a342f89c"]}}}, // Laborers
-	"CdXJIcws7eqT8Q8v": {"paths":{"system.entry":["3006ac987ac25de3","a53e29dd3296cd1a"]},"items":{"0e78PxnhKCxTBJgr":{"img":["7cf47f9b83df3cea"]},"7Ht7GYo2XgYyUA8t":{"img":["f99e66800d55a5fc"]}}}, // Birdwaig
-	"cdZDkK4FL1QoQ9ak": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","e4889bb63a3b8666"],"system.qualities":["c4a13fd989264a95"]},"items":{}}, // Cave Bear
-	"CK1q0r9Hp21IpFpX": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["2a172a20791dece5","9b55e0da69fcb93a"],"system.qualities":["da8ef8d91827ade3"]},"items":{"GmCxwfzCHmPw8Jmw":{"img":["7cf47f9b83df3cea"]},"U2fH7RFEoFkT2RwP":{"img":["0ac3887c7302bd8c"]}}}, // Mkhalang
-	"CL9MRZT48lnfhegh": {"paths":{"system.entry":["c3457c0d59df2276"]},"items":{}}, // Bandit Chief
-	"clNUnzTPrxZPGCPp": {"paths":{"system.entry":["a101404c05a64368"]},"items":{}}, // Dawa Eyegouger
-	"CoqfzAvGUkjfvMpi": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","d33aa5f4d835d5a1"],"system.qualities":["5dd208e17f468e40"]},"items":{}}, // Lithic Servant
-	"Cva7oGwmIwLEvo6S": {"paths":{"system.entry":["9b55e0da69fcb93a","e31885bd38311450"]},"items":{"qGTYZMfq3D85nS6b":{"img":["ac42d357268b8d4d"]}}}, // Beznpol
-	"cy5OhsU0kVFUoppF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["22c0cf02c33357ee","9b55e0da69fcb93a"],"system.qualities":["0afb4b0861fc6b93"]},"items":{}}, // Mammoth
-	"cYSCUVhhHfpbgRPS": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","d5a3397ef6e9203c"],"system.qualities":["4da2b2d53a7b5c80"]},"items":{"myhhPTrCobGt4ZYZ":{"img":["c7194771a342f89c"]}}}, // The Gliomor
-	"dfsDOpDS6JcOBnCe": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["11b17a78b6c3e73a","9b55e0da69fcb93a"],"system.qualities":["b510ce8b98087b10"]},"items":{}}, // Lightning Sconce
-	"DHXlFUAc6mX5eEtp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","c938020139bcd739"],"system.qualities":["a556f649b16441fd"]},"items":{}}, // Screech Eel
-	"dLxI39zRgbt5baD5": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7e5587a008c3c9cd","9b55e0da69fcb93a"],"system.qualities":["1b6b4099e4a53ef4"]},"items":{"PJwttgspFYwiJqDA":{"img":["c7194771a342f89c"]}}}, // Butcherbird
-	"EDaesIZe2McJdVG7": {"paths":{"system.entry":["ce0e84febb773737"]},"items":{}}, // Monk
-	"EfKVm2sMXRjrnB6L": {"paths":{"system.entry":["9837edda6466ee95"]},"items":{}}, // The Guard
-	"eU2PTY1DoA2n95RT": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["51b5746f28dc9597","9b55e0da69fcb93a"],"system.qualities":["8d317672a2a2e158"]},"items":{}}, // Brawzbedr
-	"F0SuxRtw6dqB6Nvh": {"paths":{"system.entry":["8ca2cdc43a071ba4"]},"items":{"i5IbNC2E5YFQMPED":{"img":["c7194771a342f89c"]}}}, // Crinwin
-	"fc4528DgaFiiq2i9": {"paths":{},"items":{"qxdK8XkEIBHdej4E":{"img":["7cf47f9b83df3cea"]},"xqAa9VFbW3wRkjzr":{"img":["7cf47f9b83df3cea"]}}}, // Livrothos, Cleansing Flame
-	"fNEJcPa37GBqXwOq": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["417be16ed52dce6b","9b55e0da69fcb93a"],"system.qualities":["53c201f3aee73223"]},"items":{}}, // Mosaic Swarm
-	"Fo8WuljN8lY1FCxY": {"paths":{"system.entry":["5132be142846366f","c451f99f7a0a241e"]},"items":{}}, // Suarachan Soothsayer
-	"fPiNTDvtHzS9qzvS": {"paths":{"system.entry":["1fbf1da2e76a2995"]},"items":{}}, // Manmarcher Recruit
-	"fRUY04eQ6mQK6uGr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","b98c7d77c48433eb"],"system.qualities":["21559b7e060979d0","ff888b24cdc05c30"]},"items":{"6cHXp9kmL7IXXzBx":{"img":["c7194771a342f89c"]},"M2y3Vgh7SGMln2a1":{"img":["f99e66800d55a5fc"]}}}, // The White Billies
-	"FrvZI5HssAop00KC": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","f499a9f3268ca18c"],"system.qualities":["65d2fbcb6038017d"]},"items":{}}, // Barrow Wight
-	"fuNmfqHG9J8HFDo7": {"paths":{"system.entry":["5e804c5c6a67d4b8"]},"items":{}}, // Cultist
-	"fVOXp33igDV70sc0": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","dc7ff11eb0cbed4b"],"system.qualities":["a79c9e530b9a7350"]},"items":{"UjnUKYAvdIfcnIne":{"img":["0ac3887c7302bd8c"]}}}, // Aurochs
-	"fz8g74CpQcYrqSki": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8c86a06d07633c53","9b55e0da69fcb93a"],"system.qualities":["75e998d16a2afaf1"]},"items":{}}, // Hagr
-	"fZqXeuSYwjQtlWyH": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1d5ae2688ffc42de","9b55e0da69fcb93a"],"system.qualities":["a9ae09a761709fd6"]},"items":{"PJ3IVwh3ZJV6e0CN":{"img":["0ac3887c7302bd8c"]}}}, // Dialeddwr
-	"GdZQKCMmPANEuFyb": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["85f68d29a75b1170","9b55e0da69fcb93a"],"system.qualities":["4635ca62a21ea045"]},"items":{"jz954pKu5rNYbAW1":{"img":["7cf47f9b83df3cea"]},"YoFaEtlCMyhQE9ZI":{"img":["f99e66800d55a5fc"]}}}, // Tcaventes, Shackle and Key
-	"gI80yymFTixu1alc": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","cfad705b0852f11e"],"system.qualities":["6ac10ddfb21b5f3a"]},"items":{}}, // Swyn
-	"giaz3wyBZ5Du1vFJ": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["5132be142846366f","c451f99f7a0a241e"],"system.qualities":["7690b862d544dce2"]},"items":{}}, // Suarachan Hunter
-	"GwnTCgTINiA49N9c": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","d17075a26380ee83"],"system.qualities":["f0312b622eef4768"]},"items":{"7KI0lEoP7VipJCQY":{"img":["7cf47f9b83df3cea"]},"hSNksqcnmBhOSZNH":{"img":["f99e66800d55a5fc"]}}}, // Ferocedes Ogran
-	"h9IhOM9HBNmdrzUh": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["627b202954b450fc","9b55e0da69fcb93a"],"system.qualities":["c0d125755c2939ac"]},"items":{}}, // Shaksa
-	"Hogu0AEnAffI0HHr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","9e698379edf28cbf"],"system.qualities":["742acbe42b3f0448"]},"items":{"7pVz5nkhpWGqQBnf":{"img":["ac42d357268b8d4d"]},"X1QtTUNdLiLq0IMf":{"img":["c7194771a342f89c"]}}}, // Coedwaig
-	"HQCqcFlZZzEr8EHZ": {"paths":{"system.qualities":["3ad819fe4e6463ea"]},"items":{}}, // Thornthumb
-	"hZq0cfLjfytNVrWs": {"paths":{"system.entry":["8ca2cdc43a071ba4"]},"items":{"MMCPJaxCRYnBpjBD":{"img":["f99e66800d55a5fc"]}}}, // Crinwin Broodfather
-	"i2U1Qxscwoqw6eR0": {"paths":{},"items":{"hvLUifuoBTJgnYtb":{"img":["7cf47f9b83df3cea"]}}}, // The Crombil, Awakened
-	"i7EPIDkGLO5AFm2f": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["827b030ffea1dd27","9b55e0da69fcb93a"],"system.qualities":["19b1d965fd0d4adb"]},"items":{}}, // Nerth Serpent
-	"I8J5ARGoRPfBMNBb": {"paths":{"system.entry":["8a593855240afae1","9b55e0da69fcb93a"]},"items":{}}, // Ulliam Unlucky
-	"IFQVMEF9ngS8fED9": {"paths":{"system.entry":["7bc0d36e8476db28","9b55e0da69fcb93a"]},"items":{"zd3YPznGtZQ5WSiY":{"img":["c7194771a342f89c"]}}}, // Cougar
-	"iGFc9muBkF8HMgDQ": {"paths":{"system.entry":["75dab4fdbd610800","9620a1797c77dea9"]},"items":{"kbwBaMOwxZoC19QV":{"img":["c7194771a342f89c"]},"sERcEoQ64GPWWH4v":{"img":["c7194771a342f89c"]}}}, // Water Vortex
-	"IornEAAcH3j4YRST": {"paths":{},"items":{"chZYIk9GunJhzEpo":{"img":["7cf47f9b83df3cea"]},"MLSckm00famW9lhB":{"img":["7cf47f9b83df3cea"]},"NWsNxWRFXt4axAeA":{"img":["7cf47f9b83df3cea"]},"VnZamX2U4vltAf4H":{"img":["7cf47f9b83df3cea"]}}}, // Corrupted Glasbren
-	"iPBB5qDX5urJ30FU": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","b980b0eed81143c8"],"system.qualities":["eaaef18567c8f5a8"]},"items":{}}, // Fundamental
-	"Iyc7KUONkBO5Ibyz": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["059fa307fc904126","9b55e0da69fcb93a"],"system.qualities":["686ed5fa50663338"]},"items":{"bEv1HqnpgP2QrIHJ":{"img":["c7194771a342f89c"]},"UTpVgH2VipZsCW84":{"img":["c7194771a342f89c"]}}}, // Kyakaara
-	"j0hciXWdoWrUeYF7": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","a99987351dc5e07d"],"system.qualities":["c806f909875f3b7a"]},"items":{"dpFCbAoXwfDFyIoj":{"img":["c7194771a342f89c"]}}}, // The Suileach
-	"J0rZfQ09hcXkA9mr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","dfc79902fcc3f8e8"],"system.qualities":["5bff1dfc3810644a","ef44dc872581719a"]},"items":{}}, // The Bloody Boots
-	"j5J31XX2Lt7rP9UC": {"paths":{"system.entry":["7a10aa28b1ab2e80","9b55e0da69fcb93a"]},"items":{}}, // Wolf
-	"j8rFoANTmTHD5MKF": {"paths":{"system.entry":["4228f26655b345ae"]},"items":{}}, // Shantyara
-	"jd4L6VMQhTXba2r0": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["78b02682cc03bf9c","9b55e0da69fcb93a"],"system.qualities":["62736df415208c85"]},"items":{}}, // Blue Magpie
-	"JRoNGWPbEVDVTu1s": {"paths":{"system.entry":["75dab4fdbd610800","9620a1797c77dea9"]},"items":{"ImNrNhAOzFPbwd9v":{"img":["c7194771a342f89c"]}}}, // Wind Vortex
-	"k3PXbKdBREj0esro": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["0ab0f269b6ecd8ed","9b55e0da69fcb93a"],"system.qualities":["fdd55a8b1ed76bf1"]},"items":{}}, // Hand of Daagon
-	"KE9WWwBJzaBe6tgx": {"paths":{"system.entry":["9b55e0da69fcb93a","db24863f057a1cd4"]},"items":{"0yVb6M07Q53AquUa":{"img":["ac42d357268b8d4d"]},"3N7ss9gmNAAMc2Mw":{"img":["c7194771a342f89c"]},"NcXOu82AYCNas5Mb":{"img":["c7194771a342f89c"]}}}, // Klezln
-	"KEv7LnXs4zQju3lp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["6740ec611ecc1561","ff6f87339eda73fb"],"system.qualities":["c934d7e32f9edbc9"]},"items":{}}, // The Pale Hunter
-	"Kh5NQGe2zSAEV3BZ": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["95ee465fb8b02a0f","9b55e0da69fcb93a"],"system.qualities":["8a0beb803fa0c312"]},"items":{}}, // Nine-Fingered Stranger
-	"kjKV3SgkKh8gC8Y1": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["710e9fcd50dcd948","9b55e0da69fcb93a"],"system.qualities":["4f480655ef6c8e1f"]},"items":{}}, // Base Archon
-	"knIBykmqBqa8lMFN": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","df747ab0c64cc488"],"system.qualities":["7df8a421470bcdb0"]},"items":{"g01t1Zh1hCE0aYkA":{"img":["c7194771a342f89c"]}}}, // Rime Lord
-	"ktS8JqsS9RThoLIJ": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["404dff5b32944f58","9b55e0da69fcb93a"],"system.qualities":["277017fa8bff1cc4"]},"items":{"2n1THjytihCct8Aj":{"img":["c7194771a342f89c"]}}}, // Gingkara
-	"KYNQ2Ekdv3JzJUc7": {"paths":{"system.entry":["0a5d72db833a47bd","9b55e0da69fcb93a"]},"items":{}}, // Ice Drake
-	"L9dlnvkyRdbLZCEI": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","b2ccb50d56c0b061"],"system.qualities":["9011eeb37dbc5f39"]},"items":{}}, // Luglfsk
-	"lfKTKPxpxxExPr8B": {"paths":{"system.entry":["3bad9e3d0abe6b22"]},"items":{}}, // Bandit
-	"LLdvSUypBNDeKI5Z": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","f6cd786576b70fb8"],"system.qualities":["a67ee1e47c6f4910"]},"items":{}}, // Khyagseng
-	"lUuc66QokgbxU7X2": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["66ec45f387f6785d","9b55e0da69fcb93a"],"system.qualities":["0f1f33cb4767afb6"]},"items":{}}, // Shade
-	"MFsosEI9EtAc7cbE": {"paths":{"system.entry":["1649bf7c09fcadcc","9b55e0da69fcb93a"]},"items":{}}, // Caribou
-	"mk4kCF2buJrsSlK2": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["35ce2ef54fb74837","9b55e0da69fcb93a"],"system.qualities":["2bc62963f74d0f39"]},"items":{}}, // Skittering Horror
-	"MmkSpS99xDX01jeC": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["af7c5a9297e10ebb","c3269b714c4e6442"],"system.qualities":["6de0162534a5b923"]},"items":{}}, // Horned Drake (Young)
-	"mRpMqY81O24lXlPG": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8b58c06d29185a7b","9b55e0da69fcb93a"],"system.qualities":["220bc496c93afb11"]},"items":{}}, // Stone Sentinel
-	"MSt3ujyG670TKwEh": {"paths":{"system.entry":["5132be142846366f","c451f99f7a0a241e"]},"items":{}}, // Suarachan Singer
-	"NF4U8y44DMzdwFQd": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["14eacad9240ecf3c","9b55e0da69fcb93a"],"system.qualities":["61302b483b0dcfad"]},"items":{}}, // Tomb-Bog Spirit
-	"nh6h60KGgx2IlxfF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","dd51a7a899d70c8a"],"system.qualities":["6c09201e13154324"]},"items":{}}, // Plasmic Horror
-	"ntvN8CPfvbY06vUE": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1a6b8888a02b8529","9b55e0da69fcb93a"],"system.qualities":["7dfe687d1ab77d4a"]},"items":{"lTv8jWtRLqMR44Nn":{"img":["c7194771a342f89c"]}}}, // Morgais
-	"Okqc6kkhEZ3CGYKl": {"paths":{"system.entry":["98ce2ca0ff95c14d"]},"items":{}}, // Hdour
-	"oZS0ErG5Jl909oCE": {"paths":{"system.entry":["9b55e0da69fcb93a","c1e6ec14004ae7fd"]},"items":{}}, // Boar
-	"P4UPY5CmKLihfSQO": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","ba9eebf39c51b345"],"system.qualities":["ec84f6fd92a2d7b8"]},"items":{}}, // Voidblight
-	"P6VzX2jNCZNAZBSD": {"paths":{"system.entry":["559f71c06bacd2ce","9b55e0da69fcb93a"]},"items":{}}, // Wisent
-	"papz15gT7rAa1XiQ": {"paths":{},"items":{"uKgcFUxfAxkiB8lK":{"img":["7cf47f9b83df3cea"]}}}, // Bronze Protector
-	"PFHwDgBNwVbZHEIO": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","dcf2585a2954e4c5"],"system.qualities":["a8e58d39e707ba73"]},"items":{}}, // Caralandrao
-	"pGSpDKZrgRQljLc7": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8749687905e8847d","9b55e0da69fcb93a"],"system.qualities":["591930968de5be5c","6f7472235e4fc7c6"]},"items":{"Ev2BTfaVdGApF3kb":{"img":["c7194771a342f89c"]}}}, // Auntie Sallow
-	"pUFKL4MIzNejftOU": {"paths":{"system.entry":["9151db61bbcdb86d"]},"items":{"Hnodr2y6UX0S384H":{"img":["f99e66800d55a5fc"]}}}, // Chosen Shield
-	"Pz0n6nkxIVq2xH4u": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","d35cb01626706fbe"],"system.qualities":["808f2014aa6b45f5"]},"items":{}}, // Rhagedn
-	"q6EfKl09RA6NKWEc": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3619b7442c182358","9b55e0da69fcb93a"],"system.qualities":["7dab46c25aa0b1e3"]},"items":{}}, // Willow Witches
-	"qDIbc21OgAwQJvjo": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","da86b92d6d378893"],"system.qualities":["20beea6d0823a588","2844819599971d67"]},"items":{}}, // Grimstew
-	"Qe9HW1xQCicVwtGC": {"paths":{"system.entry":["00544e0d7201bf5d","9b55e0da69fcb93a"]},"items":{}}, // Ceirwmawr
-	"QJzjWDCU8jAAb4DT": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["20f5a4374df5f5ff","9b55e0da69fcb93a"],"system.qualities":["252158e943c2256a"]},"items":{}}, // Grwgnach
-	"qmoXHlBvgw6uvYTZ": {"paths":{"system.entry":["1385b9f09b9c6a5d"]},"items":{}}, // Brennan
-	"qPV3pBGdCk4mdqCb": {"paths":{"system.entry":["9141423689ca55ab"]},"items":{}}, // Desperate Souls
-	"qQL7mQwKGTM0JoRs": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["2ecc2a941e9fa9a2","9b55e0da69fcb93a"],"system.qualities":["97aaadabc6b230cf"]},"items":{}}, // Andalau
-	"qSYAPFrFZd8BOCVA": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["29094451fbe9bd93","9b55e0da69fcb93a"],"system.qualities":["9d0554ad6415e2fe"]},"items":{"9g2AwUHQ49ByFs5G":{"img":["ac42d357268b8d4d"]}}}, // Magma Worm
-	"qULBTb5zDEPTWTWF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["94ed162ab497d0d7","9b55e0da69fcb93a"],"system.qualities":["9ebbc0f0cddefe0c"]},"items":{"JzFTJF8w5TQ93KDB":{"img":["c7194771a342f89c"]}}}, // Spitting Drake
-	"QVLizZqzWNlG4e4f": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","f034f250b2b0b6cd"],"system.qualities":["dc6c54a3ae23834b"]},"items":{"WebllT9pXTml2WRo":{"img":["f99e66800d55a5fc"]}}}, // Dool Spirit
-	"QytGix3nVoKyghUs": {"paths":{"system.entry":["9b55e0da69fcb93a","b2cb27138bb82329"]},"items":{"G4sgV79J2HchPpE6":{"img":["ac42d357268b8d4d"]}}}, // Shellback Drake
-	"R3CGOnv3X1BQUpB5": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["71783153ba48d1c3","8dc1b976ae51b076"],"system.qualities":["5172efceeb3f42e7"]},"items":{}}, // Soithech
-	"r5Ea7yfpDcp6WTO4": {"paths":{"system.entry":["4a9ed3ee58fa8d04"]},"items":{"3Mgm8rmf2ysoUz39":{"img":["c7194771a342f89c"]}}}, // Infantry
-	"RGU7Qtp9xioMxQ3k": {"paths":{"system.entry":["3daffcc2b59c8278","9b55e0da69fcb93a"]},"items":{}}, // Frythanc Fledgling
-	"RiyVzcQMTvqowYdo": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","9f64c4e6ebf7bf8e"],"system.qualities":["d7754e84c5ac6383"]},"items":{}}, // Raselbaedd
-	"rL761LrHFjJcfArG": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3f3e5354faa5f3c9","9b55e0da69fcb93a"],"system.qualities":["720fa59ad91db08f","df0f5821bf2bac71"]},"items":{}}, // Wee Folk
-	"rlbFh4CDvRxFInGA": {"paths":{"system.entry":["483537d6ee68debb"]},"items":{"fRvX1F9Y1p7Cg5WS":{"img":["c7194771a342f89c"]}}}, // Thieves
-	"rlZQmShUiK2HpF9j": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","f909581494e6e48b"],"system.qualities":["642b4bf61bbc2175"]},"items":{}}, // Fadyn
-	"rmNfHJdCkFfrBVIL": {"paths":{"system.entry":["1080e1e708d78576"]},"items":{}}, // Caravan Guard
-	"RO5Fa1m4AMc9qZR1": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","a6a73b72301533bc"],"system.qualities":["641bf9edc53c6b5c"]},"items":{}}, // Voice of the Eternal Maw
-	"RtF6xF9mdCPujX08": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["004d6a9e18d7393d","9b55e0da69fcb93a"],"system.qualities":["c4f8f48e3078593f"]},"items":{"wp00xuE1W090sJuH":{"img":["c7194771a342f89c"]}}}, // Nemurvojak
-	"S1xAcfSVR3idzvqo": {"paths":{"system.entry":["b5c2e05ad03b8048"]},"items":{}}, // Sorcerer
-	"sCaNpnejaT7CP3Cg": {"paths":{"system.entry":["5e1f30944ca347b9"]},"items":{}}, // Fanatic
-	"SerJ5gYYlRuUmI9k": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["03883aff4a6eae3e","9b55e0da69fcb93a"],"system.qualities":["a034e02cfa4cb0f3"]},"items":{}}, // Gouzadn
-	"sFo40dgjm1DmyJps": {"paths":{"system.entry":["27c75e4f7f925fce","9b55e0da69fcb93a"]},"items":{}}, // Thunder Drake
-	"SMMwdADDvKB1vAar": {"paths":{"system.entry":["2df06e6862e3f5a6"]},"items":{}}, // Alley Cutthroats
-	"sPAOECPRkZHUCcHD": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["6603819a4cece46e","9b55e0da69fcb93a"],"system.qualities":["f34fa4e8a43978dc"]},"items":{}}, // Wretch
-	"srMcRkCKBwitdv9Z": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","ce1d229a17bb47e9"],"system.qualities":["a09395b9dc4ad683","aa642893bab6e653"]},"items":{}}, // The Bear of Winter
-	"TGLFOv8AqB8gHXvM": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["54dc14dcba9099c7","9b55e0da69fcb93a"],"system.qualities":["1b98af622b19f0b5"]},"items":{"M9uRSpkXOgMRF5UD":{"img":["7cf47f9b83df3cea"]}}}, // Mummified Green Lord
-	"tI3YnOsAHoVQI6k2": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","f450cd69a2b4cd12"],"system.qualities":["e4ebbd49c7a54e3c"]},"items":{"HlWnQsXE0uCJ5f6g":{"img":["7cf47f9b83df3cea"]}}}, // Gwyllgi
-	"uMjVv3GGJowiNCka": {"paths":{"system.entry":["9b55e0da69fcb93a","d72c79770636917c"]},"items":{}}, // Wild Horse
-	"uP9zE6MDiS3TwIWF": {"paths":{"system.entry":["3a473c8c9eca0f22","9b55e0da69fcb93a"]},"items":{}}, // Grochslon
-	"usjzCbvuSsDykZeY": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["5b18d192125be4df","9b55e0da69fcb93a"],"system.qualities":["b0d5ce1ee643d38b"]},"items":{}}, // Mantle Wraiths
-	"V5DQxuoMBLOw1qEW": {"paths":{"system.entry":["71783153ba48d1c3","8dc1b976ae51b076"]},"items":{}}, // Thraulgwyn Raider
-	"Vb5tyDtljq9QiGwW": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","e53eefb4a6ff50b4"],"system.qualities":["025496ae0db66f32"]},"items":{"unfauqcYTQGdXu4A":{"img":["0ac3887c7302bd8c"]}}}, // Bhoka
-	"vrBvnCJHlzn4ed8L": {"paths":{"system.entry":["aa8c5229fae71e16"]},"items":{}}, // Skirmisher
-	"W3OCTba3AGj13THE": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["46944c213c8735d5","9b55e0da69fcb93a"],"system.qualities":["01ec0c97691506dc","7169ad54857c0280"]},"items":{"xiXIvt7e86VInv1A":{"img":["7cf47f9b83df3cea"]}}}, // Blush-of-Dawn
-	"w4bnUheymDzA7cxr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["4fe13a9efdec2532","9b55e0da69fcb93a"],"system.qualities":["00eb3a496d52086f"]},"items":{"HPx0HqyChCaPBSDl":{"img":["7cf47f9b83df3cea"]}}}, // Fire Drake
-	"W7YFeowcF0yptQC3": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8e544f8909f2dc76","9b55e0da69fcb93a"],"system.qualities":["6b5ee683844c1667"]},"items":{}}, // Pack Drake
-	"WrXgtdFAMVIRlJ9G": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["256aacc3397db451","9b55e0da69fcb93a"],"system.qualities":["0d7c2bde6a29f29a"]},"items":{"z1E8UMosyiYM9bzr":{"img":["ac42d357268b8d4d"]}}}, // Hlomren
-	"WVBxp5Ii2Ahd6Xln": {"paths":{"system.entry":["9b55e0da69fcb93a","9bff723cfca333d1"]},"items":{"hlkRqiTadDAC0fFf":{"img":["7cf47f9b83df3cea"]}}}, // Mummified Servant
-	"x6X63ArQe1zZ3tBE": {"paths":{"system.entry":["b2d7c6601b8945ff"]},"items":{}}, // Assassin
-	"Xa6zaAxbSXE4EslL": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["5018404fd349acfd","9b55e0da69fcb93a"],"system.qualities":["017c35174d05e4fb"]},"items":{}}, // Tal Gerdwyr
-	"XFmKN7n1uddyo55m": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["af7c5a9297e10ebb","c3269b714c4e6442"],"system.qualities":["4014209cfe1b486d"]},"items":{}}, // Horned Drake
-	"xGwlyfewGjgB5QWQ": {"paths":{"system.entry":["8184a2468a40284b","9b55e0da69fcb93a"]},"items":{}}, // Ceffylwraig
-	"xxE8nw7spGJN4acG": {"paths":{"system.entry":["6efef2900b75b6d9"]},"items":{}}, // Manmarcher Veteran
-	"Y9l5lNncyPjnqdCE": {"paths":{"system.entry":["7e2eb4ef53049455","9b55e0da69fcb93a"]},"items":{}}, // Cwisarff
-	"YKLG7aDPRTieTkve": {"paths":{"system.entry":["134fb1bc577f38f7","9b55e0da69fcb93a"]},"items":{"0hNwohOiMhjRI23B":{"img":["c7194771a342f89c"]},"lzACdw2hmP6yDr8J":{"img":["0ac3887c7302bd8c"]},"NpIhUiZ1GFAm4mgf":{"img":["c7194771a342f89c"]}}}, // Frythanc
-	"yllCLAsqWbqNYgTd": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","a3e2c72d1e5a181d"],"system.qualities":["798e231058b81bca"]},"items":{}}, // Thrall
-	"yoHXsBjzR8AVHzXj": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","e17510fc66ac0cd0"],"system.qualities":["a824f2ffde22f06d"]},"items":{"KbOVVXPPOG47cAjR":{"img":["c7194771a342f89c"]}}}, // Nailadd
-	"yutvCMDSx2HQ6Ery": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["5d08ce717b7e348c","9b55e0da69fcb93a"],"system.qualities":["67ba2903a5db4e20"]},"items":{}}, // False Adept
-	"zNH67lRb1oL8rXA0": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["27f863c20083119b","9b55e0da69fcb93a"],"system.qualities":["e061b7a5fb5f47f6"]},"items":{}}, // Wraith
-	"zWFuS69kPihbwlKp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","9d637273f41f1ec1"],"system.qualities":["643cb76becc3df2b"]},"items":{}}, // Llamudwr
+	"05mh4Ag0uKxRVY8j": {"paths":{"system.entry":["1b8f5e18e8aaa89f","811d7a2c245cbed5"]},"items":{}}, // Hillfolk Rider
+	"0E5ih40SJt6W1nDp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["867c685efc6fc5eb","9b55e0da69fcb93a","b7700b1f71a31646"],"system.qualities":["2bcd04205299a32c"]},"items":{"fJ3RPZUU5SdJuvZu":{"img":["f99e66800d55a5fc"]}}}, // Clockwork Spider
+	"0ZKo6trYa54afrSZ": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["39bcebb7d7f0afbb","75afb5caae6a547c","9b55e0da69fcb93a"],"system.qualities":["daf711b7735272f3"]},"items":{}}, // Hollow Fae
+	"1C0Jhihrg28bX7Ry": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8c095bb5e6264b05","9b55e0da69fcb93a","a90675a67851c76e"],"system.qualities":["06a88fd2fe6c25c8"]},"items":{}}, // The Quiet Twins
+	"1U5ExYjZPgmW0Gck": {"paths":{"system.entry":["bd0be273ce095905","d72c3a7331c430bf","f756b1f58f9c0115"]},"items":{"fViR9ADcwGjbltdr":{"img":["7cf47f9b83df3cea"]},"uixmFWulXtQRgnKg":{"img":["7cf47f9b83df3cea"]},"yW1MedphYW13Pn9i":{"img":["7cf47f9b83df3cea"]}}}, // Fire Vortex
+	"2UnnOaKPTABc13S4": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8c135114d04b5f7a","9b55e0da69fcb93a","e77855b4b0586488"],"system.qualities":["433bff75f13ea163"]},"items":{"EUajwTRoxK7KgE4f":{"img":["c7194771a342f89c"]},"usRMuwpNRkeGNVPS":{"img":["c7194771a342f89c"]}}}, // The Chained Beast
+	"30NDurP2YczoGj6B": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["073c186caff1c2fa","374e71dbb4e87c58","9b55e0da69fcb93a"],"system.qualities":["6f1bc79cd8578b82"]},"items":{}}, // Feathered Drake
+	"33Tx0FhrgXcTwtlC": {"paths":{"system.entry":["224f34ac15976818","fdd32f9b6a79587f"]},"items":{"65ScDcozxAhjH4HB":{"img":["f99e66800d55a5fc"]}}}, // Guardian
+	"3bGjXtEOne32k1cr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a","bf9e38d11b41b335"],"system.entry":["1848cd32a579c423","9b55e0da69fcb93a","aa2bb220fb90a94d"],"system.qualities":["14976e1514416f62"]},"items":{"SQufow2G8uQk81dZ":{"img":["7cf47f9b83df3cea"]}}}, // Specter
+	"3DlUOSnpOxSzU7BO": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["513665d7f8e0b33c","63bcd97f9b0fd693","9b55e0da69fcb93a"],"system.qualities":["1d4699cfe28f78a3"]},"items":{}}, // Pyped
+	"3JaMhYyy0qDzf06q": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["6974fd76016d570c","9b55e0da69fcb93a","e1a72d552b11fb12"],"system.qualities":["b69d8d4a84377b01"]},"items":{}}, // Zrajedak
+	"3WXpoW1ajr2PCDC9": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["604a64a5bfb87c47","627e745ab5acbba4","83d59f1872fb72db"],"system.qualities":["729dd438343548b8"]},"items":{"XxCDRDtDnRDplMBq":{"img":["c7194771a342f89c"]}}}, // Ghostly Hounds
+	"4Ah0RoLTY5wSRvAF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","db33d7cdfd75c99f","e07d1f4f7fdd9f60"],"system.qualities":["2b82be22a3d2456c"]},"items":{}}, // Fen-Troll
+	"4EAwSShKj05G2Dls": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8723556c100b9e5d","9b55e0da69fcb93a","f8b9bae93eef4093"],"system.qualities":["747ece4f8efabbe1"]},"items":{"m22bVx0LQvucKo8H":{"img":["7cf47f9b83df3cea"]},"RiWIog3KU3ZKODSX":{"img":["7cf47f9b83df3cea"]}}}, // Cinderwraith
+	"4vXt3vYLBjH8b18j": {"paths":{"system.entry":["09cb78eea5351d6f","7a672802a6c415f1","9b55e0da69fcb93a"]},"items":{}}, // Totnatter
+	"58UtB8l8G68t9nRI": {"paths":{"system.entry":["5e8bee9ac99a0f5b","9ca4b72b47a0264f"]},"items":{}}, // Necromancer
+	"59u1Y4Rjasgp0Ylr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3f3ec4674df48370","9b55e0da69fcb93a","d81c19c068dc3ed1"],"system.qualities":["03e3ad9a78b90ce2"]},"items":{}}, // Pacifier
+	"5nfugU7444Jh6D0e": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["6abc45fd745f0c7c","8ee3474cbfba578b","9b55e0da69fcb93a"],"system.qualities":["ab14028af2ff04b1"]},"items":{"Lduw74x2lBGXgGMh":{"img":["f99e66800d55a5fc"]}}}, // Bronze Colossus
+	"5wCAS42Is2wLxAJH": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Cold Spirit
+	"6DnSbIHLqXCaV1vp": {"paths":{"system.entry":["3cf928810a67925b","84af35b68e85a004"]},"items":{}}, // Legionary
+	"6dXBK2ZSWVk51wAp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","aed0e851f2c3bbd8","b421b5d8cd7a9386"],"system.qualities":["3f9b715247e9e785"]},"items":{}}, // Singing Sword
+	"6jDwnqjA3VmyKZ9F": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","b08abde7af0dbfdb","d6876accdc2d42c6"],"system.qualities":["c9bb7a4524df2055"]},"items":{"SlZAgN9wco3qUuFQ":{"img":["7cf47f9b83df3cea"]}}}, // Cinderboar
+	"6N5pRiBkQwkblpAq": {"paths":{"system.entry":["031802872fcffdf8","e7e7f234f2ae530a"]},"items":{}}, // Cavalry
+	"6NAKPaUXIxy6zZl8": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["721df7ea137f073a","9b55e0da69fcb93a","9eda0fdab4abe0c4"],"system.qualities":["b1a78dcf8352abb0"]},"items":{}}, // The Ghostly Legion
+	"6RhD3Vrdb3B9GXTA": {"paths":{"system.entry":["a297c174e8c4c5d4","e7cfcb61b8bc4d9f","fff49e7c5a484976"]},"items":{"zVxOuTGRJSIL286Z":{"img":["7cf47f9b83df3cea"]}}}, // Hennain
+	"7asroHGGJFfVbq74": {"paths":{"system.entry":["438b86e42f6ef777","7180ef03b8a2f7d9"]},"items":{}}, // Adept
+	"7GtbWc7kafUVk6dI": {"paths":{"system.entry":["a297c174e8c4c5d4","e7cfcb61b8bc4d9f","fff49e7c5a484976"]},"items":{"BjlrTEzq1GqE1Z12":{"img":["7cf47f9b83df3cea"]}}}, // Glasbren
+	"7ID9ieGRtwH4QoE8": {"paths":{"system.entry":["7624fc5124ee8d98","83866f3d9bc60092"]},"items":{}}, // Spirit-talker
+	"7N8fP6LjUroJDeEZ": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Sapling Spirit
+	"7U161MCE7WecX9kF": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Mud Spirit
+	"82BOSSkHFrbVJDtZ": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Stream/Creek Spirit
+	"89ZjFUUS1I9bP2MH": {"paths":{"system.entry":["3c91a88aea17e7fb","9b55e0da69fcb93a","c6c1462388a34b0b"]},"items":{"lVA2EfHmWqGlFK42":{"img":["ac42d357268b8d4d"]}}}, // Star-Mole
+	"8KHfTcPYblTJRpV1": {"paths":{"system.entry":["bd0be273ce095905","d72c3a7331c430bf","f756b1f58f9c0115"]},"items":{"EnGEGTq6bRl68aoM":{"img":["c7194771a342f89c"]},"XOMK2oWGB8J9seTb":{"img":["c7194771a342f89c"]}}}, // Earth Vortex
+	"8nNyWAoSsT3VXRx5": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","c9d11e5babdfb27d","cc38c5f21add68c6"],"system.qualities":["0a3f814fc8db8d1d"]},"items":{"CMVWW4cSMZbLkOIO":{"img":["c7194771a342f89c"]}}}, // Kleztigr
+	"8T8jqS04adlc5107": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["713f3ed7c33b59f7","97f787b062b5ab24","9b55e0da69fcb93a"],"system.qualities":["42d88afd2b727156"]},"items":{}}, // Phantom Rider
+	"9cj95lduy9Oyl3AO": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Fertility Spirit
+	"9D9j6suq72rPAIbI": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Log Spirit
+	"9h3AbAG1DBQTrtOG": {"paths":{"system.entry":["dc679c2b0a9b265e"]},"items":{}}, // The Nightingale
+	"9kcSzC3uPavigsyF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7b7d5f58e1abb84e","9b55e0da69fcb93a","f498d6c360578071"],"system.qualities":["bc2502e0a185a0c9"]},"items":{"CPfpYWGEdpl3PMxE":{"img":["7cf47f9b83df3cea"]},"fvN8MpkjzSZl2gE4":{"img":["c7194771a342f89c"]}}}, // Draventao
+	"9wN9UhM3IORfcw0J": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1b523aa68c0f4db6","88d1f36ba6f5eae9","9b55e0da69fcb93a"],"system.qualities":["321c42e9f70afc77"]},"items":{}}, // Anan Gllo
+	"aAknV9EMnUjJvRL3": {"paths":{"system.entry":["5c04af6826ece969","d84d222d209cbf28"]},"items":{}}, // Adventurer
+	"anJdI79iSTgmf0JB": {"paths":{"system.entry":["2ce4889495ce13d1","8924a21a7fe570cb"]},"items":{}}, // War-chariot
+	"aQJLVwGdeHskspzS": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["2d474eabef22f2fe","9b55e0da69fcb93a","f66d364cd754176b"],"system.qualities":["ab29ed98ca13ce91"]},"items":{"vGLWF5dJCxzuJ4mQ":{"img":["c7194771a342f89c"]},"Xp1qUYvQXdhpjcfC":{"img":["7cf47f9b83df3cea"]}}}, // Prenysbyrd
+	"ASyoP5BXGukeIrG5": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["0888d9cc803868ae","6a4362ea3d179984","9b55e0da69fcb93a"],"system.qualities":["562b6afd317c1ce6"]},"items":{"CE0aSf7ulgk2BpSe":{"img":["c7194771a342f89c"]}}}, // Mountain Ape
+	"aWbHPmGW9htXdyUN": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7b75058129b635a0","9b55e0da69fcb93a","dd7aecd777fd5d2c"],"system.qualities":["14f92c37db12b4fc"]},"items":{}}, // Jellied Horror
+	"B0W8jT7lRFLJK4ds": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["0e0035ec14328db8","9b55e0da69fcb93a","e3ed23c7e6836e9e"],"system.qualities":["f9b293bd3e74f992"]},"items":{"BVGHREcQCmeVKfhh":{"img":["c7194771a342f89c"]}}}, // The Gwraig Wen
+	"b1nCTG0uwf7dLQmx": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Pond Spirit
+	"baV7yiVwXMTKa49B": {"paths":{"system.entry":["bd0be273ce095905","d72c3a7331c430bf","f756b1f58f9c0115"]},"items":{}}, // Lightning Vortex
+	"BCA8xC2gsvHO43ou": {"paths":{"system.entry":["0061ebc9e64caa33","9b55e0da69fcb93a","e726a4999c82c231"]},"items":{"dh7kF2MB1qAzPUDh":{"img":["ac42d357268b8d4d"]},"Sd1ggc27CFuwgQpI":{"img":["c7194771a342f89c"]},"SfqeG9rO4CCQ0nEQ":{"img":["c7194771a342f89c"]}}}, // Servant of Daagon
+	"BgPtjVOTWvJBYE7z": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["69d48f7c29b6e896","9b55e0da69fcb93a","be0856a7311e5e86"],"system.qualities":["feed009c02447df6"]},"items":{}}, // Iron Hound
+	"BHYJDndAivdji0kq": {"paths":{"system.entry":["511e68707fa56f3a","9a96fd076bb740f5"]},"items":{}}, // Novice
+	"bmmVVWAh7h2uAPJp": {"paths":{"system.entry":["91761b2799535ddb","cf99b0cc4f88b7e8"]},"items":{}}, // Mammoth Herder
+	"BVvWxKNlDdOzu9Ac": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["360ce0337f3e40cc","9b55e0da69fcb93a","bf7e3f95c580ec69"],"system.qualities":["bbe4e3ca4958aaab"]},"items":{}}, // Cynddaraig
+	"BwDgsHeLfhJWrS5w": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["011c13ff1d84475f","9b55e0da69fcb93a","b5c8a32657843593"],"system.qualities":["7c15fbcda8974ed5"]},"items":{}}, // Patchwork Construct
+	"bY6Ii80R0NdyB72f": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Mist/Fog Spirit
+	"bZKtYZmapDExeAJU": {"paths":{"system.entry":["79a2fe2e4fc4ef05","ce94c388273a761c"]},"items":{}}, // Antiquarian
+	"C08Lry85Ftk9psXO": {"paths":{"system.entry":["06306f1edd32997b"]},"items":{"b10cwJRuRBkL5J4f":{"img":["0ac3887c7302bd8c"]}}}, // Infected Hagr
+	"cAurDbvbZfzfFMAf": {"paths":{"system.entry":["359d9ddffd781deb","49ebcc09249970e5"]},"items":{"OjDB2UTmPDPiTWsZ":{"img":["c7194771a342f89c"]}}}, // Laborers
+	"CdXJIcws7eqT8Q8v": {"paths":{"system.entry":["a297c174e8c4c5d4","e7cfcb61b8bc4d9f","fff49e7c5a484976"]},"items":{"0e78PxnhKCxTBJgr":{"img":["7cf47f9b83df3cea"]},"7Ht7GYo2XgYyUA8t":{"img":["f99e66800d55a5fc"]}}}, // Birdwaig
+	"cdZDkK4FL1QoQ9ak": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","9d5bddee101b15c9","bd4449ffbfad8062"],"system.qualities":["c4a13fd989264a95"]},"items":{}}, // Cave Bear
+	"CK1q0r9Hp21IpFpX": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1b1cc35261bd1657","7ef3f7ecad9917eb","9b55e0da69fcb93a"],"system.qualities":["da8ef8d91827ade3"]},"items":{"GmCxwfzCHmPw8Jmw":{"img":["7cf47f9b83df3cea"]},"U2fH7RFEoFkT2RwP":{"img":["0ac3887c7302bd8c"]}}}, // Mkhalang
+	"CL9MRZT48lnfhegh": {"paths":{"system.entry":["e45d0244239f8686","eb8e7bb872e8adad"]},"items":{}}, // Bandit Chief
+	"clNUnzTPrxZPGCPp": {"paths":{"system.entry":["1a170c472472fb28","c4571a2db3300713"]},"items":{}}, // Dawa Eyegouger
+	"CoqfzAvGUkjfvMpi": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7c19afa30e186834","9b55e0da69fcb93a","bc27ba8c21289252"],"system.qualities":["5dd208e17f468e40"]},"items":{}}, // Lithic Servant
+	"Cva7oGwmIwLEvo6S": {"paths":{"system.entry":["3700285a11096fc7","72d0263ea2828f47","9b55e0da69fcb93a"]},"items":{"qGTYZMfq3D85nS6b":{"img":["ac42d357268b8d4d"]}}}, // Beznpol
+	"cy5OhsU0kVFUoppF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["89475d75972d3d40","9b55e0da69fcb93a","e0e9e78e21503abb"],"system.qualities":["0afb4b0861fc6b93"]},"items":{}}, // Mammoth
+	"cYSCUVhhHfpbgRPS": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["4094db31c5630352","58be1272b628954c","9b55e0da69fcb93a"],"system.qualities":["4da2b2d53a7b5c80"]},"items":{"myhhPTrCobGt4ZYZ":{"img":["c7194771a342f89c"]}}}, // The Gliomor
+	"dfsDOpDS6JcOBnCe": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["0c75cb4e2ef848c5","9b55e0da69fcb93a","e5b26cd5f3b3e460"],"system.qualities":["b510ce8b98087b10"]},"items":{}}, // Lightning Sconce
+	"DHXlFUAc6mX5eEtp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["073e538bd59d375e","3a61aeb29ff3ed53","9b55e0da69fcb93a"],"system.qualities":["a556f649b16441fd"]},"items":{}}, // Screech Eel
+	"DiCuCO7x8F1jVUk3": {"paths":{"system.entry":["9822c3c486dc5a0f"]},"items":{}}, // Fen-walker
+	"dLxI39zRgbt5baD5": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["0ff7e1bda35e50e8","77afef953b9ce575","9b55e0da69fcb93a"],"system.qualities":["1b6b4099e4a53ef4"]},"items":{"PJwttgspFYwiJqDA":{"img":["c7194771a342f89c"]}}}, // Butcherbird
+	"DZ1g1rWH48KW1Tzo": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Trail Spirit
+	"eaLI3NjKZn4gA4WL": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Beast Warden
+	"EDaesIZe2McJdVG7": {"paths":{"system.entry":["9e5750f038155613","a1c2986bc497811c"]},"items":{}}, // Monk
+	"EfKVm2sMXRjrnB6L": {"paths":{"system.entry":["1a0ac87d197351d3","3ae7a0df2a12e00f"]},"items":{}}, // The Guard
+	"eU2PTY1DoA2n95RT": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["2bf0777353cfc2d2","9b55e0da69fcb93a","b552a15fee95a29b"],"system.qualities":["8d317672a2a2e158"]},"items":{}}, // Brawzbedr
+	"F0SuxRtw6dqB6Nvh": {"paths":{"system.entry":["56283de853b4cfaf","59c996ce4364751e"]},"items":{"i5IbNC2E5YFQMPED":{"img":["c7194771a342f89c"]}}}, // Crinwin
+	"fc4528DgaFiiq2i9": {"paths":{"system.entry":["373279b62cd83d97"]},"items":{"qxdK8XkEIBHdej4E":{"img":["7cf47f9b83df3cea"]},"xqAa9VFbW3wRkjzr":{"img":["7cf47f9b83df3cea"]}}}, // Livrothos, Cleansing Flame
+	"fNEJcPa37GBqXwOq": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","b5644ce50f1a0fff","c809689810403d93"],"system.qualities":["53c201f3aee73223"]},"items":{}}, // Mosaic Swarm
+	"fnzABVPboAe4m9Y8": {"paths":{"system.entry":["c3d4923d1b2e9776"]},"items":{}}, // Swarm of Silvery Vermin
+	"Fo8WuljN8lY1FCxY": {"paths":{"system.entry":["15d82dba9c3c5034","6ceccaea54259d78","df2dc51866988d56"]},"items":{}}, // Suarachan Soothsayer
+	"fPiNTDvtHzS9qzvS": {"paths":{"system.entry":["970d0cda5b7c49d8","a3e49ef72e98fca1"]},"items":{}}, // Manmarcher Recruit
+	"fRUY04eQ6mQK6uGr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["54fc199740a3795c","9b55e0da69fcb93a","ebfa61ac7f0d78e6"],"system.qualities":["1e580967012eb12d","21559b7e060979d0","ff888b24cdc05c30"]},"items":{"6cHXp9kmL7IXXzBx":{"img":["c7194771a342f89c"]},"M2y3Vgh7SGMln2a1":{"img":["f99e66800d55a5fc"]}}}, // The White Billies
+	"FrvZI5HssAop00KC": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","acdcd7621392c06c","fd758eba471998bf"],"system.qualities":["65d2fbcb6038017d"]},"items":{}}, // Barrow Wight
+	"fuNmfqHG9J8HFDo7": {"paths":{"system.entry":["11de95d33e3b67f2","3d8e234caa9b184e"]},"items":{}}, // Cultist
+	"fVOXp33igDV70sc0": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3b534dbae0d3f835","4c41f2189caffbbd","9b55e0da69fcb93a"],"system.qualities":["a79c9e530b9a7350"]},"items":{"UjnUKYAvdIfcnIne":{"img":["0ac3887c7302bd8c"]}}}, // Aurochs
+	"fz8g74CpQcYrqSki": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["22e3b81187c72826","25b112e8491c7507","9b55e0da69fcb93a"],"system.qualities":["75e998d16a2afaf1"]},"items":{}}, // Hagr
+	"fZqXeuSYwjQtlWyH": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8a5b1342daa2b50b","9b55e0da69fcb93a","e28efc066e44ef44"],"system.qualities":["a9ae09a761709fd6"]},"items":{"PJ3IVwh3ZJV6e0CN":{"img":["0ac3887c7302bd8c"]}}}, // Dialeddwr
+	"GdZQKCMmPANEuFyb": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3b8ad3fd5833374a","694dae5217393341","9b55e0da69fcb93a"],"system.qualities":["4635ca62a21ea045"]},"items":{"jz954pKu5rNYbAW1":{"img":["7cf47f9b83df3cea"]},"YoFaEtlCMyhQE9ZI":{"img":["f99e66800d55a5fc"]}}}, // Tcaventes, Shackle and Key
+	"Gfq67AU1leQxuYms": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Fire Spirit
+	"gI80yymFTixu1alc": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["50acb706ce6148ea","9b55e0da69fcb93a","ae022763b333a71e"],"system.qualities":["6ac10ddfb21b5f3a"]},"items":{}}, // Swyn
+	"giaz3wyBZ5Du1vFJ": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["15d82dba9c3c5034","6ceccaea54259d78","df2dc51866988d56"],"system.qualities":["7690b862d544dce2"]},"items":{}}, // Suarachan Hunter
+	"GvE18LdU5XodJxZD": {"paths":{"system.entry":["991dc7966c731cab"]},"items":{}}, // All-mighty Thistlewisk
+	"GwnTCgTINiA49N9c": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8d977cafeffa0b63","9b55e0da69fcb93a","ed03b7eb33f85b03"],"system.qualities":["f0312b622eef4768"]},"items":{"7KI0lEoP7VipJCQY":{"img":["7cf47f9b83df3cea"]},"hSNksqcnmBhOSZNH":{"img":["f99e66800d55a5fc"]}}}, // Ferocedes Ogran
+	"h9IhOM9HBNmdrzUh": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["2681f6fbd56f4fee","9b55e0da69fcb93a","e63aacbc32622c0a"],"system.qualities":["c0d125755c2939ac"]},"items":{}}, // Shaksa
+	"Hogu0AEnAffI0HHr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["2a200b0e53acbbbe","95ab262945fae3fa","9b55e0da69fcb93a"],"system.qualities":["742acbe42b3f0448"]},"items":{"7pVz5nkhpWGqQBnf":{"img":["ac42d357268b8d4d"]},"X1QtTUNdLiLq0IMf":{"img":["c7194771a342f89c"]}}}, // Coedwaig
+	"HQCqcFlZZzEr8EHZ": {"paths":{"system.entry":["bf1bf13ca2b42492"],"system.qualities":["22e705b53a10a4cf","3ad819fe4e6463ea"]},"items":{}}, // Thornthumb
+	"hZq0cfLjfytNVrWs": {"paths":{"system.entry":["56283de853b4cfaf","59c996ce4364751e"]},"items":{"MMCPJaxCRYnBpjBD":{"img":["f99e66800d55a5fc"]}}}, // Crinwin Broodfather
+	"i2U1Qxscwoqw6eR0": {"paths":{"system.entry":["a7c5b98bf714ec98"]},"items":{"hvLUifuoBTJgnYtb":{"img":["7cf47f9b83df3cea"]}}}, // The Crombil, Awakened
+	"i7EPIDkGLO5AFm2f": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["17d059bda837fd25","6a418160e68be0ff","9b55e0da69fcb93a"],"system.qualities":["19b1d965fd0d4adb"]},"items":{}}, // Nerth Serpent
+	"I8J5ARGoRPfBMNBb": {"paths":{"system.entry":["46d78801da4c0285","9b55e0da69fcb93a","fb7e46eaa8fac74a"]},"items":{}}, // Ulliam Unlucky
+	"IFQVMEF9ngS8fED9": {"paths":{"system.entry":["47a58af3db625aa4","9b55e0da69fcb93a","d0f5d8ffc42ec732"]},"items":{"zd3YPznGtZQ5WSiY":{"img":["c7194771a342f89c"]}}}, // Cougar
+	"iGFc9muBkF8HMgDQ": {"paths":{"system.entry":["bd0be273ce095905","d72c3a7331c430bf","f756b1f58f9c0115"]},"items":{"kbwBaMOwxZoC19QV":{"img":["c7194771a342f89c"]},"sERcEoQ64GPWWH4v":{"img":["c7194771a342f89c"]}}}, // Water Vortex
+	"IornEAAcH3j4YRST": {"paths":{"system.entry":["22d00b5119707561"]},"items":{"chZYIk9GunJhzEpo":{"img":["7cf47f9b83df3cea"]},"MLSckm00famW9lhB":{"img":["7cf47f9b83df3cea"]},"NWsNxWRFXt4axAeA":{"img":["7cf47f9b83df3cea"]},"VnZamX2U4vltAf4H":{"img":["7cf47f9b83df3cea"]}}}, // Corrupted Glasbren
+	"iPBB5qDX5urJ30FU": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3645c184f01461c6","676d636c31be5d45","9b55e0da69fcb93a"],"system.qualities":["eaaef18567c8f5a8"]},"items":{}}, // Fundamental
+	"Iyc7KUONkBO5Ibyz": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["35fd83d794e596f2","9b55e0da69fcb93a","cb3ad4b4ef6aa7f9"],"system.qualities":["686ed5fa50663338"]},"items":{"bEv1HqnpgP2QrIHJ":{"img":["c7194771a342f89c"]},"UTpVgH2VipZsCW84":{"img":["c7194771a342f89c"]}}}, // Kyakaara
+	"j0hciXWdoWrUeYF7": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["0c1e86422a6eb9cc","9b55e0da69fcb93a","dade8027532eb599"],"system.qualities":["c806f909875f3b7a"]},"items":{"dpFCbAoXwfDFyIoj":{"img":["c7194771a342f89c"]}}}, // The Suileach
+	"J0rZfQ09hcXkA9mr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","c3324d30faf03762","da87fae1fba9f242"],"system.qualities":["0dbd4e45cb666cdb","5bff1dfc3810644a","ef44dc872581719a"]},"items":{}}, // The Bloody Boots
+	"j5J31XX2Lt7rP9UC": {"paths":{"system.entry":["494105498b3e86c9","7a962bb249f0fe28","9b55e0da69fcb93a"]},"items":{}}, // Wolf
+	"j8rFoANTmTHD5MKF": {"paths":{"system.entry":["621a5f81c160d2fa","756835f6019b06ac"]},"items":{}}, // Shantyara
+	"jd4L6VMQhTXba2r0": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","9c4a485944ff02b3","f6faef148dd621f8"],"system.qualities":["62736df415208c85"]},"items":{}}, // Blue Magpie
+	"Jmyo1j9nBbYSCU9z": {"paths":{"system.entry":["153917c7f5679893"]},"items":{}}, // Fomoraij
+	"JRoNGWPbEVDVTu1s": {"paths":{"system.entry":["bd0be273ce095905","d72c3a7331c430bf","f756b1f58f9c0115"]},"items":{"ImNrNhAOzFPbwd9v":{"img":["c7194771a342f89c"]}}}, // Wind Vortex
+	"k3PXbKdBREj0esro": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8f86607a7a29312b","9b55e0da69fcb93a","b887367af9975ff2"],"system.qualities":["fdd55a8b1ed76bf1"]},"items":{}}, // Hand of Daagon
+	"kBd27BmqqB3KtFh3": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Meadow/Prairie/Grass Spirit
+	"KE9WWwBJzaBe6tgx": {"paths":{"system.entry":["1195429f58465d40","6c8731bfce275156","9b55e0da69fcb93a"]},"items":{"0yVb6M07Q53AquUa":{"img":["ac42d357268b8d4d"]},"3N7ss9gmNAAMc2Mw":{"img":["c7194771a342f89c"]},"NcXOu82AYCNas5Mb":{"img":["c7194771a342f89c"]}}}, // Klezln
+	"KEv7LnXs4zQju3lp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["604a64a5bfb87c47","627e745ab5acbba4","83d59f1872fb72db"],"system.qualities":["c934d7e32f9edbc9"]},"items":{}}, // The Pale Hunter
+	"Kh5NQGe2zSAEV3BZ": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7e0e9c74448a4107","9b55e0da69fcb93a","add9f4f633fe60f8"],"system.qualities":["8a0beb803fa0c312"]},"items":{}}, // Nine-Fingered Stranger
+	"kjKV3SgkKh8gC8Y1": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7cca07a55821f6d0","9b55e0da69fcb93a","a6120ea3dbe4d9ec"],"system.qualities":["4f480655ef6c8e1f"]},"items":{}}, // Base Archon
+	"knIBykmqBqa8lMFN": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["12f1c40764d1bd04","991382f5e8082dca","9b55e0da69fcb93a"],"system.qualities":["7df8a421470bcdb0"]},"items":{"g01t1Zh1hCE0aYkA":{"img":["c7194771a342f89c"]}}}, // Rime Lord
+	"ktS8JqsS9RThoLIJ": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["309c105fbdf2ffeb","97056eef29b55bc6","9b55e0da69fcb93a"],"system.qualities":["277017fa8bff1cc4"]},"items":{"2n1THjytihCct8Aj":{"img":["c7194771a342f89c"]}}}, // Gingkara
+	"KYNQ2Ekdv3JzJUc7": {"paths":{"system.entry":["61ad13a483210015","9b55e0da69fcb93a","e52f1c24791026d4"]},"items":{}}, // Ice Drake
+	"L9dlnvkyRdbLZCEI": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["37525cf118ce3969","90712cfa25a83585","9b55e0da69fcb93a"],"system.qualities":["9011eeb37dbc5f39"]},"items":{}}, // Luglfsk
+	"lfKTKPxpxxExPr8B": {"paths":{"system.entry":["5e35547f56b57c2f","74ad783377034c9e"]},"items":{}}, // Bandit
+	"LLdvSUypBNDeKI5Z": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["39e034ed7daa59ec","9a19e04beb6283b8","9b55e0da69fcb93a"],"system.qualities":["a67ee1e47c6f4910"]},"items":{}}, // Khyagseng
+	"lUuc66QokgbxU7X2": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["17f7e723cf6a95a6","3cf54075c9da5675","9b55e0da69fcb93a"],"system.qualities":["0f1f33cb4767afb6"]},"items":{}}, // Shade
+	"mB7CMIPDbB8gzHas": {"paths":{"system.entry":["f8a7e75745d7ef02"]},"items":{}}, // Void Elemental
+	"MFsosEI9EtAc7cbE": {"paths":{"system.entry":["1d1d1a40a721b8d4","9b55e0da69fcb93a","deaeac0f1e75de62"]},"items":{}}, // Caribou
+	"mk4kCF2buJrsSlK2": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["61e73ef02f7208d9","61f1ba5a486c4d77","9b55e0da69fcb93a"],"system.qualities":["2bc62963f74d0f39"]},"items":{}}, // Skittering Horror
+	"MlpaA0sFGZ3MDTSb": {"paths":{"system.entry":["d3acc29322b173be"]},"items":{}}, // The Spirit in the Cloak
+	"MmkSpS99xDX01jeC": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["381cd956cf2d4c3d","401a2c0711cdb3f0","4236eb74c9c1958b"],"system.qualities":["6de0162534a5b923"]},"items":{}}, // Horned Drake (Young)
+	"mRpMqY81O24lXlPG": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","a8faa5708c1d400e","ce2a7fd3dfb01d3c"],"system.qualities":["220bc496c93afb11"]},"items":{}}, // Stone Sentinel
+	"MSt3ujyG670TKwEh": {"paths":{"system.entry":["15d82dba9c3c5034","6ceccaea54259d78","df2dc51866988d56"]},"items":{}}, // Suarachan Singer
+	"NF4U8y44DMzdwFQd": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["2d2eba3148188206","9b55e0da69fcb93a","bd5175f55f110283"],"system.qualities":["61302b483b0dcfad"]},"items":{}}, // Tomb-Bog Spirit
+	"nh6h60KGgx2IlxfF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3d9655b8cb5eaf50","9b55e0da69fcb93a","ff2dd4018d58b96e"],"system.qualities":["6c09201e13154324"]},"items":{}}, // Plasmic Horror
+	"ntvN8CPfvbY06vUE": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7d6a75a868348273","9b55e0da69fcb93a","f781f5eeef776785"],"system.qualities":["7dfe687d1ab77d4a"]},"items":{"lTv8jWtRLqMR44Nn":{"img":["c7194771a342f89c"]}}}, // Morgais
+	"Okqc6kkhEZ3CGYKl": {"paths":{"system.entry":["19d85c757e95d69a","71f91007e4a3eaf5"]},"items":{}}, // Hdour
+	"oZS0ErG5Jl909oCE": {"paths":{"system.entry":["4a07e8e8ab1d4571","9b55e0da69fcb93a","fab3ac6c0ac69d15"]},"items":{}}, // Boar
+	"P4UPY5CmKLihfSQO": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7c575d229385543d","9b55e0da69fcb93a","e804169b9c4c4826"],"system.qualities":["ec84f6fd92a2d7b8"]},"items":{}}, // Voidblight
+	"P6VzX2jNCZNAZBSD": {"paths":{"system.entry":["1a77b48d1fdebea2","2e0c77b51b6e59cb","9b55e0da69fcb93a"]},"items":{}}, // Wisent
+	"papz15gT7rAa1XiQ": {"paths":{"system.entry":["2642f7ed4ad982c8"]},"items":{"uKgcFUxfAxkiB8lK":{"img":["7cf47f9b83df3cea"]}}}, // Bronze Protector
+	"PFHwDgBNwVbZHEIO": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7e16d81bdd2a4b50","9b55e0da69fcb93a","c99172df5d97c9a7"],"system.qualities":["a8e58d39e707ba73"]},"items":{}}, // Caralandrao
+	"pGSpDKZrgRQljLc7": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1895babd8b5fd4b8","9b55e0da69fcb93a","ecc8fa60e319df01"],"system.qualities":["423c1210c188a075","591930968de5be5c","6f7472235e4fc7c6"]},"items":{"Ev2BTfaVdGApF3kb":{"img":["c7194771a342f89c"]}}}, // Auntie Sallow
+	"pUFKL4MIzNejftOU": {"paths":{"system.entry":["ba4d49130441586a","d42d5ec60a13b20c"]},"items":{"Hnodr2y6UX0S384H":{"img":["f99e66800d55a5fc"]}}}, // Chosen Shield
+	"PYut3j1FvTwjCvSM": {"paths":{"system.entry":["ae2babe5b7a3e504"]},"items":{}}, // Unliving Chimera
+	"Pz0n6nkxIVq2xH4u": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["8b13376ece8d9629","9b55e0da69fcb93a","a36665e1b6cc98d9"],"system.qualities":["808f2014aa6b45f5"]},"items":{}}, // Rhagedn
+	"q6EfKl09RA6NKWEc": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["20ae029bd05337f1","9b55e0da69fcb93a","b99d944f13001916"],"system.qualities":["7dab46c25aa0b1e3"]},"items":{}}, // Willow Witches
+	"Q6W6mxGQ2y3TDdxL": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Rock/Stone/Boulder/Hill Spirit
+	"qDIbc21OgAwQJvjo": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["42af8f15e2021604","9b55e0da69fcb93a","e2bc8f41dc08264f"],"system.qualities":["20beea6d0823a588","2844819599971d67","d4336d3beed76049"]},"items":{}}, // Grimstew
+	"Qe9HW1xQCicVwtGC": {"paths":{"system.entry":["277194f191664f03","51694440ca2fc339","9b55e0da69fcb93a"]},"items":{}}, // Ceirwmawr
+	"QJzjWDCU8jAAb4DT": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","bcebe642e365d9de","fd09a31e78d3467b"],"system.qualities":["252158e943c2256a"]},"items":{}}, // Grwgnach
+	"qmoXHlBvgw6uvYTZ": {"paths":{"system.entry":["64d2433dd1b71624","be2965c656d99fd4"]},"items":{}}, // Brennan
+	"qPV3pBGdCk4mdqCb": {"paths":{"system.entry":["15d7e084b7dfcf9f","cb24d5e9d66f70df"]},"items":{}}, // Desperate Souls
+	"qQL7mQwKGTM0JoRs": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3561cd5f6f148491","9b55e0da69fcb93a","f40b4087b93a2852"],"system.qualities":["97aaadabc6b230cf"]},"items":{}}, // Andalau
+	"qSYAPFrFZd8BOCVA": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["6989452fdb7bd28a","6ca1df46d0a2bae5","9b55e0da69fcb93a"],"system.qualities":["9d0554ad6415e2fe"]},"items":{"9g2AwUHQ49ByFs5G":{"img":["ac42d357268b8d4d"]}}}, // Magma Worm
+	"qULBTb5zDEPTWTWF": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1e509dfbf5db5408","7f6987141df64b60","9b55e0da69fcb93a"],"system.qualities":["9ebbc0f0cddefe0c"]},"items":{"JzFTJF8w5TQ93KDB":{"img":["c7194771a342f89c"]}}}, // Spitting Drake
+	"QVLizZqzWNlG4e4f": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["622cce3913213297","8d843ac535838f53","9b55e0da69fcb93a"],"system.qualities":["dc6c54a3ae23834b"]},"items":{"WebllT9pXTml2WRo":{"img":["f99e66800d55a5fc"]}}}, // Dool Spirit
+	"QytGix3nVoKyghUs": {"paths":{"system.entry":["9b55e0da69fcb93a","e185c340699814c5","f511e9e69f04b6ff"]},"items":{"G4sgV79J2HchPpE6":{"img":["ac42d357268b8d4d"]}}}, // Shellback Drake
+	"R3CGOnv3X1BQUpB5": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["3d1ed3b1773ebd96","a84cf8f7b44895d2","d5bb2fc125d62625"],"system.qualities":["5172efceeb3f42e7"]},"items":{}}, // Soithech
+	"r5Ea7yfpDcp6WTO4": {"paths":{"system.entry":["b73973b417152be5","cbca07b076ac9a59"]},"items":{"3Mgm8rmf2ysoUz39":{"img":["c7194771a342f89c"]}}}, // Infantry
+	"RGU7Qtp9xioMxQ3k": {"paths":{"system.entry":["9b55e0da69fcb93a","d40dd4131b00ca68","dd7c15c62815e8ec"]},"items":{}}, // Frythanc Fledgling
+	"RiyVzcQMTvqowYdo": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["6a412d1048bcca3f","9b55e0da69fcb93a","a27bde7b50622eba"],"system.qualities":["d7754e84c5ac6383"]},"items":{}}, // Raselbaedd
+	"rL761LrHFjJcfArG": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["17b3c873b15c6286","4318ea9215d071e3","9b55e0da69fcb93a"],"system.qualities":["04871ce23e5bfbeb","720fa59ad91db08f","df0f5821bf2bac71"]},"items":{}}, // Wee Folk
+	"rlbFh4CDvRxFInGA": {"paths":{"system.entry":["0cb7288030b7c761","1e03748d92fea8fe"]},"items":{"fRvX1F9Y1p7Cg5WS":{"img":["c7194771a342f89c"]}}}, // Thieves
+	"rlZQmShUiK2HpF9j": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["0a43a0ad2673cbfc","9b55e0da69fcb93a","cfe0ee82b816a03a"],"system.qualities":["642b4bf61bbc2175"]},"items":{}}, // Fadyn
+	"rmNfHJdCkFfrBVIL": {"paths":{"system.entry":["3dae6022f27203e0","7a00d44e85f6c338"]},"items":{}}, // Caravan Guard
+	"RO5Fa1m4AMc9qZR1": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","a64da47a5a757577","e49f970ca5763de1"],"system.qualities":["641bf9edc53c6b5c"]},"items":{}}, // Voice of the Eternal Maw
+	"RtF6xF9mdCPujX08": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["2a9ae6dae6500235","9b55e0da69fcb93a","c324fb4f58346ad8"],"system.qualities":["c4f8f48e3078593f"]},"items":{"wp00xuE1W090sJuH":{"img":["c7194771a342f89c"]}}}, // Nemurvojak
+	"S1xAcfSVR3idzvqo": {"paths":{"system.entry":["ea7a987e9bd89510","f02e878dfe9ba8a0"]},"items":{}}, // Sorcerer
+	"sCaNpnejaT7CP3Cg": {"paths":{"system.entry":["46c871f24fa81746","623624ecd01455b6"]},"items":{}}, // Fanatic
+	"SerJ5gYYlRuUmI9k": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["34a8ffea4f50ee59","46314e0eb0141d9c","9b55e0da69fcb93a"],"system.qualities":["a034e02cfa4cb0f3"]},"items":{}}, // Gouzadn
+	"sFo40dgjm1DmyJps": {"paths":{"system.entry":["8528483f16420e90","9b55e0da69fcb93a","e93505b5b23315d9"]},"items":{}}, // Thunder Drake
+	"SMMwdADDvKB1vAar": {"paths":{"system.entry":["54114ea44a859a7b","6a6b35ca27d70e26"]},"items":{}}, // Alley Cutthroats
+	"sPAOECPRkZHUCcHD": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["20505a1f86b9c7ba","9b55e0da69fcb93a","ca0e6ee753002d50"],"system.qualities":["f34fa4e8a43978dc"]},"items":{}}, // Wretch
+	"srMcRkCKBwitdv9Z": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9042943125395f16","9b55e0da69fcb93a","e08e64757923e910"],"system.qualities":["7378a7d5959820dd","a09395b9dc4ad683","aa642893bab6e653"]},"items":{}}, // The Bear of Winter
+	"SzMAMcfBFf4TBbeP": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Wind Spirit
+	"TGLFOv8AqB8gHXvM": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["1a48858e74a928c0","9b55e0da69fcb93a","d65235d5a188dbfc"],"system.qualities":["1b98af622b19f0b5"]},"items":{"M9uRSpkXOgMRF5UD":{"img":["7cf47f9b83df3cea"]}}}, // Mummified Green Lord
+	"tI3YnOsAHoVQI6k2": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["4b54712cda11fd0b","6e6c9e07d48e3671","9b55e0da69fcb93a"],"system.qualities":["e4ebbd49c7a54e3c"]},"items":{"HlWnQsXE0uCJ5f6g":{"img":["7cf47f9b83df3cea"]}}}, // Gwyllgi
+	"UIDZrrYhGFO0Amqv": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Tree Spirit
+	"uLiEafU3h12PMYsv": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Cave Spirit
+	"uMjVv3GGJowiNCka": {"paths":{"system.entry":["01a02b1413cb2cf1","9b55e0da69fcb93a","abd9b9bcd862e821"]},"items":{}}, // Wild Horse
+	"uP9zE6MDiS3TwIWF": {"paths":{"system.entry":["037b19242201390c","0b8fd07915009e2f","9b55e0da69fcb93a"]},"items":{}}, // Grochslon
+	"usjzCbvuSsDykZeY": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["9b55e0da69fcb93a","e218b5ae7ae5ded5","e7924b0bae2c2ada"],"system.qualities":["b0d5ce1ee643d38b"]},"items":{}}, // Mantle Wraiths
+	"V5DQxuoMBLOw1qEW": {"paths":{"system.entry":["3d1ed3b1773ebd96","a84cf8f7b44895d2","d5bb2fc125d62625"]},"items":{}}, // Thraulgwyn Raider
+	"Vb5tyDtljq9QiGwW": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["4ef05b6cfc024e25","7cf76e5bbeeb8ee5","9b55e0da69fcb93a"],"system.qualities":["025496ae0db66f32"]},"items":{"unfauqcYTQGdXu4A":{"img":["0ac3887c7302bd8c"]}}}, // Bhoka
+	"vnQAPYvwlQX0MEdD": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Peat/Bog/Fen Spirit
+	"vrBvnCJHlzn4ed8L": {"paths":{"system.entry":["cf1aaa4568cdfa56","ff9e6d2594165fad"]},"items":{}}, // Skirmisher
+	"W3OCTba3AGj13THE": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["6bcdae2f3eed9c1a","9b55e0da69fcb93a","b07213cbbd23f29b"],"system.qualities":["01ec0c97691506dc","7169ad54857c0280","9b41a9b624de44ae"]},"items":{"xiXIvt7e86VInv1A":{"img":["7cf47f9b83df3cea"]}}}, // Blush-of-Dawn
+	"w4bnUheymDzA7cxr": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["76ef23936fd26ee9","9b55e0da69fcb93a","9c0b4349f758dc7f"],"system.qualities":["00eb3a496d52086f"]},"items":{"HPx0HqyChCaPBSDl":{"img":["7cf47f9b83df3cea"]}}}, // Fire Drake
+	"W7YFeowcF0yptQC3": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["0437d776e0eab85e","78bd123aeddb8082","9b55e0da69fcb93a"],"system.qualities":["6b5ee683844c1667"]},"items":{}}, // Pack Drake
+	"WDxLUbaRZWHqdHBi": {"paths":{"system.entry":["d6c104444746852e"]},"items":{}}, // Tonnerhorn
+	"wGv1A4P76nKagusT": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Rain Spirit
+	"WkvJgBl2JC3Ejluj": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Storm Spirit
+	"WrXgtdFAMVIRlJ9G": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["505c4b639da38d77","9b55e0da69fcb93a","a4f49bf7f3bd9ad1"],"system.qualities":["0d7c2bde6a29f29a"]},"items":{"z1E8UMosyiYM9bzr":{"img":["ac42d357268b8d4d"]}}}, // Hlomren
+	"WVBxp5Ii2Ahd6Xln": {"paths":{"system.entry":["8a8b12fbf6bfa02d","9b55e0da69fcb93a","ffb3a79ae6662947"]},"items":{"hlkRqiTadDAC0fFf":{"img":["7cf47f9b83df3cea"]}}}, // Mummified Servant
+	"x6X63ArQe1zZ3tBE": {"paths":{"system.entry":["402c9dfb74326689","f4f3cf66bb2e1615"]},"items":{}}, // Assassin
+	"Xa6zaAxbSXE4EslL": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["722c4e0b0c632521","72a37f668ad1f242","9b55e0da69fcb93a"],"system.qualities":["017c35174d05e4fb"]},"items":{}}, // Tal Gerdwyr
+	"XFmKN7n1uddyo55m": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["381cd956cf2d4c3d","401a2c0711cdb3f0","4236eb74c9c1958b"],"system.qualities":["4014209cfe1b486d"]},"items":{}}, // Horned Drake
+	"xGwlyfewGjgB5QWQ": {"paths":{"system.entry":["11446c7d721355ce","9b55e0da69fcb93a","fdaf1148c77e24ef"]},"items":{}}, // Ceffylwraig
+	"xhYYoDHoyS7ZyPKz": {"paths":{"system.entry":["c3d4923d1b2e9776"]},"items":{}}, // Yaarowslow, the Many
+	"XOWBMeABAb5ms245": {"paths":{"system.entry":["a241fc3e419d5e16"]},"items":{}}, // Judge of Aratis
+	"xSrPam8ZFxg24LQl": {"paths":{"system.entry":["619b0dc2a93d1e97"]},"items":{}}, // Myghal, Deathless Sorcerer
+	"xxE8nw7spGJN4acG": {"paths":{"system.entry":["340e987956b18251","4bafe3a440d4d0b3"]},"items":{}}, // Manmarcher Veteran
+	"Y9l5lNncyPjnqdCE": {"paths":{"system.entry":["49cfb55b2091ccf4","7e8af9e448e931d8","9b55e0da69fcb93a"]},"items":{}}, // Cwisarff
+	"yFPFsATt0lFWOJmw": {"paths":{"system.entry":["79d0a93a257263b3"]},"items":{}}, // Snow Spirit
+	"YKLG7aDPRTieTkve": {"paths":{"system.entry":["61273fb136b37d6d","9b55e0da69fcb93a","c51e40d1929f643e"]},"items":{"0hNwohOiMhjRI23B":{"img":["c7194771a342f89c"]},"lzACdw2hmP6yDr8J":{"img":["0ac3887c7302bd8c"]},"NpIhUiZ1GFAm4mgf":{"img":["c7194771a342f89c"]}}}, // Frythanc
+	"yllCLAsqWbqNYgTd": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["696e0f0d3239f092","9b55e0da69fcb93a","c9e627162d916f75"],"system.qualities":["798e231058b81bca"]},"items":{}}, // Thrall
+	"yoHXsBjzR8AVHzXj": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["4d1253e4e82e8cb4","9b55e0da69fcb93a","9ee32a4684ece6a1"],"system.qualities":["a824f2ffde22f06d"]},"items":{"KbOVVXPPOG47cAjR":{"img":["c7194771a342f89c"]}}}, // Nailadd
+	"yutvCMDSx2HQ6Ery": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["7e674edf8cacac92","8921f92333de83c9","9b55e0da69fcb93a"],"system.qualities":["67ba2903a5db4e20"]},"items":{}}, // False Adept
+	"Yybkf0saCMZRKEYf": {"paths":{"system.entry":["c6ff4eb6bbd0fbd3"]},"items":{}}, // Tulpa
+	"zNH67lRb1oL8rXA0": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["73a8b5060f8bec58","9b55e0da69fcb93a","e485aeb29afae3b3"],"system.qualities":["e061b7a5fb5f47f6"]},"items":{}}, // Wraith
+	"zWFuS69kPihbwlKp": {"paths":{"system.attributes.armor.source":["9b55e0da69fcb93a"],"system.entry":["43544b7405f31e13","7927490763319b6a","9b55e0da69fcb93a"],"system.qualities":["643cb76becc3df2b"]},"items":{}}, // Llamudwr
 };
 
 // What the pack held when this was generated, so data older than the pack is caught.
 export const BESTIARY_FINGERPRINTS = {
-	"05mh4Ag0uKxRVY8j": "d436d2661b5397f7",
-	"0E5ih40SJt6W1nDp": "e7ebea7c5bcba61b",
-	"0ZKo6trYa54afrSZ": "c1a1a034318d0a8a",
-	"1C0Jhihrg28bX7Ry": "e51bacfaf26740f7",
-	"1U5ExYjZPgmW0Gck": "175422ddcd9842d9",
-	"2UnnOaKPTABc13S4": "149801913b37f981",
-	"30NDurP2YczoGj6B": "2582f53cef3a888d",
-	"33Tx0FhrgXcTwtlC": "d47d1022b4b277c9",
-	"3bGjXtEOne32k1cr": "da4cf9a08511eedc",
-	"3DlUOSnpOxSzU7BO": "e17eb9723d8d4053",
-	"3JaMhYyy0qDzf06q": "7a6302dfacf9cbcf",
-	"3WXpoW1ajr2PCDC9": "f2be9c8cbec7c3e1",
-	"4Ah0RoLTY5wSRvAF": "69b5020f00ccd467",
-	"4EAwSShKj05G2Dls": "12c6839a2aef6163",
-	"4vXt3vYLBjH8b18j": "8cadbfb8a14d2064",
-	"58UtB8l8G68t9nRI": "98534dc95497d8e6",
-	"59u1Y4Rjasgp0Ylr": "253d98f9951b1214",
-	"5nfugU7444Jh6D0e": "1f5daf24806a85e3",
-	"5wCAS42Is2wLxAJH": "fcc7b4748d8058a3",
-	"6DnSbIHLqXCaV1vp": "3608d10fa70b0134",
-	"6dXBK2ZSWVk51wAp": "6b1baed62c8937e9",
-	"6jDwnqjA3VmyKZ9F": "c97cd82dfc80aa08",
-	"6N5pRiBkQwkblpAq": "ffc5b359f536fc34",
-	"6NAKPaUXIxy6zZl8": "e8321441fc13a3dc",
-	"6RhD3Vrdb3B9GXTA": "0ce396d428fe9b9d",
-	"7asroHGGJFfVbq74": "efc4115b0511ec3c",
-	"7GtbWc7kafUVk6dI": "cf06f4946806a3e4",
-	"7ID9ieGRtwH4QoE8": "a2c306654a7b5bdb",
-	"7N8fP6LjUroJDeEZ": "7fc281397d2f55a2",
-	"7U161MCE7WecX9kF": "77106a3a37306a88",
-	"82BOSSkHFrbVJDtZ": "47cef2c278cf5afb",
-	"89ZjFUUS1I9bP2MH": "0ffc36692c3e3ca9",
-	"8KHfTcPYblTJRpV1": "82e0a57804a2b64d",
-	"8nNyWAoSsT3VXRx5": "f50c4dd4500c784a",
-	"8T8jqS04adlc5107": "9fee57c210050281",
-	"9cj95lduy9Oyl3AO": "58c2fefa205bc897",
-	"9D9j6suq72rPAIbI": "7bebf87bd46e4333",
-	"9h3AbAG1DBQTrtOG": "5a22327496855956",
-	"9kcSzC3uPavigsyF": "91689a0267953ead",
-	"9wN9UhM3IORfcw0J": "facef06b4d931980",
-	"aAknV9EMnUjJvRL3": "251062a4402566e9",
-	"anJdI79iSTgmf0JB": "6c1add2a785b1472",
-	"aQJLVwGdeHskspzS": "dc17388ed1844a13",
-	"ASyoP5BXGukeIrG5": "06376fbb63b18df0",
-	"aWbHPmGW9htXdyUN": "283af36b07261e68",
-	"B0W8jT7lRFLJK4ds": "eea1bf2b9a5abb9a",
-	"b1nCTG0uwf7dLQmx": "78ff34d2decc8bd0",
-	"baV7yiVwXMTKa49B": "95c18a9271c692de",
-	"BCA8xC2gsvHO43ou": "417dc81b307e6ad6",
-	"BgPtjVOTWvJBYE7z": "7b9b529e33bd6872",
-	"BHYJDndAivdji0kq": "c9fe05421c7fab98",
-	"bmmVVWAh7h2uAPJp": "86bcaa48f6e063bd",
-	"BVvWxKNlDdOzu9Ac": "98d4c55c562aad52",
-	"BwDgsHeLfhJWrS5w": "cf795bf18d2b8d4b",
-	"bY6Ii80R0NdyB72f": "bd279b9b8defcceb",
-	"bZKtYZmapDExeAJU": "3dee3ecd5a1ac52f",
-	"C08Lry85Ftk9psXO": "eb73814774e33c01",
-	"cAurDbvbZfzfFMAf": "7270ff3527bff692",
-	"CdXJIcws7eqT8Q8v": "cb7233560e29047c",
-	"cdZDkK4FL1QoQ9ak": "118cb0b154b9a670",
-	"CK1q0r9Hp21IpFpX": "ebe9eadcd50eddc4",
-	"CL9MRZT48lnfhegh": "211344856a0bf1e6",
-	"clNUnzTPrxZPGCPp": "f9c0936e9f32d847",
-	"CoqfzAvGUkjfvMpi": "e5796ba65916d518",
-	"Cva7oGwmIwLEvo6S": "1c6dbffc76363fb3",
-	"cy5OhsU0kVFUoppF": "2a35e78aab244e19",
-	"cYSCUVhhHfpbgRPS": "385494d9866ab9a9",
-	"dfsDOpDS6JcOBnCe": "75e27ec5566eef59",
-	"DHXlFUAc6mX5eEtp": "cce98b11cfe9aa5a",
-	"DiCuCO7x8F1jVUk3": "65200c06cecb2591",
-	"dLxI39zRgbt5baD5": "31a886c75ea0e20a",
-	"DZ1g1rWH48KW1Tzo": "a59a0cc323b0b7b2",
-	"eaLI3NjKZn4gA4WL": "200895af9d0ed282",
-	"EDaesIZe2McJdVG7": "9e09066b0c8b6100",
-	"EfKVm2sMXRjrnB6L": "393fbe312e1dfba1",
-	"eU2PTY1DoA2n95RT": "9814c79fcdf4a6d3",
-	"F0SuxRtw6dqB6Nvh": "adb3c5da520e401d",
-	"fc4528DgaFiiq2i9": "7a9153c3cc6c74be",
-	"fNEJcPa37GBqXwOq": "ae52846b98111948",
-	"fnzABVPboAe4m9Y8": "f72823709fa2fea2",
-	"Fo8WuljN8lY1FCxY": "76f93376776c8305",
-	"fPiNTDvtHzS9qzvS": "df110e79d9dcbc7c",
-	"fRUY04eQ6mQK6uGr": "eb024c86778aef36",
-	"FrvZI5HssAop00KC": "613879f780d9b060",
-	"fuNmfqHG9J8HFDo7": "b60a4718aead7cc2",
-	"fVOXp33igDV70sc0": "32dc06543bffa087",
-	"fz8g74CpQcYrqSki": "45d01dbf83283d85",
-	"fZqXeuSYwjQtlWyH": "4904d4544987aa7d",
-	"GdZQKCMmPANEuFyb": "e28b9560c6ccba4c",
-	"Gfq67AU1leQxuYms": "1f4336dc3aa195d2",
-	"gI80yymFTixu1alc": "f05c21ed48841fda",
-	"giaz3wyBZ5Du1vFJ": "a0ae2d125b6791ab",
-	"GvE18LdU5XodJxZD": "dd020bc7d22ccae3",
-	"GwnTCgTINiA49N9c": "5071b951e5f29e17",
-	"h9IhOM9HBNmdrzUh": "7d1666351c09220f",
-	"Hogu0AEnAffI0HHr": "0701f269795bb912",
-	"HQCqcFlZZzEr8EHZ": "a548ca0e7d39ec6c",
-	"hZq0cfLjfytNVrWs": "5421b1fc7ee4b7f9",
-	"i2U1Qxscwoqw6eR0": "91cf27b4238b6e87",
-	"i7EPIDkGLO5AFm2f": "a4193c6c50016563",
-	"I8J5ARGoRPfBMNBb": "fd221b51fd862b3a",
-	"IFQVMEF9ngS8fED9": "341c9004537c3c59",
-	"iGFc9muBkF8HMgDQ": "ded30377adde6ee5",
-	"IornEAAcH3j4YRST": "14aacde1cf8170d2",
-	"iPBB5qDX5urJ30FU": "b2daf757eff37a97",
-	"Iyc7KUONkBO5Ibyz": "1d8bb88264aeb367",
-	"j0hciXWdoWrUeYF7": "21d71cf6066bf289",
-	"J0rZfQ09hcXkA9mr": "31b9f4e0f2ebd3f1",
-	"j5J31XX2Lt7rP9UC": "4100aae94ac2bc1e",
-	"j8rFoANTmTHD5MKF": "d2c2fbc89075f28a",
-	"jd4L6VMQhTXba2r0": "2d38fe21146d1437",
-	"Jmyo1j9nBbYSCU9z": "8e27837416f0ac8c",
-	"JRoNGWPbEVDVTu1s": "fdea13bbf551d848",
-	"k3PXbKdBREj0esro": "a070217f43daf4e6",
-	"kBd27BmqqB3KtFh3": "929e47c8ae451067",
-	"KE9WWwBJzaBe6tgx": "6216d786c0de6a9b",
-	"KEv7LnXs4zQju3lp": "b174db229996864f",
-	"Kh5NQGe2zSAEV3BZ": "31d8883078e7d543",
-	"kjKV3SgkKh8gC8Y1": "910b1efd87e83db8",
-	"knIBykmqBqa8lMFN": "1baa8255b85c3b01",
-	"ktS8JqsS9RThoLIJ": "cc1a32b0634fc402",
-	"KYNQ2Ekdv3JzJUc7": "3e40ecea492bcce6",
-	"L9dlnvkyRdbLZCEI": "647dba60a7b43883",
-	"lfKTKPxpxxExPr8B": "868589cdb970247d",
-	"LLdvSUypBNDeKI5Z": "7085722c1336bb37",
-	"lUuc66QokgbxU7X2": "492fa244fd2af115",
-	"mB7CMIPDbB8gzHas": "3e0bd8050a23c2e1",
-	"MFsosEI9EtAc7cbE": "bcbeae6429ec1a18",
-	"mk4kCF2buJrsSlK2": "8354f1ebbbb10ed4",
-	"MlpaA0sFGZ3MDTSb": "4ed81a23ebb52515",
-	"MmkSpS99xDX01jeC": "600ef8c4b8159b6c",
-	"mRpMqY81O24lXlPG": "0dbcd24b162e2993",
-	"MSt3ujyG670TKwEh": "a55c6729b22c8692",
-	"NF4U8y44DMzdwFQd": "ac7999dc9bf22874",
-	"nh6h60KGgx2IlxfF": "3f178682c780b33f",
-	"ntvN8CPfvbY06vUE": "9447d0325a0a8328",
-	"Okqc6kkhEZ3CGYKl": "b923ed9cac470700",
-	"oZS0ErG5Jl909oCE": "a5d46b25248b9601",
-	"P4UPY5CmKLihfSQO": "3a95dd38ad7621f0",
-	"P6VzX2jNCZNAZBSD": "5dab0c6a230278c4",
-	"papz15gT7rAa1XiQ": "5d5bc10d79767a43",
-	"PFHwDgBNwVbZHEIO": "627083afd0ea4296",
-	"pGSpDKZrgRQljLc7": "9bf17194db7d517b",
-	"pUFKL4MIzNejftOU": "de146fd31e521341",
-	"PYut3j1FvTwjCvSM": "07927b9574c37ba0",
-	"Pz0n6nkxIVq2xH4u": "05976a026b8f5a66",
-	"q6EfKl09RA6NKWEc": "efd0c6fceed7dda9",
-	"Q6W6mxGQ2y3TDdxL": "1acf11b05d394753",
-	"qDIbc21OgAwQJvjo": "8c7de3232ef20d06",
-	"Qe9HW1xQCicVwtGC": "598b1b0a1ecbee7c",
-	"QJzjWDCU8jAAb4DT": "24a4f00937441e57",
-	"qmoXHlBvgw6uvYTZ": "f90c168ebcd4ab16",
-	"qPV3pBGdCk4mdqCb": "680ef0c7b3e12a56",
-	"qQL7mQwKGTM0JoRs": "e3fc28764ad65196",
-	"qSYAPFrFZd8BOCVA": "3e05801799bc1447",
-	"qULBTb5zDEPTWTWF": "f6756fa6b9d3c156",
-	"QVLizZqzWNlG4e4f": "a09f79178a11ea6a",
-	"QytGix3nVoKyghUs": "fe9b60532af47660",
-	"R3CGOnv3X1BQUpB5": "cf9f5a0664a65be1",
-	"r5Ea7yfpDcp6WTO4": "b1d13224a8ebfc17",
-	"RGU7Qtp9xioMxQ3k": "3f88d57bdd39d04c",
-	"RiyVzcQMTvqowYdo": "b58c29b9d7bee899",
-	"rL761LrHFjJcfArG": "5747a41519c2edb2",
-	"rlbFh4CDvRxFInGA": "c08808ac20c75bf0",
-	"rlZQmShUiK2HpF9j": "226eabf1fee070eb",
-	"rmNfHJdCkFfrBVIL": "0074e0bdf6b556a3",
-	"RO5Fa1m4AMc9qZR1": "729dbe2f89f52548",
-	"RtF6xF9mdCPujX08": "f8a12b9cb4fff1c5",
-	"S1xAcfSVR3idzvqo": "326fa81b2e811f33",
-	"sCaNpnejaT7CP3Cg": "592924e86c50facc",
-	"SerJ5gYYlRuUmI9k": "61af0e526b745e95",
-	"sFo40dgjm1DmyJps": "cfcdf88dae984ebb",
-	"SMMwdADDvKB1vAar": "d084a463d4e84769",
-	"sPAOECPRkZHUCcHD": "592bd330046bde24",
-	"srMcRkCKBwitdv9Z": "6fc919dd776b807e",
-	"SzMAMcfBFf4TBbeP": "6b8b6cdb036224e1",
-	"TGLFOv8AqB8gHXvM": "107709f31c515faa",
-	"tI3YnOsAHoVQI6k2": "873133a573234d59",
-	"UIDZrrYhGFO0Amqv": "c18f3c58f7b9c38f",
-	"uLiEafU3h12PMYsv": "8fe3bee6a76dc80a",
-	"uMjVv3GGJowiNCka": "f158cbe8323d51f2",
-	"uP9zE6MDiS3TwIWF": "3b8edfebc41913c8",
-	"usjzCbvuSsDykZeY": "5f168ee54749631d",
-	"V5DQxuoMBLOw1qEW": "fac867a6145d2a8f",
-	"Vb5tyDtljq9QiGwW": "7e8f0035e8212438",
-	"vnQAPYvwlQX0MEdD": "b48c2772778b18f3",
-	"vrBvnCJHlzn4ed8L": "631bd36a25c7ed0f",
-	"W3OCTba3AGj13THE": "2258b355641e621d",
-	"w4bnUheymDzA7cxr": "22adaaf362aa7df2",
-	"W7YFeowcF0yptQC3": "9a84aa2e78097fc9",
-	"WDxLUbaRZWHqdHBi": "fa582f8d921926b3",
-	"wGv1A4P76nKagusT": "7ff1704440f548d9",
-	"WkvJgBl2JC3Ejluj": "2748bfd3001eee5f",
-	"WrXgtdFAMVIRlJ9G": "6cb02edb1d7f06de",
-	"WVBxp5Ii2Ahd6Xln": "2474a98acefe99b4",
-	"x6X63ArQe1zZ3tBE": "a4b2c3cfef466abc",
-	"Xa6zaAxbSXE4EslL": "42d20736cd8e34b1",
-	"XFmKN7n1uddyo55m": "4f80d622756b50d6",
-	"xGwlyfewGjgB5QWQ": "c9a266dfb0d42678",
-	"xhYYoDHoyS7ZyPKz": "17fb8c9491229ee6",
-	"XOWBMeABAb5ms245": "f4752fbf05a3b5a3",
-	"xSrPam8ZFxg24LQl": "5fd9f93ce2c2eed0",
-	"xxE8nw7spGJN4acG": "156d0f28672e2163",
-	"Y9l5lNncyPjnqdCE": "9bd7959175d00919",
-	"yFPFsATt0lFWOJmw": "9b4844555319d872",
-	"YKLG7aDPRTieTkve": "e56107d9c3675437",
-	"yllCLAsqWbqNYgTd": "59c34323b623d9eb",
-	"yoHXsBjzR8AVHzXj": "89cba386cac530c1",
-	"yutvCMDSx2HQ6Ery": "09fe96fd132c6801",
-	"Yybkf0saCMZRKEYf": "c896612c49da8365",
-	"zNH67lRb1oL8rXA0": "3b131d31b5f92966",
-	"zWFuS69kPihbwlKp": "b21f00e661be868e",
+	"05mh4Ag0uKxRVY8j": "a6a63224dc96eaf7",
+	"0E5ih40SJt6W1nDp": "29b4442e7a76e202",
+	"0ZKo6trYa54afrSZ": "8494f2cb4856a13b",
+	"1C0Jhihrg28bX7Ry": "f250d6416f1a4817",
+	"1U5ExYjZPgmW0Gck": "803b1b168560a198",
+	"2UnnOaKPTABc13S4": "967fec0757473619",
+	"30NDurP2YczoGj6B": "85b1fd26ecd5edd9",
+	"33Tx0FhrgXcTwtlC": "7d54c7cf08bd565d",
+	"3bGjXtEOne32k1cr": "14ab2da0d5f48db5",
+	"3DlUOSnpOxSzU7BO": "a0d30fd7feb43e97",
+	"3JaMhYyy0qDzf06q": "2f595d7c05e3a298",
+	"3WXpoW1ajr2PCDC9": "3688f59650874381",
+	"4Ah0RoLTY5wSRvAF": "5b56399f9281493a",
+	"4EAwSShKj05G2Dls": "dd9778aaa3b9876f",
+	"4vXt3vYLBjH8b18j": "a7150735c9616e4f",
+	"58UtB8l8G68t9nRI": "59ec78c385ddd057",
+	"59u1Y4Rjasgp0Ylr": "31b9b6ee75fedd85",
+	"5nfugU7444Jh6D0e": "22cd5e5e55810ee5",
+	"5wCAS42Is2wLxAJH": "e588dc5ab2f9e9c1",
+	"6DnSbIHLqXCaV1vp": "ab06e17daab2a51d",
+	"6dXBK2ZSWVk51wAp": "f23cece1851444e5",
+	"6jDwnqjA3VmyKZ9F": "3060b2bf25bc8b62",
+	"6N5pRiBkQwkblpAq": "c9cdca76bcc06fbf",
+	"6NAKPaUXIxy6zZl8": "c9bc26c2d9c7459e",
+	"6RhD3Vrdb3B9GXTA": "d7f8c2489a77fb3b",
+	"7asroHGGJFfVbq74": "eb373ec76ffa7377",
+	"7GtbWc7kafUVk6dI": "24e9631c18e1c117",
+	"7ID9ieGRtwH4QoE8": "3114224bb8351000",
+	"7N8fP6LjUroJDeEZ": "bdb49d7b23aaab78",
+	"7U161MCE7WecX9kF": "e01b0b36028cab53",
+	"82BOSSkHFrbVJDtZ": "d3d660d729dd7994",
+	"89ZjFUUS1I9bP2MH": "e7552d576bd45793",
+	"8KHfTcPYblTJRpV1": "e8008e380fc703f4",
+	"8nNyWAoSsT3VXRx5": "e247d7f2aaaeb5f6",
+	"8T8jqS04adlc5107": "07593b3e20f58c56",
+	"9cj95lduy9Oyl3AO": "a60ab0c87b702704",
+	"9D9j6suq72rPAIbI": "eb403fbcc883dc02",
+	"9h3AbAG1DBQTrtOG": "caf818932decaef4",
+	"9kcSzC3uPavigsyF": "43caa65e2ba7c96b",
+	"9wN9UhM3IORfcw0J": "1c53dc7cf5c7c644",
+	"aAknV9EMnUjJvRL3": "6ee61b0e7146d6cf",
+	"anJdI79iSTgmf0JB": "db3f6f5d3784ea6b",
+	"aQJLVwGdeHskspzS": "717ddf4794242ea1",
+	"ASyoP5BXGukeIrG5": "42709273bd934f53",
+	"aWbHPmGW9htXdyUN": "74fd766bc0dd6d28",
+	"B0W8jT7lRFLJK4ds": "1546e75839d103a8",
+	"b1nCTG0uwf7dLQmx": "193d1c5fad968d12",
+	"baV7yiVwXMTKa49B": "0b58530896e1ac91",
+	"BCA8xC2gsvHO43ou": "826139411b4b3033",
+	"BgPtjVOTWvJBYE7z": "cadf79fc8b6a6ab7",
+	"BHYJDndAivdji0kq": "10e32a9a74fe72ea",
+	"bmmVVWAh7h2uAPJp": "9e48b9c338b017b8",
+	"BVvWxKNlDdOzu9Ac": "820706b3f715ed00",
+	"BwDgsHeLfhJWrS5w": "3f25bfc15776a8ba",
+	"bY6Ii80R0NdyB72f": "b355142deb6bbbf7",
+	"bZKtYZmapDExeAJU": "a18f5c4cfdaa8e2c",
+	"C08Lry85Ftk9psXO": "9e9ff2a2d76d0fdd",
+	"cAurDbvbZfzfFMAf": "dc62d19e362734e1",
+	"CdXJIcws7eqT8Q8v": "ba6176c3074df63c",
+	"cdZDkK4FL1QoQ9ak": "fc96a29cfe235e31",
+	"CK1q0r9Hp21IpFpX": "09154b31dcd99e46",
+	"CL9MRZT48lnfhegh": "d14538052d7ecde6",
+	"clNUnzTPrxZPGCPp": "a12b346c7f24d14d",
+	"CoqfzAvGUkjfvMpi": "4396fbf361a4def7",
+	"Cva7oGwmIwLEvo6S": "37af62b3abd01398",
+	"cy5OhsU0kVFUoppF": "1700e3198cac73bc",
+	"cYSCUVhhHfpbgRPS": "da6bcc49e0986b5a",
+	"dfsDOpDS6JcOBnCe": "29ffa2571914a877",
+	"DHXlFUAc6mX5eEtp": "ac4a09145eef178f",
+	"DiCuCO7x8F1jVUk3": "e87c0250e817fc76",
+	"dLxI39zRgbt5baD5": "802c0edacd335706",
+	"DZ1g1rWH48KW1Tzo": "bd930c0b07907099",
+	"eaLI3NjKZn4gA4WL": "e3a78917567bce01",
+	"EDaesIZe2McJdVG7": "bb4b9ef70c4048a1",
+	"EfKVm2sMXRjrnB6L": "a0352fa995374385",
+	"eU2PTY1DoA2n95RT": "ab2971eae348869f",
+	"F0SuxRtw6dqB6Nvh": "118cfb8195820049",
+	"fc4528DgaFiiq2i9": "92a51c70f106d16f",
+	"fNEJcPa37GBqXwOq": "e8e97e35d9609049",
+	"fnzABVPboAe4m9Y8": "bc0cd1770e26a843",
+	"Fo8WuljN8lY1FCxY": "0f0800ad03dafaec",
+	"fPiNTDvtHzS9qzvS": "e199e6e23588a39a",
+	"fRUY04eQ6mQK6uGr": "0b941491f1c841fc",
+	"FrvZI5HssAop00KC": "e99bf6d1bd529ab6",
+	"fuNmfqHG9J8HFDo7": "cc2c4eaaf398d947",
+	"fVOXp33igDV70sc0": "baedadec8179bcbe",
+	"fz8g74CpQcYrqSki": "41803ef55efdf85b",
+	"fZqXeuSYwjQtlWyH": "ba83fbfb9287597e",
+	"GdZQKCMmPANEuFyb": "42d50b9bd9258a2a",
+	"Gfq67AU1leQxuYms": "7f1f5226dfa4670d",
+	"gI80yymFTixu1alc": "e2ace051114484c0",
+	"giaz3wyBZ5Du1vFJ": "a3aa19e130f287ce",
+	"GvE18LdU5XodJxZD": "28397df236577973",
+	"GwnTCgTINiA49N9c": "097e868e97ec518c",
+	"h9IhOM9HBNmdrzUh": "34ecf09ea6c4d39f",
+	"Hogu0AEnAffI0HHr": "dc96520bb926fda7",
+	"HQCqcFlZZzEr8EHZ": "afff291b4593f3c7",
+	"hZq0cfLjfytNVrWs": "f9f15b505f5f0523",
+	"i2U1Qxscwoqw6eR0": "8f56230342b189e8",
+	"i7EPIDkGLO5AFm2f": "475c8c6c7b7d0d46",
+	"I8J5ARGoRPfBMNBb": "aaf88bd22ef1c8d8",
+	"IFQVMEF9ngS8fED9": "16ff4216d14f05f7",
+	"iGFc9muBkF8HMgDQ": "794c1efcaedeb06b",
+	"IornEAAcH3j4YRST": "27e7436a9baa44ad",
+	"iPBB5qDX5urJ30FU": "0814991cf6214041",
+	"Iyc7KUONkBO5Ibyz": "bde7148cdb17bdde",
+	"j0hciXWdoWrUeYF7": "64a5361614c18e27",
+	"J0rZfQ09hcXkA9mr": "fdbfa94785d0afc2",
+	"j5J31XX2Lt7rP9UC": "aaef09a4320c4d8d",
+	"j8rFoANTmTHD5MKF": "ab0460aeb3e5b9e8",
+	"jd4L6VMQhTXba2r0": "9f38120acf41dec0",
+	"Jmyo1j9nBbYSCU9z": "574de2849ec25052",
+	"JRoNGWPbEVDVTu1s": "fb8aa1a2dab52576",
+	"k3PXbKdBREj0esro": "c44e431385ed127f",
+	"kBd27BmqqB3KtFh3": "e4dd6494066a5250",
+	"KE9WWwBJzaBe6tgx": "e22238abfc53ecec",
+	"KEv7LnXs4zQju3lp": "c719fa3d4ede7a74",
+	"Kh5NQGe2zSAEV3BZ": "0b3ad611072c0a3f",
+	"kjKV3SgkKh8gC8Y1": "60b54badb4425c64",
+	"knIBykmqBqa8lMFN": "71ce0b27e550d64b",
+	"ktS8JqsS9RThoLIJ": "850727480b9a0ecd",
+	"KYNQ2Ekdv3JzJUc7": "fc3729cb8d1a53c3",
+	"L9dlnvkyRdbLZCEI": "c93b7d08ffec1411",
+	"lfKTKPxpxxExPr8B": "753499c4e646e00a",
+	"LLdvSUypBNDeKI5Z": "c333f712fa52e677",
+	"lUuc66QokgbxU7X2": "9f75b183d67e398d",
+	"mB7CMIPDbB8gzHas": "a95650b16bbbb39a",
+	"MFsosEI9EtAc7cbE": "272a0fd2c510865b",
+	"mk4kCF2buJrsSlK2": "467cfe1c27c38f47",
+	"MlpaA0sFGZ3MDTSb": "c23943d2560ddc67",
+	"MmkSpS99xDX01jeC": "77d3ad59a760e95d",
+	"mRpMqY81O24lXlPG": "eafb05a068901dc1",
+	"MSt3ujyG670TKwEh": "aa621b4e5b9f6396",
+	"NF4U8y44DMzdwFQd": "1a4b41b0ba72251a",
+	"nh6h60KGgx2IlxfF": "8c468b32af017477",
+	"ntvN8CPfvbY06vUE": "9a4391f3609056a5",
+	"Okqc6kkhEZ3CGYKl": "c465a42bd1ad6d6d",
+	"oZS0ErG5Jl909oCE": "5a4af0e7750f2817",
+	"P4UPY5CmKLihfSQO": "64f3db792e35861f",
+	"P6VzX2jNCZNAZBSD": "e7f1e916db7be866",
+	"papz15gT7rAa1XiQ": "4219077eef767408",
+	"PFHwDgBNwVbZHEIO": "d76544b3f88c2ccd",
+	"pGSpDKZrgRQljLc7": "8cd462572456bd3f",
+	"pUFKL4MIzNejftOU": "ec3abeb4055026b9",
+	"PYut3j1FvTwjCvSM": "db1ec8179299dbcb",
+	"Pz0n6nkxIVq2xH4u": "8f6120de74487eca",
+	"q6EfKl09RA6NKWEc": "b497046e411f0835",
+	"Q6W6mxGQ2y3TDdxL": "4032ec0fcd812f57",
+	"qDIbc21OgAwQJvjo": "1af347c9b7e127fe",
+	"Qe9HW1xQCicVwtGC": "a489a293d5bffbff",
+	"QJzjWDCU8jAAb4DT": "0e50a3c37b956154",
+	"qmoXHlBvgw6uvYTZ": "e0ab4634a99c96b0",
+	"qPV3pBGdCk4mdqCb": "456ef0cff9bdf5e8",
+	"qQL7mQwKGTM0JoRs": "8c76e3efec6eebc7",
+	"qSYAPFrFZd8BOCVA": "c505854145d42b86",
+	"qULBTb5zDEPTWTWF": "91de399f413dabc6",
+	"QVLizZqzWNlG4e4f": "7a8517ebe18e1e15",
+	"QytGix3nVoKyghUs": "d3d0e72f3f4369c4",
+	"R3CGOnv3X1BQUpB5": "f9964a2c82627a2f",
+	"r5Ea7yfpDcp6WTO4": "e0c5e3bed9247d3a",
+	"RGU7Qtp9xioMxQ3k": "3b58a9b980981a1e",
+	"RiyVzcQMTvqowYdo": "4aff0461ed367a2a",
+	"rL761LrHFjJcfArG": "4b47ba286c314aeb",
+	"rlbFh4CDvRxFInGA": "76887372a346a319",
+	"rlZQmShUiK2HpF9j": "79403ca0a8bb3a45",
+	"rmNfHJdCkFfrBVIL": "922e5dc55f30eae2",
+	"RO5Fa1m4AMc9qZR1": "75e3755ba93cb07f",
+	"RtF6xF9mdCPujX08": "813f929adbdcea93",
+	"S1xAcfSVR3idzvqo": "b9638168cbab9d64",
+	"sCaNpnejaT7CP3Cg": "1219428c86fe46f4",
+	"SerJ5gYYlRuUmI9k": "05fdcc3e59b84d3c",
+	"sFo40dgjm1DmyJps": "3140c45d07141f15",
+	"SMMwdADDvKB1vAar": "e44636f668cf66b4",
+	"sPAOECPRkZHUCcHD": "1833ce4df2790dc1",
+	"srMcRkCKBwitdv9Z": "e589651523c316e4",
+	"SzMAMcfBFf4TBbeP": "5288e2625d5c99d8",
+	"TGLFOv8AqB8gHXvM": "eada576c55ab02ed",
+	"tI3YnOsAHoVQI6k2": "6f5f6d2ab28cefee",
+	"UIDZrrYhGFO0Amqv": "3f18c103ae6a4718",
+	"uLiEafU3h12PMYsv": "3fcc6bd8d8588c6d",
+	"uMjVv3GGJowiNCka": "c0d4e0d253974f5c",
+	"uP9zE6MDiS3TwIWF": "ddd7581bcd91b149",
+	"usjzCbvuSsDykZeY": "0490c35edefbfe73",
+	"V5DQxuoMBLOw1qEW": "4087d2e3227d1bf6",
+	"Vb5tyDtljq9QiGwW": "bfcafa348dda3d33",
+	"vnQAPYvwlQX0MEdD": "a21a78f27c5b8d05",
+	"vrBvnCJHlzn4ed8L": "530d1a0b8e0634ef",
+	"W3OCTba3AGj13THE": "4f6fb4e76cf647cc",
+	"w4bnUheymDzA7cxr": "0185d81608579a42",
+	"W7YFeowcF0yptQC3": "53878470b4351d8a",
+	"WDxLUbaRZWHqdHBi": "990b8f2d49d90890",
+	"wGv1A4P76nKagusT": "0731a20e9f98a818",
+	"WkvJgBl2JC3Ejluj": "8b4804e8a3dbcb9e",
+	"WrXgtdFAMVIRlJ9G": "be5a4b657b8644dd",
+	"WVBxp5Ii2Ahd6Xln": "15845bade6ee4138",
+	"x6X63ArQe1zZ3tBE": "bb1b594399bf3263",
+	"Xa6zaAxbSXE4EslL": "24bac954600c2847",
+	"XFmKN7n1uddyo55m": "9052ad7dc5fac777",
+	"xGwlyfewGjgB5QWQ": "29048086d2d02518",
+	"xhYYoDHoyS7ZyPKz": "174e11e4e580c63f",
+	"XOWBMeABAb5ms245": "70416a413d18b8f8",
+	"xSrPam8ZFxg24LQl": "b448a8b2e418b407",
+	"xxE8nw7spGJN4acG": "88e4acf6f57cc86a",
+	"Y9l5lNncyPjnqdCE": "a1f45c7573cd0bde",
+	"yFPFsATt0lFWOJmw": "e27f2e3b5509722e",
+	"YKLG7aDPRTieTkve": "f72249e21925fd6c",
+	"yllCLAsqWbqNYgTd": "11ab9445bcc97882",
+	"yoHXsBjzR8AVHzXj": "6a13b4e1a610d045",
+	"yutvCMDSx2HQ6Ery": "1979badbda7da853",
+	"Yybkf0saCMZRKEYf": "73929be92591c9f1",
+	"zNH67lRb1oL8rXA0": "ab65a6720e60b0f8",
+	"zWFuS69kPihbwlKp": "b05c4abc614e2055",
 };
