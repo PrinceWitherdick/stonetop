@@ -7,6 +7,7 @@ import {
 	GM_ONLY_KEYS, PREFERENCE_GROUPS, PREFERENCE_KEYS, buildPreferenceGroups, formatRange, openPreferenceMenu, setPreference,
 } from "../../../module/utils/sheet-preferences.js";
 import { showsPreferencesTab, withPreferencesTab } from "../../../module/utils/preferences-tab.js";
+import { registeredSettings } from "../../fakes/registered-settings.js";
 
 // The character sheet's Preferences tab: this PLAYER's client settings, surfaced where they read
 // their character. See module/utils/sheet-preferences.js and tab-preferences.hbs.
@@ -29,21 +30,11 @@ const CSS          = readCss();
 const STONETOP_JS  = read("stonetop.js");
 const SHEET_HBS    = read("templates/actor/character.hbs");
 const TAB_HBS      = read("templates/actor/partials/tab-preferences.hbs");
-const SETTINGS_JS  = read("module/settings.js");
 const SHEET_JS     = read("module/actors/character/StonetopCharacterSheet.js");
 const EN           = JSON.parse(read("languages/en.json"));
 
-/** The options object of every `game.settings.register(SYSTEM_ID, "<key>", { … })`, by key. */
-const REGISTRATIONS = (() => {
-	const out = new Map();
-	const re = /game\.settings\.register\(SYSTEM_ID,\s*"([A-Za-z0-9_]+)",\s*\{/g;
-	for (const m of SETTINGS_JS.matchAll(re)) {
-		const from = m.index + m[0].length;
-		const end  = SETTINGS_JS.indexOf("\n\t});", from);
-		out.set(m[1], SETTINGS_JS.slice(from, end === -1 ? undefined : end));
-	}
-	return out;
-})();
+/** What registerSettings() hands Foundry, by key. */
+const REGISTRATIONS = registeredSettings().settings;
 
 const ALL_KEYS = PREFERENCE_GROUPS.flatMap(g => g.keys);
 
@@ -421,14 +412,14 @@ describe("Preferences tab contents", () => {
 	it("offers only client-scoped settings, bar the world rows named here", () => {
 		const wrong = ALL_KEYS
 			.filter(key => !WORLD_KEYS.includes(key))
-			.filter(key => !/scope:\s*"client"/.test(REGISTRATIONS.get(key) ?? ""));
+			.filter(key => REGISTRATIONS.get(key)?.scope !== "client");
 		expect(wrong, `not client-scoped, and not a declared world row: ${wrong.join(", ")}`).toEqual([]);
 	});
 
 	it("keeps each declared world row world-scoped, GM-only and announced", () => {
 		const src = stripComments(read("module/utils/sheet-preferences.js"));
 		for (const key of WORLD_KEYS) {
-			expect(REGISTRATIONS.get(key), `${key} is not registered`).toMatch(/scope:\s*"world"/);
+			expect(REGISTRATIONS.get(key)?.scope, `${key} is not registered world-scoped`).toBe("world");
 			// A player's client would refuse the write outright, so the row must not be drawn there.
 			expect(GM_ONLY_KEYS.has(key), `${key} is world-scoped but offered to players`).toBe(true);
 		}
@@ -796,11 +787,20 @@ describe("Sheet Contrast and Paper Texture, kept separate", () => {
 	// re-render that used to ride along was there to redraw the disabled row, and with no row to
 	// redraw it was rebuilding every open sheet to produce identical markup.
 	it("does not rebuild every open sheet when contrast changes", () => {
-		const body = REGISTRATIONS.get("sheetContrast");
-		expect(body, "sheetContrast is not registered").toBeTruthy();
-		expect(body).toContain("applySheetContrast(value)");
-		expect(body, "contrast re-renders sheets for a row that is no longer drawn")
-			.not.toContain("_rerenderActorSheets()");
+		const reg = REGISTRATIONS.get("sheetContrast");
+		expect(reg, "sheetContrast is not registered").toBeTruthy();
+		const sheet = { actor: {}, render: vi.fn() };
+		const saved = { document: globalThis.document, ui: globalThis.ui };
+		globalThis.document = { documentElement: fakeEl() };
+		globalThis.ui = { ...saved.ui, windows: { 1: sheet } };
+		try {
+			reg.onChange("dark");
+			expect(globalThis.document.documentElement.classes, "contrast paints nothing").toContain("stonetop-dark");
+		} finally {
+			globalThis.document = saved.document;
+			globalThis.ui = saved.ui;
+		}
+		expect(sheet.render, "contrast re-renders sheets for a row that is no longer drawn").not.toHaveBeenCalled();
 	});
 
 	// The machinery, gone rather than kept empty: a `disabled` attribute the context can never set

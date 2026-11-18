@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
+import { registeredSettings } from "../../fakes/registered-settings.js";
 
 // EVERY ROLL ON THIS SHEET IS MADE FROM THE THING ITSELF — a move from its title, a stat from
 // its cell, the damage die from its readout. No dice icon stands beside any of them any more,
@@ -141,7 +142,8 @@ describe("the stat and damage rolls", () => {
 // a stat row or the damage cell, all it could have hidden was the labels doing the rolling.
 describe("the Hide Rollable Icon setting", () => {
 	it("is gone, along with the class it drove", () => {
-		expect(read("module/settings.js"), "still registered").not.toContain('"hideRollableIcon"');
+		expect(read("module/settings.js"), "still named").not.toContain('"hideRollableIcon"');
+		expect(registeredSettings().settings.has("hideRollableIcon"), "still registered").toBe(false);
 		expect(read("module/settings.js")).not.toContain("export function applyHideRollableIcon");
 		expect(read("module/hooks/Ready.js"), "still applied at boot").not.toContain("applyHideRollableIcon");
 		expect(SHEET_JS).not.toContain("getHideRollableIconSetting");
@@ -159,13 +161,12 @@ describe("the Hide Rollable Icon setting", () => {
 	it("does not leave a retired key as a boot sentinel", () => {
 		const guard = read("module/utils/boot-guard.js");
 		expect(guard).not.toContain('"hideRollableIcon"');
-		const settings = read("module/settings.js");
+		const registered = registeredSettings().settings;
 		const sentinels = [...guard.slice(guard.indexOf("BOOT_SENTINELS = Object.freeze(["), guard.indexOf("]);"))
 			.matchAll(/"([^"]+)"/g)].map(m => m[1]);
 		expect(sentinels.length).toBeGreaterThan(4);
 		for (const key of sentinels) {
-			expect(settings, `${key} is a sentinel but is never registered`)
-				.toContain(`game.settings.register(SYSTEM_ID, "${key}"`);
+			expect(registered.has(key), `${key} is a sentinel but is never registered`).toBe(true);
 		}
 	});
 });

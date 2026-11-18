@@ -3,6 +3,7 @@ import { countGmPlaybookGains, pageChain } from "../../module/book2-art/reapply.
 import { BOOK2_ART_APPLY_MANIFEST } from "../../module/book2-art/manifest.js";
 import { clearArtBrowseCache, DURABLE_ART_DIRS } from "../../module/book2-art/browse.js";
 import { readRepo } from "../fakes/css.js";
+import { registeredSettings } from "../fakes/registered-settings.js";
 
 // The GM playbook became a third source for the importer AFTER worlds had already imported, and
 // it is the one addition a GM cannot discover on their own: nothing looks broken to them. Their
@@ -19,7 +20,6 @@ const ROOT = "stonetop-book-art";
 // Through the shared reader, so this file carries no `fs`/`path`/`fileURLToPath` of its own and
 // no `../..` depth that has to match where it happens to sit.
 const READY_JS = readRepo("module/hooks/Ready.js");
-const SETTINGS_JS = readRepo("module/settings.js");
 
 const { settingOverviewMaps = [], gmDiagrams = [], monsters = [] } = BOOK2_ART_APPLY_MANIFEST;
 const CHAINS = settingOverviewMaps.map(pageChain);
@@ -119,7 +119,7 @@ describe("the upgrade offer", () => {
 	it("is wired into the ready sequence, once per world", () => {
 		expect(READY_JS).toContain("_offerGmPlaybookArtOnce()");
 		expect(READY_JS).toContain('setting: "gmPlaybookArtOffered"');
-		expect(SETTINGS_JS).toContain('game.settings.register(SYSTEM_ID, "gmPlaybookArtOffered"');
+		expect(registeredSettings().settings.has("gmPlaybookArtOffered")).toBe(true);
 	});
 
 	// The whisper itself lives in offerDurableArtOnce, which all three art offers reach through
