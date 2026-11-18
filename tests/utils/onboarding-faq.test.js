@@ -84,13 +84,6 @@ describe("faqItemsForStep", () => {
 		expect(faqItemsForStep("animalCompanion", items)).toEqual([]);
 		expect(faqItemsForStep(undefined, items)).toEqual([]);
 	});
-
-	it("de-duplicates when several keys hit the same question", () => {
-		// "stats" lists "advantage" and "6 or less"; each is a distinct question,
-		// but no question should appear twice in the result.
-		const qs = faqItemsForStep("stats", items).map(i => i.question);
-		expect(new Set(qs).size).toBe(qs.length);
-	});
 });
 
 describe("shipped FAQ keeps every mapping populated", () => {

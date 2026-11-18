@@ -31,19 +31,14 @@ afterEach(() => { delete globalThis.game.release; });
 const DROPPED = `flags.${SYSTEM_ID}.-=portraitFrame`;
 
 describe("actorPortraitPickUpdate", () => {
+	// The token is named explicitly: _syncPrototypeTokenImage would otherwise put the WHOLE
+	// illustration on it, and it stands down as soon as an update names the key itself.
 	it("writes picture, frame and token in one update", () => {
 		expect(actorPortraitPickUpdate(actor(), WHOLE, PICK)).toEqual({
 			img: WHOLE,
 			[FRAME_KEY]: PICK.frame,
 			[TOKEN_KEY]: SQUARE,
 		});
-	});
-
-	it("sets the token explicitly rather than letting the portrait sync drag it", () => {
-		// _syncPrototypeTokenImage would otherwise put the WHOLE illustration on the token, which
-		// on a standing figure is the blind centre slice the square exists to avoid. It stands
-		// down as soon as an update names the key itself.
-		expect(actorPortraitPickUpdate(actor(), WHOLE, PICK)[TOKEN_KEY]).toBe(SQUARE);
 	});
 
 	it("moves a token that was on a placeholder, the old portrait, or the old square", () => {

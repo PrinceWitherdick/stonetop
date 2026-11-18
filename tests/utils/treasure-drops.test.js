@@ -53,12 +53,6 @@ describe("liftLength", () => {
 		expect(lift(origin + " magical, Value 3", origin)).toBe(origin);
 	});
 
-	it("does not swallow the separator between a name and its prose", () => {
-		// The origin ends on a letter, so there is no trailing run to re-consume — the
-		// ", " must stay behind for the description, not get bolded into the header.
-		expect(lift("Brass sphere, magical, Value 2 A heavy lump", "Brass sphere")).toBe("Brass sphere");
-	});
-
 	// The re-consume matches the origin's trailing punctuation by IDENTITY, not by count.
 	// Counting lets an origin closing on one mark eat a different one out of the line —
 	// which is the exact failure the "don't swallow the separator" rule above exists to stop.

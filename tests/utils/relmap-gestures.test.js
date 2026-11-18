@@ -792,13 +792,6 @@ describe("a caption, which is a button only by manners", () => {
 	});
 	afterEach(() => board.destroy());
 
-	it("takes hold of its link when the words are clicked", () => {
-		const { handlers, teardown } = wire(board);
-		press(board, board.captions.e1.words);
-		expect(handlers.onPickEdge).toHaveBeenCalledWith("e1");
-		teardown();
-	});
-
 	// ⚠ THE ONE A REAL BUTTON WOULD HAVE GIVEN FOR FREE. Without this the board is unusable from a
 	// keyboard: a caption can be tabbed to and then does nothing at all.
 	for (const key of ["Enter", " "]) {

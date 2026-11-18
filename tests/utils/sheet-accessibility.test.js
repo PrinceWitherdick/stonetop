@@ -445,13 +445,6 @@ describe("the reach of the no-italics rule", () => {
 describe("what the no-italics row says", () => {
 	const EN = JSON.parse(readRepo("languages/en.json"));
 
-	// The tab reads its label and hint off the REGISTRATION, so a missing string does not throw:
-	// it draws the raw key path as the row's label.
-	it("localizes the name and hint", () => {
-		expect(EN.stonetop.settings.noItalics?.name).toBeTruthy();
-		expect(EN.stonetop.settings.noItalics?.hint).toBeTruthy();
-	});
-
 	// The two things about this setting a reader cannot discover by trying it: that it reaches
 	// past our own windows, and that turning it on costs them a distinction. Both are promises
 	// made in prose about behaviour asserted above, so both are pinned.

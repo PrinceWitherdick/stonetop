@@ -57,11 +57,15 @@ const originalDocument = globalThis.document;
 beforeEach(() => {
 	editor.open.mockReset();
 	globalThis.document = { createElement: (tag) => new El(tag) };
+	vi.useFakeTimers();
 });
-afterEach(() => { globalThis.document = originalDocument; });
+afterEach(() => {
+	vi.useRealTimers();
+	globalThis.document = originalDocument;
+});
 
-/** Let the injector's rAF/setTimeout passes run. */
-const settle = () => new Promise((r) => setTimeout(r, 150));
+/** Let the injector's rAF/setTimeout passes run, on fake timers rather than a real 150ms. */
+const settle = () => vi.advanceTimersByTimeAsync(150);
 
 describe("addPortraitFrameControl", () => {
 	it("frames the picture the portrait is wearing WHEN CLICKED, not when the window opened", async () => {

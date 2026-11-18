@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { NUDGE_FINE, NUDGE_STEP, dragTranslation } from "../../module/utils/relmap-drag.js";
-import { isCommittedDrop, isLiftedDrag } from "../../module/utils/relationship-board.js";
 
-// The arithmetic behind moving a portrait, and the thresholds that decide whether a press was a
-// drag at all. The listener plumbing itself needs a DOM and is exercised through the window suite;
-// what is provable here is the part that gets silently wrong.
+// The arithmetic behind moving a portrait. The thresholds that decide whether a press was a drag
+// at all are tested with relationship-board.js, which owns them. The listener plumbing itself needs
+// a DOM and is exercised through the window suite; what is provable here is the part that gets
+// silently wrong.
 
 describe("moving a portrait under the cursor", () => {
 	// THE BUG THIS EXISTS TO CATCH. The board is scaled as a whole, so a hundred pixels of cursor
@@ -21,25 +21,6 @@ describe("moving a portrait under the cursor", () => {
 			expect(dragTranslation({ dx: 10, dy: 10, scale })).toEqual({ x: 10, y: 10 });
 		}
 		expect(dragTranslation()).toEqual({ x: 0, y: 0 });
-	});
-});
-
-describe("the thresholds a press has to cross", () => {
-	// Borrowed from the standings board rather than restated, so "how far is a drag" has one answer
-	// across the system. This is the assertion that the borrowing is real.
-	it("does not become a drag until the press has travelled", () => {
-		expect(isLiftedDrag(0, 0)).toBe(false);
-		expect(isLiftedDrag(2, 2)).toBe(false);
-		expect(isLiftedDrag(0, 12)).toBe(true);
-	});
-
-	// The map deliberately does NOT use the commit distance. It exists on the standings board
-	// because a card straddles two drop zones and a small twitch could rewrite a rating nobody
-	// aimed at; this board has no zones, so a small deliberate nudge is a real edit and refusing it
-	// would be the bug. The invariant is only that lifting stays the cheaper of the two.
-	it("lifts before it would ever commit, which is what makes the map's choice safe", () => {
-		expect(isLiftedDrag(5, 0)).toBe(true);
-		expect(isCommittedDrop(5, 0)).toBe(false);
 	});
 });
 
