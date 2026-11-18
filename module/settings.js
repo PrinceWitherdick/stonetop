@@ -144,7 +144,8 @@ export function registerSettings() {
 	_worldLatch("bestiaryActorFoldersCollapsed", "Bestiary Actor Folders Collapsed");
 
 	// Whether the lettered Place-of-Interest pins already on this world's scenes have been
-	// opened up to players (see hooks/Ready.js _revealLandmarkNotesOnce). They were written
+	// opened up to players (see hooks/PlaceOfInterestDrop.js revealLandmarkNotesOnce, run by the
+	// primary GM's sweep in hooks/world-sweeps.js). They were written
 	// without global visibility and owned by the GM who placed them, which Foundry 14 reads
 	// as "GM's private note"; new pins are written public at creation. Once per world rather
 	// than every load, so a GM who later hides a pin on purpose keeps that decision.
@@ -879,11 +880,13 @@ export function registerSettings() {
 	// A legacy flat `true` is folded under the current world by migrateFlatSettingOverviewShown.
 	_hidden("settingOverviewShown", { name: "Setting Overview Shown", scope: "client", type: Object, default: {} });
 
-	// NB: the GM-steading auto-assignment once-gate is NOT a setting — it's a per-user
-	// WORLD flag on the GM's own User document (see hooks/Ready.js
-	// _assignSteadingToUnassignedGm). It used to be a client-scoped setting here, but those
-	// live in browser localStorage keyed only by namespace.key, so the flag leaked across
-	// worlds and a fresh world read it already-set — silently skipping the assignment.
+	// NB: the GM's default-character auto-assignment once-gate is NOT a setting — it's a
+	// per-user WORLD flag on the GM's own User document, `gmToolkitAssigned` (see hooks/Ready.js
+	// _assignGmToolkitToGm). The assignment used to hand the GM the steading, under the flag
+	// `gmSteadingAssigned`, which that function still reads to move such a GM onto the toolkit.
+	// The gate was a client-scoped setting here once, but those live in browser localStorage
+	// keyed only by namespace.key, so it leaked across worlds and a fresh world read it
+	// already-set — silently skipping the assignment.
 
 	_option("sheetFont", {
 		scope: "client",
