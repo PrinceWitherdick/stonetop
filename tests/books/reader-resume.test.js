@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readRepo as read } from "../fakes/css.js";
+import { registeredSettings } from "../fakes/registered-settings.js";
 
 vi.mock("../../module/books/BookReaderWindow.js", () => ({ openBookReader: vi.fn(() => ({})) }));
 
@@ -139,8 +140,7 @@ describe("how it is wired", () => {
 	});
 
 	it("registers the client-scoped setting it stores in", () => {
-		const settings = read("module/settings.js");
-		expect(settings).toMatch(/"bookReaderResume",\s*\{[\s\S]{0,120}scope: "client"/);
+		expect(registeredSettings().settings.get("bookReaderResume")?.scope).toBe("client");
 	});
 
 	// The window writes the record and the record reopens the window, so one direction has to be

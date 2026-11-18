@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect, afterEach } from "vitest";
 import { isClassicLayout, layoutClasses } from "../../module/settings.js";
+import { registeredSettings } from "../fakes/registered-settings.js";
 
 // The CLASSIC / MODERN sheet-layout toggle: a resolved master (the world's `worldSheetLayout`,
 // overridable per person by `sheetLayout`) plus one child per sheet (`classicLayoutCharacter` /
@@ -143,16 +144,16 @@ describe("isClassicLayout", () => {
 });
 
 describe("settings registration", () => {
-	const body = key => SETTINGS_JS.slice(SETTINGS_JS.indexOf(`"${key}", {`)).split("\n\t});")[0];
+	const REGISTERED = registeredSettings().settings;
+	const reg = key => REGISTERED.get(key) ?? {};
+	const FIVE = ["worldSheetLayout", "sheetLayout", "classicLayoutCharacter", "classicLayoutSteading", "classicLayoutNpc"];
 
 	it("registers both masters and one child per tabbed sheet, and no monster child", () => {
-		// The namespace argument is the SYSTEM_ID constant, not the literal it resolves to, so
-		// this matches on the key alone. Which namespace they register under is settings-registration's
-		// business, and it is asserted there against the running game rather than against source text.
-		for (const key of ["worldSheetLayout", "sheetLayout", "classicLayoutCharacter", "classicLayoutSteading", "classicLayoutNpc"])
-			expect(SETTINGS_JS, key).toContain(`game.settings.register(SYSTEM_ID, "${key}"`);
+		// Which namespace they register under is settings-registration's business.
+		for (const key of FIVE) expect(REGISTERED.has(key), key).toBe(true);
 		// The monster sheet has no tabs and took no part in the redesign.
 		expect(SETTINGS_JS).not.toContain("classicLayoutMonster");
+		expect(REGISTERED.has("classicLayoutMonster")).toBe(false);
 	});
 
 	// The world's answer is what a fresh world gets, so it has to be MODERN; anything else and
@@ -160,10 +161,10 @@ describe("settings registration", () => {
 	// following it, and the children default TRUE, so one flip of the world brings the whole
 	// old layout back and nothing moves for anyone who leaves the settings alone.
 	it("defaults the world to modern, the personal override to following it, the children on", () => {
-		expect(body("worldSheetLayout")).toMatch(/default: "modern"/);
-		expect(body("sheetLayout")).toMatch(/default: "world"/);
+		expect(reg("worldSheetLayout").default).toBe("modern");
+		expect(reg("sheetLayout").default).toBe("world");
 		for (const key of ["classicLayoutCharacter", "classicLayoutSteading", "classicLayoutNpc"])
-			expect(body(key), key).toMatch(/default: true/);
+			expect(reg(key).default, key).toBe(true);
 	});
 
 	// The two are deliberately different scopes: a client setting is keyed only by
@@ -171,8 +172,8 @@ describe("settings registration", () => {
 	// The per-world answer has to live in a world setting or "fresh worlds are modern,
 	// upgraded worlds are classic" cannot both be true on a GM's machine.
 	it("scopes the world's answer to the world and the override to the client", () => {
-		expect(body("worldSheetLayout")).toMatch(/scope: "world"/);
-		expect(body("sheetLayout")).toMatch(/scope: "client"/);
+		expect(reg("worldSheetLayout").scope).toBe("world");
+		expect(reg("sheetLayout").scope).toBe("client");
 	});
 
 	// Without an onChange the switch does nothing until every open sheet is closed and
@@ -180,8 +181,18 @@ describe("settings registration", () => {
 	// onChange on every connected client, which is what repaints the players' sheets when the
 	// GM presses the chat card's button.
 	it("re-renders open sheets on every one of the five", () => {
-		for (const key of ["worldSheetLayout", "sheetLayout", "classicLayoutCharacter", "classicLayoutSteading", "classicLayoutNpc"])
-			expect(body(key), key).toContain("_rerenderActorSheets()");
+		const saved = globalThis.ui;
+		try {
+			for (const key of FIVE) {
+				const sheet = { actor: {}, rendered: 0, render() { this.rendered++; } };
+				const other = { render() { throw new Error("only actor sheets are re-rendered"); } };
+				globalThis.ui = { ...saved, windows: { 1: sheet, 2: other } };
+				reg(key).onChange?.();
+				expect(sheet.rendered, key).toBe(1);
+			}
+		} finally {
+			globalThis.ui = saved;
+		}
 	});
 
 	// The keys must appear as double-quoted LITERALS, not assembled from the argument: the

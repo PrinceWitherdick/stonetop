@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { WEATHER_FX_PARTS } from "../../module/seasons/weather-fx-parts.js";
+import { SYSTEM_ID } from "../../module/system-id.js";
+import { BOOT_SENTINELS } from "../../module/utils/boot-guard.js";
+import { registeredSettings } from "../fakes/registered-settings.js";
 
 // Structural guards on module/settings.js. Settings drift quietly: a hint keeps
 // describing behaviour that moved, a key outlives the feature it gated, a new
@@ -30,29 +32,21 @@ const I18N = (() => {
 })();
 
 /**
- * Every `game.settings.register(SYSTEM_ID, "<key>", { … })` block.
+ * What registerSettings() hands Foundry, in BOTH kinds of world: the Fight tab on and off pick
+ * different labels for one switch and list another or not, so a check on labels has to see both.
  *
- * Matched on the SYSTEM_ID identifier rather than the literal it resolves to: the namespace is
- * imported from system-id.js now, so the string "stonetop_pwd" no longer appears in this file.
+ * Run rather than scraped out of the source. The registrations are built by small helpers, most
+ * keys never sit beside a `game.settings.register` at all, and the loops (the hover toggles, the
+ * weather parts, the layout boxes) derive their labels from the key — a scan of the text saw none
+ * of those and had to be told about each loop by hand.
  */
-function registrations() {
-	const out = [];
-	const re = /game\.settings\.register\(SYSTEM_ID,\s*"([A-Za-z0-9_]+)",\s*\{/g;
-	for (const m of SETTINGS_SRC.matchAll(re)) {
-		// Slice to the end of the options object (the first line that closes it at
-		// the register call's indentation).
-		const from = m.index + m[0].length;
-		const end = SETTINGS_SRC.indexOf("\n\t});", from);
-		out.push({ key: m[1], body: SETTINGS_SRC.slice(from, end === -1 ? undefined : end) });
-	}
-	return out;
-}
+const WORLDS = [registeredSettings({ fightTab: true }), registeredSettings({ fightTab: false })];
+const REGISTERED = WORLDS[0].settings;
 
-/** The keys generated from HOVER_DESCRIPTION_SETTING_KEYS (registered in a loop). */
-function hoverKeys() {
-	const block = /HOVER_DESCRIPTION_SETTING_KEYS = \[([\s\S]*?)\n\];/.exec(SETTINGS_SRC);
-	expect(block, "HOVER_DESCRIPTION_SETTING_KEYS not found").not.toBeNull();
-	return [...block[1].matchAll(/"([A-Za-z0-9_]+)"/g)].map(m => m[1]);
+/** Every i18n path a registration or menu hands Foundry: its labels, and its choices' labels. */
+function labelPaths(data) {
+	return [data.name, data.hint, data.label, ...Object.values(data.choices ?? {})]
+		.filter(value => typeof value === "string");
 }
 
 /**
@@ -90,18 +84,23 @@ function settingsTemplates() {
 		.map(name => fs.readFileSync(path.join(dir, name), "utf8"));
 }
 
-const REGISTRATIONS = registrations();
-const HOVER_KEYS = hoverKeys();
-// The per-effect weather switches, registered in a loop off their own table rather than one
-// literal at a time, so the scan above cannot see them: the register call names `part.setting`.
-// Imported rather than parsed back out of settings.js, since the table is a plain leaf module.
-const WEATHER_FX_KEYS = WEATHER_FX_PARTS.map(part => part.setting);
 const CORPUS = searchCorpus();
 
 describe("settings registration", () => {
-	it("parses the registrations at all (guards the scan itself)", () => {
-		expect(REGISTRATIONS.length).toBeGreaterThan(30);
-		expect(HOVER_KEYS.length).toBeGreaterThan(10);
+	it("registers the settings at all, all under our namespace (guards the run itself)", () => {
+		expect(REGISTERED.size).toBeGreaterThan(100);
+		for (const { settings, menus } of WORLDS) {
+			for (const [key, data] of [...settings, ...menus]) expect(data.namespace, key).toBe(SYSTEM_ID);
+		}
+	});
+
+	// The boot check reads how far registerSettings got from these keys, so each one must still be
+	// registered, and in the order the list claims, or a partial boot is reported at the wrong depth.
+	it("registers every boot sentinel, in the order boot-guard lists them", () => {
+		const order = [...REGISTERED.keys()];
+		const at = BOOT_SENTINELS.map(key => order.indexOf(key));
+		expect(BOOT_SENTINELS.filter((_, i) => at[i] < 0), "sentinels that are never registered").toEqual([]);
+		expect(at).toEqual([...at].sort((a, b) => a - b));
 	});
 
 	// The dead-key check counts a key as read when any corpus file quotes it, so nothing in the
@@ -116,53 +115,46 @@ describe("settings registration", () => {
 
 	it("localizes every setting shown in the config menu", () => {
 		// A `config: true` setting renders its name/hint straight into Foundry's settings
-		// window; an unlocalized one shows the raw "stonetop.settings.x.name" path.
+		// window; an unlocalized one shows the raw "stonetop.settings.x.name" path. Both worlds,
+		// since a label may be chosen at registration (`fightWindowAuto` reads differently in a
+		// world with the Fight tab off).
 		const bad = [];
-		for (const { key, body } of REGISTRATIONS) {
-			if (!/config:\s*true/.test(body)) continue;
-			for (const field of ["name", "hint"]) {
-				// A label may be chosen at registration (`fightWindowAuto` reads differently in a world
-				// with the Fight tab off), so every key the line can hand Foundry is checked.
-				const line = new RegExp(`${field}:\\s*(.+)`).exec(body);
-				const paths = [...(line?.[1] ?? "").matchAll(/"([^"]+)"/g)].map(m => m[1]);
-				if (!paths.length) { bad.push(`${key}.${field} is missing`); continue; }
-				for (const path of paths) {
-					if (!path.startsWith("stonetop.settings.")) bad.push(`${key}.${field} is a bare string, not an i18n key`);
-					else if (!(path in I18N)) bad.push(`${key}.${field} -> ${path} (no such key in en.json)`);
+		for (const { settings } of WORLDS) {
+			for (const [key, data] of settings) {
+				if (data.config !== true) continue;
+				for (const field of ["name", "hint"]) {
+					const label = data[field];
+					if (!label) bad.push(`${key}.${field} is missing`);
+					else if (!label.startsWith("stonetop.settings.")) bad.push(`${key}.${field} is a bare string, not an i18n key`);
 				}
 			}
 		}
 		expect(bad, `Config-visible settings with missing/unlocalized labels:\n  ${bad.join("\n  ")}`).toEqual([]);
 	});
 
-	it("localizes every hover-description toggle", () => {
-		// These are config:false but rendered by the "On Hover Info" menu, which
-		// localizes them by convention rather than from the registration.
-		const bad = [];
-		for (const key of HOVER_KEYS) {
-			for (const field of ["name", "hint"]) {
-				const i18nKey = `stonetop.settings.${key}.${field}`;
-				if (!(i18nKey in I18N)) bad.push(i18nKey);
+	// Hidden settings too: the hover toggles and the map-pin default are drawn by menus of their
+	// own, which localize the same strings, so any label a registration carries has to exist.
+	it("finds every label a registration or menu names in en.json", () => {
+		const missing = new Set();
+		for (const { settings, menus } of WORLDS) {
+			for (const [key, data] of [...settings, ...menus]) {
+				for (const label of labelPaths(data)) {
+					if (label.startsWith("stonetop.settings.") && !(label in I18N)) missing.add(`${key} -> ${label}`);
+				}
 			}
 		}
-		expect(bad, `Hover toggles missing en.json entries:\n  ${bad.join("\n  ")}`).toEqual([]);
-	});
-
-	it("localizes every weather-effect switch", () => {
-		// Same situation as the hover toggles: registered in a loop, so their names and hints are
-		// built from the key and there is no literal in settings.js for the scan to find.
-		const bad = [];
-		for (const key of WEATHER_FX_KEYS) {
-			for (const field of ["name", "hint"]) {
-				const i18nKey = `stonetop.settings.${key}.${field}`;
-				if (!(i18nKey in I18N)) bad.push(i18nKey);
-			}
-		}
-		expect(bad, `Weather-effect switches missing en.json entries:\n  ${bad.join("\n  ")}`).toEqual([]);
+		expect([...missing], `labels with no en.json entry:\n  ${[...missing].join("\n  ")}`).toEqual([]);
 	});
 
 	it("has no orphaned stonetop.settings.* strings in en.json", () => {
+		// What the registrations hand Foundry, plus every literal path in settings.js (a menu's
+		// title, the map-pin menu's option labels).
 		const declared = new Set();
+		for (const { settings, menus } of WORLDS) {
+			for (const data of [...settings.values(), ...menus.values()]) {
+				for (const label of labelPaths(data)) declared.add(label);
+			}
+		}
 		for (const m of SETTINGS_SRC.matchAll(/"(stonetop\.settings\.[A-Za-z0-9_.]+)"/g)) declared.add(m[1]);
 		// A settings MENU renders its own template, and copy that belongs to the menu rather than
 		// to any one key (a note above the rows, the labels on a tristate select) is localized
@@ -170,10 +162,6 @@ describe("settings registration", () => {
 		// them would report every one as an orphan and push it into being a bare string.
 		for (const src of settingsTemplates()) {
 			for (const m of src.matchAll(/"(stonetop\.settings\.[A-Za-z0-9_.]+)"/g)) declared.add(m[1]);
-		}
-		for (const key of [...HOVER_KEYS, ...WEATHER_FX_KEYS]) {
-			declared.add(`stonetop.settings.${key}.name`);
-			declared.add(`stonetop.settings.${key}.hint`);
 		}
 		const orphans = Object.keys(I18N)
 			.filter(k => k.startsWith("stonetop.settings.") && !declared.has(k));
@@ -197,7 +185,7 @@ describe("settings registration", () => {
 		const accessorRegion = SETTINGS_SRC.slice(SETTINGS_SRC.indexOf("export const HOVER_DESCRIPTION_SETTING_KEYS"));
 		expect(accessorRegion, "accessor region not found — did settings.js reorganize?").not.toBe("");
 		const unused = [];
-		for (const { key } of REGISTRATIONS) {
+		for (const key of REGISTERED.keys()) {
 			if (KEPT.has(key)) continue;
 			const referenced = CORPUS.some(({ src }) => src.includes(`"${key}"`)) || accessorRegion.includes(`"${key}"`);
 			if (!referenced) unused.push(key);

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readCss, readRepo, declarations, ownRule, stripComments } from "../fakes/css.js";
+import { registeredSettings } from "../fakes/registered-settings.js";
 
 /**
  * Splitting a follower card — particularly the Marshal's crew — so it stops eating the tab.
@@ -211,7 +212,7 @@ describe("folding the whole card", () => {
 	});
 
 	it("is remembered per card, per actor, and defaults to open", () => {
-		expect(readRepo("module/settings.js")).toMatch(/register\(SYSTEM_ID, "followerCardsCollapsed"/);
+		expect(registeredSettings().settings.get("followerCardsCollapsed")?.scope).toBe("client");
 		expect(SHEET).toMatch(/_collapsedFollowerCards = new Set\(getFollowerCardsCollapsed\(this\.actor\?\.id\)\)/);
 		// The Set holds the FOLDED ids — absence means the card opens, which is the default.
 		expect(SHEET).toMatch(/card\.cardFolded\s*=\s*!editing && this\._collapsedFollowerCards\.has\(cardId\)/);

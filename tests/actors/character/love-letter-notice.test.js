@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readCss, ownRule, readRepo } from "../../fakes/css.js";
 import { contrastRatio } from "../../fakes/contrast.js";
+import { registeredSettings } from "../../fakes/registered-settings.js";
 import { STONETOP_SCOPE } from "../../../module/actors/character/StonetopFlags.js";
 import {
 	buildLoveLetterData, createLoveLetter, setLoveLetterResolved, loveLetterArrivalKey,
@@ -243,11 +244,8 @@ describe("the jingle's own switch", () => {
 	});
 
 	it("is a per-browser setting on the Preferences tab, on by default", () => {
-		const settings = readRepo("module/settings.js");
-		const reg = /register\(SYSTEM_ID, "loveLetterJingle", \{([\s\S]*?)\}\);/.exec(settings)?.[1] ?? "";
-		expect(reg).toMatch(/scope:\s*"client"/);
-		expect(reg).toMatch(/config:\s*true/);
-		expect(reg).toMatch(/default:\s*true/);
+		const reg = registeredSettings().settings.get("loveLetterJingle");
+		expect(reg).toMatchObject({ scope: "client", config: true, default: true });
 		expect(readRepo("module/utils/sheet-preferences.js")).toContain('"loveLetterJingle"');
 		const en = JSON.parse(readRepo("languages/en.json"));
 		expect(en.stonetop.settings.loveLetterJingle.name).toBeTruthy();

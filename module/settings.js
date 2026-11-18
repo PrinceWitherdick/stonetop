@@ -52,6 +52,53 @@ export const MAP_PIN_NAME_SETTINGS = Object.freeze([
 	"alwaysShowMapPinNames", "mapPinNamesByMap", "mapPinNamesLocal",
 ]);
 
+/**
+ * The four shapes nearly every registration below takes, so each one states only what is its own.
+ *
+ * A setting offered in Configure Settings is labelled by the convention every one of them follows,
+ * `stonetop.settings.<key>.name` / `.hint`, so the key is written once rather than three times, as
+ * the hover and weather loops always did. `overrides` wins over everything the helper fills in,
+ * for the one registration whose label or visibility is decided at init.
+ *
+ * What these hand Foundry is pinned by running registerSettings against a stub
+ * (tests/fakes/registered-settings.js), not by reading this file.
+ *
+ * Registration ORDER is still the order of the calls: Configure Settings lists a namespace's
+ * settings in the order they were registered, and utils/boot-guard.js reads how far the run got
+ * from keys spread along it.
+ */
+function _register(key, data) {
+	game.settings.register(SYSTEM_ID, key, data);
+}
+
+/** The i18n name and hint every labelled setting carries. */
+function _labels(key) {
+	return { name: `stonetop.settings.${key}.name`, hint: `stonetop.settings.${key}.hint` };
+}
+
+/** A setting shown in Configure Settings. */
+function _option(key, data) {
+	_register(key, { ..._labels(key), config: true, ...data });
+}
+
+/** The commonest of those: a checkbox, its scope and its default. */
+function _checkbox(key, scope, dflt, overrides = {}) {
+	_option(key, { scope, type: Boolean, default: dflt, ...overrides });
+}
+
+/** State the system keeps for itself, never listed in Configure Settings. */
+function _hidden(key, data) {
+	_register(key, { config: false, ...data });
+}
+
+/**
+ * A world's once-only latch: hidden, world-scoped, and false until the one-time pass it guards
+ * has run. Over twenty of them, and every one differs only in its key and display name.
+ */
+function _worldLatch(key, name) {
+	_hidden(key, { name, scope: "world", type: Boolean, default: false });
+}
+
 export function registerSettings() {
 	// -- WORLD SETTINGS ------------------------------------------
 
@@ -63,23 +110,16 @@ export function registerSettings() {
 	// Whether the one-time import of the JournalEntry compendiums into the world
 	// has run (see hooks/SeedCompendiums.js). Set true after the first GM load so
 	// the gazetteer is seeded exactly once and never re-duplicated.
-	game.settings.register(SYSTEM_ID, "seedingComplete", {
-		name: "Compendium Seeding Complete",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("seedingComplete", "Compendium Seeding Complete");
 
 	// Which system id the Phase 3 id-migration sweep last completed for. Stores the id
 	// rather than a boolean so a future rename re-runs it, and so a brand-new world (which
 	// has nothing to sweep) can be stamped without pretending a migration happened.
-	game.settings.register(SYSTEM_ID, "idMigrationFinishedFor", {
+	_hidden("idMigrationFinishedFor", {
 		name: "System ID Migration Completed For",
 		scope: "world",
-		config: false,
 		type: String,
-		default: ""
+		default: "",
 	});
 
 	// Whether the one-time import of the Monsters (stonetop-bestiary) actor compendium
@@ -87,101 +127,53 @@ export function registerSettings() {
 	// `seedingComplete` (which covers the JournalEntry packs) so an established world whose
 	// journals were seeded long ago still imports the monster sheets on the first load
 	// after this shipped. Set true after the first GM load so the bestiary is seeded once.
-	game.settings.register(SYSTEM_ID, "bestiaryActorsSeeded", {
-		name: "Bestiary Actors Seeded",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("bestiaryActorsSeeded", "Bestiary Actors Seeded");
 
 	// Whether this world has had the retired "The World" wrapper folder un-nested (see
 	// hooks/SeedCompendiums.unnestSeededWorldRootOnce). Older seeds grouped the four
 	// gazetteer trees under a single "The World" folder, which pushed the deep Bestiary
 	// codex past Foundry's folder-render depth; the migration lifts the trees to the
 	// sidebar root and deletes the wrapper. Set true once it has run (no-op on fresh worlds).
-	game.settings.register(SYSTEM_ID, "worldRootUnnested", {
-		name: "World Root Un-nested",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("worldRootUnnested", "World Root Un-nested");
 
 	// Whether the seeded world Bestiary's actor subfolders have been collapsed (see
 	// hooks/SeedActors.collapseBestiaryActorSubfoldersOnce). The tree was seeded
 	// Bestiary > section > region > creature > actor; that depth hid the deepest monsters
 	// past Foundry's folder-render limit, so the migration flattens it to Bestiary > section
 	// > actor. Set true once it has run (no-op on worlds seeded from the collapsed compendium).
-	game.settings.register(SYSTEM_ID, "bestiaryActorFoldersCollapsed", {
-		name: "Bestiary Actor Folders Collapsed",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("bestiaryActorFoldersCollapsed", "Bestiary Actor Folders Collapsed");
 
 	// Whether the lettered Place-of-Interest pins already on this world's scenes have been
 	// opened up to players (see hooks/Ready.js _revealLandmarkNotesOnce). They were written
 	// without global visibility and owned by the GM who placed them, which Foundry 14 reads
 	// as "GM's private note"; new pins are written public at creation. Once per world rather
 	// than every load, so a GM who later hides a pin on purpose keeps that decision.
-	game.settings.register(SYSTEM_ID, "landmarkNotesRevealed", {
-		name: "Landmark Map Pins Revealed",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("landmarkNotesRevealed", "Landmark Map Pins Revealed");
 
 	// Whether the one-time import of the Book II "Treasures & Wonders" items from the
 	// stonetop-items compendium into the world's Items sidebar has run (see
 	// hooks/SeedItems.js). Independent of the journal/bestiary seeds so an established
 	// world still gets the treasure library on the first load after this shipped. Set
 	// true after the first GM load so the treasures are seeded once and never duplicated.
-	game.settings.register(SYSTEM_ID, "treasureItemsSeeded", {
-		name: "Treasure Items Seeded",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("treasureItemsSeeded", "Treasure Items Seeded");
 
 	// Whether this world has had the system's new-world core setting defaults applied.
 	// Used to seed Foundry's Automatic Token Rotation world setting off only during a
 	// fresh world's first GM load, without surprising already-established worlds.
-	game.settings.register(SYSTEM_ID, "coreSettingDefaultsApplied", {
-		name: "Core Setting Defaults Applied",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("coreSettingDefaultsApplied", "Core Setting Defaults Applied");
 
 	// Whether this world has had players granted Foundry's ACTOR_CREATE permission
 	// (see hooks/Ready.js _ensurePlayerActorCreationGrant). Independent of the fresh-
 	// world gate above so ESTABLISHED worlds — which skip the new-world defaults —
 	// still get the grant the actor-backed steading roster depends on. One-time: once
 	// set, a GM who later revokes the permission keeps it revoked.
-	game.settings.register(SYSTEM_ID, "playerActorCreationGranted", {
-		name: "Player Actor Creation Granted",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("playerActorCreationGranted", "Player Actor Creation Granted");
 
 	// The system version whose shipped journal content was last rolled into the
 	// world's seeded copies (see hooks/SeedCompendiums.js). When this trails the
 	// running version, the update pass refreshes pristine (un-edited) seeded
 	// journals and records the new version here.
-	game.settings.register(SYSTEM_ID, "journalSyncVersion", {
-		name: "Journal Sync Version",
-		scope: "world",
-		config: false,
-		type: String,
-		default: ""
-	});
+	_hidden("journalSyncVersion", { name: "Journal Sync Version", scope: "world", type: String, default: "" });
 
 	// The system version each ONE-TIME REPAIR SWEEP last completed under, keyed by the sweep's own
 	// name: `{ arcanumSlugs: "1.5.3", … }`. See migration/once-per-version.js.
@@ -197,13 +189,7 @@ export function registerSettings() {
 	// Keyed by version rather than latched to a boolean so a sweep that is really "bring this up
 	// to the CURRENT design" runs again after an upgrade that changes the design — which is what
 	// the pin refits actually are.
-	game.settings.register(SYSTEM_ID, "repairSweepVersions", {
-		name: "Repair Sweep Versions",
-		scope: "world",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("repairSweepVersions", { name: "Repair Sweep Versions", scope: "world", type: Object, default: {} });
 
 	// The world monsters whose Group fight switch this world unticked when the Fight tab was turned
 	// on (hooks/Ready.js#_reconcileWorldGroupFights), so turning the tab back OFF can put them back.
@@ -213,13 +199,7 @@ export function registerSettings() {
 	// dragged out of it with no box left to untick. What was NOT necessary was making it a one-way
 	// door: a GM who had ticked a dozen bestiary entries lost all twelve to a setting they could
 	// switch straight back, with nothing anywhere recording what had been taken.
-	game.settings.register(SYSTEM_ID, "groupFightUnticked", {
-		name: "Group Fight Unticked",
-		scope: "world",
-		config: false,
-		type: Array,
-		default: []
-	});
+	_hidden("groupFightUnticked", { name: "Group Fight Unticked", scope: "world", type: Array, default: [] });
 
 	// Fingerprint of the seeded gazetteer folder colour scheme last applied in this
 	// world (see hooks/SeedCompendiums.syncSeededFolderColors). When it trails the
@@ -228,12 +208,11 @@ export function registerSettings() {
 	// signature. A content signature rather than a one-shot flag so later colour
 	// changes propagate; the sync recolours folders at the default or still holding a colour
 	// from the previous scheme, so re-running can't fight a GM's own tint.
-	game.settings.register(SYSTEM_ID, "seededFolderColorsSignature", {
+	_hidden("seededFolderColorsSignature", {
 		name: "Seeded Folder Colours Signature",
 		scope: "world",
-		config: false,
 		type: String,
-		default: ""
+		default: "",
 	});
 
 	// Whether the GM wants the automatic start-of-session chat reminders (currently
@@ -241,28 +220,14 @@ export function registerSettings() {
 	// World-scoped: showing the table its session-start upkeep is a per-world decision,
 	// and only the GM posts the card, so a per-browser client toggle would never match
 	// who actually fires it. Defaults on; GMs who don't want the nudge can untick it.
-	game.settings.register(SYSTEM_ID, "startOfSessionReminders", {
-		name: "stonetop.settings.startOfSessionReminders.name",
-		hint: "stonetop.settings.startOfSessionReminders.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("startOfSessionReminders", "world", true);
 
 	// Posts a chat card the moment a PC is reduced to 0 HP, naming the 0-HP move they
 	// actually trigger (Death's Door, or their post-death insert's own move). On by default:
 	// the book has the whole table react to a PC going down, and without it the moment can
 	// pass unnoticed. The card never forces the roll — the book explicitly allows holding it
 	// off "until the scene wraps up" — so a GM who wants the moment kept quiet turns it off.
-	game.settings.register(SYSTEM_ID, "deathsDoorPrompt", {
-		name: "stonetop.settings.deathsDoorPrompt.name",
-		hint: "stonetop.settings.deathsDoorPrompt.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("deathsDoorPrompt", "world", true);
 
 	// Opens the 0-HP walkthrough on the dying player's own screen as well as posting the card,
 	// so the moment doesn't wait on someone noticing a line of chat. Subordinate to the setting
@@ -271,14 +236,7 @@ export function registerSettings() {
 	// The dialog is still only an invitation — its Cancel closes it and the card stays in chat —
 	// so the book's "hold the roll off until the scene wraps up" is intact. Turn this off to
 	// leave the card as the only nudge.
-	game.settings.register(SYSTEM_ID, "deathsDoorAutoOpen", {
-		name: "stonetop.settings.deathsDoorAutoOpen.name",
-		hint: "stonetop.settings.deathsDoorAutoOpen.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("deathsDoorAutoOpen", "world", true);
 
 	// Adds the "Shift Up" / "Shift Down" buttons to move roll cards in chat, letting the
 	// GM bump a roll's result to a higher or lower tier (see _chatWireRollShifting /
@@ -286,14 +244,7 @@ export function registerSettings() {
 	// niche GM tool most tables never reach for, and the buttons add a row to every roll
 	// card. World-scoped: whether the table uses tier-shifting is a per-world call, and
 	// only the GM acts on it.
-	game.settings.register(SYSTEM_ID, "chatShiftButtons", {
-		name: "stonetop.settings.chatShiftButtons.name",
-		hint: "stonetop.settings.chatShiftButtons.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: false,
-	});
+	_checkbox("chatShiftButtons", "world", false);
 
 	// The problematic-wound prompt a 7-9 or a 6- roll card carries for a wounded character
 	// (Book I p.243, "Problematic wounds in play"; built in utils/roll-engine.js). ON by default,
@@ -303,27 +254,13 @@ export function registerSettings() {
 	// character who lost a hand in session three carries this block on most of their cards for the
 	// rest of the campaign. That is exactly right for some tables and wallpaper for others.
 	// World-scoped: whether the table wants the nudge is a table-wide call, like the shift buttons.
-	game.settings.register(SYSTEM_ID, "chatWoundPrompt", {
-		name: "stonetop.settings.chatWoundPrompt.name",
-		hint: "stonetop.settings.chatWoundPrompt.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("chatWoundPrompt", "world", true);
 
 	// When on (the default), only the GM may author custom moves — players don't see
 	// the "+ Custom Move" button or the edit pencils, and the create/edit handlers are
 	// no-ops for them. Existing custom moves still display and roll for everyone; this
 	// only gates AUTHORING. Off lets any player author on their own character.
-	game.settings.register(SYSTEM_ID, "customMovesGmOnly", {
-		name: "stonetop.settings.customMovesGmOnly.name",
-		hint: "stonetop.settings.customMovesGmOnly.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("customMovesGmOnly", "world", true);
 
 	// As customMovesGmOnly, but for homebrew arcana (minor & major). When on (the
 	// default), only the GM sees the per-tier "Create arcanum" buttons at the foot
@@ -332,27 +269,13 @@ export function registerSettings() {
 	// inspiration wizard now lives in the sidebar "Create Item → Arcanum" chooser,
 	// which is GM-side.) Kept independent of customMovesGmOnly so a GM can permit
 	// one and not the other.
-	game.settings.register(SYSTEM_ID, "arcanaCreationGmOnly", {
-		name: "stonetop.settings.arcanaCreationGmOnly.name",
-		hint: "stonetop.settings.arcanaCreationGmOnly.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("arcanaCreationGmOnly", "world", true);
 
 	// When on (the default), creating a blank Monster from "Create Actor" opens the
 	// guided worksheet (Book I "Dangers") that computes HP/armor/damage from tag
 	// picks. Off drops straight to a blank stat block. Imports, compendium drops,
 	// and duplicates are never intercepted, only manual blank creates.
-	game.settings.register(SYSTEM_ID, "monsterBuilderEnabled", {
-		name: "stonetop.settings.monsterBuilderEnabled.name",
-		hint: "stonetop.settings.monsterBuilderEnabled.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("monsterBuilderEnabled", "world", true);
 
 	// The relationship map and the timeline, each switched off for the whole table at once: the
 	// steading's tab, the Journal sidebar's button and row, the hotbar macro and any window open on
@@ -362,24 +285,8 @@ export function registerSettings() {
 	// ⚠ A NEW KEY, NOT THE OLD "...Enabled" ONE. That was the dark-launch switch the timeline shipped
 	// out from behind, and a world from that release may still hold a `false` under it, which would hide the timeline
 	// from a table that never asked. tests/timeline/timeline-shipped.test.js keeps the name retired.
-	game.settings.register(SYSTEM_ID, "showRelationshipMap", {
-		name: "stonetop.settings.showRelationshipMap.name",
-		hint: "stonetop.settings.showRelationshipMap.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-		onChange: value => Hooks.callAll(FEATURE_SWITCH_HOOK, "relationshipMap", value),
-	});
-	game.settings.register(SYSTEM_ID, "showTimeline", {
-		name: "stonetop.settings.showTimeline.name",
-		hint: "stonetop.settings.showTimeline.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-		onChange: value => Hooks.callAll(FEATURE_SWITCH_HOOK, "timeline", value),
-	});
+	_checkbox("showRelationshipMap", "world", true, { onChange: value => Hooks.callAll(FEATURE_SWITCH_HOOK, "relationshipMap", value) });
+	_checkbox("showTimeline", "world", true, { onChange: value => Hooks.callAll(FEATURE_SWITCH_HOOK, "timeline", value) });
 
 	// Whether players may PEEK at a card's BACK before unlocking it. A card's OWNER always
 	// sees its back once unlocked (every spot filled), regardless of this setting —
@@ -388,129 +295,67 @@ export function registerSettings() {
 	// un-unlocked back hidden until the GM clicks "Reveal back to player" on it. The GM
 	// always sees both sides. See the per-card visibility model in
 	// StonetopCharacterSheet.getData / CharacterArcana.
-	game.settings.register(SYSTEM_ID, "arcanaPlayersSeeBothSides", {
-		name: "stonetop.settings.arcanaPlayersSeeBothSides.name",
-		hint: "stonetop.settings.arcanaPlayersSeeBothSides.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: false,
-	});
+	_checkbox("arcanaPlayersSeeBothSides", "world", false);
 
 	// Identifying artifacts, Book I pp.430-431. When on, a Book II treasure dropped onto a
 	// character sheet lands with its tags, Value and ○ uses withheld, so the table plays out
 	// "describe it… hint at more than meets the eye" and a PC has to Know Things about it.
 	// Off by default: that's how every existing world already behaves, and a GM who prefers to
 	// hand treasure over plainly can still hide individual pieces from the row's own control.
-	game.settings.register(SYSTEM_ID, "artifactsStartUnidentified", {
-		name: "stonetop.settings.artifactsStartUnidentified.name",
-		hint: "stonetop.settings.artifactsStartUnidentified.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: false,
-	});
+	_checkbox("artifactsStartUnidentified", "world", false);
 
 	// The flagship "threats on the map" option. When on, each threat pin also draws its
 	// full book card on the canvas, anchored to the pin and panning/zooming with the
 	// scene, with a live doom track the GM ticks right there. Off by default: the safe
 	// path is a pin that opens the card in a window (works everywhere, no canvas overlay).
-	game.settings.register(SYSTEM_ID, "threatOnCanvasCards", {
-		name: "stonetop.settings.threatOnCanvasCards.name",
-		hint: "stonetop.settings.threatOnCanvasCards.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: false,
-		onChange: () => game.stonetop?.threatBoard?.refresh?.(),
-	});
+	_checkbox("threatOnCanvasCards", "world", false, { onChange: () => game.stonetop?.threatBoard?.refresh?.() });
 
 	// Foundry's Combat tab becomes the Fight tab: no initiative, rounds or turns, and each
 	// engagement shown with the rule that applies (module/fight/). Read ONCE, at init, where it
 	// decides which class the sidebar builds its tab from, so changing it needs a reload.
 	// Off switches everything the Fight tab brings (the map lines, the damage pre-fill, Deploy
 	// and fight) back to core's own tracker for a table that runs an initiative module.
-	game.settings.register(SYSTEM_ID, "fightTab", {
-		name: "stonetop.settings.fightTab.name",
-		hint: "stonetop.settings.fightTab.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-		requiresReload: true,
-	});
+	_checkbox("fightTab", "world", true, { requiresReload: true });
 
 	// Whether the combat tab pops out into a window of its own when a fight starts on the map this
 	// reader is looking at, and closes when it ends (module/fight/fight-window.js). Per client: a GM
 	// on a wide monitor and a player on a laptop want different things. Offered in both kinds of
 	// world, because the window is the one piece of the Fight tab that works over core's own tracker
 	// too; the wording follows whichever tab this world has. `fightTab` is registered above and a
-	// world setting reads fine at init.
-	game.settings.register(SYSTEM_ID, "fightWindowAuto", {
-		name: isFightTabEnabled() ? "stonetop.settings.fightWindowAuto.name" : "stonetop.settings.fightWindowAuto.combatName",
-		hint: isFightTabEnabled() ? "stonetop.settings.fightWindowAuto.hint" : "stonetop.settings.fightWindowAuto.combatHint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: true,
+	// world setting reads fine at init, so it is read once here for both switches that depend on it.
+	const fightTab = isFightTabEnabled();
+	_checkbox("fightWindowAuto", "client", true, fightTab ? {} : {
+		name: "stonetop.settings.fightWindowAuto.combatName",
+		hint: "stonetop.settings.fightWindowAuto.combatHint",
 	});
 
 	// Where this reader last left the Fight window, and the fight they closed it on, so it stays shut
 	// for that fight across a reload (module/fight/fight-window.js). Never shown.
-	game.settings.register(SYSTEM_ID, "fightWindow", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("fightWindow", { scope: "client", type: Object, default: {} });
 
 	// Whether a plain click on a token in the fight puts its moves and damage dice round it
 	// (module/fight/fight-ring.js). Per client: a GM who clicks tokens all evening to move them may
-	// want it off while the players keep it. Listed only with the Fight tab on, like the one above.
-	game.settings.register(SYSTEM_ID, "fightRing", {
-		name: "stonetop.settings.fightRing.name",
-		hint: "stonetop.settings.fightRing.hint",
-		scope: "client",
-		config: isFightTabEnabled(),
-		type: Boolean,
-		default: true,
-	});
+	// want it off while the players keep it. Listed only with the Fight tab on, unlike the window
+	// switch above, which is offered in both kinds of world.
+	_checkbox("fightRing", "client", true, { config: fightTab });
 
 	// Whether the one-time "Welcome to Stonetop" fresh-start CHAT card has been posted in
 	// this world (hooks/Ready.js _postStartupWelcomeMessageOnce). Distinct from
 	// `gmWelcomeShown` above despite the similar name: that one records that the GM
 	// dismissed the Welcome GUIDE's auto-pop-up, this one that the orientation card has
 	// been posted to chat. World-scoped — the card is public, and only the GM posts it.
-	game.settings.register(SYSTEM_ID, "startupWelcomeShown", {
-		name: "Startup Welcome Chat Card Posted",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("startupWelcomeShown", "Startup Welcome Chat Card Posted");
 
 	// Whether the "(TEST ONLY) Populate World" dev macro has been seeded into the
 	// world's Macro Directory (see hooks/Ready.js _ensureTestPopulateMacro). Set true
 	// after the first GM load so it's added exactly once — a GM who later deletes it
 	// keeps it gone rather than having it reappear every reload.
-	game.settings.register(SYSTEM_ID, "testPopulateMacroSeeded", {
-		name: "Test Populate Macro Seeded",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("testPopulateMacroSeeded", "Test Populate Macro Seeded");
 
 	// Whether the "Import Book II Art" macro has been seeded into the world's Macro
 	// Directory (see hooks/Ready.js _ensureBook2ArtMacro). Set true after the first
 	// GM load so it's added exactly once — a GM who later deletes it keeps it gone.
-	game.settings.register(SYSTEM_ID, "book2ArtMacroSeeded", {
-		name: "Book II Art Macro Seeded",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("book2ArtMacroSeeded", "Book II Art Macro Seeded");
 
 	// Whether the one-time "you can import your book art" chat reminder has been posted
 	// (see hooks/Ready.js _postBook2ArtReminderOnce). Resolved exactly once for a GM who
@@ -518,37 +363,19 @@ export function registerSettings() {
 	// this again"): the card is whispered if no art is on disk yet, otherwise it's simply
 	// marked done. World-scoped — "has this world been nudged" is world state, and only the
 	// GM posts/acts on it.
-	game.settings.register(SYSTEM_ID, "book2ArtReminderShown", {
-		name: "Book Art Import Reminder Shown",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("book2ArtReminderShown", "Book Art Import Reminder Shown");
 
 	// Whether the one-time "you could have weather on the map" chat card has been posted
 	// (see seasons/fxmaster-suggestion.js). Same shape and the same gate as the art reminder
 	// above: resolved once for a GM who is past the Welcome guide, whispered when FXMaster is
 	// absent and simply marked done when it is already installed. World-scoped for the same
 	// reason: "has this world been told" is world state, and only a GM can act on it.
-	game.settings.register(SYSTEM_ID, "fxMasterSuggestionShown", {
-		name: "Weather Effects Module Suggestion Shown",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("fxMasterSuggestionShown", "Weather Effects Module Suggestion Shown");
 
 	// Whether the one-time "your attacks could be seen and heard" chat card has been posted
 	// (see combat/attack-fx-suggestion.js). For worlds greeted before the greeting card named
 	// Sequencer, JB2A and SoundFx Library; a world greeted since is marked done unposted.
-	game.settings.register(SYSTEM_ID, "attackFxSuggestionShown", {
-		name: "Attack Effects Module Suggestion Shown",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("attackFxSuggestionShown", "Attack Effects Module Suggestion Shown");
 
 	// RETIRED KEY: "peopleCropRebuildOffered". Superseded by bookArtRebuildOffered below and
 	// no longer registered — nothing reads it, and Foundry simply ignores a stored value whose
@@ -573,13 +400,7 @@ export function registerSettings() {
 	//
 	// Safe to re-ask: findWork returns falsy when there is nothing left to cut, so a world that
 	// is already complete stays silent and never sets this at all.
-	game.settings.register(SYSTEM_ID, "bookArtRebuildOffered", {
-		name: "Book Art Rebuild Offered",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("bookArtRebuildOffered", "Book Art Rebuild Offered");
 
 	// Whether the one-time "your import did not finish — want to pick up the rest?" offer has been
 	// made (hooks/Ready.js _offerPartialArtImportOnce). World-scoped like its siblings: it is a
@@ -593,13 +414,7 @@ export function registerSettings() {
 	//
 	// Safe to re-ask: findWork returns falsy for a complete import, so a world with nothing missing
 	// stays silent and never sets this.
-	game.settings.register(SYSTEM_ID, "partialArtImportOffered", {
-		name: "Partial Art Import Offered",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("partialArtImportOffered", "Partial Art Import Offered");
 
 	// Whether the one-time "the GM playbook is a source too" offer has been made in this world
 	// (hooks/Ready.js _offerGmPlaybookArtOnce). A world that imported before that PDF was wired in
@@ -609,13 +424,7 @@ export function registerSettings() {
 	// Safe to re-ask, and the reason is the same as the partial import above: findWork returns
 	// falsy for a world that already has the playbook art (and for one that has imported nothing
 	// at all, which the "Import Your Book Art" nudge owns), so neither latches this.
-	game.settings.register(SYSTEM_ID, "gmPlaybookArtOffered", {
-		name: "GM Playbook Art Offered",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("gmPlaybookArtOffered", "GM Playbook Art Offered");
 
 	// Whether the one-time "you already have these poster maps — want them as Scenes?" offer
 	// has been made in this world (hooks/WorldSetup.js offerPosterMapScenesOnce). The map
@@ -623,13 +432,7 @@ export function registerSettings() {
 	// so a brand-new world can find them waiting and rebuild the Scenes without a second PDF
 	// import. World-scoped, and only set once the offer has ACTUALLY been made, so a GM who
 	// supplies maps later still gets asked.
-	game.settings.register(SYSTEM_ID, "posterMapScenesOffered", {
-		name: "Poster Map Scenes Offered",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("posterMapScenesOffered", "Poster Map Scenes Offered");
 
 	// Whether this world has been given the relationship map it comes with (see
 	// relmap/relmap-make.js seedRelationshipMapOnce). A fresh world arrives with one map, named
@@ -640,13 +443,7 @@ export function registerSettings() {
 	// here, so without this a GM who deletes the map would find it back on the next load, which is
 	// a map nobody can be rid of. Set once the map exists -- and set WITHOUT making one on a world
 	// that already had a map of its own, so an established world is not given a second.
-	game.settings.register(SYSTEM_ID, "relationshipMapSeeded", {
-		name: "Relationship Map Seeded",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("relationshipMapSeeded", "Relationship Map Seeded");
 
 	// Where this world's copies of the rulebooks are, as a { book number -> path } record, so
 	// the GM Toolkit's two book icons have something to open. Nothing is shipped and nothing is
@@ -659,26 +456,19 @@ export function registerSettings() {
 	// One record rather than a key per book: `book: 3` is already a number this codebase cites
 	// (the free GM playbook, see gm-toolkit/book-ref.js), so a third book should be a row in
 	// RULEBOOKS and nothing else.
-	game.settings.register(SYSTEM_ID, RULEBOOKS_SETTING, {
-		name: "Your Rulebook PDFs",
-		scope: "world",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden(RULEBOOKS_SETTING, { name: "Your Rulebook PDFs", scope: "world", type: Object, default: {} });
 
 	// The durable folder (a top-level data path, OUTSIDE the system folder) the "Import
 	// Book Art" macro writes extracted illustrations to. Living outside systems/stonetop_pwd
 	// is what keeps the art across a system update or reinstall; the runtime re-apply
 	// (hooks/Ready.js -> book2-art/reapply.js) re-points documents at it after an update.
-	game.settings.register(SYSTEM_ID, "book2ArtRoot", {
+	_hidden("book2ArtRoot", {
 		name: "Book II Art Folder",
 		scope: "world",
-		config: false,
 		type: String,
 		// Shared with book2ArtRoot()'s fallback, so a world that never set this and a world
 		// whose setting can't be read resolve art to the same folder.
-		default: DEFAULT_BOOK2_ART_ROOT
+		default: DEFAULT_BOOK2_ART_ROOT,
 	});
 
 	// What a browse of that folder says sits in FRONT of it on this host, learned from a real
@@ -693,13 +483,7 @@ export function registerSettings() {
 	//
 	// World-scoped because the People gallery and the treasure drop both run on PLAYER clients,
 	// which have no way to browse and so no way to work this out for themselves.
-	game.settings.register(SYSTEM_ID, "book2ArtPrefix", {
-		name: "Book Art URL Prefix",
-		scope: "world",
-		config: false,
-		type: String,
-		default: ""
-	});
+	_hidden("book2ArtPrefix", { name: "Book Art URL Prefix", scope: "world", type: String, default: "" });
 
 	// Whether every Stonetop map pin wears its name, or waits for the cursor.
 	//
@@ -722,14 +506,12 @@ export function registerSettings() {
 	// the per-map rows it is the fallback for. Split across two places in the settings window, a
 	// GM turning "always show names" off and watching one map ignore them would have no way to
 	// see why.
-	game.settings.register(SYSTEM_ID, "alwaysShowMapPinNames", {
-		name: "stonetop.settings.alwaysShowMapPinNames.name",
-		hint: "stonetop.settings.alwaysShowMapPinNames.hint",
+	_hidden("alwaysShowMapPinNames", {
+		..._labels("alwaysShowMapPinNames"),
 		scope: "world",
-		config: false,
 		type: Boolean,
 		default: true,
-		onChange: () => applyMapPinLabelMode(),
+		onChange: applyMapPinLabelMode,
 	});
 
 	// Per-map overrides of the switch above, as a { poster map slug -> boolean } map.
@@ -747,13 +529,12 @@ export function registerSettings() {
 	// Only the five poster maps are switchable. Every other scene follows the world default,
 	// because there is nothing to list it under: this is a settings menu, not a per-scene sheet,
 	// and a world can hold any number of scenes with our pins on them.
-	game.settings.register(SYSTEM_ID, "mapPinNamesByMap", {
+	_hidden("mapPinNamesByMap", {
 		name: "Map Pin Names By Map",
 		scope: "world",
-		config: false,
 		type: Object,
 		default: {},
-		onChange: () => applyMapPinLabelMode(),
+		onChange: applyMapPinLabelMode,
 	});
 
 	// ONE READER'S OWN ANSWER, per scene — what the eye button beside the sidebar writes
@@ -785,16 +566,15 @@ export function registerSettings() {
 	// just grow forever with keys naming scenes this world has never heard of. Same fix, and the
 	// same `worldKey()`, as `walkthroughResume` and `settingOverviewShown`. Shape:
 	//   { "<worldId>": { "<sceneId>": true | false } }
-	game.settings.register(SYSTEM_ID, "mapPinNamesLocal", {
+	_hidden("mapPinNamesLocal", {
 		name: "Map Pin Names (This Browser)",
 		scope: "client",
-		config: false,
 		type: Object,
 		default: {},
 		// Core fires a client setting's onChange synchronously from `set`, and skips it when the
 		// written value is identical — so this is the whole repaint path, and the writers below
 		// deliberately do not repaint again on top of it.
-		onChange: () => applyMapPinLabelMode(),
+		onChange: applyMapPinLabelMode,
 	});
 
 	game.settings.registerMenu(SYSTEM_ID, "mapPinNameSettings", {
@@ -825,13 +605,7 @@ export function registerSettings() {
 	// pass that puts it back on every reload is arguing with them. A slug is recorded only once
 	// a Scene for that map has actually been visited, so a map with no Scene yet, or one whose
 	// picture the positions do not fit, stays pending rather than being written off.
-	game.settings.register(SYSTEM_ID, "regionalMapMarkers", {
-		name: "Regional Map Markers Placed",
-		scope: "world",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("regionalMapMarkers", { name: "Regional Map Markers Placed", scope: "world", type: Object, default: {} });
 
 	// Which Book II treasures have their illustration on disk under `book2ArtRoot`, as a
 	// { catalog slug -> path within the art folder } map (module/data/treasure-catalog.js).
@@ -842,13 +616,7 @@ export function registerSettings() {
 	// book2-art/reapply.js) browse the folder and publish it here, and treasure-drops.js
 	// reads it synchronously when building the drop. World-scoped so players (who cannot
 	// browse files) get it broadcast like any setting.
-	game.settings.register(SYSTEM_ID, "treasureArt", {
-		name: "Treasure Art On Disk",
-		scope: "world",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("treasureArt", { name: "Treasure Art On Disk", scope: "world", type: Object, default: {} });
 
 	// Which of the GM playbook's flowcharts have been extracted to disk under `book2ArtRoot`, as a
 	// { diagram slug -> path within the art folder } map. The same shape and the same reason as
@@ -856,13 +624,7 @@ export function registerSettings() {
 	// GM Toolkit's Core Loop tab can tell "imported" from "not imported" is to read an index the
 	// GM-side passes publish. World-scoped like the rest, though this one is read only on a GM's
 	// own sheet — a broadcast setting costs nothing and keeps the four indexes alike.
-	game.settings.register(SYSTEM_ID, "gmDiagramArt", {
-		name: "GM Playbook Diagrams On Disk",
-		scope: "world",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("gmDiagramArt", { name: "GM Playbook Diagrams On Disk", scope: "world", type: Object, default: {} });
 
 	// Which "People of Stonetop" portraits have their illustration on disk under `book2ArtRoot`,
 	// as a { manifest out path -> display name } map. Like a treasure, a resident/neighbor
@@ -870,13 +632,7 @@ export function registerSettings() {
 	// index so even players (who cannot browse files) can pick from it. The GM-side passes (the
 	// Import Book Art macro and book2-art/reapply.js) browse the folder and publish it here.
 	// World-scoped so it reaches every client like any setting.
-	game.settings.register(SYSTEM_ID, "peopleArt", {
-		name: "People Art On Disk",
-		scope: "world",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("peopleArt", { name: "People Art On Disk", scope: "world", type: Object, default: {} });
 
 	// Which of those portraits also have their hand-authored SQUARE face on disk, as a
 	// { illustration out path -> square out path } map. A SECOND index rather than richer values
@@ -884,35 +640,22 @@ export function registerSettings() {
 	// already has one, and consumers join the two by `out`, so nothing needs migrating and a
 	// world whose GM has not re-run the rebuild simply has no entries here and keeps offering the
 	// whole illustration. Same publishers as `peopleArt`.
-	game.settings.register(SYSTEM_ID, "peoplePortraitArt", {
+	_hidden("peoplePortraitArt", {
 		name: "People Square Portraits On Disk",
 		scope: "world",
-		config: false,
 		type: Object,
-		default: {}
+		default: {},
 	});
 
 	// The system version whose Book II art was last re-applied to the compendia. When
 	// this trails the running version, the re-apply pass re-points documents at the
 	// durable art on disk and records the new version here (see book2-art/reapply.js).
-	game.settings.register(SYSTEM_ID, "book2ArtSyncVersion", {
-		name: "Book II Art Sync Version",
-		scope: "world",
-		config: false,
-		type: String,
-		default: ""
-	});
+	_hidden("book2ArtSyncVersion", { name: "Book II Art Sync Version", scope: "world", type: String, default: "" });
 
 	// Whether the GM has dismissed the "first session" Welcome guide's automatic
 	// pop-up (see dialogs/WelcomeDialog.js). While false, the guide opens for the
 	// GM on every world load; ticking "Don't show this automatically" sets it true.
-	game.settings.register(SYSTEM_ID, "gmWelcomeShown", {
-		name: "GM Welcome Guide Dismissed",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("gmWelcomeShown", "GM Welcome Guide Dismissed");
 
 	// Which session-zero walkthroughs THIS world has finished (Character Introductions
 	// and Let Spring Burst Forth). Set when a walkthrough's final button is pressed;
@@ -921,24 +664,22 @@ export function registerSettings() {
 	// its first session" is world state, so a fresh world starts over — unlike the
 	// client-scoped `walkthroughResume` below, which would leak completion across every
 	// world opened in the same browser. Shape: { introductions: <bool>, springBurst: <bool> }.
-	game.settings.register(SYSTEM_ID, "sessionZeroDone", {
+	_hidden("sessionZeroDone", {
 		name: "Session Zero Walkthroughs Complete",
 		scope: "world",
-		config: false,
 		type: Object,
-		default: {}
+		default: {},
 	});
 
 	// Answers the GM records in the "Let spring burst forth" walkthrough (see
 	// dialogs/SpringBurstDialog.js) — the first-session notes that have no document
 	// of their own (who's most hopeful, the season's chosen gain/hook, and what
 	// excites each player about their PC). Shape: { hopeful, gain, excites: { <actorId>: text } }.
-	game.settings.register(SYSTEM_ID, "springBurstAnswers", {
+	_hidden("springBurstAnswers", {
 		name: "Let Spring Burst Forth Answers",
 		scope: "world",
-		config: false,
 		type: Object,
-		default: {}
+		default: {},
 	});
 
 	// Answers recorded in the guided Character Introductions (see
@@ -956,12 +697,11 @@ export function registerSettings() {
 	// step4 folds the old r4/r5 "answer" rounds into one looping step (up to 4 answers,
 	// one per playbook question); step6 folds r6/r7. The compiler reads both the step
 	// lists and the legacy r4–r7 keys, so already-run worlds keep compiling unchanged.
-	game.settings.register(SYSTEM_ID, "introductionsAnswers", {
+	_hidden("introductionsAnswers", {
 		name: "Character Introductions Answers",
 		scope: "world",
-		config: false,
 		type: Object,
-		default: {}
+		default: {},
 	});
 
 	// GM-driven session cursor for the guided Character Introductions — whose turn it is
@@ -974,10 +714,9 @@ export function registerSettings() {
 	// follows the same table even if the saved order below is edited mid-session. Shape:
 	//   { active: <bool>, phase: <0-6>, activeActorId: "<id>",
 	//     activeUserId: "<owning player's user id>", pcOrder: [ "<id>", … ], nonce: <int> }.
-	game.settings.register(SYSTEM_ID, "introCursor", {
+	_hidden("introCursor", {
 		name: "Character Introductions Cursor",
 		scope: "world",
-		config: false,
 		type: Object,
 		default: { active: false, phase: 0, activeActorId: "", activeUserId: "", pcOrder: [], nonce: 0 },
 		onChange: value => game.stonetop?.onIntroCursor?.(value),
@@ -989,10 +728,9 @@ export function registerSettings() {
 	// old Combat-tracker order has been copied across ("combat") or that there was none
 	// ("none"), so that copy happens once. See utils/introductions-order.js. Shape:
 	//   { ids: [ "<actor id>", … ], adopted: "combat" | "none" }.
-	game.settings.register(SYSTEM_ID, "introductionsOrder", {
+	_hidden("introductionsOrder", {
 		name: "Character Introductions Order",
 		scope: "world",
-		config: false,
 		type: Object,
 		default: { ids: [] },
 		onChange: value => game.stonetop?.onIntroductionsOrder?.(value),
@@ -1009,10 +747,9 @@ export function registerSettings() {
 	//               home: { checks, notes } }, … ] }      // oldest trip first
 	// Only the two journey SLUGS are stored, never the solved route: the travel graph is frozen
 	// compile-time data, so recomputing costs nothing and there is no snapshot to go stale.
-	game.settings.register(SYSTEM_ID, "expeditionAnswers", {
+	_hidden("expeditionAnswers", {
 		name: "Expedition Walkthrough Notes",
 		scope: "world",
-		config: false,
 		type: Object,
 		default: {},
 		// An open walkthrough holds its own copy of the log, so a second GM's write has to reach
@@ -1026,12 +763,11 @@ export function registerSettings() {
 	// re-snaps the system macros into their new canonical slots once, then leaves the
 	// GM's own arrangement alone again. Per-client because the hotbar is per-user;
 	// starts at 0 so a fresh world (and any pre-versioning world) arranges on first load.
-	game.settings.register(SYSTEM_ID, "systemHotbarLayoutVersion", {
+	_hidden("systemHotbarLayoutVersion", {
 		name: "System Hotbar Layout Version",
 		scope: "client",
-		config: false,
 		type: Number,
-		default: 0
+		default: 0,
 	});
 
 	// Optional FXMaster integration: when the GM posts a weather from the picker, put the
@@ -1055,53 +791,27 @@ export function registerSettings() {
 	// here: weather-fx.js reads it through `WEATHER_FX_SETTING`, and a rename that touched only one
 	// of the two failed in the worst direction there is — the box still on the settings screen and
 	// ticked, `getSetting` answering undefined, `weatherFxPaused` reading that as paused, and the
-	// canvas weather simply dead with nothing anywhere to say why.
-	// The KEY comes from the constant; the two i18n strings stay literals, because the registration
-	// suite greps this file for them to find en.json entries nothing declares.
-	game.settings.register(SYSTEM_ID, WEATHER_FX_SETTING, {
-		name: "stonetop.settings.weatherSceneFx.name",
-		hint: "stonetop.settings.weatherSceneFx.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-		onChange: reconcileWeatherFx,
-	});
+	// canvas weather simply dead with nothing anywhere to say why. Its labels are derived from
+	// that same key, like every other setting's here.
+	_checkbox(WEATHER_FX_SETTING, "world", true, { onChange: reconcileWeatherFx });
 
 	// The parts of the sky, one switch each, sitting directly under the main one: a table that
 	// cannot stand the fog can put the fog out and keep the rain. Registered in a loop off
 	// WEATHER_FX_PARTS in that table's own order, which IS the order they appear in Configure
 	// Settings, so the seven read as a block under the switch they hang off rather than as seven
-	// unrelated checkboxes. Their names and hints are derived from the key for the same reason:
-	// a row added to the table is a row on the screen, with nothing here to keep in step.
+	// unrelated checkboxes. A row added to the table is a row on the screen, with nothing here to
+	// keep in step.
 	//
 	// Default ON, every one. Off is a thing a table asks for, and the world that has never been
 	// asked gets the whole sky.
-	for (const part of WEATHER_FX_PARTS) {
-		game.settings.register(SYSTEM_ID, part.setting, {
-			name: `stonetop.settings.${part.setting}.name`,
-			hint: `stonetop.settings.${part.setting}.hint`,
-			scope: "world",
-			config: true,
-			type: Boolean,
-			default: true,
-			onChange: reconcileWeatherFx,
-		});
-	}
+	for (const part of WEATHER_FX_PARTS) _checkbox(part.setting, "world", true, { onChange: reconcileWeatherFx });
 
 	// Swings, shots and hits drawn on the map and heard at the table (combat/attack-fx.js). A world
 	// switch rather than a reader's, because the effects are BROADCAST: one player's blow plays on
 	// every screen, so whether a table has them is the table's call. Default ON, and harmless where
 	// the modules it needs are missing; each reader who wants the motion gone has their system's
 	// reduced-motion setting, Sequencer's own Enable Effects, and core's Photosensitive Mode.
-	game.settings.register(SYSTEM_ID, "attackFx", {
-		name: "stonetop.settings.attackFx.name",
-		hint: "stonetop.settings.attackFx.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("attackFx", "world", true);
 
 	// The season last picked in the Weather roll dialog (see dialogs/WeatherDialog.js),
 	// so it reopens to where the GM left off. Client-scoped — it's a GM convenience,
@@ -1113,12 +823,7 @@ export function registerSettings() {
 	// honouring a deliberate pick within a season — see defaultWeatherSeason in utils/weather.js.
 	// Untyped rather than Object so the bare-string value written by builds before the pairing
 	// survives the upgrade; the resolver reads both shapes.
-	game.settings.register(SYSTEM_ID, "weatherSeason", {
-		name: "Weather Roll Season",
-		scope: "client",
-		config: false,
-		default: {}
-	});
+	_hidden("weatherSeason", { name: "Weather Roll Season", scope: "client", default: {} });
 
 	// Reload-resume state for the GM walkthroughs — the session-zero pair (Character
 	// Introductions, Let Spring Burst Forth) and Run an Expedition (see
@@ -1134,13 +839,7 @@ export function registerSettings() {
 	//       introductions: { open: <bool>, phase: <0-8>, pcIndex: <int> },
 	//       springBurst:   { open: <bool>, step: <int>, delegated: <bool> },
 	//       expedition:    { open: <bool>, step: <int> } } }
-	game.settings.register(SYSTEM_ID, "walkthroughResume", {
-		name: "Walkthrough Resume State",
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("walkthroughResume", { name: "Walkthrough Resume State", scope: "client", type: Object, default: {} });
 
 	// Which rulebook readers this browser had open when it last unloaded, so they come back
 	// (module/books/reader-resume.js). Same reasoning as the record above and the same shape of
@@ -1152,13 +851,7 @@ export function registerSettings() {
 	//   { "<worldId>": [1, 2] }
 	// The PAGE is deliberately absent: pdf.js keeps its own view history and restores the exact
 	// scroll and zoom, which is more than a page number could say.
-	game.settings.register(SYSTEM_ID, "bookReaderResume", {
-		name: "Rulebook Reader Resume State",
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("bookReaderResume", { name: "Rulebook Reader Resume State", scope: "client", type: Object, default: {} });
 
 	// One reader's own bookmarks in the rulebooks, listed in a tab of the viewer's own sidebar
 	// (module/books/reader-bookmarks-tab.js). Shape:
@@ -1170,13 +863,7 @@ export function registerSettings() {
 	// play from next week. `user` is stored in the world's settings database keyed by the user,
 	// which is exactly what a bookmark is a fact about — and being per-world already, it needs
 	// none of the world-id nesting the client-scoped records above have to do for themselves.
-	game.settings.register(SYSTEM_ID, "bookBookmarks", {
-		name: "Rulebook Bookmarks",
-		scope: "user",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("bookBookmarks", { name: "Rulebook Bookmarks", scope: "user", type: Object, default: {} });
 
 	// -- CLIENT SPECIFIC SETTINGS --------------------------------
 
@@ -1190,13 +877,7 @@ export function registerSettings() {
 	// Overview once ever got their new world's orientation. Same fix, and same reason, as
 	// the world-keyed `walkthroughResume` below. Shape: { "<worldId>": true }.
 	// A legacy flat `true` is folded under the current world by migrateFlatSettingOverviewShown.
-	game.settings.register(SYSTEM_ID, "settingOverviewShown", {
-		name: "Setting Overview Shown",
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {}
-	});
+	_hidden("settingOverviewShown", { name: "Setting Overview Shown", scope: "client", type: Object, default: {} });
 
 	// NB: the GM-steading auto-assignment once-gate is NOT a setting — it's a per-user
 	// WORLD flag on the GM's own User document (see hooks/Ready.js
@@ -1204,11 +885,8 @@ export function registerSettings() {
 	// live in browser localStorage keyed only by namespace.key, so the flag leaked across
 	// worlds and a fresh world read it already-set — silently skipping the assignment.
 
-	game.settings.register(SYSTEM_ID, "sheetFont", {
-		name: "stonetop.settings.sheetFont.name",
-		hint: "stonetop.settings.sheetFont.hint",
+	_option("sheetFont", {
 		scope: "client",
-		config: true,
 		type: String,
 		choices: {
 			"libre-caslon":   "stonetop.settings.sheetFont.libreCaslon",
@@ -1234,11 +912,8 @@ export function registerSettings() {
 	// numbers ("1.25"), and a client setting is cast to its registered type on every read
 	// (Setting#_castType), so a stored "1.25" comes back as 1.25 the first time this build reads
 	// it. The registration is the only thing that had to change.
-	game.settings.register(SYSTEM_ID, "sheetFontScale", {
-		name: "stonetop.settings.sheetFontScale.name",
-		hint: "stonetop.settings.sheetFontScale.hint",
+	_option("sheetFontScale", {
 		scope: "client",
-		config: true,
 		type: Number,
 		range: { min: 0.9, max: 1.4, step: 0.05 },
 		default: 1,
@@ -1270,11 +945,8 @@ export function registerSettings() {
 	// the darker greys that they cannot have both. Uncoupled 2026-08-28 at the user's request. The
 	// grain costs about 0.3:1 at the faintest step (7.27:1 on the image against 7.57:1 on bare
 	// white), so both ways round still clear AAA and the choice is genuinely the reader's.
-	game.settings.register(SYSTEM_ID, "sheetContrast", {
-		name: "stonetop.settings.sheetContrast.name",
-		hint: "stonetop.settings.sheetContrast.hint",
+	_option("sheetContrast", {
 		scope: "client",
-		config: true,
 		type: String,
 		// A CHOICE: which PAGE, parchment or one of the dark ones. High contrast is NOT one of
 		// them any more; it is the `highContrast` checkbox below, worn over whichever page this
@@ -1305,15 +977,7 @@ export function registerSettings() {
 	// ring, underlined links and heavier hairlines that come with it. The two are independent
 	// axes (two classes on the root, see applySheetContrast), so a checkbox each is the honest
 	// shape. Client-scoped like the page, and offered beside it on the Preferences tab.
-	game.settings.register(SYSTEM_ID, "highContrast", {
-		name: "stonetop.settings.highContrast.name",
-		hint: "stonetop.settings.highContrast.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: false,
-		onChange: value => applyHighContrast(value),
-	});
+	_checkbox("highContrast", "client", false, { onChange: value => applyHighContrast(value) });
 
 	// The imported poster maps, as Scenes, in the Setting Overview pages and on the expedition's
 	// route map, turned down for this browser (hooks/map-brightness.js). A PERCENT slider rather than a multiplier like the font
@@ -1321,38 +985,24 @@ export function registerSettings() {
 	// setting rather than part of the palette above: a map can glare in the light palette at night
 	// as much as in the dark one. No onChange: the hook module hears the change by key and repaints
 	// the canvas, the journal figures and the route maps itself.
-	game.settings.register(SYSTEM_ID, "mapBrightness", {
-		name: "stonetop.settings.mapBrightness.name",
-		hint: "stonetop.settings.mapBrightness.hint",
+	_option("mapBrightness", {
 		scope: "client",
-		config: true,
 		type: Number,
 		range: { min: MIN_MAP_BRIGHTNESS, max: 100, step: 5 },
 		default: 100,
 	});
 
-	game.settings.register(SYSTEM_ID, "sheetTexture", {
-		name: "stonetop.settings.sheetTexture.name",
-		hint: "stonetop.settings.sheetTexture.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		// ON, because the grain is the system's look and nobody who has not been bothered by it
-		// should have to turn it back on.
-		default: true,
-		onChange: value => applySheetTexture(value),
-	});
+	// The paper grain. ON, because the grain is the system's look and nobody who has not been
+	// bothered by it should have to turn it back on.
+	_checkbox("sheetTexture", "client", true, { onChange: value => applySheetTexture(value) });
 
 	// How faint the grain is while it is on. A PERCENT, like the map brightness above, and read the
 	// way a reader asks for it: higher is MORE transparent. 0 is the image at full strength; the
 	// default 30 is the level the parchment was knocked back to on 2026-10-04, so nobody's sheets
 	// move. Capped short of 100 because a full veil is just "Paper Texture" off by another route.
 	// Written into --st-paper-veil-strength by applySheetTextureFade (see --st-paper-veil).
-	game.settings.register(SYSTEM_ID, "sheetTextureFade", {
-		name: "stonetop.settings.sheetTextureFade.name",
-		hint: "stonetop.settings.sheetTextureFade.hint",
+	_option("sheetTextureFade", {
 		scope: "client",
-		config: true,
 		type: Number,
 		range: { min: 0, max: SHEET_TEXTURE_FADE_MAX, step: 5 },
 		default: SHEET_TEXTURE_FADE_DEFAULT,
@@ -1377,15 +1027,7 @@ export function registerSettings() {
 	// those into the text around them wherever colour is not already carrying the distinction too.
 	// That is a trade the reader is making knowingly, which is why the setting is theirs and
 	// defaults OFF.
-	game.settings.register(SYSTEM_ID, "noItalics", {
-		name: "stonetop.settings.noItalics.name",
-		hint: "stonetop.settings.noItalics.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: false,
-		onChange: value => applyNoItalics(value),
-	});
+	_checkbox("noItalics", "client", false, { onChange: value => applyNoItalics(value) });
 
 	// CLASSIC vs MODERN sheet layout: the table's answer, one person's override of it, and
 	// one toggle per sheet.
@@ -1417,55 +1059,34 @@ export function registerSettings() {
 	// moves for anyone who never opens the settings window.
 	//
 	// The Monster sheet has no tabs and never took part in the redesign, so it gets no toggle.
-	game.settings.register(SYSTEM_ID, "worldSheetLayout", {
-		name: "stonetop.settings.worldSheetLayout.name",
-		hint: "stonetop.settings.worldSheetLayout.hint",
+	_option("worldSheetLayout", {
 		scope: "world",
-		config: true,
 		type: String,
 		choices: {
 			"modern":  "stonetop.settings.worldSheetLayout.modern",
 			"classic": "stonetop.settings.worldSheetLayout.classic",
 		},
 		default: "modern",
-		onChange: () => _rerenderActorSheets(),
+		onChange: _rerenderActorSheets,
 	});
 
 	// Whether this world's layout has been answered once (see stampWorldLayoutBaseline).
 	// Stamped on the first GM load after the redesign shipped, fresh world or not, so the
 	// stamp never runs twice and can never overwrite a choice the GM has since made.
-	game.settings.register(SYSTEM_ID, "worldSheetLayoutChosen", {
-		name: "World Sheet Layout Chosen",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("worldSheetLayoutChosen", "World Sheet Layout Chosen");
 
 	// Whether the "your sheets stayed classic, here is how to try the new ones" card has been
 	// whispered to this world's GMs. Its own flag rather than riding on the stamp above: chat
 	// is not always up that early in a load, and that card is the only notice an upgraded
 	// table ever gets that the modern layout exists, so a lost one has to be re-offered.
-	game.settings.register(SYSTEM_ID, "classicLayoutNoticeShown", {
-		name: "Classic Layout Notice Shown",
-		scope: "world",
-		config: false,
-		type: Boolean,
-		default: false
-	});
+	_worldLatch("classicLayoutNoticeShown", "Classic Layout Notice Shown");
 
 	// The id of that card, so every later flip EDITS it instead of posting another one. There is
 	// exactly one layout card in a world's chat log at a time and it always shows the layout
 	// currently in force; flipping back and forth would otherwise leave a trail of cards, most
 	// of them describing a state the table left. Empty until the card is first posted, and
 	// re-filled if it is ever deleted. See utils/sheet-layout.js showLayoutCard.
-	game.settings.register(SYSTEM_ID, "layoutCardId", {
-		name: "Sheet Layout Card Message Id",
-		scope: "world",
-		config: false,
-		type: String,
-		default: ""
-	});
+	_hidden("layoutCardId", { name: "Sheet Layout Card Message Id", scope: "world", type: String, default: "" });
 
 	// RETIRED KEY: "classicLayout". This is the same switch, re-registered as the tri-state
 	// described above rather than the boolean it started as. It never shipped, so no world is
@@ -1473,11 +1094,8 @@ export function registerSettings() {
 	// holds one in localStorage (client settings outlive their registration there) — so the
 	// name is named here rather than reused, and _classicMaster reads any unrecognized value
 	// as "follow the world".
-	game.settings.register(SYSTEM_ID, "sheetLayout", {
-		name: "stonetop.settings.sheetLayout.name",
-		hint: "stonetop.settings.sheetLayout.hint",
+	_option("sheetLayout", {
 		scope: "client",
-		config: true,
 		type: String,
 		choices: {
 			"world":   "stonetop.settings.sheetLayout.world",
@@ -1485,7 +1103,7 @@ export function registerSettings() {
 			"classic": "stonetop.settings.sheetLayout.classic",
 		},
 		default: "world",
-		onChange: () => _rerenderActorSheets(),
+		onChange: _rerenderActorSheets,
 	});
 
 	// The three per-sheet boxes are WORLD, for the reason `sheetLayout` above is a tri-state and
@@ -1499,45 +1117,17 @@ export function registerSettings() {
 	// They belong with the master they qualify: effective classic is `<world master> && <this box>`,
 	// so both halves are the table's answer. The per-person escape hatch is `sheetLayout`, which
 	// stays client-scoped and still overrides the lot. Only a GM writes these, which the one caller
-	// (utils/sheet-layout.js setWorldSheetLayout) already gates on.
-	game.settings.register(SYSTEM_ID, "classicLayoutCharacter", {
-		name: "stonetop.settings.classicLayoutCharacter.name",
-		hint: "stonetop.settings.classicLayoutCharacter.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-		onChange: () => _rerenderActorSheets(),
-	});
-
-	game.settings.register(SYSTEM_ID, "classicLayoutSteading", {
-		name: "stonetop.settings.classicLayoutSteading.name",
-		hint: "stonetop.settings.classicLayoutSteading.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-		onChange: () => _rerenderActorSheets(),
-	});
-
-	game.settings.register(SYSTEM_ID, "classicLayoutNpc", {
-		name: "stonetop.settings.classicLayoutNpc.name",
-		hint: "stonetop.settings.classicLayoutNpc.hint",
-		scope: "world",
-		config: true,
-		type: Boolean,
-		default: true,
-		onChange: () => _rerenderActorSheets(),
-	});
+	// (utils/sheet-layout.js setWorldSheetLayout) already gates on. The default is the one the
+	// client-to-world adoption below compares against, so the two cannot disagree.
+	for (const key of CLASSIC_LAYOUT_SETTINGS) {
+		_checkbox(key, "world", _CLASSIC_LAYOUT_DEFAULT, { onChange: _rerenderActorSheets });
+	}
 
 	// How long you must hover a section before its edit pencil fades in (seconds).
 	// Drives the --st-edit-reveal-delay CSS variable. The pencils stay clickable
 	// while still invisible, so this only affects when they become visible.
-	game.settings.register(SYSTEM_ID, "editPencilRevealDelay", {
-		name: "stonetop.settings.editPencilRevealDelay.name",
-		hint: "stonetop.settings.editPencilRevealDelay.hint",
+	_option("editPencilRevealDelay", {
 		scope: "client",
-		config: true,
 		type: Number,
 		range: { min: 0, max: 3, step: 0.1 },
 		default: 1,
@@ -1548,26 +1138,12 @@ export function registerSettings() {
 	// Per browser: it sits over the map for everybody, and a player who finds it in the way takes
 	// it down for themselves without asking the GM to take it down for the table. No onChange: the
 	// bar listens for `clientSettingChanged` itself, since this file cannot import it back.
-	game.settings.register(SYSTEM_ID, "timeBannerShown", {
-		name: "stonetop.settings.timeBannerShown.name",
-		hint: "stonetop.settings.timeBannerShown.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("timeBannerShown", "client", true);
 
 	// The bells the love-letter notice rings as it drops in (actors/character/love-letter-notice.js).
 	// Per browser, and only the sound: the red notice still comes, so a player who finds the
 	// jingle too much doesn't also stop being told a letter arrived. Read each time it would ring.
-	game.settings.register(SYSTEM_ID, "loveLetterJingle", {
-		name: "stonetop.settings.loveLetterJingle.name",
-		hint: "stonetop.settings.loveLetterJingle.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("loveLetterJingle", "client", true);
 
 	// NO "HIDE ROLLABLE ICON" SETTING. It used to sit here, between the pencil delay and the
 	// roll-mode switch, and it hid the dice icon on move rows and stat rows. Both icons are
@@ -1590,17 +1166,10 @@ export function registerSettings() {
 	// Per-client, because it decides what THIS user's sheets draw and what THIS user's clicks
 	// open. The mode itself stays a flag on the actor, so a table can mix the two safely: the
 	// window's answer overrides the selector for that one roll and never writes to it.
-	game.settings.register(SYSTEM_ID, "askRollModeEachRoll", {
-		name: "stonetop.settings.askRollModeEachRoll.name",
-		hint: "stonetop.settings.askRollModeEachRoll.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: false,
-		// The selectors are rendered, so turning this on or off has to repaint the sheets that
-		// carry them — otherwise the control the setting just hid stays on screen and writable.
-		onChange: () => _rerenderActorSheets(),
-	});
+	//
+	// The selectors are rendered, so turning this on or off has to repaint the sheets that carry
+	// them — otherwise the control the setting just hid stays on screen and writable.
+	_checkbox("askRollModeEachRoll", "client", false, { onChange: _rerenderActorSheets });
 
 	// Prompt for a one-off situational modifier before each 2d6 move/stat roll on the
 	// character sheet (a held bonus, a GM-granted +1, etc.). Read at roll time (RollDialog.js);
@@ -1609,14 +1178,7 @@ export function registerSettings() {
 	// Only consulted when the window is not already opening for the mode: "Ask How to Roll
 	// Each Time" carries the stepper with it. So both off is no window at all, this one alone
 	// is the stepper alone, and the other one is both halves whatever this says.
-	game.settings.register(SYSTEM_ID, "promptRollModifier", {
-		name: "stonetop.settings.promptRollModifier.name",
-		hint: "stonetop.settings.promptRollModifier.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: false,
-	});
+	_checkbox("promptRollModifier", "client", false);
 
 	// Open the damage window before a damage roll (module/dialogs/RollDialog.js#promptDamage):
 	// advantage/disadvantage on the damage die, a flat modifier, and extra dice.
@@ -1631,79 +1193,44 @@ export function registerSettings() {
 	// Defaults ON for that reason; Shift-clicking the roll skips it for one roll, and a table
 	// that never adjusts damage unticks it once. Per-client, like both of its neighbours: it
 	// decides what THIS user's clicks open and nothing about the world.
-	game.settings.register(SYSTEM_ID, "promptDamageModifier", {
-		name: "stonetop.settings.promptDamageModifier.name",
-		hint: "stonetop.settings.promptDamageModifier.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("promptDamageModifier", "client", true);
 
 	// Open actor sheets (character / steading / monster / NPC) in Edit mode instead of
 	// Play mode. Read once when the sheet is constructed; the header wrench still
 	// toggles modes per-sheet afterward. The NPC sheet additionally requires ownership
 	// (a non-owner has nothing to edit), so it opens in Play mode for everyone else.
-	game.settings.register(SYSTEM_ID, "openSheetsInEditMode", {
-		name: "stonetop.settings.openSheetsInEditMode.name",
-		hint: "stonetop.settings.openSheetsInEditMode.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: false,
-	});
+	_checkbox("openSheetsInEditMode", "client", false);
 
 	// HOW THIS READER LAYS THE TIMELINE OUT: across the page ("horizontal", one axis with the seasons
 	// strung along it; the default since 2026-10-03) or down it ("vertical"). Per client, because it is a way of
 	// READING the record, not a fact about it. `config: false` because the switch sits in the
 	// timeline's own toolbar, and a second one in the settings window would be a disagreeing copy.
-	game.settings.register(SYSTEM_ID, "timelineOrientation", {
-		scope: "client",
-		config: false,
-		type: String,
-		default: "horizontal",
-	});
+	_hidden("timelineOrientation", { scope: "client", type: String, default: "horizontal" });
 
 	// WHICH KINDS OF ROW THIS READER HAS HIDDEN (kills, level-ups, ...): the sources they unticked in
 	// the timeline's "Filter" menu. Stored as what is HIDDEN rather than what is shown, so a kind added
 	// in a later release shows up for everybody instead of being silently missing. Per client and
 	// `config: false` for the same reasons as the orientation above.
-	game.settings.register(SYSTEM_ID, "timelineHiddenSources", {
-		scope: "client",
-		config: false,
-		type: Array,
-		default: [],
-	});
+	_hidden("timelineHiddenSources", { scope: "client", type: Array, default: [] });
 
 	// WHICH THREADS THIS READER HAS HIDDEN off the aggregate timeline, as track ids, from the Filter
 	// menu's Threads section. Hidden rather than shown for the reason above: a character made later
 	// joins the board for everybody. Per client, `config: false`.
-	game.settings.register(SYSTEM_ID, "timelineHiddenTracks", {
-		scope: "client",
-		config: false,
-		type: Array,
-		default: [],
-	});
+	_hidden("timelineHiddenTracks", { scope: "client", type: Array, default: [] });
 
 	// HAS THIS READER CHOSEN THEIR THREADS YET? Until a PLAYER ticks a thread or presses Show
 	// everything, the aggregate opens on their own characters' threads alone (user, 2026-10-03),
 	// worked out fresh each render so a character joining later stays off it too; the list above
 	// is only read once this is true. A GM is never defaulted. Per client, `config: false`.
-	game.settings.register(SYSTEM_ID, "timelineThreadsChosen", {
-		scope: "client",
-		config: false,
-		type: Boolean,
-		default: false,
-	});
+	_hidden("timelineThreadsChosen", { scope: "client", type: Boolean, default: false });
 
 	// THE COLOURS A GM REPAINTED THE TIMELINE'S KINDS IN, keyed by kind, `#rrggbb` each; a kind not
 	// in it wears the stylesheet's shipped colour. WORLD-scoped and so GM-only to write: a kind's
 	// colour is part of how the whole table reads the record, not one reader's taste. Set from the
 	// timeline toolbar's Colours window, so `config: false`. Foundry fires `onChange` on EVERY
 	// client for a world setting, which is what repaints the table the moment the GM saves.
-	game.settings.register(SYSTEM_ID, "timelineKindColours", {
+	_hidden("timelineKindColours", {
 		scope: "world",
-		config: false,
 		type: Object,
 		default: {},
 		onChange: value => applyTimelineKindColours(value),
@@ -1713,14 +1240,7 @@ export function registerSettings() {
 	// this user had open when they reload, at the same position and size. Per-client
 	// because window layout is personal, not shared world state. Defaults on. The
 	// live tracking + restore lives in utils/window-restore.js.
-	game.settings.register(SYSTEM_ID, "restoreWindowsOnReload", {
-		name: "stonetop.settings.restoreWindowsOnReload.name",
-		hint: "stonetop.settings.restoreWindowsOnReload.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: true,
-	});
+	_checkbox("restoreWindowsOnReload", "client", true);
 
 	// Snapshot of the sheets this user had open at last reload, keyed by document
 	// uuid -> { left, top, width, height, minimized, tabs, editMode } (see
@@ -1729,35 +1249,20 @@ export function registerSettings() {
 	// open, close, and move. Nested by world id for the reason `lastRelationshipBoard` below
 	// is. Shape: { "<worldId>": { "<document uuid>": snapshot } }; a flat record from before
 	// that is read as the current world's.
-	game.settings.register(SYSTEM_ID, "openWindowsState", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("openWindowsState", { scope: "client", type: Object, default: {} });
 
 	// Which relationship board this client last had open, so the hotbar macro can go straight
 	// there instead of asking. Internal, per client (where somebody is reading is theirs, not the
 	// world's), and nested by world id because a client setting has no world in its localStorage
 	// key. Shape: { "<worldId>": { entryId, pageId } }. See relmap/relmap-last.js.
-	game.settings.register(SYSTEM_ID, "lastRelationshipBoard", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("lastRelationshipBoard", { scope: "client", type: Object, default: {} });
 
 	// How big this client last asked the writing on a relationship line to be, in board pixels, so
 	// that the next line they draw is set in it. Internal, per client (a reader on a magnifier and
 	// a reader at 1:1 want different answers, and neither is the map's business), and NOT nested by
 	// world: it holds a number rather than an id, and how big somebody likes their type is the same
 	// fact in every world. Zero means they never said. See relmap/relmap-size.js.
-	game.settings.register(SYSTEM_ID, "lastCaptionSize", {
-		scope: "client",
-		config: false,
-		type: Number,
-		default: 0,
-	});
+	_hidden("lastCaptionSize", { scope: "client", type: Number, default: 0 });
 
 	// How heavily this client wants a relationship board drawn: the arrowheads, the strokes and the
 	// writing, each as a whole percentage of what the stylesheet sets. Internal, per client (how
@@ -1765,116 +1270,63 @@ export function registerSettings() {
 	// board would have one reader rewriting another's window), and NOT nested by world: it holds
 	// three numbers rather than an id, and that need is the same in every world they open. Shape:
 	// { head, line, word }. See relmap/relmap-weights.js.
-	game.settings.register(SYSTEM_ID, "relmapWeights", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("relmapWeights", { scope: "client", type: Object, default: {} });
 
 	// Strip the decorative animations, transitions, and hover-zoom image popups
 	// from Stonetop UI for users who find them distracting or are motion-sensitive.
 	// Drives the `stonetop-reduce-motion` root class.
-	game.settings.register(SYSTEM_ID, "reduceMotion", {
-		name: "stonetop.settings.reduceMotion.name",
-		hint: "stonetop.settings.reduceMotion.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: false,
-		onChange: value => applyReduceMotion(value),
-	});
+	_checkbox("reduceMotion", "client", false, { onChange: value => applyReduceMotion(value) });
 
 	// Superseded by "sheetSizes" below, which remembers height as well and covers every
 	// actor sheet rather than just the character. Still registered, and still READ as a
 	// fallback, so a user who had a width remembered here keeps it — the value moves over
 	// the first time they resize. Nothing writes to it any more.
-	game.settings.register(SYSTEM_ID, "characterSheetWidths", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("characterSheetWidths", { scope: "client", type: Object, default: {} });
 
 	// Remembers each actor sheet's SIZE so it reopens as the user last left it — character,
 	// steading, monster and NPC alike. Per-user (client) and per-actor: a map of actor id ->
 	// {width, height}. Actor ids are unique across types, so one map serves them all.
 	// Internal (not shown in the settings menu).
-	game.settings.register(SYSTEM_ID, "sheetSizes", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("sheetSizes", { scope: "client", type: Object, default: {} });
 
 	// Remembers which collapsible crew follower sections (Inventory / Roster /
 	// Group Fight) each character left expanded, so the sheet reopens in the same
 	// state. Per-user (client) and per-actor: a map of actor id -> array of open
 	// section ids. Internal (not shown in the settings menu).
-	game.settings.register(SYSTEM_ID, "crewSectionsOpen", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("crewSectionsOpen", { scope: "client", type: Object, default: {} });
 
 	// Remembers which sidebar move groups (Basic Moves / Expedition Moves) each
 	// character left collapsed, so the sheet reopens in the same state. These
 	// default to expanded, so we store the *collapsed* ids (absence = open).
 	// Per-user (client) and per-actor: a map of actor id -> array of collapsed
 	// section ids. Internal (not shown in the settings menu).
-	game.settings.register(SYSTEM_ID, "movesSectionsCollapsed", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("movesSectionsCollapsed", { scope: "client", type: Object, default: {} });
 
 	// Remembers which Arcana sections (Major / Minor arcanum) each character left
 	// collapsed, so the sheet reopens in the same state. These default to expanded,
 	// so we store the *collapsed* ids (absence = open). Per-user (client) and
 	// per-actor: a map of actor id -> array of collapsed section ids. Internal.
-	game.settings.register(SYSTEM_ID, "arcanaSectionsCollapsed", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("arcanaSectionsCollapsed", { scope: "client", type: Object, default: {} });
 
 	// Remembers which reverse-side arcanum content sections (e.g. "Consequences") each
 	// character left EXPANDED. Unlike the Major / Minor sections above, these default to
 	// COLLAPSED — they're long, secondary reference — so we store the *expanded* ids
 	// (absence = collapsed). Per-user (client) and per-actor: a map of actor id -> array
 	// of expanded section ids. Internal (not shown in the settings menu).
-	game.settings.register(SYSTEM_ID, "arcanaContentExpanded", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("arcanaContentExpanded", { scope: "client", type: Object, default: {} });
 
 	// Remembers which individual arcanum CARDS each character left collapsed (clamped to
 	// just their title bar). Like the Major / Minor sections, cards default to EXPANDED, so
 	// a card id (its slug) present here means that card should reopen collapsed. Per-user
 	// (client) and per-actor: a map of actor id -> array of collapsed card slugs. Internal.
-	game.settings.register(SYSTEM_ID, "arcanaCardsCollapsed", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("arcanaCardsCollapsed", { scope: "client", type: Object, default: {} });
 
 	// Remembers which follower CARDS each character left folded down to their header
 	// strip (portrait, name, HP, tags and the live vitals band — everything below it is
 	// clamped away). Cards default to EXPANDED, so an id present here means that card
 	// should reopen folded. Keyed "<ftype>:<slug>", which is what the card carries.
 	// Per-user (client) and per-actor: a map of actor id -> array of folded card ids.
-	game.settings.register(SYSTEM_ID, "followerCardsCollapsed", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("followerCardsCollapsed", { scope: "client", type: Object, default: {} });
 
 	// Remembers which gear rows each character left with their write-up UNFOLDED. A Book II
 	// treasure arrives carrying the book's whole printed sidebar (data/treasure-catalog.js),
@@ -1884,12 +1336,7 @@ export function registerSettings() {
 	// this is the EXPANDED list — an id present here means that row reopens showing its
 	// write-up. Keyed by the owned Item's id, which is what the row carries. Per-user
 	// (client) and per-actor: a map of actor id -> array of item ids. Internal.
-	game.settings.register(SYSTEM_ID, "inventoryLoreExpanded", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("inventoryLoreExpanded", { scope: "client", type: Object, default: {} });
 
 	// Remembers which sheet sections each actor's viewer folded shut with the heading
 	// caret (the one beside the section edit pencil) — character AND steading, keyed by
@@ -1897,62 +1344,22 @@ export function registerSettings() {
 	// share one edit section. Sections default to expanded, so we store the *collapsed*
 	// ids (absence = open). Per-user (client) and per-actor: a map of actor id -> array
 	// of collapsed section ids. Internal (not shown in the settings menu).
-	game.settings.register(SYSTEM_ID, "sheetSectionsCollapsed", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("sheetSectionsCollapsed", { scope: "client", type: Object, default: {} });
 
 	// Remembers whether each character left the whole moves sidebar (Roll Modifier
 	// + Basic / Expedition move lists) collapsed, so the sheet reopens the same way.
 	// The sidebar defaults to expanded. Per-user (client) and per-actor: a map of
 	// actor id -> boolean. Internal (not shown in the settings menu).
-	game.settings.register(SYSTEM_ID, "characterSidebarCollapsed", {
-		scope: "client",
-		config: false,
-		type: Object,
-		default: {},
-	});
+	_hidden("characterSidebarCollapsed", { scope: "client", type: Object, default: {} });
 
-	game.settings.register(SYSTEM_ID, "showRollStatChips", {
-		name: "stonetop.settings.showRollStatChips.name",
-		hint: "stonetop.settings.showRollStatChips.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: true,
-		onChange: () => _rerenderActorSheets(),
-	});
+	_checkbox("showRollStatChips", "client", true, { onChange: _rerenderActorSheets });
 
-	game.settings.register(SYSTEM_ID, "showMoveDescriptionsInChat", {
-		name: "stonetop.settings.showMoveDescriptionsInChat.name",
-		hint: "stonetop.settings.showMoveDescriptionsInChat.hint",
-		scope: "client",
-		config: true,
-		type: Boolean,
-		default: true,
-		onChange: value => applyMoveDescriptionBodyClass(value),
-	});
+	_checkbox("showMoveDescriptionsInChat", "client", true, { onChange: value => applyMoveDescriptionBodyClass(value) });
 
-	game.settings.register(SYSTEM_ID, "hoverDescriptionsEnabled", {
-		name: "stonetop.settings.hoverDescriptionsEnabled.name",
-		hint: "stonetop.settings.hoverDescriptionsEnabled.hint",
-		scope: "client",
-		config: false,
-		type: Boolean,
-		default: true,
-	});
-
-	for (const key of HOVER_DESCRIPTION_SETTING_KEYS) {
-		game.settings.register(SYSTEM_ID, key, {
-			name: `stonetop.settings.${key}.name`,
-			hint: `stonetop.settings.${key}.hint`,
-			scope: "client",
-			config: false,
-			type: Boolean,
-			default: true,
-		});
+	// The master switch and each kind of hover info under it. Hidden from Configure Settings and
+	// listed instead by the On Hover Info menu below, which reads their labels by the same convention.
+	for (const key of ["hoverDescriptionsEnabled", ...HOVER_DESCRIPTION_SETTING_KEYS]) {
+		_hidden(key, { ..._labels(key), scope: "client", type: Boolean, default: true });
 	}
 
 	game.settings.registerMenu(SYSTEM_ID, "hoverDescriptionSettings", {
@@ -2045,10 +1452,9 @@ function _createHoverDescriptionSettingsApp() {
 			})),
 		}),
 		update: async (formData) => {
-			await setSetting("hoverDescriptionsEnabled", !!formData.hoverDescriptionsEnabled);
-			for (const key of HOVER_DESCRIPTION_SETTING_KEYS) {
-				await setSetting(key, !!formData[key]);
-			}
+			// Client settings, independent of one another and with no onChange, so written together.
+			await Promise.all(["hoverDescriptionsEnabled", ...HOVER_DESCRIPTION_SETTING_KEYS]
+				.map(key => setSetting(key, !!formData[key])));
 			_rerenderActorSheets();
 		},
 	});
@@ -2927,11 +2333,7 @@ export function migrateFlatSettingOverviewShown() {
  * The three per-sheet layout boxes, which shipped CLIENT-scoped and are now WORLD-scoped
  * (see their registration above for why they had to move).
  */
-export const CLASSIC_LAYOUT_SETTINGS = Object.freeze([
-	"classicLayoutCharacter",
-	"classicLayoutSteading",
-	"classicLayoutNpc",
-]);
+export const CLASSIC_LAYOUT_SETTINGS = Object.freeze(Object.values(CLASSIC_LAYOUT_KEYS));
 
 // The registered default for all three. Only a stored value that DISAGREES with it is worth
 // carrying over — agreeing with the default is exactly what an absent world setting already
@@ -3218,7 +2620,7 @@ export function setSettingQuietly(key, value, message) {
  * the console line is for whoever is debugging why a write did not land.
  */
 export function setWorldSetting(key, value) {
-	const scope = globalThis.game?.settings?.settings?.get?.(`stonetop_pwd.${key}`)?.scope;
+	const scope = globalThis.game?.settings?.settings?.get?.(`${SYSTEM_ID}.${key}`)?.scope;
 	if (scope === "world" && !globalThis.game?.user?.isGM) {
 		console.debug(`Stonetop | skipped world-setting write to "${key}": not a GM.`);
 		return Promise.resolve();

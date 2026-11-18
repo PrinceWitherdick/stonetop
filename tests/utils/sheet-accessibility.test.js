@@ -3,6 +3,7 @@ import { readCss, readRepo, splitSelectorList } from "../fakes/css.js";
 import { fakeEl } from "../fakes/dom.js";
 import { applySheetContrast, applyHighContrast, splitLegacyHighContrast, applySheetTexture, applySheetTextureFade, SHEET_TEXTURE_FADE_DEFAULT, applyNoItalics } from "../../module/settings.js";
 import { PREFERENCE_GROUPS, PREFERENCE_KEYS, GM_ONLY_KEYS } from "../../module/utils/sheet-preferences.js";
+import { registeredSettings } from "../fakes/registered-settings.js";
 
 /**
  * The three accessibility settings, and the join between the switch and the paint.
@@ -33,6 +34,7 @@ import { PREFERENCE_GROUPS, PREFERENCE_KEYS, GM_ONLY_KEYS } from "../../module/u
 const CSS = readCss();
 const SETTINGS_SRC = readRepo("module/settings.js");
 const READY_SRC = readRepo("module/hooks/Ready.js");
+const REGISTERED = registeredSettings().settings;
 
 /** The class list on the fake root, as the apply functions have left it. */
 const rootClasses = () => globalThis.document.documentElement.classes;
@@ -181,11 +183,11 @@ describe("applySheetTextureFade", () => {
 	// second.
 	it("defaults to the same level the stylesheet falls back to", () => {
 		expect(SHEET_TEXTURE_FADE_DEFAULT).toBe(30);
-		const at = SETTINGS_SRC.indexOf('game.settings.register(SYSTEM_ID, "sheetTextureFade", {');
-		const body = SETTINGS_SRC.slice(at, SETTINGS_SRC.indexOf("\n\t});", at));
-		expect(body).toMatch(/scope:\s*"client"/);
-		expect(body).toMatch(/default:\s*SHEET_TEXTURE_FADE_DEFAULT/);
-		expect(body).toContain("applySheetTextureFade(value)");
+		const reg = REGISTERED.get("sheetTextureFade");
+		expect(reg.scope).toBe("client");
+		expect(reg.default).toBe(SHEET_TEXTURE_FADE_DEFAULT);
+		reg.onChange(45);
+		expect(props["--st-paper-veil-strength"], "the setting paints nothing when it changes").toBe("45%");
 	});
 
 	it("is applied on load and offered straight under the grain switch", () => {
@@ -281,47 +283,51 @@ describe("where a player finds them", () => {
 });
 
 describe("the registrations", () => {
-	/** The options object of one `game.settings.register(SYSTEM_ID, "<key>", { … })` block. */
+	/** What registerSettings() hands Foundry for one key. */
 	function registration(key) {
-		const at = SETTINGS_SRC.indexOf(`game.settings.register(SYSTEM_ID, "${key}", {`);
-		expect(at, `${key} is not registered`).toBeGreaterThan(-1);
-		return SETTINGS_SRC.slice(at, SETTINGS_SRC.indexOf("\n\t});", at));
+		const reg = REGISTERED.get(key);
+		expect(reg, `${key} is not registered`).toBeTruthy();
+		return reg;
 	}
 
 	// Client scope is not a detail: a world-scoped setting written from a player's sheet is
 	// rejected on their client and applied for EVERYONE on a GM's. A reader's own palette is
 	// theirs, and it has to be theirs on every world this browser opens.
 	it("registers both per client, visible in the settings window, and wired to an apply", () => {
-		for (const [key, apply] of [["sheetContrast", "applySheetContrast"], ["highContrast", "applyHighContrast"],
-			["sheetTexture", "applySheetTexture"], ["noItalics", "applyNoItalics"]]) {
-			const body = registration(key);
-			expect(body, `${key} is not client-scoped`).toMatch(/scope:\s*"client"/);
-			expect(body, `${key} is hidden from the settings window`).toMatch(/config:\s*true/);
-			expect(body, `${key} repaints nothing when it changes`).toContain(`${apply}(value)`);
-			expect(body, `${key} has no default`).toMatch(/default:/);
+		// Each onChange, run, and the class it should put on the root.
+		for (const [key, value, cls] of [["sheetContrast", "dark", "stonetop-dark"], ["highContrast", true, "stonetop-high-contrast"],
+			["sheetTexture", false, "stonetop-no-texture"], ["noItalics", true, "stonetop-no-italics"]]) {
+			const reg = registration(key);
+			expect(reg.scope, `${key} is not client-scoped`).toBe("client");
+			expect(reg.config, `${key} is hidden from the settings window`).toBe(true);
+			expect(reg, `${key} has no default`).toHaveProperty("default");
+			globalThis.document = { documentElement: fakeEl() };
+			reg.onChange(value);
+			expect(rootClasses(), `${key} repaints nothing when it changes`).toContain(cls);
 		}
 	});
 
 	// Nobody who has not been bothered by the parchment should have to go and turn it back on,
 	// and nobody should find their sheets repainted by an upgrade they did not ask for.
 	it("leaves a table that has not asked for anything exactly where it was", () => {
-		expect(registration("sheetContrast")).toMatch(/default:\s*"normal"/);
-		expect(registration("highContrast")).toMatch(/default:\s*false/);
-		expect(registration("sheetTexture")).toMatch(/default:\s*true/);
+		expect(registration("sheetContrast").default).toBe("normal");
+		expect(registration("highContrast").default).toBe(false);
+		expect(registration("sheetTexture").default).toBe(true);
 		// Off, for a reason worth stating: italic IS the emphasis in most of the prose this system
 		// ships, and nobody should have it flattened by an upgrade they did not ask for.
-		expect(registration("noItalics")).toMatch(/default:\s*false/);
+		expect(registration("noItalics").default).toBe(false);
 	});
 
 	// A choice rather than a checkbox, because the palette is the axis: a light-on-dark option
 	// belongs here as a third value, not as a second setting kept exclusive with this one by hand.
 	it("shapes the page as a choice and high contrast as a checkbox", () => {
-		const body = registration("sheetContrast");
-		expect(body).toMatch(/type:\s*String/);
-		expect(body).toMatch(/choices:\s*\{/);
-		expect(body).toMatch(/"normal":\s*"stonetop\.settings\.sheetContrast\.normal"/);
-		expect(body).toMatch(/"dark":\s*"stonetop\.settings\.sheetContrast\.dark"/);
-		expect(registration("highContrast")).toMatch(/type:\s*Boolean/);
+		const reg = registration("sheetContrast");
+		expect(reg.type).toBe(String);
+		expect(reg.choices).toMatchObject({
+			normal: "stonetop.settings.sheetContrast.normal",
+			dark: "stonetop.settings.sheetContrast.dark",
+		});
+		expect(registration("highContrast").type).toBe(Boolean);
 	});
 });
 

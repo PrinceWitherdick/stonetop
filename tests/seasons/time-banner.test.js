@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readRepo as read, readCss, ownRule } from "../fakes/css.js";
+import { registeredSettings } from "../fakes/registered-settings.js";
 import {
 	TIME_BANNER_PARTS, seasonMenuItems, timeBannerLabel, timeBannerTabs, timeBannerTabsFor,
 } from "../../module/seasons/time-banner.js";
@@ -210,7 +211,7 @@ describe("the weather-and-season bar's wiring", () => {
 
 	it("goes up on ready, and each browser can take it down", () => {
 		expect(read("stonetop.js")).toMatch(/Hooks\.once\("ready",\s*installTimeBanner\)/);
-		expect(read("module/settings.js")).toContain('game.settings.register(SYSTEM_ID, "timeBannerShown"');
+		expect(registeredSettings().settings.get("timeBannerShown")?.scope).toBe("client");
 		expect(read("module/utils/sheet-preferences.js")).toContain('"timeBannerShown"');
 		const en = JSON.parse(read("languages/en.json"));
 		expect(en.stonetop.settings.timeBannerShown.name).toBeTruthy();
