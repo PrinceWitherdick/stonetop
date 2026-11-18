@@ -367,7 +367,7 @@ describe("the sticky controls, and the setting that hides them", () => {
 		expect(CHARACTER_SHEET_JS).toContain("setRollMode(ev.currentTarget.value)");
 		// Both shapes are bound. Binding only one is the silent failure: the other renders,
 		// highlights correctly off the server-stamped state, and never writes.
-		expect(STEADING_JS).toContain('closest(".stonetop-roll-mode-btn")');
+		expect(STEADING_JS).toContain('onCapture(html[0], "click", ".stonetop-roll-mode-btn"');
 		expect(STEADING_JS).toContain('.stonetop-roll-mode-input');
 		expect(CHARACTER_SHEET_JS).toContain('.stonetop-roll-mode-input');
 	});

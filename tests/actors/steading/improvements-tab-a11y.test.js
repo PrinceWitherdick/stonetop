@@ -189,7 +189,7 @@ describe("the sheet's wiring", () => {
 	});
 
 	it("names the Inn from its card through the same ask as at build time", () => {
-		expect(SHEET_JS).toMatch(/closest\("\.steading-inn-name-btn"\)/);
+		expect(SHEET_JS).toMatch(/onCapture\(html\[0\], "click", "\.steading-inn-name-btn",/);
 		expect(SHEET_JS).toMatch(/async _onNameInn\(current = ""\)/);
 	});
 });

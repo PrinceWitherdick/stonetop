@@ -67,6 +67,7 @@ import {DIMINISHED_MOVES, PATHFINDER, STEADING_MOVE, improvementQuestions, rollA
 import {settleSteadingRoll} from "./steading-roll.js";
 import {worldLogisticsNames} from "../character/logistics.js";
 import {worldLearnedHolderNames} from "../character/owns-move.js";
+import {onCapture} from "../../utils/activation.js";
 
 /**
  * What the member-photo WINDOW shows, given the path a member actually wears.
@@ -269,6 +270,10 @@ const STEADING_STAT_TOOLTIPS = {
 	debilities: "Ongoing afflictions that drag the steading down: diminished (injury, sickness, or doubt), lacking (shortages, hoarding, or distrust), and malcontent (fear, anger, or despair). Check any that apply; each imposes its own penalty until it's cleared.",
 };
 const _esc = escHtml;
+
+// The two people lists whose add button works outside edit mode (see activateListeners); every
+// other list's add button is an edit-mode control.
+const PEOPLE_LISTS = Object.freeze(["residents", "neighbors"]);
 
 /**
  * One yes/no question an improvement (or the Marshal's Logistics) asks in a homefront window.
@@ -1109,14 +1114,11 @@ export function createStonetopSteadingSheetClass(Base) {
 			// re-renders every sheet on this actor. A second one here is a whole extra rebuild of
 			// six tabs (re-enriched notes, three relationship tables, the rail and frost remounts)
 			// and it flickers the tab the user is reading.
-			html[0].addEventListener("click", async ev => {
-				const btn = ev.target.closest(".stonetop-roll-mode-btn");
-				if (!btn) return;
-				ev.stopPropagation();
+			onCapture(html[0], "click", ".stonetop-roll-mode-btn", async btn => {
 				const mode = normalizeRollMode(btn.dataset.rollMode);
 				if (mode === this._sheetRollMode()) return; // already on it — nothing to write
 				await this.actor.setFlag(STONETOP_SCOPE, "rollMode", mode);
-			}, true);
+			});
 
 			// The season/year clock beside the title. Runs the MOVE, the same thing the hotbar
 			// macro and the Seasons Change move card run — the clock is the most obvious thing
@@ -1192,13 +1194,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				if (slug) open ? this._openImprovements.add(slug) : this._openImprovements.delete(slug);
 			}, true);
 
-			html[0].addEventListener("change", ev => {
-				const cb = ev.target.closest(".steading-hide-unearned-improvements-check");
-				if (!cb) return;
-				ev.stopPropagation();
+			onCapture(html[0], "change", ".steading-hide-unearned-improvements-check", cb => {
 				this.actor.setFlag(STONETOP_SCOPE, "hideUnearnedImprovements", cb.checked)
 					.catch(err => console.error("Stonetop | could not save the improvements filter", err));
-			}, true);
+			});
 
 			// Per-section edit toggle (pencil/check at each section's corner) flips
 			// just that section's edit state, independent of the global wrench. The
@@ -1214,14 +1213,11 @@ export function createStonetopSteadingSheetClass(Base) {
 			this._wireSectionCollapse(html,
 				".steading-list-heading, .steading-residents-heading, .steading-stat-label-row, .stonetop-move-group-title");
 
-			// Add resident / neighbor — allowed even outside edit mode
-			html[0].addEventListener("click", ev => {
-				const btn = ev.target.closest(".steading-list-add");
-				if (!btn) return;
-				if (!["residents", "neighbors"].includes(btn.dataset.list)) return;
-				ev.stopPropagation();
-				this._onListItemAdd(btn.dataset.list);
-			}, true);
+			// Add resident / neighbor — allowed even outside edit mode. Any other list's add button
+			// is left unclaimed, for the edit-mode handler below.
+			onCapture(html[0], "click", ".steading-list-add",
+				btn => this._onListItemAdd(btn.dataset.list),
+				btn => PEOPLE_LISTS.includes(btn.dataset.list));
 
 			// Drag-resizable columns on the player/resident/neighbor tables — useful in both edit and read-only modes.
 			// This loop also covers the Other Settlements relations table (it carries the same
@@ -1250,12 +1246,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Player Characters sit in the same tab, directly above the residents, so their
 			// portraits enlarge the same way.
 			wireAvatarPreview(html[0], ".steading-player-portrait-img");
-			html[0].addEventListener("click", ev => {
-				const avatar = ev.target.closest(".steading-member-avatar");
-				if (!avatar) return;
-				ev.stopPropagation();
-				this._openMemberAvatarImage(avatar);
-			}, true);
+			onCapture(html[0], "click", ".steading-member-avatar", avatar => this._openMemberAvatarImage(avatar));
 
 			// Drop a "Steading Improvement" card (dragged from a journal) onto the Improvements tab
 			// to add it as a tracked custom improvement. Wired above the editable guard so a
@@ -1274,58 +1265,37 @@ export function createStonetopSteadingSheetClass(Base) {
 				this._onSteadingTrackChange(input.name, Number(input.value));
 			}, true);
 
-			// Surplus is in the custom stat bar, so persist it explicitly.
-			const onSurplusInput = ev => {
-				const input = ev.target.closest(".steading-surplus-input");
-				if (!input) return;
-				ev.stopPropagation();
+			// Surplus is in the custom stat bar, so persist it explicitly: on every keystroke and
+			// on the commit, through the one handler.
+			const onSurplusInput = input =>
 				this._onSteadingTrackChange(input.name, Math.max(0, parseInt(input.value, 10) || 0));
-			};
-			html[0].addEventListener("input", onSurplusInput, true);
-			html[0].addEventListener("change", onSurplusInput, true);
+			onCapture(html[0], "input", ".steading-surplus-input", onSurplusInput);
+			onCapture(html[0], "change", ".steading-surplus-input", onSurplusInput);
 
 			// Debilities live in the same custom bar and need the same legacy-safe persistence.
-			html[0].addEventListener("change", ev => {
-				const input = ev.target.closest(".steading-debility-check");
-				if (!input) return;
-				ev.stopPropagation();
-				this._onSteadingTrackChange(input.name, input.checked);
-			}, true);
+			onCapture(html[0], "change", ".steading-debility-check",
+				input => this._onSteadingTrackChange(input.name, input.checked));
 
 			// List item checked toggle (resources, fortifications, assets)
-			html[0].addEventListener("change", ev => {
-				const cb = ev.target.closest(".steading-list-check");
-				if (!cb) return;
-				ev.stopPropagation();
+			onCapture(html[0], "change", ".steading-list-check", cb => {
 				const { list, index } = cb.dataset;
 				this._onListItemCheck(list, parseInt(index, 10), cb.checked);
-			}, true);
+			});
 
 			// Click a requisitioned ("taken") asset to return it to the steading.
-			html[0].addEventListener("click", ev => {
-				const taken = ev.target.closest(".steading-asset-taken");
-				if (!taken) return;
-				ev.stopPropagation();
-				this._onReturnAsset(parseInt(taken.dataset.index, 10));
-			}, true);
+			onCapture(html[0], "click", ".steading-asset-taken",
+				taken => this._onReturnAsset(parseInt(taken.dataset.index, 10)));
 
 			// Add list item (residents/neighbors are handled above, regardless of edit mode)
-			html[0].addEventListener("click", ev => {
-				const btn = ev.target.closest(".steading-list-add");
-				if (!btn) return;
-				if (["residents", "neighbors"].includes(btn.dataset.list)) return;
-				ev.stopPropagation();
-				this._onListItemAdd(btn.dataset.list);
-			}, true);
+			onCapture(html[0], "click", ".steading-list-add",
+				btn => this._onListItemAdd(btn.dataset.list),
+				btn => !PEOPLE_LISTS.includes(btn.dataset.list));
 
 			// Delete list item
-			html[0].addEventListener("click", ev => {
-				const btn = ev.target.closest(".steading-list-delete");
-				if (!btn) return;
-				ev.stopPropagation();
+			onCapture(html[0], "click", ".steading-list-delete", btn => {
 				const { list, index } = btn.dataset;
 				this._onListItemDelete(list, parseInt(index, 10));
-			}, true);
+			});
 
 			// Rows that name an actor: the Player Characters table opens a PC, a
 			// Resident/Neighbor row opens its NPC, and the notes pencil opens that NPC's
@@ -1338,106 +1308,67 @@ export function createStonetopSteadingSheetClass(Base) {
 				// the sheet and vice versa (two-way), both keeping rich text + @UUID links.
 				[".steading-member-notes-edit", ACTOR_LINK_MISSING.npc,       openNpcNotesDialog],
 			]) {
-				html[0].addEventListener("click", async ev => {
-					const link = ev.target.closest(selector);
-					if (!link) return;
+				// Click only, as before: these are anchors, so Enter already arrives as a click.
+				onCapture(html[0], "click", selector, async (link, ev) => {
 					ev.preventDefault();
-					ev.stopPropagation();
 					if (use) await withLinkedActor(link, use, missing);
 					else await openLinkedActorSheet(link, missing);
-				}, true);
+				});
 			}
 
 			// Places of interest names
-			html[0].addEventListener("change", ev => {
-				const inp = ev.target.closest(".steading-place-name");
-				if (!inp) return;
-				ev.stopPropagation();
-				this._onPlaceChange(parseInt(inp.dataset.index, 10), inp.value);
-			}, true);
+			onCapture(html[0], "change", ".steading-place-name",
+				inp => this._onPlaceChange(parseInt(inp.dataset.index, 10), inp.value));
 
-// Resident / neighbor / player details
-		html[0].addEventListener("change", ev => {
-			const inp = ev.target.closest(".steading-resident-input");
-			if (!inp) return;
-			ev.stopPropagation();
-			const { index, field } = inp.dataset;
-			// Players and neighbors tag their inputs with data-list; residents omit it and
-			// are the default, so a missing data-list means "residents" (never undefined,
-			// which would make personFieldPath bail and silently drop the edit).
-			const list = inp.dataset.list || "residents";
-			if (list === "players") {
-				this._onPlayerFieldChange(parseInt(index, 10), field, inp.value);
-			} else {
-				// list is "residents" or "neighbors" — both go through the shared handler.
-				this._onPersonFieldChange(list, parseInt(index, 10), field, inp.value);
-			}
-			}, true);
+			// Resident / neighbor / player details
+			onCapture(html[0], "change", ".steading-resident-input", inp => {
+				const { index, field } = inp.dataset;
+				// Players and neighbors tag their inputs with data-list; residents omit it and
+				// are the default, so a missing data-list means "residents" (never undefined,
+				// which would make personFieldPath bail and silently drop the edit).
+				const list = inp.dataset.list || "residents";
+				if (list === "players") {
+					this._onPlayerFieldChange(parseInt(index, 10), field, inp.value);
+				} else {
+					// list is "residents" or "neighbors" — both go through the shared handler.
+					this._onPersonFieldChange(list, parseInt(index, 10), field, inp.value);
+				}
+			});
 
 			// Notes
-			html[0].addEventListener("change", ev => {
-				const pm = ev.target.closest("prose-mirror.steading-notes-editor");
-				if (!pm) return;
-				ev.stopPropagation();
-				this._onNotesChange(pm.value);
-			}, true);
+			onCapture(html[0], "change", "prose-mirror.steading-notes-editor", pm => this._onNotesChange(pm.value));
 
 			// Size radio
-			html[0].addEventListener("change", ev => {
-				const radio = ev.target.closest(".steading-size-radio");
-				if (!radio) return;
-				ev.stopPropagation();
-				this._stonetopSteading.setFlags({ size: radio.value });
-			}, true);
+			onCapture(html[0], "change", ".steading-size-radio",
+				radio => this._stonetopSteading.setFlags({ size: radio.value }));
 
 			// Currency
-			html[0].addEventListener("change", ev => {
-				const inp = ev.target.closest(".steading-currency-input");
-				if (!inp) return;
-				ev.stopPropagation();
+			onCapture(html[0], "change", ".steading-currency-input", inp => {
 				const { currency, field } = inp.dataset;
 				this._onCurrencyChange(currency, field, parseInt(inp.value, 10) || 0);
-			}, true);
+			});
 
 			// Improvement complete checkbox
-			html[0].addEventListener("change", ev => {
-				const cb = ev.target.closest(".steading-improvement-complete");
-				if (!cb) return;
-				ev.stopPropagation();
-				this._onImprovementComplete(cb.dataset.slug, cb.checked);
-			}, true);
+			onCapture(html[0], "change", ".steading-improvement-complete",
+				cb => this._onImprovementComplete(cb.dataset.slug, cb.checked));
 
 			// Improvement requirement checkbox
-			html[0].addEventListener("change", ev => {
-				const cb = ev.target.closest(".steading-improvement-req");
-				if (!cb) return;
-				ev.stopPropagation();
+			onCapture(html[0], "change", ".steading-improvement-req", cb => {
 				const { slug, index } = cb.dataset;
 				this._onImprovementReq(slug, parseInt(index, 10), cb.checked);
-			}, true);
+			});
 
 			// A built improvement's condition ("As long as you trade aetherium..."): its stat follows the box.
-			html[0].addEventListener("change", async ev => {
-				const cb = ev.target.closest(".steading-improvement-condition");
-				if (!cb) return;
-				ev.stopPropagation();
+			onCapture(html[0], "change", ".steading-improvement-condition", async cb => {
 				const result = await this._stonetopSteading.setImprovementCondition(cb.dataset.slug, cb.checked);
 				if (result?.summary?.length) ui.notifications.info(`${result.label}: ${result.summary.join("; ")}.`);
-			}, true);
+			});
 
 			// Herd of Horses tracker: +/- steppers and direct number entry per age tier.
-			html[0].addEventListener("click", ev => {
-				const btn = ev.target.closest(".steading-herd-step");
-				if (!btn) return;
-				ev.stopPropagation();
-				this._onHerdStep(btn.dataset.tier, parseInt(btn.dataset.delta, 10) || 0);
-			}, true);
-			html[0].addEventListener("change", ev => {
-				const inp = ev.target.closest(".steading-herd-input");
-				if (!inp) return;
-				ev.stopPropagation();
-				this._onHerdInput(inp.dataset.tier, inp.value);
-			}, true);
+			onCapture(html[0], "click", ".steading-herd-step",
+				btn => this._onHerdStep(btn.dataset.tier, parseInt(btn.dataset.delta, 10) || 0));
+			onCapture(html[0], "change", ".steading-herd-input",
+				inp => this._onHerdInput(inp.dataset.tier, inp.value));
 
 			// The five things a header hold glyph can be clicked to settle. ONE listener over a
 			// map rather than five byte-identical ones, and the keys are exactly the `action`
@@ -1462,13 +1393,10 @@ export function createStonetopSteadingSheetClass(Base) {
 				"roll-harvest":       () => this._rollHarvestFromHeader(),
 				"meet-disaster-owed": () => openOwedDisasterPicker(this._stonetopSteading, { onApplied: () => this.render(false) }),
 			};
-			html[0].addEventListener("click", ev => {
-				const btn = ev.target.closest("[data-action]");
-				const run = btn && !btn.disabled ? holdActions[btn.dataset.action] : null;
-				if (!run) return;
-				ev.stopPropagation();
-				run();
-			}, true);
+			// Any other `data-action` (or a disabled glyph) is left unclaimed.
+			onCapture(html[0], "click", "[data-action]",
+				btn => holdActions[btn.dataset.action](),
+				btn => !btn.disabled && Object.hasOwn(holdActions, btn.dataset.action));
 
 			// Drag-and-drop for adding player characters to the Neighbors tab.
 			const neighborsTab = html[0].querySelector(".steading-neighbors-tab");
@@ -1516,12 +1444,9 @@ export function createStonetopSteadingSheetClass(Base) {
 
 			// Name (or rename) the built Inn from its card: the later chance the build-time
 			// window's "Not yet" promises.
-			html[0].addEventListener("click", ev => {
-				const btn = ev.target.closest(".steading-inn-name-btn");
-				if (!btn || btn.disabled) return;
-				ev.stopPropagation();
-				this._onNameInn(btn.dataset.current ?? "");
-			}, true);
+			onCapture(html[0], "click", ".steading-inn-name-btn",
+				btn => this._onNameInn(btn.dataset.current ?? ""),
+				btn => !btn.disabled);
 
 			// Create a custom improvement from a small form (the button counterpart to
 			// dropping a journal card onto the tab).
