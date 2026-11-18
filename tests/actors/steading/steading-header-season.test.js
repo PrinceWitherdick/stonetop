@@ -14,6 +14,7 @@ const STEADING_HBS = stripComments(read("templates/actor/steading.hbs"));
 const SEASON_HBS   = stripComments(read("templates/actor/partials/steading-header-season.hbs"));
 const STONETOP_JS  = read("stonetop.js");
 const SHEET_JS     = read("module/actors/steading/StonetopSteadingSheet.js");
+const SEASONS_JS   = read("module/actors/steading/seasons-change-dialog.js");
 const SPRING_JS    = read("module/dialogs/SpringBurstDialog.js");
 const CSS          = readCss();
 
@@ -211,15 +212,15 @@ describe("the steading header's season clock", () => {
 	// the ONE writer for both halves (the stamp and the picker's year), so a caller cannot
 	// land one without the other the way the session-zero spring used to.
 	it("is recorded by the move and by session zero's opening spring", () => {
-		expect(SHEET_JS).toContain("await recordCurrentSeason(this.actor, seasonId, year, {");
-		expect(SHEET_JS).toContain('pickerYear:  seasonId === "winter" ? year + 1 : year,');
+		expect(SEASONS_JS).toContain("await recordCurrentSeason(actor, seasonId, year, {");
+		expect(SEASONS_JS).toContain('pickerYear:  seasonId === "winter" ? year + 1 : year,');
 		expect(SPRING_JS).toContain('recordCurrentSeason(getStonetopSteadingActor(), "spring", 1, { advanceOnly: true })');
 	});
 
 	// Nothing may write half the clock. Both partial writers are gone, and the sheet reaches
 	// the flags only through the one function that writes them together.
 	it("has no way left to write half the clock", () => {
-		for (const js of [SHEET_JS, SPRING_JS]) {
+		for (const js of [SHEET_JS, SEASONS_JS, SPRING_JS]) {
 			expect(js).not.toContain("stampCurrentSeason");
 			expect(js).not.toContain("advanceCurrentYear");
 		}
