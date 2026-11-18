@@ -192,7 +192,7 @@ export function registerSettings() {
 	_hidden("repairSweepVersions", { name: "Repair Sweep Versions", scope: "world", type: Object, default: {} });
 
 	// The world monsters whose Group fight switch this world unticked when the Fight tab was turned
-	// on (hooks/Ready.js#_reconcileWorldGroupFights), so turning the tab back OFF can put them back.
+	// on (hooks/world-sweeps.js#_reconcileWorldGroupFights), so turning the tab back OFF can put them back.
 	//
 	// The untick itself is necessary — with the tab on, a group's scale is a per-token question and
 	// the sheet stops drawing the switch, so a ticked sidebar monster hands a scale to every token
@@ -340,25 +340,25 @@ export function registerSettings() {
 	_checkbox("fightRing", "client", true, { config: fightTab });
 
 	// Whether the one-time "Welcome to Stonetop" fresh-start CHAT card has been posted in
-	// this world (hooks/Ready.js _postStartupWelcomeMessageOnce). Distinct from
+	// this world (hooks/startup-cards.js _postStartupWelcomeMessageOnce). Distinct from
 	// `gmWelcomeShown` above despite the similar name: that one records that the GM
 	// dismissed the Welcome GUIDE's auto-pop-up, this one that the orientation card has
 	// been posted to chat. World-scoped — the card is public, and only the GM posts it.
 	_worldLatch("startupWelcomeShown", "Startup Welcome Chat Card Posted");
 
 	// Whether the "(TEST ONLY) Populate World" dev macro has been seeded into the
-	// world's Macro Directory (see hooks/Ready.js _ensureTestPopulateMacro). Set true
+	// world's Macro Directory (see hooks/system-macros.js _ensureTestPopulateMacro). Set true
 	// after the first GM load so it's added exactly once — a GM who later deletes it
 	// keeps it gone rather than having it reappear every reload.
 	_worldLatch("testPopulateMacroSeeded", "Test Populate Macro Seeded");
 
 	// Whether the "Import Book II Art" macro has been seeded into the world's Macro
-	// Directory (see hooks/Ready.js _ensureBook2ArtMacro). Set true after the first
+	// Directory (see hooks/system-macros.js _ensureBook2ArtMacro). Set true after the first
 	// GM load so it's added exactly once — a GM who later deletes it keeps it gone.
 	_worldLatch("book2ArtMacroSeeded", "Book II Art Macro Seeded");
 
 	// Whether the one-time "you can import your book art" chat reminder has been posted
-	// (see hooks/Ready.js _postBook2ArtReminderOnce). Resolved exactly once for a GM who
+	// (see hooks/startup-cards.js _postBook2ArtReminderOnce). Resolved exactly once for a GM who
 	// is past the first-session Welcome guide (finished session zero or ticked "Don't show
 	// this again"): the card is whispered if no art is on disk yet, otherwise it's simply
 	// marked done. World-scoped — "has this world been nudged" is world state, and only the
@@ -387,7 +387,7 @@ export function registerSettings() {
 	// same reason and by the same rule as the retirement above. Named here so it is not reused.
 
 	// Whether the one-time "this book art can be rebuilt from pictures you already have" offer has
-	// been made (hooks/Ready.js _offerBookArtRebuildOnce). World-scoped: it is a property of this
+	// been made (hooks/startup-cards.js _offerBookArtRebuildOnce). World-scoped: it is a property of this
 	// world's art folder, not of whoever happens to be logged in.
 	//
 	// A NEW key rather than reusing either of the two above, deliberately, and this is now the
@@ -403,7 +403,7 @@ export function registerSettings() {
 	_worldLatch("bookArtRebuildOffered", "Book Art Rebuild Offered");
 
 	// Whether the one-time "your import did not finish — want to pick up the rest?" offer has been
-	// made (hooks/Ready.js _offerPartialArtImportOnce). World-scoped like its siblings: it is a
+	// made (hooks/startup-cards.js _offerPartialArtImportOnce). World-scoped like its siblings: it is a
 	// property of this world's art folder, not of whoever is logged in.
 	//
 	// Unlike the rebuild above, saying yes needs the GM's PDFs again, because the missing pictures
@@ -417,7 +417,7 @@ export function registerSettings() {
 	_worldLatch("partialArtImportOffered", "Partial Art Import Offered");
 
 	// Whether the one-time "the GM playbook is a source too" offer has been made in this world
-	// (hooks/Ready.js _offerGmPlaybookArtOnce). A world that imported before that PDF was wired in
+	// (hooks/startup-cards.js _offerGmPlaybookArtOnce). A world that imported before that PDF was wired in
 	// has no way to learn it: the art it would add is BETTER copies of maps that already look
 	// fine, plus two diagrams on a tab whose placeholder they may never open.
 	//
@@ -759,7 +759,7 @@ export function registerSettings() {
 	});
 
 	// The system-macro hotbar layout version this client has been snapped to (see
-	// hooks/Ready.js _SYSTEM_MACROS / _reorderSystemMacros). Bumping _HOTBAR_LAYOUT_VERSION
+	// hooks/system-macros.js _SYSTEM_MACROS / _reorderSystemMacros). Bumping _HOTBAR_LAYOUT_VERSION
 	// re-snaps the system macros into their new canonical slots once, then leaves the
 	// GM's own arrangement alone again. Per-client because the hotbar is per-user;
 	// starts at 0 so a fresh world (and any pre-versioning world) arranges on first load.
