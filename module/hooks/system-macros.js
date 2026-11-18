@@ -74,16 +74,16 @@ const _SYSTEM_MACROS = [
 	{ name: "Weather",             img: "systems/stonetop_pwd/assets/icons/macros/sun-cloud.svg",        command: "game.stonetop?.openWeather?.()",        slot: 9, legacy: true },
 ];
 
-// Placed like the set above but never re-snapped by _reorderSystemMacros, and found by command
-// as well as name (`exact`) so neither collides with a user macro of the same name.
+// Placed like the set above but never re-snapped by _reorderSystemMacros. Found, like every
+// system macro, by command as well as name, so neither collides with a user macro of the same name.
 const _COMMAND_KEYED_MACROS = [
 	// The Chronicle (slot 7): compiles the recorded Introductions + Spring Burst answers and
 	// expedition log into the shared "The Chronicle" journal and opens it (GM-only —
 	// saveChronicle is seed-once, so re-running it preserves inline edits). Sits straight after
 	// the _SYSTEM_MACROS a new world gets. It was slot 9 until the two legacy macros left new
 	// worlds' bars; a world that already has it placed keeps it where it is.
-	{ name: "The Chronicle",  img: "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg", command: "game.stonetop?.saveChronicle?.()",    slot: 7,  exact: true },
-	{ name: "End of Session", img: "systems/stonetop_pwd/assets/icons/macros/truce.svg",       command: "game.stonetop?.openEndOfSession?.()", slot: 10, exact: true },
+	{ name: "The Chronicle",  img: "systems/stonetop_pwd/assets/icons/macros/bookmarklet.svg", command: "game.stonetop?.saveChronicle?.()",    slot: 7 },
+	{ name: "End of Session", img: "systems/stonetop_pwd/assets/icons/macros/truce.svg",       command: "game.stonetop?.openEndOfSession?.()", slot: 10 },
 ];
 
 // Bump to re-snap the system macros into their canonical slots once, on every client
@@ -163,9 +163,11 @@ async function _placeOnHotbar(macro, slot) {
 // on the user's hotbar — so once it's placed, a manual rearrangement sticks. It
 // takes its default `slot` only if that slot is free; otherwise it falls back to the
 // first empty slot, so we never bump a macro the GM put there. The fixed system
-// order is applied per layout version by _reorderSystemMacros. `exact` keys the lookup
-// on the command as well as the name (the Chronicle and End of Session macros, to avoid
-// clashing with any user macro of the same name). Run these serially — each
+// order is applied per layout version by _reorderSystemMacros. The lookup keys on the
+// command as well as the name (_findSystemMacro), the same match the re-snap and the
+// player pass use, so a GM's own macro that happens to be called "Die of Fate" is never
+// adopted and has its icon overwritten; ours is created beside it. (The commands have never
+// changed since these shipped, so no world's real system copy is missed.) Run these serially — each
 // assignHotbarMacro writes the same user.hotbar document, so concurrent calls would
 // clobber each other.
 //
@@ -174,11 +176,11 @@ async function _placeOnHotbar(macro, slot) {
 // that. A `shared` macro is raised to OBSERVER — on creation AND on an existing macro in
 // a world that predates the flag, so the fix reaches tables already playing.
 //
-// A `legacy` macro is only ever found, never created (see _SYSTEM_MACROS), and is found by
-// its command as well as its name, so a GM's own "Weather" in a new world is not adopted.
-async function _ensureHotbarMacro({ name, img, command, slot, exact, shared, legacy }) {
+// A `legacy` macro is only ever found, never created (see _SYSTEM_MACROS), so a GM's own
+// "Weather" in a new world is neither adopted nor joined by a new one of ours.
+async function _ensureHotbarMacro({ name, img, command, slot, shared, legacy }) {
 	const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
-	let macro = exact || legacy ? _findSystemMacro({ name, command }) : game.macros.find(m => m.name === name);
+	let macro = _findSystemMacro({ name, command });
 	if (!macro && legacy) return;
 	if (!macro) {
 		macro = await Macro.create({
