@@ -15,12 +15,13 @@ vi.mock("../../../module/seasons/current-season.js", async importOriginal => ({
 
 import {
 	seasonsChangeSteps, seasonsChangeHtml, gainsOverWarning, recordSeasonLabel, seasonGainNames,
-	upkeepCopy, disableIfSeasonStepDone, recordSeason,
+	upkeepCopy, disableIfSeasonStepDone, recordSeason, refreshUpkeepAfford,
 } from "../../../module/actors/steading/seasons-change-dialog.js";
 import { StonetopSteading, builtInImprovementRules } from "../../../module/actors/steading/StonetopSteading.js";
 import { autumnHarvest, winterConsumption } from "../../../module/actors/steading/season-effects.js";
 import { upkeepsDue } from "../../../module/actors/steading/improvement-rules.js";
 import { MECHANICAL_GAIN_KEYS } from "../../../module/actors/steading/seasonal-gains.js";
+import { readRepo, readCss, declarations } from "../../fakes/css.js";
 
 // The Seasons Change window's markup is built from a plain view of the steading, so every
 // season's rail can be drawn and read here without a world (seasonsChangeView is the impure
@@ -77,12 +78,24 @@ describe("the Seasons Change window's steps", () => {
 		expect(broke).toContain("No Surplus for the drills");
 	});
 
-	it("leaves the pay button off an upkeep the steading cannot afford", () => {
+	// Drawn but hidden rather than left out: a harvest or a yield in the same window can raise the
+	// Surplus, and the window then offers Pay without a reopen (refreshUpkeepAfford).
+	it("hides the pay button on an upkeep the steading cannot afford", () => {
 		const body = v => seasonsChangeSteps(v).find(s => s.key === "start").body;
-		expect(body(view("autumn", { built: ["standingWatch"], surplus: 1 }))).toContain(`data-action="pay-upkeep"`);
+		const PAY_HIDDEN = /data-action="pay-upkeep"[^>]*\shidden>/;
+		const paid = body(view("autumn", { built: ["standingWatch"], surplus: 1 }));
+		expect(paid).toContain(`data-action="pay-upkeep"`);
+		expect(paid).not.toMatch(PAY_HIDDEN);
 		const broke = body(view("autumn", { built: ["standingWatch"], surplus: 0 }));
-		expect(broke).not.toContain(`data-action="pay-upkeep"`);
+		expect(broke).toMatch(PAY_HIDDEN);
 		expect(broke).toContain(`data-action="lose-upkeep"`);
+	});
+
+	it("draws the could-not-pay note either way, shown only while the upkeep is short", () => {
+		const costs = v => seasonsChangeSteps(v).find(s => s.key === "costs").body;
+		const SHORT = /<p class="stonetop-season-note" data-upkeep-short="weaponsOfWar"( hidden)?>/;
+		expect(costs(view("spring", { built: ["weaponsOfWar"], surplus: 0 })).match(SHORT)?.[1]).toBeUndefined();
+		expect(costs(view("spring", { built: ["weaponsOfWar"], surplus: 2 })).match(SHORT)?.[1]).toBe(" hidden");
 	});
 
 	it("names winter's second bite as this steading rolls it", () => {
@@ -131,6 +144,44 @@ describe("upkeepCopy", () => {
 		expect(copy.sentence).toContain("this summer");
 		expect(copy.lose).toBe("Don't pay: lose Logging &lt;Camp&gt;");
 		expect(copy.lost([])).toBe("The upkeep of Logging <Camp> goes unpaid, and the steading loses it.");
+	});
+});
+
+describe("refreshUpkeepAfford", () => {
+	it("offers Pay and hides the could-not-pay note once the Surplus covers it", () => {
+		const payBtn = { hidden: true, disabled: true };
+		const shortNote = { hidden: false };
+		refreshUpkeepAfford({ payBtn, shortNote }, true);
+		expect(payBtn).toEqual({ hidden: false, disabled: false });
+		expect(shortNote.hidden).toBe(true);
+	});
+
+	it("takes Pay back off, and says why, when the Surplus falls short again", () => {
+		const payBtn = { hidden: false, disabled: false };
+		const shortNote = { hidden: true };
+		refreshUpkeepAfford({ payBtn, shortNote }, false);
+		expect(payBtn.hidden).toBe(true);
+		expect(shortNote.hidden).toBe(false);
+	});
+
+	// The watch's copy carries no note: an upkeep without one still swaps its button.
+	it("works without a note", () => {
+		const payBtn = { hidden: true, disabled: false };
+		refreshUpkeepAfford({ payBtn, shortNote: null }, true);
+		expect(payBtn.hidden).toBe(false);
+	});
+});
+
+describe("the live stats hook", () => {
+	const DIALOG = readRepo("module/actors/steading/seasons-change-dialog.js");
+	it("runs the window's live refreshers, and the upkeeps register one", () => {
+		expect(DIALOG).toContain("for (const refresh of ctx.liveRefreshers ?? []) refresh();");
+		expect(DIALOG).toMatch(/ctx\.liveRefreshers\?\.push\(\(\) => \{[\s\S]*?refreshUpkeepAfford\(/);
+	});
+
+	// `.stonetop-season-btn` sets `display: flex`, which out-specifies the UA's `[hidden]`.
+	it("can actually hide a season button", () => {
+		expect(declarations(readCss(), ".stonetop-season-btn[hidden]")).toMatch(/display:\s*none/);
 	});
 });
 
