@@ -128,13 +128,13 @@ describe("renameSeasonYearPages", () => {
 });
 
 describe("the sweep's place in the load", () => {
-	const READY = readRepo("module/hooks/Ready.js");
+	const SWEEPS = readRepo("module/hooks/world-sweeps.js");
 
 	// Primary GM only — it writes, and two connected GMs would both issue the same update.
 	it("runs on every load, gated to the primary GM, and cannot take the load down with it", () => {
-		expect(READY).toContain("renameAllSeasonYearPages");
-		const gated = READY.slice(READY.indexOf("if (isPrimaryGM()) {"));
-		expect(gated).toContain("await renameAllSeasonYearPages();");
-		expect(gated).toMatch(/try \{ await renameAllSeasonYearPages\(\); \}\s*\n\s*catch/);
+		const gated = SWEEPS.slice(SWEEPS.indexOf("export async function runPrimaryGmSweeps() {"));
+		expect(gated).toMatch(/^\s*if \(!game\.user\?\.isGM \|\| !isPrimaryGM\(\)\) return;/m);
+		// Ungated by oncePerVersion, and through bestEffort, which catches.
+		expect(gated).toContain('await bestEffort("Chronicle year-page rename", renameAllSeasonYearPages);');
 	});
 });

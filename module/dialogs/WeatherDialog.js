@@ -26,7 +26,7 @@ const OFFERED_CLASS = "is-offered";
 // A compact GM tool for the expedition weather roll (Book I, p.325): pick the
 // season, roll 1d6 on its table, post a result card. The season tables and roll
 // live in utils/weather.js; this is just the picker. Opened from the sun-cloud
-// hotbar macro (see hooks/Ready.js).
+// hotbar macro (see hooks/system-macros.js).
 //
 // The roll LANDS in the window rather than going straight to chat. A light walks the season's
 // rows and stops on the one the die gave (the GM Moves randomizer's walk, utils/flash-highlight.js),

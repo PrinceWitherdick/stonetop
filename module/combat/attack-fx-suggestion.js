@@ -4,7 +4,7 @@ import { stonetopChatCard, whisperGm } from "../utils/chat.js";
 
 // ── "Your attacks could be seen and heard" ────────────────────────────────────
 // The attack effects (attack-fx.js) arrived in an update, and the only place a NEW world hears
-// about the modules they need is the footer of the greeting card (hooks/Ready.js
+// about the modules they need is the footer of the greeting card (hooks/startup-cards.js
 // _buildStartupWelcomeContent). A world that was greeted before that footer existed has no way to
 // learn about them short of reading a settings hint, so it is told once, here, in the same shape
 // as the FXMaster card (seasons/fxmaster-suggestion.js): whispered to the GMs, never modal, and

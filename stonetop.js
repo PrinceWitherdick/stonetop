@@ -1159,7 +1159,7 @@ function _chatWireStartupWelcome(message, html) {
 // -- ART-IMPORT REMINDER CARD: LAUNCH IMPORT MACRO -------------
 // Both whispered GM cards that launch the Import Book Art macro carry this button: the one-time
 // "Import Your Book Art" reminder for a world that never imported, and "Finish Your Art Import"
-// for one whose run fell short of the manifest (hooks/Ready.js _postBook2ArtReminderOnce and
+// for one whose run fell short of the manifest (hooks/startup-cards.js _postBook2ArtReminderOnce and
 // _offerPartialArtImportOnce). They are mutually exclusive by construction — one needs no art on
 // disk, the other needs some — so a single generic wiring serves both and a third card offering
 // the same macro would need no change here.
@@ -1201,7 +1201,7 @@ function _chatWireLayoutSwitch(message, html) {
 
 // -- REBUILD BOOK ART CARD -------------------------------------
 // The one-time offer to cut the finer pictures — People detail portraits, square faces and
-// creature token squares — out of art the GM already imported (hooks/Ready.js
+// creature token squares — out of art the GM already imported (hooks/startup-cards.js
 // _offerBookArtRebuildOnce). Runs in the browser off files already on disk, so it needs no PDF —
 // but it does write files, hence GM-only. Disable the button while it runs so an impatient second
 // click can't start a duplicate pass over the same 200-odd images.

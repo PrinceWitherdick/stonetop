@@ -291,7 +291,7 @@ export async function linkCharacterPrototypes(actors = game.actors ?? []) {
  *
  * Deliberately does no asking of its own. The caller owns the conversation with the GM,
  * because whether an undecided token should be raised again next load is a question about the
- * sweep's own bookkeeping and not about the tokens (see Ready.js).
+ * sweep's own bookkeeping and not about the tokens (see hooks/world-sweeps.js).
  *
  * @returns {Promise<Array>} the drifted rows, untouched, for the caller to put to the GM
  */

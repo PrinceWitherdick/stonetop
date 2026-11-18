@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { _migrateArmourToArmor } from "../../module/hooks/Ready.js";
+import { _migrateArmourToArmor } from "../../module/hooks/world-sweeps.js";
 
 // The pre-rename `system.attributes.armour` sweep. It is a GM-only, primary-GM-only world write,
 // and it used to be neither: it ran on every connected client, so each PLAYER tried to update

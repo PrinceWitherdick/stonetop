@@ -44,7 +44,7 @@ import { SYSTEM_ID, packId } from "../system-id.js";
 //      any durable art still MISSING from world journals (e.g. art that landed on disk
 //      AFTER a journal was imported). Cheap: it reads a world entry's own pages first and
 //      only touches the compendium for a row whose art is actually absent.
-//   4. `game.stonetop.reapplyBook2Art()` (Ready.js API) — a manual, un-gated re-run for
+//   4. `game.stonetop.reapplyBook2Art()` (hooks/stonetop-api.js) — a manual, un-gated re-run for
 //      the dev loop after re-assigning art in the picker + regenerating the manifest.
 
 const BES_PACK = packId("stonetop-bestiary");
@@ -64,7 +64,7 @@ const browseDurableArt = (root) => browseArtDirs(root);
 // Whether the GM has already imported book art: any durable illustration present on disk
 // in the art folder. This is the very signal reapplyBook2Art uses to decide there is
 // document art to wire (`present.size` below). Exported so the ready flow can nudge a GM
-// who is past the first-session Welcome guide but never imported (hooks/Ready.js). Cheap
+// who is past the first-session Welcome guide but never imported (hooks/startup-cards.js). Cheap
 // (a few FilePicker.browse calls against the durable folder) and best-effort — a failed
 // browse reads as "nothing on disk", the safe default for the nudge. GM-only, since only
 // a GM can browse the data files.
@@ -179,7 +179,7 @@ function everyDurableArtPath({ monsters = [], locations = [], settingOverviewMap
  * A GM whose import failed on some illustrations has no way to know: the failures scroll past in
  * the console during a run that otherwise reports success, and what they see afterwards is a
  * handful of entries that never got their picture. This is the detector behind the once-only
- * offer to finish the job (hooks/Ready.js), and it deliberately describes the SHAPE of the
+ * offer to finish the job (hooks/startup-cards.js), and it deliberately describes the SHAPE of the
  * problem rather than any particular cause. The printing change that prompted it is one way to
  * get here; a page that timed out, a PDF that stopped being readable part way, and a run the GM
  * closed early all land in the same place and all have the same remedy.
@@ -205,7 +205,7 @@ export async function countMissingDurableArt() {
  * The GM playbook joined the importer as a third source after worlds had already imported, and it
  * is the one addition a GM cannot discover for themselves: nothing looks broken to them. Their map
  * pages carry a map — just not the sharpest one printed — and the two flowcharts live on a sheet
- * tab whose placeholder they may never scroll to. So the offer behind this (hooks/Ready.js
+ * tab whose placeholder they may never scroll to. So the offer behind this (hooks/startup-cards.js
  * `_offerGmPlaybookArtOnce`) has to arrive on its own.
  *
  * `maps` counts Setting Overview pages showing a LESSER link than the head of their chain. Both

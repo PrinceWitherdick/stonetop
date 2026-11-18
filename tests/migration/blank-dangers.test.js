@@ -105,8 +105,10 @@ describe("the shipped pages", () => {
 
 describe("the sweep's place in the load", () => {
 	it("runs for the primary GM once per version, and cannot take the load down with it", () => {
-		const READY = readRepo("module/hooks/Ready.js");
-		const gated = READY.slice(READY.indexOf("if (isPrimaryGM()) {"));
-		expect(gated).toMatch(/try \{ await oncePerVersion\("blankDangers", clearAllBlankDangers\); \}\s*\n\s*catch/);
+		expect(readRepo("module/hooks/Ready.js")).toContain("await runPrimaryGmSweeps();");
+		const SWEEPS = readRepo("module/hooks/world-sweeps.js");
+		const gated = SWEEPS.slice(SWEEPS.indexOf("export async function runPrimaryGmSweeps() {"));
+		expect(gated).toMatch(/^\s*if \(!game\.user\?\.isGM \|\| !isPrimaryGM\(\)\) return;/m);
+		expect(gated).toContain('await bestEffort("blank Dangers entry cleanup", () => oncePerVersion("blankDangers", clearAllBlankDangers));');
 	});
 });

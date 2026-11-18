@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { updatePlacedTokens } from "../../module/utils/placed-tokens.js";
 
 // The shared per-scene sweep behind the three places that have to reach past `prototypeToken`:
-// the nameplate backfill and the shoot-marker lift in hooks/Ready.js, and the crop re-point in
+// the nameplate backfill and the shoot-marker lift in hooks/world-sweeps.js, and the crop re-point in
 // utils/portrait-token-frame.js. Each of those wrote this by hand before, and they had already
 // drifted on error handling.
 

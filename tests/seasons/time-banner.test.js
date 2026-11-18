@@ -149,7 +149,7 @@ describe("the season buttons under the bar", () => {
 		const banner = read("module/seasons/time-banner.js");
 		expect(banner).toContain("game.stonetop?.openNextSeason?.()");
 		expect(banner).toContain("game.stonetop?.openSeasonsChange?.()");
-		const ready = read("module/hooks/Ready.js");
+		const ready = read("module/hooks/stonetop-api.js");
 		expect(ready).toMatch(/game\.stonetop\.openNextSeason\s*=/);
 		expect(ready).toMatch(/nextSeasonStamp\(readCurrentSeason\(steading\), readCurrentYear\(steading\)\)/);
 		expect(ready).toContain("._showSeasonDialog(next.season, next.year)");

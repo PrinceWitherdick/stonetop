@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { ensurePlayerHotbarMacros } from "../../module/hooks/Ready.js";
+import { ensurePlayerHotbarMacros } from "../../module/hooks/system-macros.js";
 
 // ensurePlayerHotbarMacros is the player half of onReady's macro pass: the GM's pass
 // creates the shared macros (the Die of Fate) and grants everyone OBSERVER, and this
