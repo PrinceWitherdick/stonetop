@@ -3541,8 +3541,7 @@ export function createStonetopCharacterSheetClass(Base) {
 						return;
 					}
 					if (doc?.system?.customType === "stonetop") {
-						await this.actor.setFlag(STONETOP_SCOPE, "steadingId", doc.id);
-						this.render(false);
+						await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, "steadingId", doc.id));
 					} else if (doc?.type === "monster") {
 						// Dropping a monster offers to convert it to a follower (NPCs &
 						// Followers, p.475): keep its stats, add tags, choose a cost.
