@@ -8,7 +8,7 @@ import { SYSTEM_ID } from "../system-id.js";
 // that re-rolls the move through the same flow a click on its dice icon would, and
 // drops the macro into the slot the player aimed at.
 //
-// The macro command routes through game.stonetop.rollMoveMacro (wired in Ready.js →
+// The macro command routes through game.stonetop.rollMoveMacro (wired in hooks/stonetop-api.js →
 // rollMoveFromUuid) so the roll works with the sheet closed and survives the macro
 // being copied around; the actor and move are re-resolved from the move's uuid.
 

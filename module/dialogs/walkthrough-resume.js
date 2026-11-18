@@ -118,8 +118,9 @@ export function pastWelcomeGuide() {
 // Open an app and resolve once it has actually rendered. The v1 Application render()
 // is fire-and-forget (it returns `this`, not the render promise), so we listen for
 // its `render<ClassName>` hook; a safety timeout resolves anyway so the chain can
-// never hang if a render fails to fire.
-function openThenRendered(open, renderHook) {
+// never hang if a render fails to fire. Also what the ready hook holds the resumed
+// walkthroughs behind while the Welcome guide draws (hooks/Ready.js).
+export function openThenRendered(open, renderHook) {
 	return new Promise(resolve => {
 		let settled = false;
 		let hookId  = null;

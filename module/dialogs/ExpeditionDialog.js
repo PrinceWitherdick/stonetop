@@ -220,7 +220,7 @@ const RESUME_KEY = "expedition";
 // book tells you to "write down with tick boxes"), an inline Requisition roll
 // (2d6 +Fortunes, read off the steading), and "Roll the Die of Fate" buttons on
 // the steps where the rules reach for the d6 oracle. Opened from the treasure-map
-// hotbar macro (see hooks/Ready.js).
+// hotbar macro (see hooks/system-macros.js).
 //
 // Expeditions recur, so the notes form a growing log: `expeditionAnswers` holds
 // { currentId, list: [{ id, title, createdAt, …step notes }] }. The dialog always

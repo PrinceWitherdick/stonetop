@@ -52,7 +52,7 @@ describe("the steading header's weather glyph", () => {
 		// Through the same entry point the hotbar macro and the time banner use, so openOrFocus
 		// can keep it to one window however it was reached. GM-only at the door as well.
 		expect(SHEET_JS).toContain(`html.find("[data-action='set-current-weather']").on("click", () => game.stonetop?.openWeather?.());`);
-		expect(read("module/hooks/Ready.js")).toContain("game.stonetop.openWeather       = () => (game.user?.isGM ? WeatherDialog.open() : null);");
+		expect(read("module/hooks/stonetop-api.js")).toContain("game.stonetop.openWeather       = () => (game.user?.isGM ? WeatherDialog.open() : null);");
 	});
 
 	// An <i> is an empty element painting a private-use codepoint: a screen reader left to read

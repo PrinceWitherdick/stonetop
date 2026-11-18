@@ -22,7 +22,7 @@
  *   name it writes is one of the ones it recognises, so a second pass has nothing to do.
  *
  * Idempotent by construction and needs no once-per-world flag, exactly like the flag-scope
- * repair beside it in Ready.js.
+ * repair beside it in hooks/world-sweeps.js.
  */
 
 import { SYSTEM_ID } from "../system-id.js";

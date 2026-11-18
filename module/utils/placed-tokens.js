@@ -6,7 +6,7 @@
 // somebody is looking at, and reads exactly like the change not working.
 //
 // Three sweeps needed that and each had written the same per-scene batching by hand: the nameplate
-// backfill and the shoot-marker lift in hooks/Ready.js, and the crop re-point in
+// backfill and the shoot-marker lift in hooks/world-sweeps.js, and the crop re-point in
 // utils/portrait-token-frame.js. Three copies of one rule is three places to fix when the rule
 // changes, and they had already drifted on error handling — so it is stated once here.
 

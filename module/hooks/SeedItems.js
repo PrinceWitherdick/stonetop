@@ -167,7 +167,7 @@ async function ensureItemFolder(name, parentId, color) {
 //     `flags.stonetop.slug` and an actor-embedded one does not — buildInventoryItemData returns
 //     system only — and the copy on a player's sheet is the one that matters most here.
 //   - Idempotent and silent once done, so it runs every load with no gate, the same bargain as
-//     the map-pin refits in Ready.js.
+//     the map-pin refits in world-sweeps.js.
 //
 // Concealment is untouched. Filling the field on an artifact the GM has hidden is both correct
 // and safe: artifactVisibility() shows lore only at KNOWN, so the write-up waits behind the

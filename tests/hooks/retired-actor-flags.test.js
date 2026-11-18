@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { _dropRetiredActorFlags } from "../../module/hooks/Ready.js";
+import { _dropRetiredActorFlags } from "../../module/hooks/world-sweeps.js";
 
 // The sweep that takes retired sheet-preference flags off actors that still carry one. Right now
 // that list is `invocationsSort` — the Invocations tab's "Known first / A-Z" dropdown, removed

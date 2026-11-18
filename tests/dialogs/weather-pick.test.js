@@ -346,7 +346,7 @@ describe("who may open and post the Weather picker", () => {
 	// The game.stonetop doors: the picker's, and Next Season's, which makes the Seasons Change
 	// move straight off the time banner and writes the steading's clock, gains and Fortunes.
 	it("gates the game.stonetop doors to the weather and the next season on a GM", () => {
-		const ready = readRepo("module/hooks/Ready.js");
+		const ready = readRepo("module/hooks/stonetop-api.js");
 		expect(ready).toContain("game.stonetop.openWeather       = () => (game.user?.isGM ? WeatherDialog.open() : null);");
 		const at = ready.indexOf("game.stonetop.openNextSeason = () => {");
 		expect(at).toBeGreaterThan(-1);

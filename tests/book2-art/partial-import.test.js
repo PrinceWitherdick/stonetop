@@ -5,7 +5,7 @@ import { clearArtBrowseCache, DURABLE_ART_DIRS } from "../../module/book2-art/br
 
 // An import that fails on some illustrations still reports success: the failures go to the
 // console during a run that takes minutes, and the GM is left with a few entries that never got
-// a picture. This is the detector behind the once-only offer to finish the job (hooks/Ready.js
+// a picture. This is the detector behind the once-only offer to finish the job (hooks/startup-cards.js
 // _offerPartialArtImportOnce), and what it has to get right is WHICH worlds to speak up in.
 //
 // Two worlds must stay silent, for opposite reasons. One that never imported is the plain

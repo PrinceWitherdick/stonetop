@@ -9,7 +9,7 @@ import { registeredSettings } from "../fakes/registered-settings.js";
 // it is the one addition a GM cannot discover on their own: nothing looks broken to them. Their
 // Setting Overview pages carry a map — just not the sharpest one in print — and the two
 // flowcharts sit on a sheet tab whose placeholder they may never scroll to. So there is a
-// one-time whispered offer (hooks/Ready.js `_offerGmPlaybookArtOnce`), and this is the detector
+// one-time whispered offer (hooks/startup-cards.js `_offerGmPlaybookArtOnce`), and this is the detector
 // that decides which worlds hear it.
 //
 // Getting the audience wrong is the whole risk. Speak to a world that never imported and it is
@@ -19,7 +19,7 @@ import { registeredSettings } from "../fakes/registered-settings.js";
 const ROOT = "stonetop-book-art";
 // Through the shared reader, so this file carries no `fs`/`path`/`fileURLToPath` of its own and
 // no `../..` depth that has to match where it happens to sit.
-const READY_JS = readRepo("module/hooks/Ready.js");
+const STARTUP_CARDS_JS = readRepo("module/hooks/startup-cards.js");
 
 const { settingOverviewMaps = [], gmDiagrams = [], monsters = [] } = BOOK2_ART_APPLY_MANIFEST;
 const CHAINS = settingOverviewMaps.map(pageChain);
@@ -117,8 +117,9 @@ describe("the upgrade offer", () => {
 	// Every one of these is the difference between the card arriving and the feature being
 	// invisible to every world that already imported.
 	it("is wired into the ready sequence, once per world", () => {
-		expect(READY_JS).toContain("_offerGmPlaybookArtOnce()");
-		expect(READY_JS).toContain('setting: "gmPlaybookArtOffered"');
+		expect(readRepo("module/hooks/Ready.js")).toContain("postStartupCards");
+		expect(STARTUP_CARDS_JS).toContain("_offerGmPlaybookArtOnce()");
+		expect(STARTUP_CARDS_JS).toContain('setting: "gmPlaybookArtOffered"');
 		expect(registeredSettings().settings.has("gmPlaybookArtOffered")).toBe(true);
 	});
 
@@ -127,7 +128,7 @@ describe("the upgrade offer", () => {
 	// ChatMessage.create beside it would post to the table) and that the shared helper still
 	// whispers rather than broadcasting.
 	it("whispers to the GMs rather than posting to the table", () => {
-		const fn = READY_JS.slice(READY_JS.indexOf("function _offerGmPlaybookArtOnce"));
+		const fn = STARTUP_CARDS_JS.slice(STARTUP_CARDS_JS.indexOf("function _offerGmPlaybookArtOnce"));
 		const body = fn.slice(0, fn.indexOf("\n}\n"));
 		expect(body).toContain("card: _buildGmPlaybookArtContent");
 		expect(body).not.toContain("ChatMessage.create");
@@ -141,14 +142,14 @@ describe("the upgrade offer", () => {
 	// The card's button reuses the class the two existing art cards use, which stonetop.js already
 	// delegates to the macro launcher. A new class here would render a button that does nothing.
 	it("reuses the wired Import Book Art button", () => {
-		const card = READY_JS.slice(READY_JS.indexOf("function _buildGmPlaybookArtContent"));
+		const card = STARTUP_CARDS_JS.slice(STARTUP_CARDS_JS.indexOf("function _buildGmPlaybookArtContent"));
 		expect(card).toContain('class="stonetop-import-art-open"');
 	});
 
 	// Written against what THIS world would gain: a GM who already has the diagrams should not be
 	// told about a tab they have been using, and one whose maps are current not about maps.
 	it("describes only the half that is actually missing", () => {
-		const card = READY_JS.slice(READY_JS.indexOf("function _buildGmPlaybookArtContent"));
+		const card = STARTUP_CARDS_JS.slice(STARTUP_CARDS_JS.indexOf("function _buildGmPlaybookArtContent"));
 		const body = card.slice(0, card.indexOf("\n}\n"));
 		expect(body).toContain("if (maps)");
 		expect(body).toContain("if (diagrams)");
@@ -158,7 +159,7 @@ describe("the upgrade offer", () => {
 	// offers that are about gaps.
 	it("comes after the rebuild and partial-import offers", () => {
 		const order = ["_offerBookArtRebuildOnce()", "_offerPartialArtImportOnce()", "_offerGmPlaybookArtOnce()"]
-			.map(name => READY_JS.indexOf(name));
+			.map(name => STARTUP_CARDS_JS.indexOf(name));
 		expect(order[0]).toBeLessThan(order[1]);
 		expect(order[1]).toBeLessThan(order[2]);
 	});

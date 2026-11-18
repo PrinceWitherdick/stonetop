@@ -25,7 +25,7 @@ import { PeopleSource } from "./catalog/PeopleSource.js";
  * home are the GM's own notes. So open() refuses anyone else — refuses rather than quietly
  * emptying, because a window listing nothing reads as a bug rather than as a door that isn't
  * yours. It is reached from the "Browse Stonetop" hotbar macro (seeded GM-only in
- * hooks/Ready.js) and from `game.stonetop.openBrowser()`, and there is deliberately no button
+ * hooks/system-macros.js) and from `game.stonetop.openBrowser()`, and there is deliberately no button
  * for it anywhere on a character sheet.
  */
 export class StonetopBrowserDialog extends CatalogBrowserDialog {
