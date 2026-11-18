@@ -1,5 +1,5 @@
 import {MoveResourceButton} from "./elements/move-resource-button.js";
-import { confirmOutcome, askWithButtons } from "../../utils/ask-with-buttons.js";
+import { confirmOutcome, confirmRemoval, askWithButtons } from "../../utils/ask-with-buttons.js";
 import { parseMovePickCount, backgroundPossessionSlugs, splitMarkedActions } from "./StonetopCharacter.js";
 import {BackgroundInputChoice} from "./elements/background-input-choice.js";
 import {PossessionUseButton} from "./elements/possession-use-button.js";
@@ -33,7 +33,7 @@ import {NpcToFollowerDialog} from "./dialogs/NpcToFollowerDialog.js";
 import {OrderFollowersDialog} from "./dialogs/OrderFollowersDialog.js";
 import {FollowerFateDialog} from "./dialogs/FollowerFateDialog.js";
 import {CrewSetupDialog, crewSetupLimit, crewSetupUpdate} from "./dialogs/CrewSetupDialog.js";
-import {FOLLOWER_FATE_TYPES, SIR_PERMISSION_TO_DIE, isCrewMemberRow, isCustomMemberRow, followerFateHpPath, followerFateLoyaltyType, wasStanding, followerReviveUpdate, crewMemberFateName, customMemberFateName, sirPermissionOffer, crewIndividualRemovalUpdate, crewMemberDeathUpdate, customMemberDeathUpdate, customMemberStruckOff, postLetGoReceipt} from "./follower-fate.js";
+import {FOLLOWER_FATE_TYPES, SIR_PERMISSION_TO_DIE, isCrewMemberRow, isCustomMemberRow, followerFateHpPath, followerFateLoyaltyType, wasStanding, followerReviveUpdate, crewMemberFateName, customMemberFateName, sirPermissionOffer, crewIndividualRemovalUpdate, crewGroupHpClampUpdate, crewResizeUpdate, customGroupResizeUpdate, crewMemberPromotionUpdate, crewMemberDeathUpdate, customMemberDeathUpdate, customMemberStruckOff, postLetGoReceipt} from "./follower-fate.js";
 import {CallUpDeepOnesDialog} from "./dialogs/CallUpDeepOnesDialog.js";
 import {BackgroundNeighborsDialog, storedNeighborPicks, storedNeighborTraits, traitedNeighbors} from "./dialogs/BackgroundNeighborsDialog.js";
 import {BackgroundAnswersDialog} from "./dialogs/BackgroundAnswersDialog.js";
@@ -61,7 +61,7 @@ import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
 import {mountScrollFrost} from "../../utils/scroll-frost.js";
 import {withSheetSizeMemory} from "../../utils/sheet-size.js";
 import { personalSymbolAction, displayPersonalSymbol } from "./personal-symbol.js";
-import { crewExists, crewBackgroundTag, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, customGroupPresent, groupFollowerMembers, groupFollowerStanding, CREW_SIZE_MAX } from "../../utils/crew.js";
+import { crewExists, crewBackgroundTag, effectiveCrewSize, customGroupSize, crewAnonymousCount, crewAnonMemberLabel, crewIndividualLabel, customGroupMemberLabel, customGroupPresent, groupFollowerMembers, groupFollowerStanding } from "../../utils/crew.js";
 import {resolvedFlags, resolvedFlagProperty, STONETOP_SCOPE, ITEM_FLAG_SCOPE} from "./StonetopFlags.js";
 import { FOLLOWER_FLAGS as _FOLLOWER_FLAGS, fillFollowerSlug as _fillSlug, followerDetailBase as _followerDetailBase, clampFollowerHp as _clampHp, intOverrideOrNull as _intOverrideOrNull, companionBase, crewMemberHpMax, followerHpMaxOverride, ownedBeastSlugs, orderedCustomFollowers } from "./follower-roster.js";
 import {createArcanumItem} from "../../item/createArcanum.js";
@@ -116,6 +116,7 @@ import { followerInPartyFlags, followerPartyPath } from "./follower-party.js";
 import { ANIMAL_COMPANION_MOVE, COMPANION_TRAIT_PICKS_PER_SPECIMEN, MAGNIFICENT_SPECIMEN_MOVE, companionPaidTraits, companionTraitAllowance } from "./animal-companion.js";
 import { LOYAL_TO_THE_END, beastBondActions, companionConditions, lendStrength, loyalToTheEndTierActions, removeCompanionCondition } from "./companion-bond.js";
 import { CompanionSetupDialog, companionSetupUpdate } from "./dialogs/CompanionSetupDialog.js";
+import { CrewMemberNameDialog } from "./dialogs/CrewMemberNameDialog.js";
 import {CARD_EMPOWERED_FLAG, CARD_INVOCATIONS_FLAG, TEN_PLUS_FLAG, debilityPayments, invokeTenPlusCardBody, payDebility} from "./invoke-consequences.js";
 import {DANCING_LIGHT, invocationLabel, invocationLabels, invokeWindowNotice, readOngoing, resolveInvocationUse} from "./ongoing-invocation.js";
 import {INVOCATIONS_GRANTED_AT_FLAG, invocationCountCue} from "./invocation-count.js";
@@ -166,7 +167,6 @@ import {joinNames} from "../../utils/strings.js";
 import {availablePossessionFollowers} from "../../data/possession-followers.js";
 import {FOLLOWER_MOVES} from "../../data/follower-moves.js";
 import {FOLLOWER_DRAG_TYPE, splitFollowerName} from "../../data/follower-actor.js";
-import {CREW_INDIVIDUAL_NAMES, CREW_INDIVIDUAL_TAGS, CREW_INDIVIDUAL_TRAITS} from "../../data/steading-members.js";
 import {resolvePortrait, portraitActionLabel} from "../../utils/portrait-frame.js";
 import {displayPortraitSrc} from "../../book2-art/people-portraits.js";
 import {followerFrameHandle, rosterMemberFrameHandle, followerPortraitPickUpdate, followerPortraitClearUpdate} from "../../utils/portrait-frame-handles.js";
@@ -3489,8 +3489,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 			html.find(".stonetop-moves-level-notice-dismiss").on("click", async ev => {
 				const key = ev.currentTarget.dataset.overageKey;
-				if (key) await this.actor.setFlag(STONETOP_SCOPE, "moves.dismissedLevelOverage", key);
-				this.render(false);
+				await this._renderAfter(key ? this.actor.setFlag(STONETOP_SCOPE, "moves.dismissedLevelOverage", key) : null);
 			});
 
 			// Reveal the "Drop a playbook here" hint only while a drag is actually
@@ -3958,8 +3957,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!this.isEditable) return;
 				const idx     = Number(ev.currentTarget.dataset.index);
 				const current = this._stonetopCharacter.defendReadiness;
-				await this._stonetopCharacter.setDefendReadiness(pipToggleValue(current, idx));
-				this.render(false);
+				await this._renderAfter(this._stonetopCharacter.setDefendReadiness(pipToggleValue(current, idx)));
 			});
 
 			// Big Damn Hero's leap, beside Defend: no roll, Defend's 10+ applied, once per fight
@@ -3969,8 +3967,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.stopPropagation();
 				if (!this.isEditable) return;
 				ev.currentTarget.disabled = true;
-				await leapIn(this.actor, { character: this._stonetopCharacter });
-				this.render(false);
+				await this._renderAfter(leapIn(this.actor, { character: this._stonetopCharacter }));
 			});
 
 			// A post-death move's own buttons (move-group.hbs): what its rule costs or spends, and the rolls
@@ -4651,17 +4648,14 @@ export function createStonetopCharacterSheetClass(Base) {
 			html.find(".stonetop-possession-check").on("change", this._onPossessionCheck.bind(this));
 			html.find(".stonetop-possession-custom-remove").on("click", this._onRemoveCustomPossession.bind(this));
 			// The Marshal's personal symbol, displayed: crew +1 Loyalty (max 3). Disabled for the
-			// write so a double click cannot count twice; the render that follows redraws it.
+			// write so a double click cannot count twice; the render that follows redraws it, and
+			// _renderAfter reports the write if it fails (and never rethrows, so the button comes back).
 			html.find(".stonetop-personal-symbol-btn").on("click", async ev => {
 				const btn = ev.currentTarget;
 				if (btn.disabled) return;
 				btn.disabled = true;
-				try {
-					await displayPersonalSymbol(this.actor);
-				} finally {
-					btn.disabled = false;
-					this.render(false);
-				}
+				await this._renderAfter(displayPersonalSymbol(this.actor));
+				btn.disabled = false;
 			});
 			html.find(".stonetop-possession-sub-check").on("change", this._onPossessionSubCheck.bind(this));
 			// Weapons-of-war ◇/□ rows: ticking a diamond picks the weapon (a sub-choice) and
@@ -4777,8 +4771,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const path = _followerStructuralPath(el.dataset.ftype, el.dataset.field)
 					?? followerDetailPath(el.dataset.ftype, el.dataset.slug, el.dataset.field);
 				if (!path) return;
-				await this.actor.setFlag(STONETOP_SCOPE, path, el.value.trim());
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, path, el.value.trim()));
 			});
 			// Armor-source field: a free-type input with a suggestion dropdown (leather,
 			// shield, hides…). Picking a suggestion fires `change`, saved by the handler
@@ -4794,8 +4787,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const path = followerDetailPath(el.dataset.ftype, el.dataset.slug, "exceptional");
 				if (!path) return;
 				const turnOn = !el.classList.contains("is-selected");
-				await this.actor.setFlag(STONETOP_SCOPE, path, turnOn);
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, path, turnOn));
 			});
 			// Crew tag picker + its custom write-in row: store only the player's chosen tags
 			// plus the write-in. The background-auto tag is the disabled option, so
@@ -4813,8 +4805,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					const picks = html.find(`.stonetop-${kind}-option:checked:not(:disabled)`).toArray().map(el => el.value);
 					const custom = html.find(`.stonetop-${kind}-custom`).val()?.trim();
 					if (custom) picks.push(custom);
-					await this.actor.setFlag(STONETOP_SCOPE, flagKey, picks);
-					this.render(false);
+					await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, flagKey, picks));
 				});
 			}
 			// Initiate of Danu trait lines: "pick 1 on each line". Each radio row writes
@@ -4829,20 +4820,17 @@ export function createStonetopCharacterSheetClass(Base) {
 				const path = `initiateDetails.${slug}.rows`;
 				const rows = foundry.utils.deepClone(this.actor.getFlag(STONETOP_SCOPE, path) ?? {});
 				rows[rowIdx] = el.value;
-				await this.actor.setFlag(STONETOP_SCOPE, path, rows);
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, path, rows));
 			});
 			// Crew instinct / cost pickers (pick one from the playbook list), and their write-ins
 			// (the insert's blank rows): save the typed value verbatim; picking a radio
 			// overwrites it, matching onboarding.
 			for (const field of ["instinct", "cost"]) {
 				html.find(`.stonetop-crew-${field}-option`).on("change", async ev => {
-					await this.actor.setFlag(STONETOP_SCOPE, `crew.${field}`, ev.currentTarget.value);
-					this.render(false);
+					await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, `crew.${field}`, ev.currentTarget.value));
 				});
 				html.find(`.stonetop-crew-${field}-custom`).on("change", async ev => {
-					await this.actor.setFlag(STONETOP_SCOPE, `crew.${field}`, ev.currentTarget.value.trim());
-					this.render(false);
+					await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, `crew.${field}`, ev.currentTarget.value.trim()));
 				});
 			}
 			// Gear checklist: toggle carried, rename, add, remove
@@ -4857,8 +4845,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const i = Number(el.dataset.index);
 				if (!path || !list[i]) return;
 				list[i].checked = el.checked;
-				await this.actor.setFlag(STONETOP_SCOPE, path, list);
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, path, list));
 			});
 			html.find(".stonetop-follower-gear-label").on("change", async ev => {
 				const el = ev.currentTarget;
@@ -4874,8 +4861,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { path, list } = readFollowerGear(el.dataset.ftype, el.dataset.slug);
 				if (!path) return;
 				list.push({ label: "", checked: false });
-				await this.actor.setFlag(STONETOP_SCOPE, path, list);
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, path, list));
 			});
 			html.find(".stonetop-follower-gear-remove").on("click", async ev => {
 				const el = ev.currentTarget;
@@ -4883,8 +4869,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const i = Number(el.dataset.index);
 				if (!path) return;
 				list.splice(i, 1);
-				await this.actor.setFlag(STONETOP_SCOPE, path, list);
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, path, list));
 			});
 
 			// Tapping one of a follower's own moves posts it to chat, spoken with the
@@ -4918,8 +4903,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// A condition's remove button on the companion card (Loyal to the End's "injured").
 			html.find(".stonetop-follower-tag-remove").on("click", async ev => {
 				if (!this.isEditable) return;
-				await removeCompanionCondition(this.actor, ev.currentTarget.dataset.tag);
-				this.render(false);
+				await this._renderAfter(removeCompanionCondition(this.actor, ev.currentTarget.dataset.tag));
 			});
 			// The tag editor under a follower card's pencil (Updating followers, p.480): remove a
 			// tag, or add one (or several, comma-separated) from the field.
@@ -4959,11 +4943,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				const slug = ev.currentTarget.dataset.slug;
 				if (!slug) return;
 				const name = this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}.name`) || "this follower";
-				const ok = await confirmOutcome({
-					title:   "Remove follower",
-					content: `<p>Remove <strong>${escHtml(name)}</strong> from your followers? This can't be undone.</p>`,
-					yes:     { label: "Remove the follower", icon: "fa-user-minus" },
-					no:      { label: "Keep them" },
+				const ok = await confirmRemoval({
+					title: "Remove follower",
+					name,
+					from:  "your followers",
+					yes:   { label: "Remove the follower", icon: "fa-user-minus" },
+					no:    { label: "Keep them" },
 				});
 				if (ok) await this._removeCustomFollower(slug);
 			});
@@ -4988,8 +4973,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!path) return;
 				const idx     = Number(ev.currentTarget.dataset.index);
 				const current = Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0;
-				await this.actor.setFlag(STONETOP_SCOPE, path, pipToggleValue(current, idx));
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, path, pipToggleValue(current, idx)));
 			});
 			// Spend Loyalty / Readiness (p.464 / p.469): open a small chooser for the
 			// rulebook's spend options, decrement the track, and post a chat note.
@@ -5032,8 +5016,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				ev.currentTarget.closest(".stonetop-crew-gear-item")?.classList.toggle("is-checked", checked);
 				const gear    = foundry.utils.deepClone(this.actor.getFlag(STONETOP_SCOPE, "crew.gear") ?? {});
 				gear[slug]    = checked ? (Number(weight) || 1) : 0;
-				await this.actor.setFlag(STONETOP_SCOPE, "crew.gear", gear);
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, "crew.gear", gear));
 			});
 			// Crew supplies pip circles — one set (one ◇ of supplies) per member, stored as an
 			// array of use counts. The array grows to reach whichever set was clicked rather than
@@ -5045,20 +5028,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				const arr = Array.isArray(current) ? [...current] : [];
 				while (arr.length <= setIdx) arr.push(0);
 				arr[setIdx] = newVal;
-				await this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", arr);
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, "crew.supplies", arr));
 			});
-			// Clamp a stored group-fight pool that now sits over its max. The pool is ONE
-			// member's HP (the abstraction's own rule — see the crew card's note), so the
-			// roster size no longer moves the ceiling; what does move it is the per-member
-			// HP, and a pool saved under the old size × HP ceiling is over it on sight.
-			// Only an explicitly-set value is touched — an unset groupHp tracks the max.
-			const clampStoredGroupHp = (update) => {
-				const raw = Number(this.actor.getFlag(STONETOP_SCOPE, "crew.groupHp"));
-				if (!Number.isFinite(raw)) return;
-				const max = this._crewMemberHpMax ?? 6;
-				if (raw > max) update[`flags.${STONETOP_SCOPE}.crew.groupHp`] = max;
-			};
+			// The pool clamp, the Roster's Remove and the headcount stepper are pure writes beside the
+			// fate dialog's own (follower-fate.js): crewGroupHpClampUpdate, crewIndividualRemovalUpdate
+			// and crewResizeUpdate. One crew member's max HP is the pool's ceiling.
+			const crewMemberHpMax = () => this._crewMemberHpMax ?? 6;
 			// Delete individual crew member
 			html.find(".stonetop-crew-delete-individual").on("click", async ev => {
 				const idx = Number(ev.currentTarget.dataset.index);
@@ -5068,40 +5043,24 @@ export function createStonetopCharacterSheetClass(Base) {
 				const update = crewIndividualRemovalUpdate(crew, idx);
 				if (!update) return;
 				const name = crew.individuals[idx]?.name || "this crew member";
-				clampStoredGroupHp(update);
-				const ok = await confirmOutcome({
-					title:   "Remove crew member",
-					content: `<p>Remove <strong>${escHtml(name)}</strong> from the crew? This can't be undone.</p>`,
-					yes:     { label: "Remove them from the crew", icon: "fa-user-minus" },
-					no:      { label: "Keep them" },
+				Object.assign(update, crewGroupHpClampUpdate(crew, crewMemberHpMax()));
+				const ok = await confirmRemoval({
+					title: "Remove crew member",
+					name,
+					from:  "the crew",
+					yes:   { label: "Remove them from the crew", icon: "fa-user-minus" },
+					no:    { label: "Keep them" },
 				});
 				if (!ok) return;
-				await this.actor.update(update);
-				this.render(false);
+				await this._renderAfter(this.actor.update(update));
 			});
 
 			// Crew roster size — total headcount; never below the number of named
-			// individuals. Trims trailing anonymous-member HP entries when shrinking.
-			const setCrewSize = async (size) => {
-				const namedCount = (this.actor.getFlag(STONETOP_SCOPE, "crew.individuals") ?? []).length;
-				const clamped    = Math.min(CREW_SIZE_MAX, Math.max(namedCount, Math.max(0, size)));
-				const anonCount  = Math.max(0, clamped - namedCount);
-				const memberHp   = (this.actor.getFlag(STONETOP_SCOPE, "crew.memberHp") ?? []).slice(0, anonCount);
-				const update = {
-					[`flags.${STONETOP_SCOPE}.crew.size`]:     clamped,
-					[`flags.${STONETOP_SCOPE}.crew.memberHp`]: memberHp,
-				};
-				// The anonymous members' faces are an array parallel to their HP, so they are trimmed
-				// by the same cut. Only written when there is something to trim: an untouched roster
-				// has no portrait store at all, and seeding an empty array here would leave one
-				// behind on every crew that never picked a face.
-				const memberPortrait = rosterPortraitList(this.actor, "crew-member");
-				if (memberPortrait.length > anonCount) {
-					update[`flags.${STONETOP_SCOPE}.crew.memberPortrait`] = memberPortrait.slice(0, anonCount);
-				}
-				clampStoredGroupHp(update);
-				await this.actor.update(update);
-				this.render(false);
+			// individuals. Trims trailing anonymous-member HP entries (and their faces) when shrinking.
+			const setCrewSize = (size) => {
+				// The faces are read through roster-portraits.js, which resolves the legacy flag scope.
+				const crew = { ...(this.actor.getFlag(STONETOP_SCOPE, "crew") ?? {}), memberPortrait: rosterPortraitList(this.actor, "crew-member") };
+				return this._renderAfter(this.actor.update(crewResizeUpdate(crew, size, { memberHpMax: crewMemberHpMax() })));
 			};
 			html.find(".stonetop-crew-size-step").on("click", ev => {
 				const delta = Number(ev.currentTarget.dataset.delta) || 0;
@@ -5129,8 +5088,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (!path) return;
 				const idx     = Number(ev.currentTarget.dataset.index);
 				const current = Math.max(0, Number(this.actor.getFlag(STONETOP_SCOPE, path)) || 0);
-				await this.actor.update({ [`flags.${STONETOP_SCOPE}.${path}`]: pipToggleValue(current, idx) });
-				this.render(false);
+				await this._renderAfter(this.actor.update({ [`flags.${STONETOP_SCOPE}.${path}`]: pipToggleValue(current, idx) }));
 			});
 			// "Uses ammo" toggle (Damage section, edit mode): opts a ranged follower
 			// into the ◇ low ammo / ◇ all out track. Turning it off clears any marked
@@ -5145,8 +5103,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					const ammoPath = _followerAmmoPath(ftype, slug ?? "");
 					if (ammoPath) update[`flags.${STONETOP_SCOPE}.${ammoPath}`] = 0;
 				}
-				await this.actor.update(update);
-				this.render(false);
+				await this._renderAfter(this.actor.update(update));
 			});
 			// Follower ammo checks (◇ low ammo, ◇ all out): a cumulative 0→1→2 track, so
 			// checking "all out" implies "low ammo" and clearing "low" resets to full.
@@ -5155,44 +5112,25 @@ export function createStonetopCharacterSheetClass(Base) {
 				const path = _followerAmmoPath(ftype, slug ?? "");
 				if (!path) return;
 				const newVal = pipCheckValue(ev.currentTarget.checked, index);
-				await this.actor.update({ [`flags.${STONETOP_SCOPE}.${path}`]: newVal });
-				this.render(false);
+				await this._renderAfter(this.actor.update({ [`flags.${STONETOP_SCOPE}.${path}`]: newVal }));
 			});
 
 			// Restore the abstracted group-fight pool to full (clears the override).
 			// A data-slug marks a custom group's pool; without one it's the crew's.
 			html.find(".stonetop-group-hp-reset").on("click", async ev => {
 				const slug = ev.currentTarget.dataset.slug;
-				if (slug) await this.actor.update({ [`flags.${STONETOP_SCOPE}.customFollowers.${slug}.groupHp`]: null });
-				else      await this.actor.unsetFlag(STONETOP_SCOPE, "crew.groupHp");
-				this.render(false);
+				await this._renderAfter(slug
+					? this.actor.update({ [`flags.${STONETOP_SCOPE}.customFollowers.${slug}.groupHp`]: null })
+					: this.actor.unsetFlag(STONETOP_SCOPE, "crew.groupHp"));
 			});
 
 			// Custom group roster size (mirrors the crew size stepper). Clamps the
 			// abstracted group-HP pool down when the group shrinks, and drops any
-			// per-member HP entries beyond the new size, so nothing stale is left.
-			const setCustomGroupSize = async (slug, next) => {
-				const c = this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`);
-				if (!c) return;
-				const size = customGroupSize({ size: next });
-				const memberHpMax = Math.max(1, Math.trunc(Number(c.hpMax) || 0) || 1);
-				const base = `flags.${STONETOP_SCOPE}.customFollowers.${slug}`;
-				const update = { [`${base}.size`]: size };
-				// Trim per-member HP to the new roster length, and the arrays parallel to it: their
-				// faces (roster-portraits.js) and the fallen marks (follower-fate.js#customMemberDeathUpdate).
-				for (const key of ["memberHp", "memberPortrait", "memberDead"]) {
-					if (Array.isArray(c[key]) && c[key].length > size) update[`${base}.${key}`] = c[key].slice(0, size);
-				}
-				// Clamp an explicitly-set group pool to its max (unset tracks full). The pool
-				// is ONE member's HP, so resizing the roster no longer moves that ceiling —
-				// but a pool stored under the old size × HP ceiling is over it, and this is
-				// where such a value gets brought back down.
-				const rawPool = Number(c.groupHp);
-				if (Number.isFinite(rawPool) && rawPool > memberHpMax) {
-					update[`${base}.groupHp`] = memberHpMax;
-				}
-				await this.actor.update(update);
-				this.render(false);
+			// per-member HP entries beyond the new size, so nothing stale is left
+			// (follower-fate.js#customGroupResizeUpdate).
+			const setCustomGroupSize = (slug, next) => {
+				const update = customGroupResizeUpdate(this.actor.getFlag(STONETOP_SCOPE, `customFollowers.${slug}`), slug, next);
+				if (update) return this._renderAfter(this.actor.update(update));
 			};
 			html.find(".stonetop-custom-group-size-step").on("click", ev => {
 				const { slug, delta } = ev.currentTarget.dataset;
@@ -5298,213 +5236,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 
 			// Name an (anonymous) crew member: promote them to a named individual,
-			// carrying their current HP across. Opened from each member's "Name them"
+			// carrying their current HP and face across. Opened from each member's "Name them"
 			// button in edit mode, which targets that specific roster slot.
-			const openNameMemberDialog = async (anonIndex) => {
-				// Fall back to the shared crew suggestion lists (module/data/steading-members.js)
-				// when the playbook pack doesn't carry its own crew.individualOptions.
-				// The Crew insert's own lists, the Marshal's or the one a learned Crew borrows (crewSource).
-				const indOpts     = (await this._stonetopCharacter.crewSource())?.individualOptions ?? {};
-				const names  = indOpts.names?.length  ? indOpts.names  : CREW_INDIVIDUAL_NAMES;
-				const tags   = indOpts.tags?.length   ? indOpts.tags   : CREW_INDIVIDUAL_TAGS;
-				const traits = indOpts.traits?.length ? indOpts.traits : CREW_INDIVIDUAL_TRAITS;
-
-				const namesHtml = names.map(n => `<option value="${n}">`).join("");
-				const tagsHtml  = tags.map(t => `<option value="${t}"></option>`).join("");
-
-				// -- Trait tokenizer ---------------------------------------
-				// Splits a trait into: text | standalone __ | slash-option group
-				// e.g. "missing eye/finger/hand/__" ?
-				//   [text:"missing "], [opts:["eye","finger","hand","__"]]
-				// e.g. "__'s kid/sibling/parent/cousin/__" ?
-				//   [blank], [text:"'s "], [opts:["kid","sibling","parent","cousin","__"]]
-				const tokenize = str => {
-					const tokens = [];
-					// Greedy: standalone __, then slash-group, then whitespace, then word
-					const re = /__|(?:[^\s/]+(?:\/[^\s/]+)+)|[^\s/]+|\s+/g;
-					let m;
-					while ((m = re.exec(str)) !== null) {
-						if (m[0] === "__")         tokens.push({ type: "blank" });
-						else if (m[0].includes("/")) tokens.push({ type: "opts", opts: m[0].split("/") });
-						else                         tokens.push({ type: "text", text: m[0] });
-					}
-					return tokens;
-				};
-
-				// Build one chip's inner HTML from its tokens, tracking slot indices.
-				// Slash-option slots are free-type combos: the slash choices become
-				// <datalist> suggestions, but you can type anything (replacing the old
-				// "___ (type your own)" select option). traitIndex keeps datalist ids unique.
-				const buildChipInner = (tokens, safeVal, traitIndex) => {
-					let html    = `<input type="checkbox" class="stonetop-check" name="traits" value="${safeVal}">`;
-					let slotIdx = 0;
-					for (const tok of tokens) {
-						if (tok.type === "text") {
-							html += `<span class="stonetop-trait-text">${tok.text}</span>`;
-						} else if (tok.type === "blank") {
-							const s = slotIdx++;
-							html += `<span class="stonetop-trait-blank">___</span>`;
-							html += `<input type="text" class="stonetop-trait-fill" data-slot="${s}" style="display:none" placeholder="…">`;
-						} else { // opts
-							const s        = slotIdx++;
-							const realOpts = tok.opts.filter(o => o !== "__");
-							const display  = tok.opts.map(o => o === "__" ? "___" : o).join("/");
-							const listId   = `trait-opts-${traitIndex}-${s}`;
-							const optHtml  = realOpts.map(o => `<option value="${o.replace(/"/g, "&quot;")}"></option>`).join("");
-							html += `<span class="stonetop-trait-blank">${display}</span>`;
-							html += `<input type="text" class="stonetop-trait-select" data-slot="${s}" list="${listId}" style="display:none" placeholder="…" autocomplete="off">`;
-							html += `<datalist id="${listId}">${optHtml}</datalist>`;
-						}
-					}
-					return html;
-				};
-
-				const traitsHtml = traits.map((t, ti) => {
-					const safeVal = t.replace(/"/g, "&quot;");
-					const tokens  = tokenize(t);
-					const simple  = tokens.every(tok => tok.type === "text");
-					if (simple) {
-						return `<span class="stonetop-trait-chip-group">
-							<label class="stonetop-individual-trait-chip">
-								<input type="checkbox" class="stonetop-check" name="traits" value="${safeVal}"> ${t}
-							</label>
-						</span>`;
-					}
-					return `<span class="stonetop-trait-chip-group" data-trait="${safeVal}">
-						<label class="stonetop-individual-trait-chip">
-							${buildChipInner(tokens, safeVal, ti)}
-						</label>
-					</span>`;
-				}).join("");
-
-				const content = `
-					<form class="stonetop-individual-form">
-						<div class="form-group">
-							<label>Name</label>
-							<input type="text" name="ind-name" list="ind-names" placeholder="Enter a name…">
-							<datalist id="ind-names">${namesHtml}</datalist>
-						</div>
-						<div class="form-group">
-							<label>Tag</label>
-							<input type="text" name="ind-tag" list="ind-tags" placeholder="Choose or type a tag…" autocomplete="off">
-							<datalist id="ind-tags">${tagsHtml}</datalist>
-						</div>
-						<div class="form-group stonetop-individual-traits-group">
-							<label>Traits <em>(choose one or more)</em></label>
-							<div class="stonetop-individual-traits-grid">${traitsHtml}</div>
-						</div>
-					</form>`;
-
-				new Dialog({
-					title:   "Name this Crew Member",
-					content,
-					// One button, keyed `save`. NOT `add`: that key is in the global affirmative list
-					// (`.vtt .dialog .dialog-buttons [data-button="add"]`), which pushes its button to
-					// the far LEFT with `margin-right: auto` so a Cancel can sit opposite it. With
-					// nothing to sit opposite, that rule would strand the lone button on the left.
-					// Closing the window is the cancel — the titlebar ✕ already does it.
-					buttons: {
-						save: {
-							icon:  "<i class='fas fa-user-pen'></i>",
-							label: "Save",
-							callback: async (dlgHtml) => {
-								const name = dlgHtml.find("[name='ind-name']").val().trim();
-								if (!name) return;
-								const tag    = dlgHtml.find("[name='ind-tag']").val().trim();
-								const traits = [];
-								dlgHtml.find("[name='traits']:checked").each((_, cb) => {
-									const group  = cb.closest(".stonetop-trait-chip-group");
-									const tokens = tokenize(cb.value);
-									let slotIdx  = 0;
-									let result   = "";
-									for (const tok of tokens) {
-										if (tok.type === "text") {
-											result += tok.text;
-										} else if (tok.type === "blank") {
-											const s  = slotIdx++;
-											const el = group.querySelector(`.stonetop-trait-fill[data-slot="${s}"]`);
-											result  += el?.value.trim() || "__";
-										} else { // opts
-											const s   = slotIdx++;
-											const sel = group.querySelector(`.stonetop-trait-select[data-slot="${s}"]`);
-											const val = sel?.value.trim();
-											result += val || tok.opts.find(o => o !== "__") || tok.opts[0];
-										}
-									}
-									traits.push(result);
-								});
-								// Promote the targeted anonymous member: append the named
-								// individual, carry its current HP over, and drop it from
-								// the anonymous-member HP list.
-								const individuals   = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.individuals") ?? [])];
-								const newIndex      = individuals.length;
-								const memberHp      = [...(this.actor.getFlag(STONETOP_SCOPE, "crew.memberHp") ?? [])];
-								const carriedHp     = memberHp[anonIndex];
-								const individualsHp = { ...(this.actor.getFlag(STONETOP_SCOPE, "crew.individualsHp") ?? {}) };
-								if (carriedHp != null) individualsHp[newIndex] = carriedHp;
-								memberHp.splice(anonIndex, 1);
-								// The face comes with them. Standing out is the moment a body on the
-								// roster becomes a person, so losing the portrait here would be the
-								// one point in the crew's life where a chosen face is thrown away.
-								// It moves OUT of the parallel array and ONTO the new row, which is
-								// where a named individual keeps theirs (roster-portraits.js).
-								const memberPortrait = rosterPortraitList(this.actor, "crew-member");
-								const [carriedFace]  = memberPortrait.splice(anonIndex, 1);
-								const named = { name, tag, traits };
-								if (carriedFace?.img)           named.img           = carriedFace.img;
-								if (carriedFace?.portraitFrame) named.portraitFrame = carriedFace.portraitFrame;
-								const update = {
-									[`flags.${STONETOP_SCOPE}.crew.individuals`]:   [...individuals, named],
-									[`flags.${STONETOP_SCOPE}.crew.individualsHp`]: individualsHp,
-									[`flags.${STONETOP_SCOPE}.crew.memberHp`]:      memberHp,
-								};
-								// Only when the store exists: a crew that has never picked a face
-								// should not gain an empty array the first time it names somebody.
-								if (memberPortrait.length || carriedFace !== undefined) {
-									update[`flags.${STONETOP_SCOPE}.crew.memberPortrait`] = memberPortrait;
-								}
-								await this.actor.update(update);
-								this.render(false);
-							},
-						},
-					},
-					default: "save",
-					render: (dlgHtml) => {
-						bringDialogToFront(dlgHtml);
-						// Swap the name/tag/trait combos' native <datalist> popups (which
-						// lose their scrollbar when long, crbug.com/375637) for our
-						// scrollable one. See utils/autocomplete.js.
-						StonetopAutocomplete.upgradeAll(dlgHtml);
-						// Checkbox toggle: expand/collapse the chip
-						dlgHtml.find("[name='traits']").on("change", ev => {
-							const group   = ev.currentTarget.closest(".stonetop-trait-chip-group");
-							const checked = ev.currentTarget.checked;
-							group?.classList.toggle("is-selected", checked);
-							group?.querySelectorAll(".stonetop-trait-blank").forEach(el =>
-								el.style.display = checked ? "none" : ""
-							);
-							group?.querySelectorAll(".stonetop-trait-fill, .stonetop-trait-select").forEach(el => {
-								el.style.display = checked ? "inline-block" : "none";
-								if (!checked) el.value = "";
-							});
-						});
-					},
-					// "stonetop" is what carries our window CHROME — the header bar, the content
-					// parchment, the focus glow — all of which is scoped to that class so it cannot
-					// bleed onto core or another module's windows. Without it this dialog kept
-					// Foundry's default dark header and textured body while still picking up its own
-					// `.stonetop-individual-dialog` form and button rules, which is why it looked
-					// half-styled rather than plainly unstyled.
-					// height "auto", not a fixed 580: this dialog is three short fields and a chip
-					// list, so a fixed height left ~226px of dead air between the traits and the
-					// footer. The trait grid caps itself at 340px and scrolls, so "auto" cannot run
-					// away on a crew with a long trait list. Resizing the window taller still keeps
-					// Save in the bottom-right corner — that is what the footer's margin-top:auto is
-					// for, and it now only does work when there IS slack to take up.
-				}, { width: 540, height: "auto", classes: ["dialog", "stonetop", "stonetop-individual-dialog"] }).render(true);
-			};
 			html.find(".stonetop-crew-name-member").on("click", ev => {
-				openNameMemberDialog(Number(ev.currentTarget.dataset.index));
+				this._onNameCrewMember(Number(ev.currentTarget.dataset.index));
 			});
 			html.find(".stonetop-inventory-reset-btn").on("click", this._onInventoryReset.bind(this));
 
@@ -5547,8 +5282,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const updated = ev.currentTarget.checked
 					? [...current, slug]
 					: current.filter(s => s !== slug);
-				await this.actor.setFlag(STONETOP_SCOPE, "invocations.selected", updated);
-				this.render(false);
+				await this._renderAfter(this.actor.setFlag(STONETOP_SCOPE, "invocations.selected", updated));
 			});
 			// Tapping an Invocation's title uses it: the window asks whether to Invoke the Sun
 			// God (+WIS) and whether to empower it, then posts the card and rolls.
@@ -5580,11 +5314,12 @@ export function createStonetopCharacterSheetClass(Base) {
 				// let them delete a GM-authored custom move either (matches the hidden +/pencil).
 				if (item?.flags?.[STONETOP_SCOPE]?.custom && !canAuthorCustomMoves()) return;
 				const name = item?.name || "this move";
-				const ok = await confirmOutcome({
-					title:   "Remove move",
-					content: `<p>Remove <strong>${escHtml(name)}</strong> from your moves? This can't be undone.</p>`,
-					yes:     { label: "Remove the move", icon: "fa-trash" },
-					no:      { label: "Keep it" },
+				const ok = await confirmRemoval({
+					title: "Remove move",
+					name,
+					from:  "your moves",
+					yes:   { label: "Remove the move", icon: "fa-trash" },
+					no:    { label: "Keep it" },
 				});
 				if (ok) await this._stonetopCharacter.removeMove(itemId);
 			});
@@ -5607,8 +5342,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				const itemId = ev.currentTarget.dataset.itemId;
 				const item   = this.actor.items.get(itemId);
 				if (item?.flags?.[STONETOP_SCOPE]?.custom && !canAuthorCustomMoves()) return;
-				await this._stonetopCharacter.setMoveLearned(itemId, ev.currentTarget.checked);
-				this.render(false);
+				await this._renderAfter(this._stonetopCharacter.setMoveLearned(itemId, ev.currentTarget.checked));
 			});
 			html.find(".stonetop-add-custom-move").on("click", () => openCustomMove());
 			html.find(".stonetop-custom-move-edit").on("click", ev => {
@@ -5711,8 +5445,7 @@ export function createStonetopCharacterSheetClass(Base) {
 					defaultYes: true,
 				});
 				if (!ok) return;
-				await this._stonetopCharacter.discoverArcanum(slug);
-				this.render(false);
+				await this._renderAfter(this._stonetopCharacter.discoverArcanum(slug));
 			});
 
 			// The Seeker's owed major arcanum (the tab's cue): the Details tab's own ask, again.
@@ -5786,9 +5519,10 @@ export function createStonetopCharacterSheetClass(Base) {
 				const { slug } = btn.dataset;
 				const title = btn.closest(".stonetop-arcanum-card")
 					?.querySelector(".stonetop-arcanum-title")?.textContent?.trim() || "this arcanum";
-				const ok = await confirmOutcome({
+				const ok = await confirmRemoval({
 					title:   "Remove arcanum",
-					content: `<p>Remove <strong>${escHtml(title)}</strong> from your arcana? This can't be undone.</p>`,
+					name:    title,
+					from:    "your arcana",
 					yes:     { label: "Remove the arcanum", icon: "fa-trash" },
 					no:      { label: "Keep it" },
 					classes: ["stonetop-remove-arcanum-dialog"],
@@ -9912,6 +9646,20 @@ export function createStonetopCharacterSheetClass(Base) {
 			if (!picks) return false;
 			await this.actor.update(companionSetupUpdate(picks));
 			this.render(false);
+			return true;
+		}
+
+		// "Name them" on the Roster (CrewMemberNameDialog): the anonymous member at `anonIndex` becomes
+		// a named individual, their HP and face carried across (follower-fate.js#crewMemberPromotionUpdate).
+		// The suggestion lists are the Crew insert's own, the Marshal's or the one a learned Crew borrows
+		// (crewSource), falling back to the shared ones. Resolves to whether it wrote.
+		async _onNameCrewMember(anonIndex) {
+			const crewDef = await this._stonetopCharacter.crewSource();
+			const named = await new CrewMemberNameDialog({ individualOptions: crewDef?.individualOptions }).promise();
+			if (!named) return false;
+			// The faces are read through roster-portraits.js, which resolves the legacy flag scope.
+			const crew = { ...(this.actor.getFlag(STONETOP_SCOPE, "crew") ?? {}), memberPortrait: rosterPortraitList(this.actor, "crew-member") };
+			await this._renderAfter(this.actor.update(crewMemberPromotionUpdate(crew, anonIndex, named)));
 			return true;
 		}
 

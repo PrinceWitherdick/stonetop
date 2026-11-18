@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { confirmOutcome, askWithButtons } from "../../module/utils/ask-with-buttons.js";
+import { confirmOutcome, confirmRemoval, askWithButtons } from "../../module/utils/ask-with-buttons.js";
+import { confirmDeleteMove } from "../../module/utils/stat-block-edit.js";
 import { fakeForm, stubAsk, stubConfirm } from "../fakes/confirm.js";
 
 // The house rule for a window that confirms a write: the buttons NAME the outcome ("Remove the
@@ -101,6 +102,42 @@ describe("an answer read off the window's form", () => {
 		const config = asked.mock.calls[0][0];
 		expect(config.position).toEqual({ width: 460 });
 		expect(config.buttons[0].class).toBe("stonetop-dialog-btn--danger");
+	});
+});
+
+// "Remove X from Y? This can't be undone." is one sentence, written in one place.
+describe("confirmRemoval", () => {
+	it("names what goes and where from, escaped, and says it can't be undone", async () => {
+		const asked = stubConfirm(true);
+		const ok = await confirmRemoval({
+			title: "Remove follower", name: "Wren <the Bold>", from: "your followers",
+			yes: { label: "Remove the follower", icon: "fa-user-minus" }, no: { label: "Keep them" },
+		});
+		expect(ok).toBe(true);
+		const config = asked.mock.calls[0][0];
+		expect(config.window.title).toBe("Remove follower");
+		expect(config.content).toBe("<p>Remove <strong>Wren &lt;the Bold&gt;</strong> from your followers? This can't be undone.</p>");
+		expect(config.buttons.map(b => [b.label, b.icon])).toEqual([["Remove the follower", "fas fa-user-minus"], ["Keep them", "fas fa-xmark"]]);
+	});
+
+	it("lands Enter on keeping it, and keeps a caller's window class", async () => {
+		const asked = stubConfirm(false);
+		expect(await confirmRemoval({
+			title: "Remove arcanum", name: "The Ring", from: "your arcana", classes: ["stonetop-remove-arcanum-dialog"],
+			yes: { label: "Remove the arcanum", icon: "fa-trash" }, no: { label: "Keep it" },
+		})).toBe(false);
+		const config = asked.mock.calls[0][0];
+		expect(config.buttons.find(b => b.default).action).toBe("no");
+		expect(config.classes).toEqual(expect.arrayContaining(["stonetop-remove-arcanum-dialog", "stonetop-ask"]));
+	});
+
+	it("takes another verb, no place, and no warning, for the stat blocks' Delete Move", async () => {
+		const asked = stubConfirm(null);
+		expect(await confirmDeleteMove({ name: "Bite & Tear" })).toBeNull();
+		const config = asked.mock.calls[0][0];
+		expect(config.window.title).toBe("Delete Move");
+		expect(config.content).toBe("<p>Delete <strong>Bite &amp; Tear</strong>?</p>");
+		expect(config.buttons.map(b => b.label)).toEqual(["Delete the move", "Keep it"]);
 	});
 });
 
