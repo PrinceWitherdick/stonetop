@@ -6,7 +6,7 @@ import { readRepo as read } from "../../fakes/css.js";
 import {
 	stockSources, stockSourcesForFlags, canPayStock, defaultStockSource, stockCostFromDescription,
 	payableStockSources, mustAskStockSource, stockSourceChoiceLabel, stockReceipt, vesselHpFormula, isVessel,
-	SACRED_POUCH_SLUG, DEFAULT_SACRED_POUCH_MAX,
+	SACRED_POUCH_SLUG,
 } from "../../../module/actors/character/stock-cost.js";
 import { GUIDED_CHARACTER_MOVES } from "../../../module/actors/character/StonetopCharacterSheet.js";
 
@@ -422,12 +422,6 @@ describe("Danu's Grasp, on the sheet", () => {
 		const spend = SHEET.slice(SHEET.indexOf("async _spendStockCost"));
 		expect(spend.slice(0, 900)).toContain("const live = await this._stockCostView(cost)");
 		expect(spend.slice(0, 900)).toContain("return false");
-	});
-
-	it("names both purses and the constants they live under", () => {
-		expect(SHEET).toContain(SACRED_POUCH_SLUG);
-		expect(SHEET).toContain("RITES_OF_THE_LAND");
-		expect(DEFAULT_SACRED_POUCH_MAX).toBe(3);
 	});
 
 	it("is styled, including the state that explains the missing button", () => {

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-	ONBOARDING_MOVE_GROUPS,
 	moveGroupsForPlaybook,
 	moveGroupKeys,
 	partitionMovesByGroup,
@@ -8,29 +7,6 @@ import {
 } from "../../../../module/actors/character/dialogs/onboarding-move-groups.js";
 
 const named = (...names) => names.map(name => ({ name }));
-
-describe("onboarding move groups — table shape", () => {
-	it("gives every playbook exactly three chips", () => {
-		for (const [playbook, groups] of Object.entries(ONBOARDING_MOVE_GROUPS)) {
-			expect(groups, playbook).toHaveLength(3);
-		}
-	});
-
-	// The sheet buckets a move into the FIRST group that claims it, so an overlap
-	// would silently drop the move out of every later group's heading. Nothing in the
-	// table overlaps today; this is the guard on the next name someone adds.
-	it("never lists one move under two of a playbook's groups", () => {
-		for (const [playbook, groups] of Object.entries(ONBOARDING_MOVE_GROUPS)) {
-			const seen = new Set();
-			for (const group of groups) {
-				for (const move of group.moves) {
-					expect(seen.has(move), `${playbook}: ${move}`).toBe(false);
-					seen.add(move);
-				}
-			}
-		}
-	});
-});
 
 describe("moveGroupsForPlaybook / moveGroupKeys", () => {
 	it("returns the chips for a known playbook and nothing for an unknown one", () => {

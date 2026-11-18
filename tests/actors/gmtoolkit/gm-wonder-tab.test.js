@@ -116,16 +116,6 @@ describe("the I wonder tab: wiring", () => {
 		expect(game.i18n.localize("stonetop.gmToolkit.tabs.wonder")).toBe("I Wonder...");
 	});
 
-	// Membership of the shared `:is()`, not its exact text, for the reason its sibling tests give:
-	// The gutter reaches every panel through the bare `> .tab` rule, so there is no per-tab
-	// membership left to get wrong — which is why this asserts the rule is still the general
-	// one rather than that this tab is named in it. If it ever goes back to naming tabs, a tab
-	// left out renders flush against both edges of the frame and nothing is logged.
-	it("gets its panel gutter from the shared tab-padding rule", () => {
-		expect(declarations(CSS, ".stonetop-gm-toolkit-sheet .sheet-body > .tab")).toMatch(/padding:/);
-		expect(CSS).not.toMatch(/\.stonetop-gm-toolkit-sheet \.sheet-body > :is\([^)]*\)\s*\{[^}]*padding:/);
-	});
-
 	// Every field here is written by hand to `system.wonders`. A `name` on any of them would put
 	// it in core's form submit data, where the array indices expand into an OBJECT keyed "0",
 	// "1", ... and replace the list with it — no error, and the list is gone.

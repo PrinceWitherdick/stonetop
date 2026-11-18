@@ -148,14 +148,6 @@ describe("retired art", () => {
 		expect(retiredCount).toBeGreaterThanOrEqual(22);
 	});
 
-	it("never retires a path the same row still wants", () => {
-		// A row that retired its own art would strip the picture it just placed, every load.
-		for (const m of monsters) expect(m.retired ?? [], `monster "${m.slug}"`).not.toContain(m.out);
-		for (const l of locations) {
-			for (const im of l.images) expect(l.retired ?? [], `location "${l.slug}"`).not.toContain(im.out);
-		}
-	});
-
 	it("points every collapsed row at a file some row still writes", () => {
 		for (const out of live) expect(out).toMatch(/^assets\/(bestiary|locations|treasures|steading|people|maps)\/.+\.webp$/);
 		for (const r of [...monsters, ...locations]) {

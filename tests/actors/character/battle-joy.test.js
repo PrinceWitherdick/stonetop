@@ -8,6 +8,7 @@ import {
 	battleJoyTierActions, battleJoyRollOptions,
 } from "../../../module/actors/character/battle-joy.js";
 import { SYSTEM_ID } from "../../../module/system-id.js";
+import { loadPlaybookMoveDocs } from "../../fakes/sourcePack.js";
 
 const actorWith = (...items) => ({ items });
 const move = name => ({ type: "move", name });
@@ -150,6 +151,9 @@ describe("the names the gate matches on", () => {
 	it("spells the moves exactly as the packs do", () => {
 		expect(BATTLE_JOY).toBe("Battle Joy");
 		expect(BERSERKER).toBe("Berserker");
+		// Against the pack source too, so a rename on that side fails here rather than going dark.
+		const packMoves = loadPlaybookMoveDocs().map(d => d.name);
+		for (const name of [BATTLE_JOY, BERSERKER]) expect(packMoves, name).toContain(name);
 	});
 
 	it("keys the flag on battleJoy", () => {
