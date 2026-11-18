@@ -80,4 +80,23 @@ describe("ensureSystemMacros", () => {
 		expect(global.Macro.create.mock.calls.map(([d]) => d.name)).not.toContain("Die of Fate");
 		expect(Object.values(global.game.user.hotbar)).toContain("ours");
 	});
+
+	// One macro that will not create must not leave every macro after it off the bar.
+	it("places the rest when one macro fails to create", async () => {
+		world([]);
+		const create = global.Macro.create;
+		global.Macro.create = vi.fn(async data => {
+			if (data.name === "Run an Expedition") throw new Error("create refused");
+			return create(data);
+		});
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+		await ensureSystemMacros();
+		spy.mockRestore();
+
+		const names = global.game.macros.map(m => m.name);
+		expect(names).not.toContain("Run an Expedition");
+		expect(names).toEqual(expect.arrayContaining(["Welcome to Stonetop", "Die of Fate", "The Chronicle", "End of Session"]));
+		const placed = Object.values(global.game.user.hotbar);
+		expect(placed).toHaveLength(names.length);
+	});
 });

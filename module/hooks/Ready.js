@@ -62,8 +62,9 @@ export async function onReady() {
 	// The GM's timeline colours, for the same reason: `onChange` repaints only on a change.
 	applyTimelineKindColours(getTimelineKindColours());
 	// Fold the pre-world-keying Setting Overview gate under this world, so every OTHER
-	// world stops reading it as already-shown (see settings.js).
-	await migrateFlatSettingOverviewShown();
+	// world stops reading it as already-shown (see settings.js). Caught: at worst the Overview
+	// pops once more, which is not worth the rest of the load.
+	await bestEffort("Setting Overview gate migration", migrateFlatSettingOverviewShown);
 	// Before any sheet renders: carry a GM's pre-move choice for the three classic-layout boxes
 	// out of browser localStorage and into the world scope they now live in. Without it an
 	// upgraded world silently reverts to the classic layout. See adoptClassicLayoutScope.
@@ -71,6 +72,10 @@ export async function onReady() {
 
 	// Self-gated to the primary GM; see hooks/world-sweeps.js for what runs and in what order.
 	await runPrimaryGmSweeps();
+	// Left bare, like the sweeps above, because both already isolate their own failures: each
+	// sweep goes through bestEffort, and each character migration is caught and logged on its
+	// own (PbtaSheetConfig.js) so the rest still run. What is left to throw is reading
+	// `game.user` itself, and a load without one has nothing below it worth saving.
 	await runStartupMigrations();
 	// If the renamed system has been installed alongside this one, offer to move this
 	// world onto it. No-ops entirely until that system is present. See module/migration/.
@@ -89,7 +94,13 @@ export async function onReady() {
 	// that has nothing stale. Awaited, because the sheet defaults it repairs are read at
 	// init and everything below renders sheets.
 	await bestEffort("system-id migration finish", finishSystemIdMigration);
-	await ensureStonetopSingleton();
+	// The world's steading: found (and its ownership re-asserted) or minted. Caught, because
+	// nothing below may assume it succeeded anyway: it runs on the primary GM's client alone,
+	// so every other GM and every player already reaches the rest of this load without waiting
+	// for it, and a fresh world's steading can arrive after their `ready`. A failure here used
+	// to end the load for the primary GM alone (no game.stonetop, no macros, no Welcome guide),
+	// over a find-or-mint that simply asks again next load.
+	await bestEffort("steading singleton", ensureStonetopSingleton);
 
 	// The sheet-partial preload was kicked off in the init hook (core doesn't await init
 	// hooks, so awaiting it there orders nothing). Await it here — before the auto-opening
@@ -114,20 +125,30 @@ export async function onReady() {
 	// the character is rarely the one who pressed the button. See creation-flow.js.
 	registerCreationFlowCleanup();
 
+	// Whether the world setup below may run this load. See the two steps that can say no.
+	let worldAgeSettled = true;
 	if (isGM) {
 		// These two read `seedingComplete` to tell a fresh world from an established one, so
 		// both MUST stay above runWorldSetup() (which is what sets it). See their own comments.
-		await stampWorldLayoutBaseline();
-		await _applyCoreSettingDefaultsForNewWorld();
-		await _ensurePlayerActorCreationGrant();
+		//
+		// Caught, but with a consequence: if either fails, the world setup is held back until
+		// the next load. Run anyway, it would set `seedingComplete` on a fresh world, and the
+		// retry would then read that world as an established one and decide it wrongly: the
+		// classic layout stamped on a world that never had it, the new-world defaults skipped.
+		worldAgeSettled = await bestEffort("world layout baseline", stampWorldLayoutBaseline)
+			&& await bestEffort("new-world core defaults", _applyCoreSettingDefaultsForNewWorld);
+		if (!worldAgeSettled) console.warn("Stonetop | World setup held back until the next load: the steps that must precede it failed.");
+		await bestEffort("player actor-creation grant", _ensurePlayerActorCreationGrant);
 		// The world HAVING a toolkit and this GM being pointed at one are two questions, and only the
 		// second is answered once per user. _assignGmToolkitToGm returns on its latch before it reaches
 		// the mint, so a world whose gamemasters have all been assigned already would never re-check —
 		// which is how a world that reached zero (emptied before the delete guard shipped, or by a
 		// macro passing noHook) would stay empty, and how a toolkit still wearing Foundry's mystery-man
 		// would never pick up the portrait. Asking here, unlatched, is what makes both self-correcting.
-		await _ensureGmToolkit();
-		await _assignGmToolkitToGm();
+		// Each caught on its own: both are find-or-mint / once-per-user steps that ask again next
+		// load, and the toolkit is not worth the GM's macros and Welcome guide.
+		await bestEffort("GM Toolkit", _ensureGmToolkit);
+		await bestEffort("GM Toolkit assignment", _assignGmToolkitToGm);
 	}
 
 	// Set this world up: the durable-art re-apply, the gazetteer seed, the bestiary and the
@@ -149,11 +170,13 @@ export async function onReady() {
 	// window the GM sees. So the Setting Overview can open a beat before art lands on it —
 	// which is fine, since a document update re-renders an open sheet — but nothing below may
 	// assume the journals have their final artwork.
-	const wasFreshWorld = isGM && pendingSetupWork().journals;
+	const wasFreshWorld = isGM && worldAgeSettled && pendingSetupWork().journals;
 	let seeding = Promise.resolve();
 	if (isGM) {
-		seeding = runWorldSetup();
-		if (!wasFreshWorld) await seeding;
+		if (worldAgeSettled) seeding = runWorldSetup();
+		// Caught, like what follows it: the orientation windows below read off whatever journals
+		// there are, and a setup that failed part-way is retried next load.
+		if (!wasFreshWorld) await bestEffort("world setup", () => seeding);
 		// Caught, like the rest of what follows them: neither is worth the GM's Welcome guide.
 		await bestEffort("system macro pass", ensureSystemMacros);
 		await bestEffort("startup chat cards", postStartupCards);
@@ -166,7 +189,7 @@ export async function onReady() {
 	// before the Welcome guide, so a resumed walkthrough can still land on top. Fresh
 	// worlds defer this until the background seed finishes (below), since the Setting
 	// Overview journal doesn't exist yet.
-	if (!wasFreshWorld) await _openSettingOverview();
+	if (!wasFreshWorld) await bestEffort("Setting Overview", _openSettingOverview);
 
 	// Reopen any GM walkthrough — session-zero (Introductions / Let Spring Burst Forth)
 	// or Run an Expedition — that was open when this client last reloaded, at the page it
@@ -189,7 +212,7 @@ export async function onReady() {
 			.then(() => reopenOpenWalkthroughs())
 			.catch(err => console.error("Stonetop | walkthrough resume failed", err));
 	} else {
-		reopenOpenWalkthroughs();
+		reopenOpenWalkthroughs().catch(err => console.error("Stonetop | walkthrough resume failed", err));
 	}
 
 	// Same idea, same evidence, for the rulebook readers: a plain Application does not survive a
@@ -198,13 +221,13 @@ export async function onReady() {
 	// than sequenced behind the Welcome guide the way the walkthroughs are: a book is reference
 	// the reader parked beside their sheet, so it belongs UNDER whatever opens after it rather
 	// than needing to land on top.
-	reopenOpenBookReaders();
+	reopenOpenBookReaders().catch(err => console.error("Stonetop | rulebook reader resume failed", err));
 
 	// A player logging in / reloading mid-introductions: rejoin the running session by
 	// opening the dialog whenever the GM has it open (following read-only until it's their
 	// turn). The onChange handler covers live changes; this covers the no-event initial
 	// load. No-op for the GM.
-	IntroductionsDialog.openForActiveSession();
+	await bestEffort("Introductions rejoin", () => IntroductionsDialog.openForActiveSession());
 
 	// Fresh world: the gazetteer is still importing in the background. Once it lands, pop
 	// the orientation Setting Overview and refresh the (already-open) Welcome guide so its

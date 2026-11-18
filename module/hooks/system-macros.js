@@ -4,6 +4,7 @@
 
 import { getSetting, setSetting } from "../settings.js";
 import { BOOK2_ART_MACRO_NAME, findBook2ArtWorldMacro, loadBook2ArtMacroSource } from "../book2-art/macro.js";
+import { bestEffort } from "../utils/best-effort.js";
 
 // The "(TEST ONLY) Populate World" dev macro, added to the Macro Directory but never
 // the hotbar. Its body is the create-test-characters dev script — that file is the single
@@ -110,13 +111,18 @@ const _HOTBAR_LAYOUT_VERSION = 3;
  * and the sweep is what takes it out. That sweep is world-wide rather than scoped to the retired
  * macros — see its own comment for why it has to be.
  *
+ * Each step is caught on its own, and so is each macro's placement: none of them needs the one
+ * before it to have SUCCEEDED, only to have finished, so one macro that will not create or place
+ * must not leave every macro after it off the bar. (A failed retirement or sweep at worst lets a
+ * new macro flow into the next free slot instead of its own.)
+ *
  * The two Macro Directory entries go last and in the BACKGROUND: neither touches the hotbar or
  * anything else the load reads, and one is a fetch of a script file and the other a compendium
  * document read, two round trips that have no business in front of the first window the GM sees.
  */
 export async function ensureSystemMacros() {
-	await _retireSystemMacros();
-	await _clearDanglingHotbarSlots();
+	await bestEffort("retired macro cleanup", _retireSystemMacros);
+	await bestEffort("dangling hotbar slot sweep", _clearDanglingHotbarSlots);
 	// Place any missing system macros at their default slots (existing placements
 	// are left alone, so a manual rearrangement sticks). Their fixed starting order
 	// — 1 Welcome · 2 Run an Expedition · 3 Write a Love Letter · 4 Die of Fate ·
@@ -124,8 +130,10 @@ export async function ensureSystemMacros() {
 	// 8 Seasons Change · 9 Weather in an older world that already has them — is
 	// applied for the _SYSTEM_MACROS set per layout version by _reorderSystemMacros, below;
 	// Chronicle and End of Session are placed (but not reordered).
-	for (const macro of [..._SYSTEM_MACROS, ..._COMMAND_KEYED_MACROS]) await _ensureHotbarMacro(macro);
-	await _reorderSystemMacros();
+	for (const macro of [..._SYSTEM_MACROS, ..._COMMAND_KEYED_MACROS]) {
+		await bestEffort(`"${macro.name}" hotbar macro`, () => _ensureHotbarMacro(macro));
+	}
+	await bestEffort("system hotbar re-snap", _reorderSystemMacros);
 
 	_ensureTestPopulateMacro()
 		.catch(err => console.error("Stonetop | test populate macro seed failed", err));
@@ -215,11 +223,14 @@ function _findSystemMacro({ name, command }) {
 // and never moves a macro that is already on the bar, so a player's own arrangement sticks.
 //
 // Exported for its test — onReady is the only caller.
+//
+// Each placement caught on its own, for the GM pass's reason: one that fails must not leave the
+// rest off the bar.
 export async function ensurePlayerHotbarMacros() {
 	for (const spec of _SYSTEM_MACROS.filter(m => m.shared)) {
 		const macro = _findSystemMacro(spec);
 		if (!macro?.canExecute || _isOnHotbar(macro)) continue;
-		await _placeOnHotbar(macro, spec.playerSlot);
+		await bestEffort(`"${spec.name}" player hotbar placement`, () => _placeOnHotbar(macro, spec.playerSlot));
 	}
 }
 
