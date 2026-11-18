@@ -28,6 +28,7 @@ import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { ensurePackIndex } from "../../../utils/pack-index.js";
 import { SYSTEM_ID } from "../../../system-id.js";
 import { crewSetupLimit } from "./CrewSetupDialog.js";
+import { bindSuggestionOrCustom as bindSuggestionPair } from "./pick-with-writein.js";
 import { neighborChoiceGroups, randomNeighborTrait } from "./BackgroundNeighborsDialog.js";
 import { INITIATE_BACKGROUND, choiceCountState } from "../initiates.js";
 import { MAGNIFICENT_SPECIMEN_MOVE, companionKindOptions, companionTraitAllowance, trimCompanionTraits } from "../animal-companion.js";
@@ -3419,20 +3420,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// cost): picking a radio saves that value and clears the write-in; typing a write-in
 		// saves it verbatim and clears the radios (the value isn't one of them), same as the
 		// kind custom field and after-the-fact follower-card editing. `apply(value)` stores
-		// it in the right `_selections` slot.
-		const bindSuggestionOrCustom = (radioName, customClass, apply) => {
-			html.find(`[name='${radioName}']`).on("change", ev => {
-				apply(ev.currentTarget.value);
-				html.find(customClass).val("");
-				_refreshNextButton();
-			});
-			html.find(customClass).on("input", ev => {
-				apply(ev.currentTarget.value.trim());
-				html.find(`[name='${radioName}']`).prop("checked", false)
-					.closest(".stonetop-onboarding-card").removeClass("is-selected");
-				_refreshNextButton();
-			});
-		};
+		// it in the right `_selections` slot. (Picking a radio leaves its card's highlight alone here.)
+		const bindSuggestionOrCustom = (radioName, customClass, apply) =>
+			bindSuggestionPair(html, radioName, customClass, apply, _refreshNextButton, { markSelected: false });
 		bindSuggestionOrCustom("onboard-crew-instinct", ".onboard-crew-instinct-custom", v => this._selections.crew.instinct = v);
 		bindSuggestionOrCustom("onboard-crew-cost", ".onboard-crew-cost-custom", v => this._selections.crew.cost = v);
 
