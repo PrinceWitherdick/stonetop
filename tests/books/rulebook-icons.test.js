@@ -239,9 +239,4 @@ describe("following a page citation", () => {
 	it("is asked for by the sheet's own delegated click handler", () => {
 		expect(SHEET_JS).toContain("followBookCite(ev.target)");
 	});
-
-	// And a surface with no click chain of its own gets it in one call.
-	it("offers a one-call wiring for a surface that has no chain to add it to", () => {
-		expect(ICONS_JS).toContain("export function wireBookCites(root)");
-	});
 });

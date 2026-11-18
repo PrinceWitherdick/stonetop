@@ -84,6 +84,15 @@ describe("faqItemsForStep", () => {
 		expect(faqItemsForStep("animalCompanion", items)).toEqual([]);
 		expect(faqItemsForStep(undefined, items)).toEqual([]);
 	});
+
+	// The FAQ is a journal page in the world, which a GM can edit, so the same question can turn up
+	// twice. The step shows it once.
+	it("shows a question that appears twice on the page only once", () => {
+		const once = faqItemsForStep("origin", items).map(i => i.question);
+		const twice = faqItemsForStep("origin", [...items, ...items]).map(i => i.question);
+		expect(once.length).toBeGreaterThan(0);
+		expect(twice).toEqual(once);
+	});
 });
 
 describe("shipped FAQ keeps every mapping populated", () => {

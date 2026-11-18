@@ -146,10 +146,3 @@ export function followBookCite(target) {
 	openBookPage(Number(cite.dataset.book), Number(cite.dataset.page));
 	return true;
 }
-
-/** Make every citation chip under `root` work, for a surface that has no click chain of its own. */
-export function wireBookCites(root) {
-	root?.addEventListener?.("click", ev => {
-		if (followBookCite(ev.target)) ev.preventDefault();
-	});
-}

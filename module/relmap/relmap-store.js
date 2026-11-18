@@ -361,12 +361,6 @@ export function readSeat(value) {
 	return Math.round(held * 1000) / 1000;
 }
 
-/** Was this line written by the "Pull in ratings" button that used to exist, rather than by a
- * reader? Only ever true on a board somebody pressed it on before it was removed. */
-export function isImportedEdge(edge) {
-	return readSrc(edge?.src) === RELMAP_SRC_HEARTS;
-}
-
 /** Was this line seeded onto the party board from an introduction answer? */
 export function isIntroEdge(edge) {
 	return readSrc(edge?.src) === RELMAP_SRC_INTROS;

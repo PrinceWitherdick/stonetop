@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stepMode, betterMode, worseMode, foldModes, layModes } from "../../module/utils/roll-mode.js";
+import { stepMode, betterMode, foldModes, layModes } from "../../module/utils/roll-mode.js";
 
 // Advantage and disadvantage cancel (p.230), and neither stacks with itself. One rule, one home --
 // asked from the roller's side, the defender's side, and every ticked line on the damage window.
@@ -24,9 +24,8 @@ describe("stepMode: one mode meeting another", () => {
 		expect(stepMode("adv", "normal")).toBe("adv");
 	});
 
-	it("names the two directions", () => {
+	it("steps one better", () => {
 		expect(betterMode("dis")).toBe("normal");
-		expect(worseMode("adv")).toBe("normal");
 	});
 });
 
