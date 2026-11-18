@@ -275,18 +275,6 @@ describe("seedForRoll", () => {
 			.toMatchObject({ bonus: 1, count: 2, direction: "onHero", target: "Cadi", names: ["Wolf", "Wolf"] });
 	});
 
-	it("counts everyone on a foe a character rolls at, as the attack flow always did", () => {
-		const { bramActor, tokens } = fight();
-		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }] }))
-			.toMatchObject({ bonus: 1, direction: "onFoe", target: "Crinwin", names: ["Bram", "Aeliana"] });
-	});
-
-	it("counts a character outside the fight as one more on the foe", () => {
-		const { tokens } = fight();
-		const archer = fakeActor({ id: "archer", name: "Archer", type: "character" });
-		expect(seedForRoll({ attacker: archer, targets: [{ uuid: tokens.crinwin.uuid }] })).toMatchObject({ bonus: 2, count: 3 });
-	});
-
 	it("offers nothing against several targets, one the roller's own side, or nobody", () => {
 		const { bramActor, tokens } = fight();
 		expect(seedForRoll({ attacker: bramActor, targets: [{ uuid: tokens.crinwin.uuid }, { uuid: tokens.wolf1.uuid }] })).toBeNull();

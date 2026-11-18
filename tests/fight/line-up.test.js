@@ -20,7 +20,6 @@ describe("lineUpPositions", () => {
 		expect([...heroCols]).toEqual([17]);
 		expect([...foeCols]).toEqual([21]);
 		// Squares 18, 19 and 20 stand empty between them.
-		expect(21 - (17 + 1)).toBe(3);
 	});
 
 	it("stacks each side in its given order, centred on the middle row", () => {
@@ -147,7 +146,6 @@ describe("lineUpPositions with fights already going on", () => {
 		expect(square(positions.get("hB"))).toEqual({ col: 20, row: 13 });
 		expect(square(positions.get("fB2"))).toEqual({ col: 21, row: 14 });
 		// Squares 17, 18 and 19 stand empty between the two of them.
-		expect(20 - (16 + 1)).toBe(3);
 	});
 
 	it("lines up only the fighters nobody is up against, clear of the scrums", () => {

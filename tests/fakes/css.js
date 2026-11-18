@@ -139,14 +139,40 @@ export function splitSelectorList(prelude) {
 	return out.map(s => s.trim().replace(/\s+/g, " ")).filter(Boolean);
 }
 
+/**
+ * Each stylesheet text's rules, indexed by selector-list entry, built once per distinct text.
+ *
+ * Scanning the whole 2MB sheet and re-splitting every prelude on EVERY lookup was the single
+ * largest cost in the CSS suites: a file asking about forty selectors paid for forty full scans.
+ * The index answers the same question — every rule naming the entry, in source order — off one.
+ * Keyed by the text itself, so a caller that hands in a filtered or comment-stripped sheet gets
+ * its own index rather than a stale one.
+ */
+const RULE_INDEX = new Map();
+const RULE_INDEX_LIMIT = 8;
+
+function ruleIndex(css) {
+	let index = RULE_INDEX.get(css);
+	if (index) return index;
+	index = new Map();
+	for (const [, prelude, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+		const rule = { prelude, body };
+		// A Set, so a prelude listing one entry twice still yields the rule once, as before.
+		for (const entry of new Set(splitSelectorList(prelude))) {
+			if (!index.has(entry)) index.set(entry, []);
+			index.get(entry).push(rule);
+		}
+	}
+	if (RULE_INDEX.size >= RULE_INDEX_LIMIT) RULE_INDEX.delete(RULE_INDEX.keys().next().value);
+	RULE_INDEX.set(css, index);
+	return index;
+}
+
 /** Every rule whose prelude names `selector` as a whole comma-separated entry, in source order. */
 function rulesNaming(css, selector) {
-	const found = [];
 	const want = selector.trim().replace(/\s+/g, " ");
-	for (const [, prelude, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-		if (splitSelectorList(prelude).includes(want)) found.push({ prelude, body });
-	}
-	return found;
+	// A copy: callers filter and map the result, and must not be able to edit the index.
+	return [...(ruleIndex(css).get(want) ?? [])];
 }
 
 /**

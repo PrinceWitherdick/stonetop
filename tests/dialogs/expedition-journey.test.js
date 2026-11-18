@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { readCss, ownRule, declarations, readRepo as read } from "../fakes/css.js";
+import { readCss, ownRule, declarations, stripComments, readRepo as read } from "../fakes/css.js";
 
 // The route step of the Run an Expedition walkthrough: the book's maps made tappable over its
 // travel table. The graph and the solve are proven in tests/data/travel-times.test.js and
@@ -2673,12 +2673,14 @@ describe("the row above the map, and what replaced it", () => {
 	// And nothing is left styling them either: a stylesheet still dressing markup nobody renders is
 	// how a control comes back half-alive.
 	it("leaves no styling behind for the row it removed", () => {
-		const css = readCss();
+		// Anywhere in a selector, not only at the head of a rule: a guard keyed on `}\n.sel `
+		// misses the rules that follow a blank line, which is most of them.
+		const css = stripComments(readCss());
 		for (const gone of [
 			".stonetop-journey-picks", ".stonetop-journey-picklab", ".stonetop-journey-start-btn",
 			".stonetop-journey-startname", ".stonetop-journey-starthint", ".stonetop-journey-bound",
-		]) expect(css).not.toContain(`}\n${gone} `);
-		expect(css).not.toContain(".is-setting-out ");
+			".is-setting-out",
+		]) expect(css, gone).not.toMatch(new RegExp(`${gone.replace(/\./g, "\\.")}(?![\\w-])`));
 	});
 
 	// PUT THE ROUTE ON THE SCENE moved next to PUT A SITE ON THE MAP (user, 2026-08-24). Both write

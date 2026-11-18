@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { getSheetSize, setSheetSize } from "../../module/settings.js";
 import { restoreSheetSize, persistSheetSize, scheduleSheetSizeSave, withSheetSizeMemory } from "../../module/utils/sheet-size.js";
 
@@ -278,12 +278,20 @@ describe("withSheetSizeMemory", () => {
 	});
 
 	it("leaves no timer behind on a sheet it declines to record", async () => {
-		const app = new Sheet("actor-1");
-		app._onResize(new Event("pointerup"));
-		app._stonetopUserSized = false;  // as if the drag had never happened
-		app.position = { width: 1111, height: 777 };
-		await app.close();
-		await new Promise(r => setTimeout(r, SAVE_DEBOUNCE_TEST_MS));
-		expect(getSheetSize("actor-1")).toEqual({ width: null, height: null });
+		// Fake timers, so "nothing lands later" is checked past the debounce without waiting
+		// out the real 500ms.
+		vi.useFakeTimers();
+		try {
+			const app = new Sheet("actor-1");
+			app._onResize(new Event("pointerup"));
+			app._stonetopUserSized = false;  // as if the drag had never happened
+			app.position = { width: 1111, height: 777 };
+			await app.close();
+			expect(vi.getTimerCount(), "a save is still pending after close").toBe(0);
+			await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_TEST_MS);
+			expect(getSheetSize("actor-1")).toEqual({ width: null, height: null });
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
