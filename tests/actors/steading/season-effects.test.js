@@ -273,14 +273,18 @@ describe("how the seasonal effects are wired", () => {
 	// The watch's shape: two ways to answer, one step key, so a reopen can neither drill twice
 	// nor forget a second tactic after paying.
 	it("settles the militia's summer either way, on one marker", () => {
-		const at = DIALOG.indexOf(`data-action='drill-militia'`);
+		const at = DIALOG.indexOf("function wireMilitia");
 		expect(at).toBeGreaterThan(-1);
-		const body = DIALOG.slice(at, at + 2600);
+		const body = DIALOG.slice(at, DIALOG.indexOf("\n}\n", at));
+		expect(body).toContain(`data-action='drill-militia'`);
 		// The spend goes through the shared wireSurplusUpkeep, as the watch's and the
 		// weapons' do; the tactic half writes its own marker on the same step key.
 		expect(body).toContain("wireSurplusUpkeep(ctx, drillMilitiaBtn");
 		expect(body).toContain("MILITIA_SEASON_STEP");
 		expect(body).toContain(`_onImprovementReq("wellTrainedMilitia"`);
+		// Whether the drill is offered follows the live Surplus, not the figure at open.
+		expect(body).toContain("liveRefreshers?.push");
+		expect(body).toContain(`getStatValue("surplus") >= 1`);
 	});
 
 	// Book I p. 158: "Henceforth, when the seasons change, whoever is friendliest rolls +Fortunes".

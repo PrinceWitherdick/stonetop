@@ -317,13 +317,15 @@ export function seasonsChangeSteps(v) {
 			icon: "fa-bullseye",
 			name: "Well-Trained Militia",
 			sentence: "wants <strong>1 Surplus</strong> and a week of drills this summer, or it loses its training in 1 tactic.",
-			body: `${surplus >= 1 ? `<div class="stonetop-season-actions">
-				<button class="stonetop-season-btn" data-action="drill-militia">
+			// Drawn but hidden when short, as the upkeeps' Pay is: Surplus found in this same
+			// window offers the drill without a reopen (wireMilitia's live refresher).
+			body: `<div class="stonetop-season-actions"${surplus >= 1 ? "" : " hidden"}>
+				<button class="stonetop-season-btn" data-action="drill-militia"${surplus >= 1 ? "" : " hidden"}>
 					<i class="fas fa-bullseye"></i> Drill this summer (1 Surplus)
 				</button>
-			</div>` : ""}
+			</div>
 			${tactics.length
-				? `<p class="stonetop-season-note"><em>${surplus >= 1 ? "Or skip" : "No Surplus for the drills"}: the militia forgets one of these. Click the one it loses.</em></p>
+				? `<p class="stonetop-season-note"><em><span data-militia-lead>${militiaLead(surplus >= 1)}</span>: the militia forgets one of these. Click the one it loses.</em></p>
 					<ol class="stonetop-disaster-choices">
 						${tactics.map(t => `<li class="stonetop-disaster-choice" data-tactic="${t.index}">
 							<span class="stonetop-disaster-choice-label">${_esc(String(t.label).split(":")[0])}</span>
@@ -1224,6 +1226,9 @@ function wireHerd(ctx) {
 	});
 }
 
+/** The tactics note's lead-in, by whether the drills can be paid for now. */
+export const militiaLead = affordable => (affordable ? "Or skip" : "No Surplus for the drills");
+
 /**
  * Offer an upkeep's Pay button, or the note that says there is not enough to pay with, by whether
  * the steading can afford it now. Exported for its test; wireUpkeeps is the only caller.
@@ -1378,23 +1383,43 @@ function wireMilitia(ctx) {
 	const drillMilitiaBtn = root.querySelector("[data-action='drill-militia']");
 	const tacticEls = Array.from(root.querySelectorAll("[data-tactic]"));
 	const lockTactics = locked => tacticEls.forEach(el => el.classList.toggle("is-disabled", locked));
+	// True from a click until its write lands or is given back, as wireUpkeeps' is, so a stats
+	// update mid-write cannot hand the drill back before the step is closed.
+	let busy = false;
 	const settleMilitia = () => {
+		busy = true;
 		setDisabled([drillMilitiaBtn], true);
 		lockTactics(true);
 	};
 	// Asked of the STEADING rather than of the button, for the watch's reason: with no Surplus
-	// the drill button is never rendered at all.
+	// the drill button is hidden, and its state says nothing about whether the summer is done.
 	if (steading.seasonStepApplied(MILITIA_SEASON_STEP, year, seasonId)) settleMilitia();
+
+	// The window is drawn off the Surplus it opened with; a harvest or a yield taken here since
+	// may have raised it (or a spend lowered it), so whether the drill is offered follows the
+	// LIVE figure, while the summer's question is still open and nothing is in flight.
+	const drillActions = drillMilitiaBtn?.closest(".stonetop-season-actions") ?? null;
+	const lead = root.querySelector("[data-militia-lead]");
+	ctx.liveRefreshers?.push(() => {
+		if (!drillMilitiaBtn || busy || steading.seasonStepApplied(MILITIA_SEASON_STEP, year, seasonId)) return;
+		const affordable = steading.getStatValue("surplus") >= 1;
+		refreshUpkeepAfford({ payBtn: drillMilitiaBtn, shortNote: null }, affordable);
+		if (drillActions) drillActions.hidden = !affordable;
+		if (lead) lead.textContent = militiaLead(affordable);
+	});
+
 	wireSurplusUpkeep(ctx, drillMilitiaBtn, {
 		step: MILITIA_SEASON_STEP,
 		lock: settleMilitia,
 		// A militia that cannot be paid for must still be able to forget a tactic, so the drill
 		// button stays down and only the tactics come back.
 		shortUnlock: () => {
+			busy = false;
 			drillMilitiaBtn.disabled = true;
 			lockTactics(false);
 		},
 		unlock: () => {
+			busy = false;
 			drillMilitiaBtn.disabled = false;
 			lockTactics(false);
 		},
@@ -1415,6 +1440,7 @@ function wireMilitia(ctx) {
 				ctx.repaint();
 				if (!result?.summary?.length) ui.notifications.info("The militia forgets a tactic.");
 			} catch (err) {
+				busy = false;
 				lockTactics(false);
 				setDisabled([drillMilitiaBtn], false);
 				throw err;

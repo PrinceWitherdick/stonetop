@@ -15,7 +15,7 @@ vi.mock("../../../module/seasons/current-season.js", async importOriginal => ({
 
 import {
 	seasonsChangeSteps, seasonsChangeHtml, gainsOverWarning, recordSeasonLabel, seasonGainNames,
-	upkeepCopy, disableIfSeasonStepDone, recordSeason, refreshUpkeepAfford,
+	upkeepCopy, disableIfSeasonStepDone, recordSeason, refreshUpkeepAfford, militiaLead,
 } from "../../../module/actors/steading/seasons-change-dialog.js";
 import { StonetopSteading, builtInImprovementRules } from "../../../module/actors/steading/StonetopSteading.js";
 import { autumnHarvest, winterConsumption } from "../../../module/actors/steading/season-effects.js";
@@ -67,15 +67,22 @@ describe("the Seasons Change window's steps", () => {
 		expect(summer.find(s => s.key === "costs")).toBeUndefined();
 	});
 
+	// Drawn but hidden when short, like an upkeep's Pay: Surplus found in the same window offers
+	// the drill without a reopen.
 	it("offers the militia's drill only with Surplus to pay for it, and its tactics either way", () => {
 		const tactics = [{ index: 0, label: "Shield wall: hold the line" }];
+		const DRILL_HIDDEN = /data-action="drill-militia"[^>]*\shidden>/;
 		const paid = seasonsChangeSteps(view("summer", { built: ["wellTrainedMilitia"], tactics })).find(s => s.key === "costs").body;
 		expect(paid).toContain(`data-action="drill-militia"`);
+		expect(paid).not.toMatch(DRILL_HIDDEN);
+		expect(paid).toContain(`<span data-militia-lead>${militiaLead(true)}</span>`);
 		expect(paid).toContain(`data-tactic="0"`);
 		expect(paid).toContain(">Shield wall<");
 		const broke = seasonsChangeSteps(view("summer", { built: ["wellTrainedMilitia"], tactics, surplus: 0 })).find(s => s.key === "costs").body;
-		expect(broke).not.toContain(`data-action="drill-militia"`);
-		expect(broke).toContain("No Surplus for the drills");
+		expect(broke).toMatch(DRILL_HIDDEN);
+		expect(broke).toContain(`<span data-militia-lead>${militiaLead(false)}</span>`);
+		expect(militiaLead(false)).toBe("No Surplus for the drills");
+		expect(militiaLead(true)).toBe("Or skip");
 	});
 
 	// Drawn but hidden rather than left out: a harvest or a yield in the same window can raise the
