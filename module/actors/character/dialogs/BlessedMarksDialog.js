@@ -36,6 +36,7 @@ import { openLinkedActorSheet, ACTOR_LINK_MISSING } from "../../../utils/actor-l
 import { groupMarks, availableKinds, markKind, markSign, WARD_SIGNS, DEFAULT_WARD_SIGN } from "../blessed-marks.js";
 import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { RosterDialog } from "./RosterDialog.js";
+import { pipToggleValue } from "../../../utils/pips.js";
 
 /** Whose moves these are. Matches `system.slug` on the playbook item, which is what names the art. */
 const BLESSED_SLUG = "the-blessed";
@@ -377,7 +378,7 @@ export class BlessedMarksDialog extends RosterDialog {
 		if (!id || !Number.isFinite(index)) return;
 		const row = this._character.blessedMarks.find(m => m.id === id);
 		if (!row || row.loyalty === null) return;
-		const next = row.loyalty === index + 1 ? index : index + 1;
+		const next = pipToggleValue(row.loyalty, index);
 		const { changed, ended } = await this._character.setBlessedMarkLoyalty(id, next, { liftOnEnd: true });
 		if (!changed) return;
 		if (ended) this._notify("info", "stonetop.blessedMarks.loyaltySpent", { name: row.name });
