@@ -179,6 +179,33 @@ describe("recordSeason", () => {
 		expect(recordSeasonsChange).toHaveBeenCalledWith(expect.objectContaining({ surplusChange: 0, gainNames: [] }));
 		expect(recordCurrentSeason).toHaveBeenCalledWith({ id: "s" }, "summer", 2, { advanceOnly: true, pickerYear: 2 });
 	});
+
+	// The Chronicle files the Fortunes the season OPENED with, noted when the roll was made or
+	// the reset taken (StonetopSteading#openingFortunes), not whatever the window read when it
+	// was opened: one opened early to look would file a mid-play figure.
+	it("files the season's opening Fortunes over the figure it was handed", async () => {
+		const steading = { ...fakeSteading(), openingFortunes: vi.fn(() => -1) };
+		await recordSeason(steading, { id: "s" }, { seasonId: "summer", year: 2, fortunes: 2 });
+		expect(steading.openingFortunes).toHaveBeenCalledWith(2, "summer");
+		expect(recordSeasonsChange).toHaveBeenCalledWith(expect.objectContaining({ fortunes: -1 }));
+	});
+
+	// Noted as 0 is a real figure, not "nothing noted".
+	it("keeps an opening Fortunes of 0", async () => {
+		const steading = { ...fakeSteading(), openingFortunes: vi.fn(() => 0) };
+		await recordSeason(steading, { id: "s" }, { seasonId: "summer", year: 2, fortunes: 2 });
+		expect(recordSeasonsChange).toHaveBeenCalledWith(expect.objectContaining({ fortunes: 0 }));
+	});
+
+	// Nothing noted: the window never saw the roll nor the reset, so the live figure is still
+	// the season's own.
+	it("falls back to the live Fortunes when none was noted and none handed over", async () => {
+		const steading = fakeSteading();
+		steading.getStatValue = vi.fn(stat => (stat === "fortunes" ? 3 : 0));
+		steading.openingFortunes = vi.fn(() => null);
+		await recordSeason(steading, { id: "s" }, { seasonId: "autumn", year: 2 });
+		expect(recordSeasonsChange).toHaveBeenCalledWith(expect.objectContaining({ fortunes: 3 }));
+	});
 });
 
 describe("StonetopSteading#fortunesResetTarget", () => {

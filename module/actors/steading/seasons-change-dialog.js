@@ -670,10 +670,20 @@ function checkedGainKeys(root) {
  * @param {number} season.year
  * @param {string[]} season.checkedKeys     the gains ticked
  * @param {string} season.notes             the Chronicle notes
- * @param {number} season.fortunes          the Fortunes the window opened with
+ * @param {number} [season.fortunes]       the Fortunes to record when the season's opening figure
+ *   was never noted; the live figure when omitted. The opening figure wins whenever there is one
  * @param {number|null} season.initialSurplus  the Surplus the window opened with
  */
 export async function recordSeason(steading, actor, { seasonId, year, checkedKeys = [], notes = "", fortunes, initialSurplus = null }) {
+	// The Fortunes the season OPENED with, the one its roll was made off — not the figure the
+	// window happened to read when it opened. A window opened early to look would otherwise file
+	// a mid-play figure, the very case StonetopSteading#openingFortunes is noted to guard against
+	// (the herd's foals and the Inn read the same note). Read before the gains below, which can
+	// move Fortunes. Nothing noted means the window never saw the roll made nor the reset taken,
+	// so Fortunes has not been reset and the live figure is still the season's own.
+	const opening = steading.openingFortunes?.(year, seasonId) ?? null;
+	const chronicleFortunes = opening ?? (Number.isFinite(fortunes) ? fortunes : steading.getStatValue("fortunes"));
+
 	// A muster does not survive the turning of the season ("until the threat passes, the
 	// Seasons Change, or you cease to oversee it"). It would lapse on its own by the
 	// clock, but a muster that took the +1 Defenses has to be stood DOWN rather than
@@ -703,7 +713,7 @@ export async function recordSeason(steading, actor, { seasonId, year, checkedKey
 
 	const surplusChange = Number.isFinite(initialSurplus) ? finalSurplus - initialSurplus : 0;
 
-	const journal = await recordSeasonsChange({ seasonId, year, gainNames: seasonGainNames(checkedKeys), fortunes, surplusChange, notes });
+	const journal = await recordSeasonsChange({ seasonId, year, gainNames: seasonGainNames(checkedKeys), fortunes: chronicleFortunes, surplusChange, notes });
 
 	// This season has begun: stamp it on the steading so the sheet header reads it,
 	// and carry the picker's year with it in the same write. Winter closes out the
@@ -1504,12 +1514,13 @@ function wireWinterToll(ctx) {
 function wireRecord(ctx, dialog) {
 	const { root, steading, actor, year, seasonId, view } = ctx;
 	lockWhile(root.querySelector("[data-action='record-season']"), async () => {
-		// `surplus` (captured at open) is the baseline for the Chronicle's net change.
+		// `surplus` (captured at open) is the baseline for the Chronicle's net change. Fortunes is
+		// NOT the figure captured at open: recordSeason files the season's opening Fortunes.
 		await recordSeason(steading, actor, {
 			seasonId, year,
 			checkedKeys: checkedGainKeys(root),
 			notes: root.querySelector(".stonetop-season-notes")?.value ?? "",
-			fortunes: view.fortunes, initialSurplus: view.surplus,
+			initialSurplus: view.surplus,
 		});
 		dialog.close();
 	});
