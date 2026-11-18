@@ -42,6 +42,7 @@
 
 import {
 	effectiveCrewSize, crewIndividualLabel, crewAnonMemberLabel, customGroupSize, customGroupMemberLabel, customMemberFallen,
+	CREW_SIZE_MAX,
 } from "../../utils/crew.js";
 import { deletionEntry } from "../../utils/foundry-compat.js";
 import { markXpReceipt } from "../../utils/roll-engine.js";
@@ -292,6 +293,120 @@ export function customMemberDeathUpdate(record, slug, index) {
 		marks.splice(idx, 1);
 		update[`${base}.memberDead`] = marks;
 	}
+	return update;
+}
+
+// ── The Roster's own edits ───────────────────────────────────────────────────────────────────────
+// The headcount stepper, a custom group's, and naming an anonymous member: the other writes that
+// cut or move a slot of the parallel arrays (memberHp, memberPortrait, memberDead), built here beside
+// the removals above so every one of them trims the same arrays the same way.
+
+/**
+ * The crew's group-fight pool brought back under its ceiling, as an update fragment ({} when it is
+ * not over). The pool is ONE member's HP (the abstraction's own rule — see the crew card's note), so
+ * the roster size no longer moves the ceiling; what does move it is the per-member HP, and a pool
+ * saved under the old size × HP ceiling is over it on sight. Only an explicitly-set value is touched —
+ * an unset groupHp tracks the max.
+ *
+ * @param {object} crew         the character's `crew` flag object
+ * @param {number} memberHpMax  one crew member's max HP
+ * @returns {object}            `{ "flags.<scope>.crew.groupHp": max }` or `{}`
+ */
+export function crewGroupHpClampUpdate(crew, memberHpMax = 6) {
+	const raw = Number(crew?.groupHp);
+	if (!Number.isFinite(raw) || raw <= memberHpMax) return {};
+	return { [`flags.${STONETOP_SCOPE}.crew.groupHp`]: memberHpMax };
+}
+
+/**
+ * The actor update that sets the crew's headcount: clamped to 0..CREW_SIZE_MAX and never below the
+ * named individuals, the anonymous tail's HP (and their faces, parallel to it) trimmed to the members
+ * left, and the group pool clamped (crewGroupHpClampUpdate). The portrait store is only written when
+ * there is something to trim: an untouched roster has no portrait store at all, and seeding an empty
+ * array here would leave one behind on every crew that never picked a face.
+ *
+ * @param {object} crew         the character's `crew` flag object
+ * @param {number} size         the headcount asked for
+ * @param {object} [o]
+ * @param {number} [o.memberHpMax]  one crew member's max HP, for the pool clamp
+ * @returns {object}            dotted `flags.<scope>.crew.*` paths
+ */
+export function crewResizeUpdate(crew, size, { memberHpMax = 6 } = {}) {
+	const base       = `flags.${STONETOP_SCOPE}.crew`;
+	const namedCount = Array.isArray(crew?.individuals) ? crew.individuals.length : 0;
+	const clamped    = Math.min(CREW_SIZE_MAX, Math.max(namedCount, Math.max(0, size)));
+	const anonCount  = Math.max(0, clamped - namedCount);
+	const memberHp   = Array.isArray(crew?.memberHp) ? crew.memberHp.slice(0, anonCount) : [];
+	const update = {
+		[`${base}.size`]:     clamped,
+		[`${base}.memberHp`]: memberHp,
+	};
+	const portraits = crew?.memberPortrait;
+	if (Array.isArray(portraits) && portraits.length > anonCount) {
+		update[`${base}.memberPortrait`] = portraits.slice(0, anonCount);
+	}
+	return { ...update, ...crewGroupHpClampUpdate(crew, memberHpMax) };
+}
+
+/**
+ * The actor update that sets a custom GROUP's headcount (utils/crew.js#customGroupSize clamps it):
+ * every array parallel to the roster (memberHp, memberPortrait, memberDead) cut to the new size, and
+ * an explicitly-set group pool brought down to one member's HP. The pool is ONE member's HP, so
+ * resizing no longer moves that ceiling, but a pool stored under the old size × HP ceiling is over
+ * it, and this is where such a value gets brought back down. Null when there is no such follower.
+ *
+ * @param {object} record  the group's `customFollowers.<id>` flag object
+ * @param {string} slug    that id
+ * @param {number|string} next  the headcount asked for
+ * @returns {object|null}  dotted `flags.<scope>.customFollowers.<id>.*` paths
+ */
+export function customGroupResizeUpdate(record, slug, next) {
+	if (!record || !slug) return null;
+	const size        = customGroupSize({ size: next });
+	const memberHpMax = Math.max(1, Math.trunc(Number(record.hpMax) || 0) || 1);
+	const base        = `flags.${STONETOP_SCOPE}.customFollowers.${slug}`;
+	const update = { [`${base}.size`]: size };
+	for (const key of ["memberHp", "memberPortrait", "memberDead"]) {
+		if (Array.isArray(record[key]) && record[key].length > size) update[`${base}.${key}`] = record[key].slice(0, size);
+	}
+	const rawPool = Number(record.groupHp);
+	if (Number.isFinite(rawPool) && rawPool > memberHpMax) update[`${base}.groupHp`] = memberHpMax;
+	return update;
+}
+
+/**
+ * The actor update that names an anonymous crew member: a new named individual appended, carrying
+ * the member's current HP across (into the index-keyed `individualsHp`) and their face (onto the new
+ * row, which is where a named individual keeps theirs — roster-portraits.js), and their slot cut out
+ * of `memberHp` and the parallel `memberPortrait`. Standing out is the moment a body on the roster
+ * becomes a person, so losing the portrait here would be the one point in the crew's life where a
+ * chosen face is thrown away. The portrait store is only written when it exists: a crew that has
+ * never picked a face should not gain an empty array the first time it names somebody.
+ *
+ * @param {object} crew       the character's `crew` flag object
+ * @param {number} anonIndex  the anonymous member's roster slot
+ * @param {{name: string, tag?: string, traits?: string[]}} named  the new individual
+ * @returns {object}          dotted `flags.<scope>.crew.*` paths
+ */
+export function crewMemberPromotionUpdate(crew, anonIndex, { name, tag = "", traits = [] }) {
+	const base          = `flags.${STONETOP_SCOPE}.crew`;
+	const individuals   = Array.isArray(crew?.individuals) ? [...crew.individuals] : [];
+	const memberHp      = Array.isArray(crew?.memberHp) ? [...crew.memberHp] : [];
+	const individualsHp = { ...(crew?.individualsHp ?? {}) };
+	const carriedHp     = memberHp[anonIndex];
+	if (carriedHp != null) individualsHp[individuals.length] = carriedHp;
+	memberHp.splice(anonIndex, 1);
+	const memberPortrait = Array.isArray(crew?.memberPortrait) ? [...crew.memberPortrait] : [];
+	const [carriedFace]  = memberPortrait.splice(anonIndex, 1);
+	const row = { name, tag, traits };
+	if (carriedFace?.img)           row.img           = carriedFace.img;
+	if (carriedFace?.portraitFrame) row.portraitFrame = carriedFace.portraitFrame;
+	const update = {
+		[`${base}.individuals`]:   [...individuals, row],
+		[`${base}.individualsHp`]: individualsHp,
+		[`${base}.memberHp`]:      memberHp,
+	};
+	if (memberPortrait.length || carriedFace !== undefined) update[`${base}.memberPortrait`] = memberPortrait;
 	return update;
 }
 
