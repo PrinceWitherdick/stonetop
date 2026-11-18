@@ -966,9 +966,69 @@ function liveStatsHook({ root, steading, actor }) {
 	};
 }
 
+/**
+ * Spring's "Ask the most hopeful to roll" (see wireFortunes): the click handler, built once per
+ * window. Exported for its test; wireFortunes is the only caller.
+ *
+ * The card goes up BEFORE the hold is spent and the step is closed, so a card that fails to post
+ * costs no sacrifice. That ordering leaves a window where the card is in chat but the writes after
+ * it have not landed: when one of them throws, lockWhile gives the button back, and a retry used
+ * to prompt and post all over again — a second card in chat, and at advantage again if the hold
+ * had not been cleared. So the handler remembers the card it posted, and a retry only finishes the
+ * bookkeeping that failed. Per window: a reopened window starts afresh, as it does for every step.
+ *
+ * @param {object} ctx                the window's wiring context
+ * @param {Function} [onHandedOver]   called once the roll is recorded as handed over
+ * @returns {() => Promise<false|void>}  false when the prompt was dismissed
+ */
+export function handOffSpringRoll(ctx, onHandedOver = () => {}) {
+	const { sheet, steading, actor, year, seasonId, view } = ctx;
+	// { held, spend, opening, spent } once the card is up.
+	let handedOver = null;
+	return async () => {
+		if (!handedOver) {
+			// The same questions the other seasons' Roll +Fortunes asks, answered by the GM as the
+			// roll is handed over, because the card the player clicks has no window and no Shift
+			// buttons of its own: a mode, a modifier (Bolstered Preparation, p. 516), and Book II's
+			// storm curse, whose "next Fortunes roll for Seasons Change is automatically a 6-" the
+			// other seasons settle with Shift Down on their card.
+			const stormMiss = { key: "stormMiss", label: "Automatically a 6- (a terrible storm's curse, Book II)", applied: false };
+			const prompted = await promptRoll({ title: "Seasons Change: Spring", askModifier: true, offers: [stormMiss] });
+			if (!prompted) return false;
+			const { held, rollMode, spend } = await settleSteadingRoll(steading, {
+				moveName: "Seasons Change", statKey: "fortunes",
+				chosenMode: prompted.rollMode ?? sheet._sheetRollMode(),
+				canSpend: !!actor.isOwner,
+			});
+			// Spent once the card that carries it is up, and not before. Fortunes read LIVE: the card
+			// carries the number the player rolls, and "Winter's end" (the step before this one) can
+			// take a Fortune off it. Noted as the season's opening Fortunes at the same moment, for
+			// the same reason (StonetopSteading#openingFortunes).
+			const opening = steading.openingFortunesFlags(year, seasonId);
+			await postSeasonsRollPrompt({
+				alias: `Seasons Change: ${view.label}`,
+				fortunes: steading.getStatValue("fortunes"),
+				rollMode,
+				why: held?.source ?? "",
+				modifier: prompted.situational ?? 0,
+				countsAsMiss: tookOffer(stormMiss, prompted.takenOffers) ? "a terrible storm's curse" : "",
+			});
+			handedOver = { held, spend, opening, spent: false };
+		}
+		const { held, spend, opening } = handedOver;
+		if (!handedOver.spent) {
+			await spend();
+			handedOver.spent = true;
+		}
+		await steading.setFlags({ ...opening, ...steading.seasonStepFlags("fortunesRoll", year, seasonId) });
+		onHandedOver();
+		if (held) ctx.repaint();
+	};
+}
+
 // The season's +Fortunes roll (or spring's hand-off) and the reset that follows it.
 function wireFortunes(ctx) {
-	const { root, sheet, steading, actor, year, seasonId, view } = ctx;
+	const { root, sheet, steading, year, seasonId } = ctx;
 	const rollFortunesBtn  = root.querySelector("[data-action='roll-fortunes']");
 	const askHopefulBtn    = root.querySelector("[data-action='ask-hopeful']");
 	const resetFortunesBtn = root.querySelector("[data-action='reset-fortunes']");
@@ -1028,39 +1088,9 @@ function wireFortunes(ctx) {
 	// nets against a sticky Disadvantage. Once per season, under the same marker as the other
 	// seasons' Roll +Fortunes: handing the roll over IS spring's roll. Locked before the await so
 	// a double-click can't read the hold twice and hand out two cards at advantage for one
-	// sacrifice; given back only if posting the card throws.
-	wireOnceButton(ctx, askHopefulBtn, "fortunesRoll", async () => {
-		// The same questions the other seasons' Roll +Fortunes asks, answered by the GM as the
-		// roll is handed over, because the card the player clicks has no window and no Shift
-		// buttons of its own: a mode, a modifier (Bolstered Preparation, p. 516), and Book II's
-		// storm curse, whose "next Fortunes roll for Seasons Change is automatically a 6-" the
-		// other seasons settle with Shift Down on their card.
-		const stormMiss = { key: "stormMiss", label: "Automatically a 6- (a terrible storm's curse, Book II)", applied: false };
-		const prompted = await promptRoll({ title: "Seasons Change: Spring", askModifier: true, offers: [stormMiss] });
-		if (!prompted) return false;
-		const { held, rollMode, spend } = await settleSteadingRoll(steading, {
-			moveName: "Seasons Change", statKey: "fortunes",
-			chosenMode: prompted.rollMode ?? sheet._sheetRollMode(),
-			canSpend: !!actor.isOwner,
-		});
-		// Spent once the card that carries it is up, and not before. Fortunes read LIVE: the card
-		// carries the number the player rolls, and "Winter's end" (the step before this one) can
-		// take a Fortune off it. Noted as the season's opening Fortunes at the same moment, for
-		// the same reason (StonetopSteading#openingFortunes).
-		const opening = steading.openingFortunesFlags(year, seasonId);
-		await postSeasonsRollPrompt({
-			alias: `Seasons Change: ${view.label}`,
-			fortunes: steading.getStatValue("fortunes"),
-			rollMode,
-			why: held?.source ?? "",
-			modifier: prompted.situational ?? 0,
-			countsAsMiss: tookOffer(stormMiss, prompted.takenOffers) ? "a terrible storm's curse" : "",
-		});
-		await spend();
-		await steading.setFlags({ ...opening, ...steading.seasonStepFlags("fortunesRoll", year, seasonId) });
-		refreshResetLock();
-		if (held) ctx.repaint();
-	});
+	// sacrifice; given back if posting the card or a write after it throws, and a retry after the
+	// card is up does not post it again (handOffSpringRoll).
+	wireOnceButton(ctx, askHopefulBtn, "fortunesRoll", handOffSpringRoll(ctx, refreshResetLock));
 
 	// "Whatever the result, reset Fortunes to +1" (+0 while Malcontent), taken by hand under the
 	// roll. Once a season, with the value and the season marker in ONE write, like the Surplus

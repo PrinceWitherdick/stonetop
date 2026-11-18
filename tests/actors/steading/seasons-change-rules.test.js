@@ -295,9 +295,10 @@ describe("spring's hand-off", () => {
 	});
 
 	it("asks the GM before handing it over", () => {
-		const at = DIALOG.indexOf("wireOnceButton(ctx, askHopefulBtn");
+		// The hand-off's click handler lives in handOffSpringRoll (wired from wireFortunes).
+		const at = DIALOG.indexOf("export function handOffSpringRoll(");
 		expect(at).toBeGreaterThan(-1);
-		const body = DIALOG.slice(at, at + 2600);
+		const body = DIALOG.slice(at, at + 3200);
 		expect(body).toContain("promptRoll({ title: \"Seasons Change: Spring\", askModifier: true, offers: [stormMiss] })");
 		expect(body).toContain("modifier: prompted.situational");
 	});

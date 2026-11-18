@@ -73,9 +73,10 @@ describe("how the hand-off is wired", () => {
 	// Handing the roll over IS making it, so the hold is spent at that moment — on the GM's
 	// machine, which is the only one that may write the steading.
 	it("spends the held advantage when the roll is handed to the table", () => {
-		const at = DIALOG.indexOf("wireOnceButton(ctx, askHopefulBtn");
+		expect(DIALOG).toContain(`wireOnceButton(ctx, askHopefulBtn, "fortunesRoll", handOffSpringRoll(ctx,`);
+		const at = DIALOG.indexOf("export function handOffSpringRoll(");
 		expect(at).toBeGreaterThan(-1);
-		const body = DIALOG.slice(at, at + 2600);
+		const body = DIALOG.slice(at, at + 3200);
 		// Settled (and spent) as every steading roll is: tests/actors/steading/steading-roll.test.js.
 		expect(body).toContain("settleSteadingRoll(steading");
 		expect(body).toContain("canSpend: !!actor.isOwner");
