@@ -411,7 +411,9 @@ describe("the setting behind the damage window", () => {
 		expect(reg, "promptDamageModifier is not registered").toBeTruthy();
 		expect(reg.default).toBe(true);
 		expect(reg.scope).toBe("client");
-		expect(SETTINGS_JS).toMatch(/getPromptDamageModifierSetting[\s\S]*?"promptDamageModifier"\) \?\? true/);
+		// Through the tolerant reader, whose fallback also covers a key core has no registration
+		// for (core's get THROWS on one); tests/utils/settings-tolerant-getters.test.js runs it.
+		expect(SETTINGS_JS).toMatch(/getPromptDamageModifierSetting[\s\S]*?getBooleanSetting\("promptDamageModifier", true\)/);
 	});
 
 	it("is what the window consults, and Shift is what skips one roll", () => {
