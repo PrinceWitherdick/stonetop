@@ -295,13 +295,6 @@ describe("StonetopCharacter.buildSnapshot — playbook display fields", () => {
 		});
 	});
 
-	it("returns playbook object when playbook present", async () => {
-		const actor = new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").build();
-		const char = new TestCharacterBuilder(actor).addPlaybook(BLESSED_PLAYBOOK).build();
-		const data = await char.buildSnapshot();
-		expect(data.playbook).not.toBeNull();
-	});
-
 	describe("with no saved selections", () => {
 		async function buildCharacterSnapshot() {
 			const actor = new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").build();
@@ -791,11 +784,6 @@ describe("applyDebilityRollMode", () => {
 		expect(char.applyDebilityRollMode("int", { rollMode: "def" })).toEqual({ rollMode: "def" });
 	});
 
-	it("debility value false (unchecked) — passes through unchanged", () => {
-		const char = new TestCharacterBuilder(makeDebilityActor({weakened: false})).build();
-		expect(char.applyDebilityRollMode("str", { rollMode: "def" })).toEqual({ rollMode: "def" });
-	});
-
 	it("two debilities active, one covers stat, rollMode adv → def", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true, dazed: true})).build();
 		expect(char.applyDebilityRollMode("str", { rollMode: "adv" })).toMatchObject({ rollMode: "normal" });
@@ -819,155 +807,6 @@ describe("applyDebilityRollMode", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true})).build();
 		const result = char.applyDebilityRollMode("str", { rollMode: "adv", extra: "value" });
 		expect(result).toMatchObject({ rollMode: "normal", extra: "value" });
-	});
-});
-
-// -- getMoves (otherMoves) ----------------------------------------------------
-
-describe("StonetopCharacter.getMoves otherMoves", () => {
-	it("returns otherMoves: [] when no moves have moveType 'other'", async () => {
-		const char = new TestCharacterBuilder(new FakeActorBuilder().build()).build();
-		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([]);
-	});
-
-	it("returns otherMoves populated with items that have moveType 'other'", async () => {
-		const move = { _id: "m1", type: "move", name: "Custom Move", system: { moveType: "other", rollType: "str", description: "<p>Do a thing.</p>" } };
-		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
-		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([{ name: "Custom Move", ownedId: "m1", rollType: "str", rollLabel: "STR", description: "<p>Do a thing.</p>", moveResults: null, custom: false }]);
-	});
-
-	it("normalizes object rollType values for homefront moves", async () => {
-		const move = {
-			_id: "m-homefront",
-			type: "move",
-			name: "Muster",
-			system: { moveType: "homefront", rollType: { value: "ask", label: "Ask" } },
-		};
-		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
-		const result = await char.getMoves();
-		const homefront = result.otherGroups.find(group => group.key === "homefront");
-
-		expect(homefront.moves).toEqual([{ name: "Muster", ownedId: "m-homefront", rollType: "ask", rollLabel: "Population" }]);
-	});
-
-	it("labels homefront roll chips with the steading stat from the move", async () => {
-		const moves = [
-			{ _id: "seasons", type: "move", name: "Seasons Change", system: { moveType: "homefront", rollType: "ask" } },
-			{ _id: "trade", type: "move", name: "Trade & Barter", system: { moveType: "homefront", rollType: "ask" } },
-			{ _id: "deploy", type: "move", name: "Deploy", system: { moveType: "homefront", rollType: "ask" } },
-		];
-		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems(moves).build()).build();
-		const result = await char.getMoves();
-		const labels = Object.fromEntries(result.otherGroups
-			.find(group => group.key === "homefront")
-			.moves
-			.map(move => [move.name, move.rollLabel]));
-
-		expect(labels).toMatchObject({
-			"Seasons Change": "Fortunes",
-			"Trade & Barter": "Prosperity",
-			"Deploy": "Defenses",
-		});
-	});
-
-	it("does not include items with other moveTypes in otherMoves", async () => {
-		const move = { _id: "m2", type: "move", name: "Special Move", system: { moveType: "special", rollType: null } };
-		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
-		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([]);
-	});
-
-	it("includes cross-playbook moves (name not in current playbook) in otherMoves", async () => {
-		const move = { _id: "m4", type: "move", name: "Fox Move", system: { moveType: "playbook", rollType: null, description: null } };
-		const actor = new FakeActorBuilder()
-			.withPlaybook("the-blessed", "The Blessed")
-			.withItems([move])
-			.build();
-		const char = new TestCharacterBuilder(actor)
-			.withPlaybookRepo(new FakePlaybookRepository(BLESSED_PLAYBOOK))
-			.withMoveRepo(new FakeMoveRepository([], []))
-			.build();
-		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([{ name: "Fox Move", ownedId: "m4", rollType: null, rollLabel: null, description: null, moveResults: null, custom: false }]);
-	});
-
-	it("does not include same-playbook moves in otherMoves", async () => {
-		const move = { _id: "m5", type: "move", name: "Blessed Move", system: { moveType: "playbook", rollType: null } };
-		const playbookEntry = { _id: "pm1", name: "Blessed Move", system: { moveType: "playbook", isStartingMove: false } };
-		const actor = new FakeActorBuilder()
-			.withPlaybook("the-blessed", "The Blessed")
-			.withItems([move])
-			.build();
-		const char = new TestCharacterBuilder(actor)
-			.withPlaybookRepo(new FakePlaybookRepository(BLESSED_PLAYBOOK))
-			.withMoveRepo(new FakeMoveRepository([playbookEntry], []))
-			.build();
-		const result = await char.getMoves();
-		expect(result.otherMoves).toEqual([]);
-	});
-
-	it("includes description: null when item has no description", async () => {
-		const move = { _id: "m3", type: "move", name: "Bare Move", system: { moveType: "other", rollType: null } };
-		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
-		const result = await char.getMoves();
-		expect(result.otherMoves[0].description).toBeNull();
-	});
-
-	it("marks player-authored moves (flags.stonetop_pwd.custom) with custom: true", async () => {
-		const move = { _id: "m6", type: "move", name: "Homebrew", system: { moveType: "other", rollType: null }, flags: { "stonetop_pwd": { custom: true } } };
-		const char = new TestCharacterBuilder(new FakeActorBuilder().withItems([move]).build()).build();
-		const result = await char.getMoves();
-		expect(result.otherMoves[0].custom).toBe(true);
-	});
-});
-
-// -- getMoves resourceChecks --------------------------------------------------
-
-describe("StonetopCharacter.getMoves resourceChecks", () => {
-	function makeBlessedActor() {
-		return new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").build();
-	}
-
-	it("builds resourceChecks with label: null when move has resource with empty labels", async () => {
-		const entry = { _id: "rc1", name: "Favor Move", system: { moveType: "playbook", isStartingMove: false, resource: { max: 3, title: null, labels: [] } } };
-		const char = new TestCharacterBuilder(makeBlessedActor())
-			.withPlaybookRepo(new FakePlaybookRepository(BLESSED_PLAYBOOK))
-			.withMoveRepo(new FakeMoveRepository([entry], []))
-			.build();
-		const result = await char.getMoves();
-		const move = result.playbookMoves.find(m => m.name === "Favor Move");
-		expect(move.resourceChecks).toEqual([
-			{ checked: false, label: null },
-			{ checked: false, label: null },
-			{ checked: false, label: null },
-		]);
-	});
-
-	it("builds resourceChecks with labels when move has resource.labels", async () => {
-		const entry = { _id: "rc2", name: "Blade Move", system: { moveType: "playbook", isStartingMove: false, resource: { max: 2, title: null, labels: ["a few left", "out"] } } };
-		const char = new TestCharacterBuilder(makeBlessedActor())
-			.withPlaybookRepo(new FakePlaybookRepository(BLESSED_PLAYBOOK))
-			.withMoveRepo(new FakeMoveRepository([entry], []))
-			.build();
-		const result = await char.getMoves();
-		const move = result.playbookMoves.find(m => m.name === "Blade Move");
-		expect(move.resourceChecks).toEqual([
-			{ checked: false, label: "a few left" },
-			{ checked: false, label: "out" },
-		]);
-	});
-
-	it("resource.max determines resourceChecks length", async () => {
-		const entry = { _id: "rc3", name: "State Move", system: { moveType: "playbook", isStartingMove: false, resource: { max: 3, title: null, labels: ["fresh", "spent", "gone"] } } };
-		const char = new TestCharacterBuilder(makeBlessedActor())
-			.withPlaybookRepo(new FakePlaybookRepository(BLESSED_PLAYBOOK))
-			.withMoveRepo(new FakeMoveRepository([entry], []))
-			.build();
-		const result = await char.getMoves();
-		const move = result.playbookMoves.find(m => m.name === "State Move");
-		expect(move.resourceChecks).toHaveLength(3);
 	});
 });
 

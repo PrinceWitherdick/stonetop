@@ -6,7 +6,7 @@ import {
 	SITE_DANGER_EXTRAPOLATED_NOTE, SITE_DANGER_EXTRAPOLATED_LEVELS,
 	NAME_ARTICLES, NAME_VERBS, NAME_ADJECTIVES, NAME_ROLES,
 	seedSiteDoomTrack, siteDangerMoves, generateThingName, generateThingTitle, rollThingName,
-	rollDistinct, rollOnTable,
+	rollDistinct,
 } from "../../module/data/things-below-tables.js";
 
 // A deterministic rng stub returning a fixed float in [0, 1).
@@ -264,12 +264,5 @@ describe("generateThingName at the edge of the rng", () => {
 		const name = generateThingName(rng(1));
 		// Every syllable lands on the last one ("morr") when the rng returns 1.
 		expect(name.toLowerCase().replace("'", "")).toBe("morrmorrmorr");
-	});
-});
-
-describe("rollOnTable re-export", () => {
-	it("rolls the low end to the first entry", () => {
-		expect(rollOnTable(THEMES, rng(0))).toBe(THEMES[0]);
-		expect(rollOnTable(SITE_FEATURES, rng(0))).toBe(SITE_FEATURES[0]);
 	});
 });

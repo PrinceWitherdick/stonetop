@@ -31,9 +31,6 @@ export function stepMode(mode, added) {
 /** One step better: what a move that sharpens a blow does to it. */
 export const betterMode = mode => stepMode(mode, "adv");
 
-/** One step worse: what a move that blunts a blow does to it. */
-export const worseMode = mode => stepMode(mode, "dis");
-
 /**
  * EVERY mode in play at once, folded into the one the roll is actually made at.
  *

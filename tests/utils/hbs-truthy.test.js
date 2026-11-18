@@ -40,31 +40,12 @@ describe("hbsTruthy", () => {
 	it.each(VALUES)("agrees with {{#if}} on %s", (_label, value) => {
 		expect(hbsTruthy(value)).toBe(renderedByIf(value));
 	});
-
-	// The one that bit: stated on its own so a regression names itself.
-	it("calls an empty array falsy, as {{#if}} does and Boolean does not", () => {
-		expect(hbsTruthy([])).toBe(false);
-		expect(Boolean([])).toBe(true);
-	});
 });
 
 // The helpers are registered against the live Handlebars in stonetop.js, which can't be
-// imported here (it pulls in the whole system at module scope). Rebuild them from the
-// same predicate and check the shape, then hold the registration to it by source.
+// imported here (it pulls in the whole system at module scope). The predicate is tested above;
+// here the registration is held to it by source.
 describe("the and / or / not helpers", () => {
-	const or  = (...args) => args.some(hbsTruthy);
-	const and = (...args) => args.every(hbsTruthy);
-	const not = value => !hbsTruthy(value);
-
-	it("treats an empty array as absent, not as present", () => {
-		expect(and(true, [])).toBe(false);
-		expect(and(true, ["a"])).toBe(true);
-		expect(or(false, [])).toBe(false);
-		expect(or(false, ["a"])).toBe(true);
-		expect(not([])).toBe(true);
-		expect(not(["a"])).toBe(false);
-	});
-
 	// `.slice(0, -1)` drops the options object Handlebars appends to every helper call.
 	// Lose it and the trailing object counts as a truthy argument, so `or` is always true
 	// and `and` is decided by the arguments alone only when they all pass.

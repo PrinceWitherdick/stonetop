@@ -65,12 +65,15 @@ function classedLists() {
  * (`site-list site-denizen-list`, `stonetop-wound-list stonetop-wound-list--scars`) and it is
  * always the base that carries the layout.
  */
+const RULES = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+
 function markerHandled(classes) {
 	return classes.some(c => {
 		const decls = declarations(CSS, `.${c}`) ?? "";
 		// ...and the scoped spellings of the same class, which is how the dialogs write theirs.
-		const scoped = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-			.filter(([, prelude]) => new RegExp(`\\.${c}(?![\\w-])`).test(prelude))
+		const named = new RegExp(`\\.${c}(?![\\w-])`);
+		const scoped = RULES
+			.filter(([, prelude]) => named.test(prelude))
 			.map(([, , body]) => body).join("\n");
 		const all = decls + "\n" + scoped;
 		return /list-style/.test(all) || /display:\s*(flex|grid|inline-flex|inline-grid)/.test(all);

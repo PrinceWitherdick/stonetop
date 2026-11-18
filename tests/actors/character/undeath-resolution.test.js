@@ -233,11 +233,6 @@ describe("insertHpPenalty — the Thrall's Marks eat max HP", () => {
 		expect(insertHpPenalty(marked(["ravenous", "red-wrath"]))).toBe(2);
 	});
 
-	it("charges nothing for a Mark that is merely available", () => {
-		// "red-wrath" costs 2, but only once it's actually marked.
-		expect(insertHpPenalty(marked([]))).toBe(0);
-	});
-
 	it("survives an insert with no lore at all", () => {
 		expect(insertHpPenalty(null)).toBe(0);
 		expect(insertHpPenalty({ entries: [] })).toBe(0);

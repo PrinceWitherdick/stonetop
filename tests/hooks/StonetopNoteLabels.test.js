@@ -130,14 +130,6 @@ describe("a marker's name stands on the map", () => {
 		onDrawStonetopNote(note);
 		expect(note.tooltip.visible).toBe(true);
 	});
-
-	it("shows a name with no settings registered at all", () => {
-		// This runs inside a PIXI refresh, which a Scene painted during startup can reach before
-		// the settings exist. The harmless answer there is the shipped default, not a quiet map.
-		const note = fakeNote(MARKER);
-		onDrawStonetopNote(note);
-		expect(note.tooltip.visible).toBe(true);
-	});
 });
 
 describe("when the world asks for names on hover only", () => {

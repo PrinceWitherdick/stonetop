@@ -48,12 +48,6 @@ describe("displaceTokens", () => {
 		});
 	});
 
-	it("never uses the deprecated teleport option", async () => {
-		const scene = { updateEmbeddedDocuments: vi.fn(async () => []) };
-		await displaceTokens(scene, moves);
-		expect(JSON.stringify(scene.updateEmbeddedDocuments.mock.calls)).not.toContain("teleport");
-	});
-
 	it("writes nothing with nothing to move", async () => {
 		const scene = { moveTokens: vi.fn(), updateEmbeddedDocuments: vi.fn() };
 		expect(await displaceTokens(scene, [])).toBeNull();

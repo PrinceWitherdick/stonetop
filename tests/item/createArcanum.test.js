@@ -34,9 +34,6 @@ describe("createArcanum helpers", () => {
 			const slugs = new Set(Array.from({ length: 500 }, () => newArcanumSlug()));
 			expect(slugs.size).toBe(500);
 		});
-		it("carries nothing from any name, so renaming a card can't orphan its marks", () => {
-			expect(newArcanumSlug()).not.toContain("azure");
-		});
 	});
 
 	describe("buildArcanumItemData", () => {

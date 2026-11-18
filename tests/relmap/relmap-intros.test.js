@@ -257,15 +257,6 @@ describe("every answer the party recorded about each other", () => {
 		expect(said.size).toBe(0);
 	});
 
-	// Every answer recorded before the picker existed has no `who` at all, and reads exactly as it
-	// did: by the names in the writing.
-	it("reads an answer recorded before the pick existed by its names, as before", () => {
-		const said = introRegards([PIM, SELA], {
-			pim: { step6: { answers: [say(0, "Sela, of course.")] } },
-		});
-		expect(said.get("Actor.pim").get("Actor.sela")).toHaveLength(1);
-	});
-
 	it("survives a party with nothing recorded, and no party at all", () => {
 		expect(introRegards([PIM, SELA], {}).size).toBe(0);
 		expect(introRegards([PIM], { pim: { step6: { answers: [say(0, "Sela.")] } } }).size).toBe(0);

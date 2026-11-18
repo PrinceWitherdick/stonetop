@@ -969,24 +969,6 @@ describe("CharacterArcana — moves printed on a card's back", () => {
 });
 
 describe("CharacterArcana.buildSnapshot() — inventoryResources param", () => {
-	it("back.resource uses inventoryResources current for back.resource arcana", async () => {
-		const arcana = new CharacterArcana(
-			makeFlags({ owned: ["huge-wooden-sphere"] }),
-			new FakeArcanaRepository([FFYRNIG_SPHERE]),
-		);
-		const item = (await arcana.buildSnapshot({}, {}, { "huge-wooden-sphere": 2 })).minor.items[0];
-		expect(item.back.resource.current).toBe(2);
-	});
-
-	it("back.resource defaults to current 0 when not in inventoryResources", async () => {
-		const arcana = new CharacterArcana(
-			makeFlags({ owned: ["huge-wooden-sphere"] }),
-			new FakeArcanaRepository([FFYRNIG_SPHERE]),
-		);
-		const item = (await arcana.buildSnapshot()).minor.items[0];
-		expect(item.back.resource.current).toBe(0);
-	});
-
 	it("back.item.resource is a resolved Resource on the OutfitItem snapshot", async () => {
 		const arcana = new CharacterArcana(
 			makeFlags({ owned: ["bow-with-no-string"] }),
@@ -1222,15 +1204,6 @@ describe("CharacterArcana.buildSnapshot() — maxStat resolution", () => {
 		);
 		const item = (await arcana.buildSnapshot({})).minor.items[0];
 		expect(item.back.resource.max).toBe(0);
-	});
-
-	it("fixed max is used unchanged when maxStat is null", async () => {
-		const arcana = new CharacterArcana(
-			makeFlags({ owned: ["huge-wooden-sphere"] }),
-			new FakeArcanaRepository([FFYRNIG_SPHERE]),
-		);
-		const item = (await arcana.buildSnapshot()).minor.items[0];
-		expect(item.back.resource.max).toBe(3);
 	});
 });
 

@@ -39,8 +39,11 @@ function dialog(trip = {}) {
 
 const saved = () => store.expeditionAnswers.list[0];
 
-/** The template with only what these blocks read; the rest of the page stays empty. */
-function render(context) {
+/** The template with only what these blocks read; the rest of the page stays empty. Compiled once. */
+let compiled;
+const render = context => (compiled ??= compileStep())(context);
+
+function compileStep() {
 	const hb = Handlebars.create();
 	hb.registerPartial("stonetop.guide-toc", "");
 	hb.registerPartial("stonetop.expedition-journey", "");
@@ -50,7 +53,7 @@ function render(context) {
 	hb.registerHelper("eq", (a, b) => a === b);
 	hb.registerHelper("and", (...a) => a.slice(0, -1).every(Boolean));
 	hb.registerHelper("boldMissText", s => s);
-	return hb.compile(HBS)(context);
+	return hb.compile(HBS);
 }
 
 beforeEach(() => {

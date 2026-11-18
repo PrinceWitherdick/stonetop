@@ -225,10 +225,6 @@ describe("the Fox's move gates, as the sheet reads them", () => {
 		for (const name of FOX_GROUPS.flatMap(g => g.options)) expect(fox(name).system.isStartingMove).toBe(true);
 	});
 
-	it("the Heavy starts with Armored OR Uncanny Reflexes", () => {
-		expect(HEAVY_GROUPS.map(g => g.options)).toEqual([["Armored", "Uncanny Reflexes"]]);
-	});
-
 	it.each([
 		["Battle Dancer", ["Skill at Arms"],                "Skill at Arms; level 6+"],
 		["Cheap Shot",    ["Ambush"],                       "Ambush; level 6+"],

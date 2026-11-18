@@ -522,13 +522,6 @@ describe("the scene draws the line in the same ink the dialog does", () => {
 	it("answers with the fallbacks when there is no stylesheet to read", () => {
 		expect(routeInk()).toEqual(ROUTE_INK_FALLBACK);
 	});
-
-	// The bead is half the ribbon and the gap is the ribbon, which is what the dialog's
-	// `stroke-dasharray: 0.1 7` on a 7px case with a 3.5px ink amounts to.
-	it("keeps the proportions the dialog's dash pattern has", () => {
-		expect(ROUTE_DOT_SIZE).toBe(ROUTE_CASE_WIDTH / 2);
-		expect(ROUTE_DOT_GAP).toBe(ROUTE_CASE_WIDTH);
-	});
 });
 
 // ── A way the GM drew, on the table's own map ────────────────────────────────

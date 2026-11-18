@@ -425,15 +425,6 @@ describe("Berserker", () => {
 	});
 });
 
-// The fight fakes are shared with the other hero-move tests; these two keep the imports honest.
-describe("fakes", () => {
-	it("builds a scene and a combat the engine can read", () => {
-		const scene = fakeScene({ tokens: [] });
-		expect(fakeCombat({ scene, combatants: [] }).combatants).toBeDefined();
-		expect(fakeCombatant({ id: "c1", token: fakeToken({ id: "t1", col: 0, row: 0, actor: fakeActor({ id: "a", name: "A", type: "monster" }) }), scene })).toBeDefined();
-	});
-});
-
 // Ranger audit M10: Alpha's "on a 10+, you also have advantage on your next roll against them". One
 // entry per foe (the 10+ lays it, actors/character/tier-effects.js), read by foeAdvantage for an attack
 // and spent by the next roll against them.

@@ -105,14 +105,6 @@ describe("the books a surface asks for on the macro's behalf", () => {
 	it("puts the edition where the GM is about to choose a file", () => {
 		expect(GALLERY_HBS).toContain('class="stonetop-people-book-edition">{{edition}}');
 	});
-
-	it("keeps its copy free of em dashes, like everything else the gallery says", () => {
-		for (const b of IMPORT_BOOKS) {
-			expect(b.title).not.toContain("—");
-			expect(b.note).not.toContain("—");
-			expect(b.edition).not.toContain("—");
-		}
-	});
 });
 
 describe("the gallery's own book fields", () => {

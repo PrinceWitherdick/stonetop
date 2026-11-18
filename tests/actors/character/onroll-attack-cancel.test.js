@@ -20,8 +20,6 @@ vi.mock("../../../module/combat/attack-flow.js", async (importOriginal) => ({
 	maybeBeginAttack: flow.begin,
 }));
 
-const { normalizeRollType } = await import("../../../module/utils/roll-types.js");
-
 /** A Clash the character owns, with a rollType so it reaches the attack branch at all. */
 function clashItem() {
 	return { _id: "clash-1", name: "Clash", type: "move", system: { rollType: "str", rollFormula: null }, roll: vi.fn() };
@@ -49,12 +47,6 @@ function characterWith(item) {
 beforeEach(() => { flow.begin.mockReset(); });
 
 describe("StonetopCharacter.onRoll and a cancelled attack prompt", () => {
-	it("guards that the fixture really is an attack move", () => {
-		// If `rollType` ever stopped normalising, every assertion below would pass for the wrong
-		// reason — onRoll would bail before it ever reached maybeBeginAttack.
-		expect(normalizeRollType("str")).toBe("str");
-	});
-
 	it("answers \"cancel\", not true, when the weapon or target prompt is closed", async () => {
 		flow.begin.mockResolvedValue("cancel");
 		const item = clashItem();

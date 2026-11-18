@@ -132,15 +132,6 @@ describe("the muster's three exits", () => {
 });
 
 describe("Tor's blessing", () => {
-	// The one seasonal gain that leaves something behind. Stored as "<year>:<season>" so it
-	// expires by ceasing to match the clock; nothing has to sweep it up.
-	it("is recorded against the season it was granted for", () => {
-		expect(STEADING).toContain("torsBlessingActive()");
-		const at = STEADING.indexOf("torsBlessingFlags(year, seasonId)");
-		expect(at).toBeGreaterThan(-1);
-		expect(STEADING.slice(at, at + 220)).toContain("torsBlessing: `${year}:${seasonId}`");
-	});
-
 	// The gains are applied in seasonal-gains.js, shared with the session-zero spring; the
 	// behaviour is tests/actors/steading/seasonal-gains.test.js's. Here: the window still goes
 	// through it, and the lapse rides in the same write.

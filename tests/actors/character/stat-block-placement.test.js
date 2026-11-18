@@ -84,10 +84,6 @@ describe("character sheet stat block", () => {
 		expect(alwaysVisible).toContain("stonetop-wounds");
 	});
 
-	it("registers the partial", () => {
-		expect(STONETOP_JS).toContain('"stonetop.stat-block":');
-	});
-
 	// There is no Overview page any more: no panel, no rail tab, no CSS reaching for one.
 	// `[data-tab="overview"]` still exists as a STEADING key, which is why the check is scoped.
 	it("leaves no Overview tab behind on the character sheet", () => {

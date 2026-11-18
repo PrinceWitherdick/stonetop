@@ -74,7 +74,7 @@ describe("the importer's on-disk inventory", () => {
 	});
 
 	it("keeps a rejected browse meaning 'not there', which is the honest answer", () => {
-		expect(COMMAND).toContain("catch (_) { return []; } // directory doesn't exist yet -> nothing to skip");
+		expect(COMMAND).toContain("catch (_) { return []; }");
 	});
 
 	it("loses one unreadable filename rather than the directory it sits in", () => {

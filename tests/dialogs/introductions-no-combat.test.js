@@ -39,14 +39,4 @@ describe("Character Introductions and the Combat tracker", () => {
 		expect(dialog).toContain("adoptLegacyIntroOrder()");
 		expect(code("module/utils/chronicle.js")).toContain("introductionsRoster()");
 	});
-
-	it("leaves no caller of the old tracker-order helper", () => {
-		const scan = dir => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap(entry => {
-			const rel = path.join(dir, entry.name);
-			if (entry.isDirectory()) return scan(rel);
-			return entry.name.endsWith(".js") ? [rel] : [];
-		});
-		const offenders = [...scan("module"), "stonetop.js"].filter(file => read(file).includes("orderByCombatTurns"));
-		expect(offenders).toEqual([]);
-	});
 });

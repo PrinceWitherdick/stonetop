@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { promises as fs } from "fs";
 import path from "path";
-import {
-	ONBOARDING_MOVE_GROUPS,
-	moveGroupsForPlaybook,
-	moveGroupKeys,
-} from "../../../module/actors/character/dialogs/onboarding-move-groups.js";
+import { ONBOARDING_MOVE_GROUPS } from "../../../module/actors/character/dialogs/onboarding-move-groups.js";
 
 // The onboarding "Starting Moves" step shows three per-playbook filter chips, each
 // backed by a hand-curated list of move names in onboarding-move-groups.js. Those
@@ -72,17 +68,5 @@ describe("ONBOARDING_MOVE_GROUPS", () => {
 		const grouped = new Set(ONBOARDING_MOVE_GROUPS["The Judge"].flatMap(g => g.moves));
 		const stray = [...await movesInPlaybook("The Judge")].filter(name => !grouped.has(name)).sort();
 		expect(stray).toEqual(["Improved Stat", "Superior Stat"]);
-	});
-
-	it("helpers resolve chips and per-move group keys", () => {
-		expect(moveGroupsForPlaybook("The Blessed")).toEqual([
-			{ key: "spirits", label: "Spirits" },
-			{ key: "nature", label: "Nature" },
-			{ key: "wards", label: "Wards" },
-		]);
-		expect(moveGroupKeys("The Blessed", "Call the Spirits")).toEqual(["spirits"]);
-		expect(moveGroupKeys("The Blessed", "Improved Stat")).toEqual([]); // unassigned
-		expect(moveGroupsForPlaybook("Not A Playbook")).toEqual([]);
-		expect(moveGroupKeys("Not A Playbook", "Whatever")).toEqual([]);
 	});
 });

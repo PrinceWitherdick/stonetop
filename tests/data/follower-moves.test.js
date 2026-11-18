@@ -10,19 +10,14 @@ import { readRepo } from "../fakes/css.js";
 describe("FOLLOWER_MOVES", () => {
 	// The book has exactly two follower moves (Book I p.233 lists them). "Followers in Fights" is
 	// not a move: it is the Moves & Gear handout's reference box of that name, carried on the same
-	// card after them.
+	// card after them. The Ranger's "Loyal to the End" (Book I p.143) is an animal-companion
+	// move, not a universal follower move, which is why it is not on this list.
 	it("lists the two follower moves in rulebook order, then Followers in Fights", () => {
 		expect(FOLLOWER_MOVES.map(m => m.name)).toEqual([
 			"Order Followers",
 			"Strengthen Your Bond",
 			"Followers in Fights",
 		]);
-	});
-
-	// "Loyal to the End" is the Ranger's animal-companion move (Book I p.143), not a
-	// universal follower move, so it must not leak back into the shared list.
-	it("does not include the Ranger's Loyal to the End", () => {
-		expect(FOLLOWER_MOVES.map(m => m.name)).not.toContain("Loyal to the End");
 	});
 
 	it("carries non-empty HTML descriptions", () => {

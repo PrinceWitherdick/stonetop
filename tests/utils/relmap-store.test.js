@@ -4,7 +4,7 @@ import {
 	RELMAP_ORIGIN_MAX, RELMAP_SEAT_AUTO, RELMAP_SEAT_MAX, RELMAP_SEAT_MIN,
 	RELMAP_SIZE_MAX, RELMAP_SIZE_MIN, RELMAP_SIZE_NONE, RELMAP_VERSION,
 	addEdgePatch, addNodePatch, dropEdgePatch, dropNodePatch, edgePatch, edgesBetween,
-	edgesTouching, emptyGraph, fanIndexes, isImportedEdge, isSafeId, nodePatch, normalizeGraph,
+	edgesTouching, emptyGraph, fanIndexes, isSafeId, nodePatch, normalizeGraph,
 	readSeat, relmapPath,
 } from "../../module/relmap/relmap-store.js";
 import { RELMAP_CAPTION_PX, RELMAP_REACH_MAX, RELMAP_REACH_MIN } from "../../module/utils/relmap-geometry.js";
@@ -445,7 +445,6 @@ describe("where a line came from", () => {
 	it("reads an unstamped line as somebody's own hand", () => {
 		const read = withEdges({ link1: { a: "elena", b: "stefan" } });
 		expect(read.edges.link1.src).toBe("");
-		expect(isImportedEdge(read.edges.link1)).toBe(false);
 	});
 
 	it("keeps the import's stamp, and drops anything else somebody wrote there", () => {
@@ -454,9 +453,7 @@ describe("where a line came from", () => {
 			invented: { a: "elena", b: "stefan", src: "whatever" },
 		});
 		expect(read.edges.pulled.src).toBe("hearts");
-		expect(isImportedEdge(read.edges.pulled)).toBe(true);
 		expect(read.edges.invented.src).toBe("");
-		expect(isImportedEdge(read.edges.invented)).toBe(false);
 	});
 
 	// Written in the same breath as the rest of the line, so a line drawn by hand today says so

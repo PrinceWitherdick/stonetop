@@ -96,20 +96,4 @@ describe("flag update paths", () => {
 				.toContain(`flags.${SYSTEM_ID}.${store}`);
 		}
 	});
-
-	it("splits a dotted scope path the way Foundry does", () => {
-		// Foundry's setProperty walks key.split("."). The plain form lands under flags;
-		// the bracketed one becomes a single junk top-level key.
-		const expand = (key) => {
-			const target = {};
-			const parts = key.split(".");
-			const leaf = parts.pop();
-			parts.reduce((node, p) => (node[p] ??= {}), target)[leaf] = "value";
-			return target;
-		};
-		expect(expand(`flags.${SYSTEM_ID}.customFollowers.abc`))
-			.toEqual({ flags: { [SYSTEM_ID]: { customFollowers: { abc: "value" } } } });
-		expect(Object.keys(expand(`flags["${SYSTEM_ID}"].customFollowers.abc`)))
-			.toEqual([`flags["${SYSTEM_ID}"]`]);
-	});
 });

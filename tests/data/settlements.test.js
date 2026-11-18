@@ -2,15 +2,12 @@ import { describe, it, expect } from "vitest";
 import { SETTLEMENTS } from "../../module/data/settlements.js";
 
 describe("SETTLEMENTS roster", () => {
+	// Stonetop itself is not on it: a steading has no relationship with itself.
 	it("names the book's communities Stonetop can deal with", () => {
 		expect(SETTLEMENTS.map(s => s.name)).toEqual([
 			"Gordin's Delve", "Marshedge", "Hillfolk", "Barrier Pass",
 			"North Manmarch", "Ustrina", "Lygos", "The Fae",
 		]);
-	});
-
-	it("never lists Stonetop itself — a steading has no relationship with itself", () => {
-		expect(SETTLEMENTS.some(s => /^(the village of )?stonetop$/i.test(s.name))).toBe(false);
 	});
 
 	it("gives every row the fields the table renders", () => {
@@ -36,11 +33,7 @@ describe("SETTLEMENTS roster", () => {
 			expect(new Set(slugs).size).toBe(slugs.length);
 		});
 
-		it("contain no dot, which Foundry would expand into a nested update path", () => {
-			for (const s of SETTLEMENTS) expect(s.slug, s.name).not.toContain(".");
-		});
-
-		it("stay lowercase kebab-case, so they read the same in every world", () => {
+		it("stay lowercase kebab-case (so no dot, which Foundry would expand into a nested update path)", () => {
 			for (const s of SETTLEMENTS) expect(s.slug, s.name).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
 		});
 	});

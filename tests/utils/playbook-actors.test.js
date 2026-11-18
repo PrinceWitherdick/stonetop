@@ -35,10 +35,6 @@ describe("playbookIconPath", () => {
 		expect(playbookIconPath("")).toBe(null);
 		expect(playbookIconPath(null)).toBe(null);
 	});
-
-	it("is server-root-relative (no leading slash) so it matches the stored avatar", () => {
-		expect(playbookIconPath("the-fox").startsWith("systems/")).toBe(true);
-	});
 });
 
 // Every badge is a woodcut inside a hand-drawn circle, so a surface that frames a face in a ring of

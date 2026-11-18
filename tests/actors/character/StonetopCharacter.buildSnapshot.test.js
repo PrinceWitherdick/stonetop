@@ -114,14 +114,6 @@ describe("buildSnapshot — name", () => {
 
 // ── playbook (null when no playbook) ─────────────────────────────────────────
 
-describe("buildSnapshot — playbook: null when no playbook selected", () => {
-	it("playbook is null", async () => {
-		const snap = await new TestCharacterBuilder(new FakeActorBuilder().build())
-			.build().buildSnapshot();
-		expect(snap.playbook).toBeNull();
-	});
-});
-
 // ── playbook (populated) ─────────────────────────────────────────────────────
 
 describe("buildSnapshot — playbook section", () => {
@@ -2833,6 +2825,25 @@ describe("buildSnapshot - homefront moves", () => {
 
 		expect(homefront.moves[0].rollType).toBe("ask");
 		expect(homefront.moves[0].rollLabel).toBe("Population");
+	});
+
+	it("labels homefront roll chips with the steading stat from the move", async () => {
+		const actor = new FakeActorBuilder().withItems([
+			{ _id: "seasons", type: "move", name: "Seasons Change", system: { moveType: "homefront", rollType: "ask" } },
+			{ _id: "trade", type: "move", name: "Trade & Barter", system: { moveType: "homefront", rollType: "ask" } },
+			{ _id: "deploy", type: "move", name: "Deploy", system: { moveType: "homefront", rollType: "ask" } },
+		]).build();
+		const snap = await new TestCharacterBuilder(actor).build().buildSnapshot();
+		const labels = Object.fromEntries(snap.moves
+			.find(category => category.key === "homefront")
+			.moves
+			.map(move => [move.name, move.rollLabel]));
+
+		expect(labels).toMatchObject({
+			"Seasons Change": "Fortunes",
+			"Trade & Barter": "Prosperity",
+			"Deploy": "Defenses",
+		});
 	});
 });
 
