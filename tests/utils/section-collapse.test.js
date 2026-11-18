@@ -67,8 +67,8 @@ function buildSheetDom(ids) {
 	return { html: [root], carets, bodies };
 }
 
-const click = caret => ({ target: caret, preventDefault() {}, stopPropagation() {} });
-const key = (caret, k) => ({ target: caret, key: k, preventDefault() {}, stopPropagation() {} });
+const click = caret => ({ type: "click", target: caret, preventDefault() {}, stopPropagation() {} });
+const key = (caret, k) => ({ type: "keydown", target: caret, key: k, preventDefault() {}, stopPropagation() {} });
 
 const Sheet = withSectionEditing(class {
 	constructor(actorId) {

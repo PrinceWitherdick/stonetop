@@ -1,4 +1,5 @@
 import {getSheetSectionsCollapsed, setSheetSectionsCollapsed} from "../settings.js";
+import {onActivate} from "./activation.js";
 
 /**
  * Mixin for actor sheets that expose per-section edit pencils alongside the
@@ -215,21 +216,7 @@ export function withSectionEditing(Base) {
 			};
 			// Class-toggled in place rather than re-rendered: a fold changes nothing
 			// the template computes, and a re-render would cost a scroll jump.
-			root.addEventListener("click", ev => {
-				const caret = ev.target.closest(".stonetop-section-collapse");
-				if (!caret) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				toggle(caret);
-			}, true);
-			root.addEventListener("keydown", ev => {
-				if (ev.key !== "Enter" && ev.key !== " ") return;
-				const caret = ev.target.closest(".stonetop-section-collapse");
-				if (!caret) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				toggle(caret);
-			}, true);
+			onActivate(root, ".stonetop-section-collapse", caret => toggle(caret));
 		}
 	};
 }

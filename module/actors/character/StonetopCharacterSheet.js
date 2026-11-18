@@ -183,6 +183,7 @@ import {askWalkItOffInstead, debilityData} from "./walk-it-off.js";
 import {STARTING_INVOCATIONS_FLAG, learnedInvocations, rerunInvocations, startingInvocations} from "./starting-invocations.js";
 import {localize, format} from "../../utils/i18n.js";
 import {promptRaiseFromDead} from "../../hooks/DeathsDoorPrompt.js";
+import {onActivate, onCapture} from "../../utils/activation.js";
 
 const _STAT_KEYS = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 const _STAT_CHOICES = [..._STAT_KEYS].map(k => [k, k.toUpperCase()]);
@@ -3434,30 +3435,8 @@ export function createStonetopCharacterSheetClass(Base) {
 		activateListeners(html) {
 			super.activateListeners(html);
 
-			// Sheet-wide capture-phase delegation. `onCapture` is the common shape: find the
-			// control the event came from, claim it (stopPropagation, so the sheet's own handlers
-			// below never see it) and act; `when` is a guard checked BEFORE the event is claimed.
-			// `onActivate` is the click + Enter/Space pair for a non-button control, testing the
-			// key before walking ancestors so typing into the sheet's fields stays free.
-			const onCapture = (type, sel, fn, when = () => true) => html[0].addEventListener(type, ev => {
-				const el = ev.target.closest(sel);
-				if (!el || !when(el)) return;
-				ev.stopPropagation();
-				return fn(el, ev);
-			}, true);
-			const onActivate = (sel, fn) => {
-				const handler = ev => {
-					if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
-					const el = ev.target.closest?.(sel);
-					if (!el) return;
-					// preventDefault covers the keydown too: Space would otherwise scroll the tab.
-					ev.preventDefault();
-					ev.stopPropagation();
-					return fn(el, ev);
-				};
-				html[0].addEventListener("click", handler, true);
-				html[0].addEventListener("keydown", handler, true);
-			};
+			// Sheet-wide capture-phase delegation goes through onCapture / onActivate
+			// (utils/activation.js): claimed there, the sheet's own handlers below never see it.
 
 			// Hang the tab rail off the window's right edge. Done first so everything below —
 			// notably _activateTabDragDrop — sees it in its final home rather than wiring the
@@ -3472,7 +3451,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// save/blur carrying the serialized HTML on ev.target.value. Persist it to
 			// the character's system.notes field. Stop propagation so the sheet's own
 			// form-submit change handling doesn't double-process it.
-			onCapture("change", "prose-mirror.character-notes-editor", pm => {
+			onCapture(html[0], "change", "prose-mirror.character-notes-editor", pm => {
 				const value = pm.value ?? "";
 				if (value === (this.actor.system?.notes ?? "")) return;
 				// Caught, not dropped: a failed persist here left the editor showing text the
@@ -4185,7 +4164,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				persist:        () => this._persistArcanaContent(),
 				tracksExpanded: true,
 			});
-			onCapture("click", ".stonetop-arcanum-foldable-summary", toggleArcanaFold);
+			onCapture(html[0], "click", ".stonetop-arcanum-foldable-summary", toggleArcanaFold);
 			html[0].addEventListener("keydown", ev => {
 				if (ev.key !== "Enter" && ev.key !== " ") return;
 				const summary = ev.target.closest(".stonetop-arcanum-foldable-summary");
@@ -4407,7 +4386,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			wireAvatarPreview(html[0], ".stonetop-follower-portrait-img");
 			// onActivate's preventDefault keeps Space from scrolling the tab out from under the
 			// card while the gallery opens over it.
-			onActivate(".stonetop-follower-portrait--editable", (portrait, ev) => {
+			onActivate(html[0], ".stonetop-follower-portrait--editable", (portrait, ev) => {
 				// The two pips sit inside the portrait and do their own job instead of the
 				// gallery's. Checked after the portrait lookup so they inherit the same guards,
 				// and each carries tabindex="-1" so neither takes the card's tab stop.
@@ -4434,7 +4413,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// them would mean one handler branching on which dataset it found. The hover preview
 			// IS pooled, though — wireAvatarPreview joins selectors into one listener pair.
 			wireAvatarPreview(html[0], ".stonetop-roster-avatar-img");
-			onActivate(".stonetop-roster-avatar--editable", avatar => {
+			onActivate(html[0], ".stonetop-roster-avatar--editable", avatar => {
 				if (avatar.dataset.portraitMode === "pick") this._onRosterAvatarPick(avatar);
 				else this._onRosterAvatarView(avatar);
 			});
@@ -4531,7 +4510,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// has unspent picks) is a one-tap shortcut into moves-edit — same as hitting the
 			// section pencil — so the player can make the pending pick immediately. Open-only:
 			// it never toggles edit OFF (the hand only shows while a choice is outstanding).
-			onActivate(".stonetop-move-choice-needed", () => {
+			onActivate(html[0], ".stonetop-move-choice-needed", () => {
 				if (this.isSectionEditable("moves")) return; // already editable — nothing to do
 				this.openSectionEdit("moves");
 			});
@@ -4540,7 +4519,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// chosen: open the +1 picker straight away for the first unfilled owned instance
 			// (a repeatable move can have several). Distinct from the budgeted-move hand above
 			// because there's no on-card control to pick a stat — it needs the dialog.
-			onActivate(".stonetop-move-stat-choice-needed", async hand => {
+			onActivate(html[0], ".stonetop-move-stat-choice-needed", async hand => {
 				const itemId = hand.closest("[data-item-id]")?.dataset.itemId;
 				const item = itemId ? this.actor.items.get(itemId) : null;
 				if (!item) return;
@@ -4552,7 +4531,7 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			// The hand on a card whose background answer is the player's to pick and still empty
 			// (the Witch Hunter's Well Versed topic): ask it (_askBackgroundAnswers).
-			onActivate(".stonetop-move-background-answer-needed", () => this._askBackgroundAnswers());
+			onActivate(html[0], ".stonetop-move-background-answer-needed", () => this._askBackgroundAnswers());
 
 			// Followers tab: per-card, per-section edit pencils. Same per-section toggle
 			// mechanism, keyed on `follower-<section>:<ftype>:<slug>`; opening a text
@@ -5258,7 +5237,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			//
 			// This reads the card's own dataset and hands it to `orderFollower`, which is where the
 			// dialog is actually opened — a follower's token on the map reaches the same method.
-			onCapture("click", ".stonetop-follower-order", btn => {
+			onCapture(html[0], "click", ".stonetop-follower-order", btn => {
 				const pipeList = (raw) => (raw || "").split("|").map(s => s.trim()).filter(Boolean);
 				this.orderFollower({
 					name:        btn.dataset.followerName || "Follower",
@@ -5389,7 +5368,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				ui.notifications.info(game.i18n.format("stonetop.character.moves.loveLetter.resent", { name: this.actor.name }));
 			});
 
-			onCapture("click", ".stonetop-arcanum-title--clickable", title => {
+			onCapture(html[0], "click", ".stonetop-arcanum-title--clickable", title => {
 				const { slug, flipped } = title.dataset;
 				this._stonetopCharacter.getArcanumChatContent(slug, flipped === "true").then(content => {
 					if (!content) return;
@@ -5409,7 +5388,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// moves tab: click it to open the move (options to tick, dice when it rolls), or to
 			// post it to chat when there is nothing to choose. The handles are wrapped into the
 			// card's own prose at snapshot time — see data/arcana-moves.js.
-			onCapture("click", ".stonetop-arcanum-move-name", handle => {
+			onCapture(html[0], "click", ".stonetop-arcanum-move-name", handle => {
 				this._onArcanumMoveName(handle.dataset.arcanumSlug, handle.dataset.moveSlug);
 			});
 			html[0].addEventListener("keydown", ev => {
@@ -5421,19 +5400,19 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._onArcanumMoveName(handle.dataset.arcanumSlug, handle.dataset.moveSlug);
 			}, true);
 
-			onCapture("click", ".stonetop-arcanum-identify-btn", (btn, ev) => {
+			onCapture(html[0], "click", ".stonetop-arcanum-identify-btn", (btn, ev) => {
 				this._onArcanumKnowThings(btn.dataset.slug, { shiftKey: ev.shiftKey });
 			});
 
-			onCapture("click", ".stonetop-arcanum-givecard-btn", btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-givecard-btn", btn => {
 				this._onArcanumGiveCard(btn.dataset.slug);
 			});
 
-			onCapture("click", ".stonetop-arcanum-backowed-btn", btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-backowed-btn", btn => {
 				this._onArcanumStudyBack(btn.dataset.slug);
 			});
 
-			onCapture("click", ".stonetop-arcanum-discover-btn", async btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-discover-btn", async btn => {
 				const { slug } = btn.dataset;
 				const ok = await confirmOutcome({
 					title:   game.i18n.localize("stonetop.arcana.discoverTitle"),
@@ -5448,11 +5427,11 @@ export function createStonetopCharacterSheetClass(Base) {
 			});
 
 			// The Seeker's owed major arcanum (the tab's cue): the Details tab's own ask, again.
-			onCapture("click", ".stonetop-seeker-major-owed-btn", () => {
+			onCapture(html[0], "click", ".stonetop-seeker-major-owed-btn", () => {
 				this._onSeekerMajorOwed().catch(err => console.error("Stonetop | choosing the major arcanum failed", err));
 			});
 
-			onCapture("click", ".stonetop-arcanum-thumb, .stonetop-lore-arcana-img", thumb => {
+			onCapture(html[0], "click", ".stonetop-arcanum-thumb, .stonetop-lore-arcana-img", thumb => {
 				imagePopout({ src: thumb.src, title: thumb.dataset.name })?.render(true);
 			});
 
@@ -5468,7 +5447,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// spread while reading in play mode. Stored on the viewing user, so the GM's and the
 			// owning player's choices are independent. It never overrides back permission — the
 			// button is only rendered for cards whose back this viewer may already see.
-			onCapture("click", ".stonetop-arcanum-showboth-btn", btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-showboth-btn", btn => {
 				const { slug, show } = btn.dataset;
 				this._renderAfter(this._toggleArcanumShowBoth(slug, show !== "true"));
 			});
@@ -5476,7 +5455,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// "Show back" ⇄ "Show front" single-side flip. A sibling PER-USER preference to
 			// show-both; it swaps which lone side renders while the card isn't spread. Same
 			// permission guard — only ever offered for a back this viewer may already see.
-			onCapture("click", ".stonetop-arcanum-flip-btn", btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-flip-btn", btn => {
 				const { slug, show } = btn.dataset;
 				this._renderAfter(this._toggleArcanumShowBack(slug, show !== "true"));
 			});
@@ -5485,7 +5464,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// peek at a still-LOCKED card's back (the button is hidden once unlocked — the
 			// owner sees it then — and hidden entirely when the peek setting is on). Writing
 			// the actor flag propagates to the player's open sheet, which re-renders.
-			onCapture("click", ".stonetop-arcanum-reveal-btn", btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-reveal-btn", btn => {
 				const { slug, revealed } = btn.dataset;
 				const action = revealed === "true"
 					? this._stonetopCharacter.hideArcanum(slug)
@@ -5493,11 +5472,11 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._renderAfter(action);
 			}, () => game.user.isGM);
 
-			onCapture("click", ".stonetop-arcanum-summon-btn", btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-summon-btn", btn => {
 				this._onArcanaSummon(btn.dataset.slug);
 			}, btn => !btn.disabled);
 
-			onCapture("click", ".stonetop-arcanum-resource-btn", btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-resource-btn", btn => {
 				const { slug, index, resourceKind } = btn.dataset;
 				const isChecked = btn.classList.contains("is-checked");
 				const newVal = isChecked ? Number(index) : Number(index) + 1;
@@ -5514,7 +5493,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter.setArcanumResource(key, newVal, { render: false });
 			});
 
-			onCapture("click", ".stonetop-arcanum-delete", async btn => {
+			onCapture(html[0], "click", ".stonetop-arcanum-delete", async btn => {
 				const { slug } = btn.dataset;
 				const title = btn.closest(".stonetop-arcanum-card")
 					?.querySelector(".stonetop-arcanum-title")?.textContent?.trim() || "this arcanum";
@@ -5537,7 +5516,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				})());
 			});
 
-			onCapture("click", ".stonetop-arcana-create", btn => {
+			onCapture(html[0], "click", ".stonetop-arcana-create", btn => {
 				this._onArcanaCreate(btn.dataset.major === "true");
 			});
 
@@ -5548,7 +5527,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._stonetopCharacter.setArcanumUnlockCount(arcanumSlug, optionSlug, pipCheckValue(cb.checked, index));
 			}, true);
 
-			onCapture("change", ".stonetop-arcanum-box, .stonetop-arcanum-circle, .stonetop-arcanum-diamond", cb => {
+			onCapture(html[0], "change", ".stonetop-arcanum-box, .stonetop-arcanum-circle, .stonetop-arcanum-diamond", cb => {
 				const { arcanumSlug, context, index } = cb.dataset;
 				// Through the Seeker's seam (arcana-seeker-moves.js): a tick of a major arcanum's
 				// Consequence asks first when Conduit of Power or Overchannel can take it instead,
@@ -5602,7 +5581,7 @@ export function createStonetopCharacterSheetClass(Base) {
 				}
 			}, true);
 
-			onCapture("click", ".stonetop-pdi-activate", btn => {
+			onCapture(html[0], "click", ".stonetop-pdi-activate", btn => {
 				this._renderAfter(this._stonetopCharacter.setPostDeathInsert(btn.dataset.slug));
 			});
 
@@ -5612,14 +5591,14 @@ export function createStonetopCharacterSheetClass(Base) {
 				this._renderAfter(this._stonetopCharacter.setTether(ev.currentTarget.value));
 			});
 
-			onCapture("click", ".stonetop-pdi-remove", () => {
+			onCapture(html[0], "click", ".stonetop-pdi-remove", () => {
 				this._renderAfter(this._stonetopCharacter.setPostDeathInsert(null));
 			});
 
 			// Send the whole tab away. The tab it is drawn on goes with it, so the re-render lands
 			// on another one — core's Tabs#activate falls back to the first when the stored tab is
 			// no longer in the nav.
-			onCapture("click", ".stonetop-pdi-hide-tab", () => {
+			onCapture(html[0], "click", ".stonetop-pdi-hide-tab", () => {
 				if (!this.isEditable) return;
 				this._renderAfter(this._stonetopCharacter.setPostDeathTabRequested(false));
 			});
