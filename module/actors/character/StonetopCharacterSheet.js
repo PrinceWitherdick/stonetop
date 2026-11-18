@@ -147,12 +147,12 @@ import {
 } from "./blessed-marks.js";
 import {BlessedMarksDialog} from "./dialogs/BlessedMarksDialog.js";
 import {wrapGlyphTextContainers, wrapStonetopGlyphsInEl} from "../../utils/glyphs.js";
-import {prepareMoveHoverBody} from "../../utils/move-hover.js";
+import {prepareMoveHoverBody, wireBasicMoveHoverPanel, adoptHoverPanel, removeHoverPanels} from "../../utils/move-hover.js";
 import {pipCheckValue, pipToggleValue} from "../../utils/pips.js";
 import {StonetopAutocomplete} from "../../utils/autocomplete.js";
 import {canAuthorCustomMoves, canCreateArcana} from "../../utils/authoring-gates.js";
 import {enrichMoveRefsInEl, fetchMoveRef} from "../../utils/move-refs.js";
-import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
+import {buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, handleRelationshipDrop, wireRelationshipDropHighlight} from "../../utils/relationship-hearts.js";
 import {wireAvatarPreview, removeAvatarPreview} from "../../utils/avatar-preview.js";
 import {relationshipViewContext, wireRelationshipBoard} from "../../utils/relationship-board.js";
 import {BEAST_CATALOG} from "../../data/beasts.js";
@@ -1044,24 +1044,30 @@ export function createStonetopCharacterSheetClass(Base) {
 		// SHUT rather than open (the gear rows' write-ups): the id goes in when the fold is
 		// OPENED, so absence means folded. Nothing else changes — the state a render STARTS in
 		// comes from the template either way, and this only decides what gets remembered.
-		_wireCollapsible(html, { summarySel, collapsibleSel, getSet, persist, onToggle, tracksExpanded = false }) {
-			const toggle = el => {
-				const wrap = el.closest(collapsibleSel);
-				const id   = wrap?.dataset.section;
-				if (!id) return;
-				const collapsed = wrap.classList.toggle("is-collapsed");
-				el.setAttribute("aria-expanded", String(!collapsed));
-				const set = getSet();
-				if (tracksExpanded ? !collapsed : collapsed) set.add(id);
-				else                                         set.delete(id);
-				persist();
-				onToggle?.(wrap, collapsed);
-			};
+		_wireCollapsible(html, { summarySel, ...fold }) {
+			const toggle = el => this._toggleCollapsible(el, fold);
 			html.find(summarySel).on("click", ev => toggle(ev.currentTarget)).on("keydown", ev => {
 				if (ev.key !== "Enter" && ev.key !== " ") return;
 				ev.preventDefault();
 				toggle(ev.currentTarget);
 			});
+		}
+
+		// One fold of a `_wireCollapsible` set, flipped from its toggle `el`: the class, the
+		// toggle's aria-expanded, the remembered id, the write-back. Split out so a fold that
+		// has to wire its own listeners (the Arcana "Consequences" fold, which must catch the
+		// click in the capture phase) still flips the same way.
+		_toggleCollapsible(el, { collapsibleSel, getSet, persist, onToggle, tracksExpanded = false }) {
+			const wrap = el.closest(collapsibleSel);
+			const id   = wrap?.dataset.section;
+			if (!id) return;
+			const collapsed = wrap.classList.toggle("is-collapsed");
+			el.setAttribute("aria-expanded", String(!collapsed));
+			const set = getSet();
+			if (tracksExpanded ? !collapsed : collapsed) set.add(id);
+			else                                         set.delete(id);
+			persist();
+			onToggle?.(wrap, collapsed);
 		}
 
 		static get defaultOptions() {
@@ -1258,8 +1264,10 @@ export function createStonetopCharacterSheetClass(Base) {
 			// the session, once for every character sheet anybody ever opened on that tab.
 			closeTimelineTab(this);
 			this._masonries?.forEach(m => m.disconnect());
-			this._movePanel?.remove();
-			this._movePanel = null;
+			// The basic-move panel and the move cross-reference tooltip live on document.body
+			// too. activateListeners clears them per render, but a sheet that is closed rather
+			// than re-rendered never reaches that.
+			removeHoverPanels(this);
 			// The art hover preview lives on document.body, so it survives the sheet's DOM
 			// being torn down — clear it or it orphans if the sheet closes (e.g. Escape) while
 			// the cursor is still over a card's art and no mouseleave ever fires.
@@ -3487,25 +3495,23 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			// Reveal the "Drop a playbook here" hint only while a drag is actually
 			// over the sheet — a blank sheet shouldn't show a confusing dashed box,
-			// but the player can still drop a playbook anywhere on it. dragenter and
-			// dragleave bubble up from every child, so track the nesting depth and
-			// only clear the hint once the drag has truly left the form.
-			let dragDepth = 0;
-			// Drop affordance for the Relationships section. Its clear() is folded into
-			// clearDropHint because the sheet-wide drop handler runs in the capture phase and
-			// stops propagation before a listener on the section would ever see the drop.
+			// but the player can still drop a playbook anywhere on it. The playbook zone itself
+			// lights up while the drag is over it. All three highlights here (the sheet, the
+			// playbook zone, the Relationships section) count the drag's nesting depth through
+			// the shared helper, so none flickers off as the pointer crosses a child — and all
+			// three clears are folded into clearDropHint because the sheet-wide drop handler
+			// runs in the capture phase and stops propagation before a listener on any of them
+			// would ever see the drop.
+			const clearDraggingHint = wireRelationshipDropHighlight(html[0], "stonetop-dragging-playbook");
+			const clearPlaybookZone = wireRelationshipDropHighlight(
+				html[0].querySelector(".stonetop-playbook-drop-zone"), "drag-over");
 			const clearRelHighlight = wireRelationshipDropHighlight(
 				html[0].querySelector(".stonetop-character-relationships"));
 			const clearDropHint = () => {
-				dragDepth = 0;
-				html[0].classList.remove("stonetop-dragging-playbook");
+				clearDraggingHint();
+				clearPlaybookZone();
 				clearRelHighlight();
 			};
-			html[0].addEventListener("dragenter", () => {
-				dragDepth++;
-				html[0].classList.add("stonetop-dragging-playbook");
-			});
-			html[0].addEventListener("dragleave", () => { if (--dragDepth <= 0) clearDropHint(); });
 
 			html[0].addEventListener("dragover", (ev) => ev.preventDefault());
 			html[0].addEventListener("drop", async (ev) => {
@@ -3530,11 +3536,9 @@ export function createStonetopCharacterSheetClass(Base) {
 					// elsewhere on the sheet into a follower — landing on the relationships
 					// table should never start that conversion instead.
 					if (ev.target.closest(".stonetop-character-relationships")) {
-						const result = await relationshipDropResult(this.actor, doc, this._buildRelationshipRows(), {
+						await handleRelationshipDrop(this.actor, doc, this._buildRelationshipRows(), {
 							editable: this.isEditable,
 						});
-						const [level, message] = relationshipDropNotice(result, this.actor, doc);
-						ui.notifications?.[level]?.(message);
 						return;
 					}
 					if (doc?.system?.customType === "stonetop") {
@@ -3574,13 +3578,6 @@ export function createStonetopCharacterSheetClass(Base) {
 					await this._onDropItemCreate(item.toObject());
 				}
 			}, true);
-
-			const dropZone = html[0].querySelector(".stonetop-playbook-drop-zone");
-			if (dropZone) {
-				dropZone.addEventListener("dragenter", () => dropZone.classList.add("drag-over"));
-				dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
-				dropZone.addEventListener("drop", () => dropZone.classList.remove("drag-over"));
-			}
 
 			html.find(".cell--stats .stat-value").each((_, el) => {
 				el.value = el.value.replace(/^\+/, "");
@@ -4076,55 +4073,26 @@ export function createStonetopCharacterSheetClass(Base) {
 				if (ok && await asteriskMoveUsed(this.actor, moveName)) this.render(false);
 			});
 
-			// -- Basic move hover panel --------------------------------------------
-			// Runs for all users (not gated by isEditable).
-			// We use a custom fixed panel rather than data-tooltip because the move
-			// descriptions are rich HTML and Foundry's TooltipManager escapes content.
+			// -- Body-level hover panels ---------------------------------------------
+			// Runs for all users (not gated by isEditable). Both panels below are portaled to
+			// document.body and adopted by this sheet, so the previous render's pair goes here
+			// and close() takes down whichever are left (utils/move-hover.js).
+			removeHoverPanels(this);
 
-			// One floating panel per sheet instance; replace stale one on re-render.
-			this._movePanel?.remove();
+			// Basic move hover panel (the sidebar's move rows).
 			if (getHoverDescriptionSetting("hoverDescriptionsBasicMoves")) {
-				const panel = document.createElement("div");
-				this._movePanel = panel;
-				panel.className = "stonetop-basic-move-panel";
-				panel.hidden = true;
-				document.body.appendChild(panel);
-
-				html.find(".stonetop-move-item").on("mouseenter", ev => {
-					const li = ev.currentTarget;
-					const descEl = li.querySelector(".stonetop-basic-move-desc");
-					if (!descEl) return;
-					const nameText = li.querySelector(".stonetop-move-name")?.textContent?.trim() ?? "";
-					// Use DOM manipulation so nameText is never treated as HTML.
-					const nameEl = document.createElement("strong");
-					nameEl.className = "stonetop-basic-move-panel-name";
-					nameEl.textContent = nameText;
-					const descClone = descEl.cloneNode(true);
-					panel.replaceChildren(nameEl, ...Array.from(descClone.childNodes));
-					// The shared hover-panel pass: drop the collapsibles this panel can't open,
-					// redraw the ◇/□ a move like Outfit is written with. Run on the PANEL rather
-					// than on the clone because the spread above keeps the clone's children and
-					// discards its `.stonetop-basic-move-desc` wrapper.
-					prepareMoveHoverBody(panel);
-					panel.hidden = false;
-					const rect = li.getBoundingClientRect();
-					panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
-					panel.style.right = `${window.innerWidth - rect.left + 8}px`;
-				}).on("mouseleave", () => {
-					panel.hidden = true;
-				});
+				wireBasicMoveHoverPanel(this, html[0], ".stonetop-move-item");
 			}
 
 			// -- Move cross-reference tooltips ---------------------------------
-			this._moveRefPanel?.remove();
 			const showMoveRefHover = getHoverDescriptionSetting("hoverDescriptionsPlaybookMoves");
 			let moveRefPanel = null;
 			if (showMoveRefHover) {
 				moveRefPanel = document.createElement("div");
-				this._moveRefPanel = moveRefPanel;
 				moveRefPanel.className = "stonetop-word-tooltip";
 				moveRefPanel.hidden = true;
 				document.body.appendChild(moveRefPanel);
+				adoptHoverPanel(this, moveRefPanel);
 			}
 
 			// Link move names inside move prose. Sheet-only, and it runs before the glyph pass
@@ -4213,16 +4181,14 @@ export function createStonetopCharacterSheetClass(Base) {
 
 			// Toggle a "Consequences" fold (see above). Tracks EXPANDED ids since these
 			// default collapsed; persisted per-user/per-actor.
-			const toggleArcanaFold = summary => {
-				const fold = summary.closest(".stonetop-arcanum-foldable");
-				const id   = fold?.dataset.section;
-				if (!id) return;
-				const collapsed = fold.classList.toggle("is-collapsed");
-				summary.setAttribute("aria-expanded", String(!collapsed));
-				const set = (this._expandedArcanaContent ??= new Set());
-				if (collapsed) set.delete(id); else set.add(id);
-				this._persistArcanaContent();
-			};
+			// The same flip as every `_wireCollapsible` fold, but wired here in the capture phase
+			// so it can stop the click before anything else on the card sees it.
+			const toggleArcanaFold = summary => this._toggleCollapsible(summary, {
+				collapsibleSel: ".stonetop-arcanum-foldable",
+				getSet:         () => (this._expandedArcanaContent ??= new Set()),
+				persist:        () => this._persistArcanaContent(),
+				tracksExpanded: true,
+			});
 			onCapture("click", ".stonetop-arcanum-foldable-summary", toggleArcanaFold);
 			html[0].addEventListener("keydown", ev => {
 				if (ev.key !== "Enter" && ev.key !== " ") return;
@@ -4571,9 +4537,7 @@ export function createStonetopCharacterSheetClass(Base) {
 			// it never toggles edit OFF (the hand only shows while a choice is outstanding).
 			onActivate(".stonetop-move-choice-needed", () => {
 				if (this.isSectionEditable("moves")) return; // already editable — nothing to do
-				this._editingSections.add("moves");
-				this._onSectionEditOpened("moves");
-				this.render(false);
+				this.openSectionEdit("moves");
 			});
 
 			// The stat-choice hand on an Improved/Superior Stat card whose stat was never
@@ -11793,11 +11757,7 @@ export function createStonetopCharacterSheetClass(Base) {
 		_maybeOpenCompanionTraitsForMove(moveName) {
 			if (moveName !== MAGNIFICENT_SPECIMEN_MOVE) return false;
 			if (!resolvedFlags(this.actor)?.animalCompanion?.type) return false;
-			const section = "follower-card:animal-companion:";
-			if (!this._editingSections.has(section)) {
-				this._editingSections.add(section);
-				this._onSectionEditOpened(section);
-			}
+			this.openSectionEdit("follower-card:animal-companion:", { render: false });
 			this._activateTabOnRender = "followers";
 			this.render(false);
 			return true;

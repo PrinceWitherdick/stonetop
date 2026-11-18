@@ -268,12 +268,18 @@ describe("things that break silently", () => {
 		expect(SHEET_JS.steading).toContain('html[0].querySelector(".steading-move-row")');
 	});
 
-	// `this._movePanel` is a document.body singleton. activateListeners clears it per render,
-	// but a sheet that is closed rather than re-rendered never reaches that and orphans it.
-	it("drops the steading's body-level hover panel on close", () => {
-		const close = SHEET_JS.steading.slice(SHEET_JS.steading.indexOf("async close(options)"));
-		expect(close.slice(0, close.indexOf("super.close"))).toContain("this._movePanel?.remove()");
-	});
+	// The basic-move panel (and the character sheet's move cross-reference tooltip) live on
+	// document.body. activateListeners clears them per render, but a sheet that is closed rather
+	// than re-rendered never reaches that and orphans them. The character sheet's close once
+	// named only the first of its two, so the tooltip leaked; removeHoverPanels takes every panel
+	// the sheet adopted, whatever it is called.
+	for (const sheet of ["steading", "character"]) {
+		it(`drops the ${sheet} sheet's body-level hover panels on close`, () => {
+			const src = SHEET_JS[sheet];
+			const close = src.slice(src.indexOf("async close(options)"));
+			expect(close.slice(0, close.indexOf("super.close"))).toContain("removeHoverPanels(this)");
+		});
+	}
 
 	// Both NPC mounts carry five named inputs; a double render collapses each duplicate name
 	// into an array and the next submit writes garbage into all five.
