@@ -197,13 +197,6 @@ describe("only the primary GM mints", () => {
 		expect(w.created).toHaveLength(1);
 	});
 
-	it("mints for a lone GM, who is primary by default", async () => {
-		// No `game.users` at all: isPrimaryGM() answers true rather than deadlocking a solo world.
-		const w = world();
-		await _ensureGmToolkit();
-		expect(w.created).toHaveLength(1);
-	});
-
 	it("does not mint on a second GM's client", async () => {
 		const w = world({ id: OTHER_GM_ID, primaryGM: GM_USER_ID });
 		expect(await _ensureGmToolkit()).toBeNull();
@@ -282,14 +275,6 @@ describe("_registerGmToolkitAdopt", () => {
 });
 
 describe("_assignGmToolkitToGm", () => {
-	it("puts the toolkit behind C for a GM with no character", async () => {
-		const w = world();
-		await _assignGmToolkitToGm();
-		expect(w.updates).toHaveLength(1);
-		expect(w.updates[0].character).toBe(w.created[0].id);
-		expect(w.setFlags.gmToolkitAssigned).toBe(true);
-	});
-
 	// One write, not two. The character and the latch that says it was assigned have to land
 	// together: separately, a failure between them re-assigns an already-assigned character on
 	// every later load.

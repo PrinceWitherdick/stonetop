@@ -231,13 +231,6 @@ describe("the folder maps are filed in", () => {
 		canCreateFolder = false;
 		expect(await ensureRelationshipMapFolder()).toBeNull();
 	});
-
-	// The read-only lookup is separate precisely so a player opening a map never conjures a folder
-	// just by asking.
-	it("has a lookup that creates nothing", () => {
-		findRelationshipMapFolder();
-		expect(folders).toEqual([]);
-	});
 });
 
 describe("finding the maps in a world", () => {

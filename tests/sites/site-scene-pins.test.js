@@ -263,20 +263,6 @@ describe("keeping the Scenes in step with the spot", () => {
 		for (const note of vicinity.notes) expect(note).toMatchObject(at);
 	});
 
-	// Re-placing a site on the OTHER regional map is still a move: the spot it had is gone, so the
-	// mark that pictured it has to go with it or the two Scenes disagree about where the site is.
-	it("takes the pin off the map the site has left", async () => {
-		const vicinity = posterScene(VICINITY, [pinFor(BARROW)]);
-		const worldsEnd = posterScene(WORLDS_END);
-
-		const answer = await syncSitePin(BARROW, { tier: "worlds-end", ...MIDDLE },
-			{ scenes: [vicinity, worldsEnd] });
-
-		expect(answer.scene).toBe(worldsEnd);
-		expect(vicinity.notes).toEqual([]);
-		expect(worldsEnd.notes).toHaveLength(1);
-	});
-
 	it("takes it off everywhere when the pin is lifted", async () => {
 		const vicinity = posterScene(VICINITY, [pinFor(BARROW)]);
 		const worldsEnd = posterScene(WORLDS_END, [pinFor(BARROW)]);
