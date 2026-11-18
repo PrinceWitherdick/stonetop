@@ -2,8 +2,7 @@
 // whitelisted field/move updates. `sheet` is the AppV1 sheet instance (uses sheet.actor /
 // sheet._editMode); the whitelist is passed per sheet. The header portrait all three sheets share
 // is wired by `wirePortraitPopout` in utils/actor-portrait-picker.js.
-import { confirmOutcome } from "./ask-with-buttons.js";
-import { escHtml } from "./strings.js";
+import { confirmRemoval } from "./ask-with-buttons.js";
 
 // The only fields an inline stat-block edit may write to a move item (monsterMove / npcMove):
 // its name and its two schema fields, so a stray data-field can't write anywhere else.
@@ -31,12 +30,13 @@ export function itemFromRow(sheet, ev) {
 
 // Ask before deleting a move. Resolves true only when the user confirms.
 export function confirmDeleteMove(item) {
-	return confirmOutcome({
-		title:   "Delete Move",
-		// Escaped: a move name is user text, and this is HTML.
-		content: `<p>Delete <strong>${escHtml(item.name)}</strong>?</p>`,
-		yes:     { label: "Delete the move", icon: "fa-trash" },
-		no:      { label: "Keep it" },
+	return confirmRemoval({
+		title:     "Delete Move",
+		verb:      "Delete",
+		name:      item.name,
+		permanent: false,
+		yes:       { label: "Delete the move", icon: "fa-trash" },
+		no:        { label: "Keep it" },
 	});
 }
 
