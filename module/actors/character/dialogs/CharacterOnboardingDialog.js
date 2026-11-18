@@ -28,7 +28,7 @@ import { playbookIconPath } from "../../../utils/playbook-actors.js";
 import { ensurePackIndex } from "../../../utils/pack-index.js";
 import { SYSTEM_ID } from "../../../system-id.js";
 import { crewSetupLimit } from "./CrewSetupDialog.js";
-import { bindSuggestionOrCustom as bindSuggestionPair } from "./pick-with-writein.js";
+import { bindSuggestionOrCustom as bindSuggestionPair, paintPickLimit, togglePick, writeInPick } from "./pick-with-writein.js";
 import { neighborChoiceGroups, randomNeighborTrait } from "./BackgroundNeighborsDialog.js";
 import { INITIATE_BACKGROUND, choiceCountState } from "../initiates.js";
 import { MAGNIFICENT_SPECIMEN_MOVE, companionKindOptions, companionTraitAllowance, trimCompanionTraits } from "../animal-companion.js";
@@ -1365,6 +1365,20 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		return parseStatArray(this._playbookDoc.flags?.stonetop?.statsNote) ?? DEFAULT_STAT_ARRAY;
 	}
 
+	// The scores still open to stat `key`: each score in the pool not already spent on another
+	// stat, highest first. Its dropdown's options, and what a dropped chip may assign.
+	_statOptionValues(key) {
+		const spent = {};
+		for (const other of STAT_KEYS) {
+			const v = this._selections.stats[other];
+			if (other !== key && v !== null) spent[v] = (spent[v] ?? 0) + 1;
+		}
+		return Object.keys(this._statPoolCount)
+			.map(Number)
+			.filter(v => this._statPoolCount[v] - (spent[v] ?? 0) >= 1)
+			.sort((a, b) => b - a);
+	}
+
 	_validateStats() {
 		const required = this._statScores.slice().sort((a, b) => a - b);
 		const assigned = Object.values(this._selections.stats);
@@ -2164,7 +2178,6 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// ── Stats ─────────────────────────────────────────────────────
 		if (stepType === "stats") {
 			const scores    = this._statScores;
-			const poolCount = this._statPoolCount;
 
 			statScores = [...scores].sort((a, b) => b - a)
 				.map(statScoreLabel);
@@ -2180,20 +2193,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			];
 			statBoxes = STAT_DEFS.map(s => {
 				const assigned = this._selections.stats[s.key];
-				const otherCount = {};
-				for (const other of STAT_DEFS) {
-					if (other.key === s.key) continue;
-					const v = this._selections.stats[other.key];
-					if (v !== null) otherCount[v] = (otherCount[v] ?? 0) + 1;
-				}
-				const validValues = Object.keys(poolCount)
-					.map(Number)
-					.filter(v => (poolCount[v] - (otherCount[v] ?? 0)) >= 1)
-					.sort((a, b) => b - a);
 				return {
 					...s,
 					assigned: assigned !== null,
-					options: validValues.map(v => ({
+					options: this._statOptionValues(s.key).map(v => ({
 						value:    v,
 						label:    statScoreLabel(v),
 						selected: assigned === v,
@@ -2618,9 +2621,38 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// via onExit, so only the last fraction of a second of typing is ever at risk.
 		html.on("input change", () => this._scheduleSnapshotSave());
 
-		const _refreshNextButton = () => {
-			html.find(".stonetop-onboarding-next, .stonetop-onboarding-confirm")
-				.prop("disabled", !this._isStepComplete());
+		// Looked up once: the markup only changes on a re-render, which binds afresh.
+		const nextButtons = html.find(".stonetop-onboarding-next, .stonetop-onboarding-confirm");
+		const _refreshNextButton = () => nextButtons.prop("disabled", !this._isStepComplete());
+
+		// Light the option around each input named `name` by whether it is checked: a radio group's
+		// after a pick, or a checkbox list's. A block body, since a bare `false` return from the
+		// callback would stop jQuery's .each at the first unchecked input.
+		const paintChecked = (name, optionSel) => {
+			html.find(`[name='${name}']`).each((_, el) => {
+				el.closest(optionSel)?.classList.toggle("is-selected", el.checked);
+			});
+		};
+
+		// Tick or untick a "pick N" box's value in `holder[key]` (pick-with-writein.js#togglePick). A
+		// tick past `limit` is refused and the box put back. Whether the pick stands.
+		const togglePickBox = (holder, key, el, limit) => {
+			const { ok, sel } = togglePick(holder, key, el.value, el.checked, limit);
+			if (!ok) { el.checked = false; return false; }
+			holder[key] = sel[key];
+			return true;
+		};
+
+		// Tick or untick `el.value` among `current`, dropping (and unticking) the oldest pick past `max`.
+		const pickDroppingOldest = (current, el, max) => {
+			const next = current.filter(v => v !== el.value);
+			if (el.checked) next.push(el.value);
+			while (next.length > max) {
+				const removed = next.shift();
+				const removedInput = html[0].querySelector(`input[name='${el.name}'][value='${removed}']`);
+				if (removedInput) removedInput.checked = false;
+			}
+			return next;
 		};
 
 		// Each card's own "choose N" list (_backgroundPicksData) drawn from the selections without a
@@ -2658,67 +2690,6 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			});
 		};
 
-		// ── Background ────────────────────────────────────────────────
-		html.find("[name='onboard-background']").on("change", ev => {
-			this._applyBackgroundChange(ev.currentTarget.value);
-			_paintBackgroundPicks();
-			_refreshNextButton();
-		});
-
-		// The background's own "choose N" list. Its options are <span>s inside the card's <label>, as
-		// the neighbor and action picks are: the click is kept from the label and forwarded by hand.
-		html.find(".stonetop-onboarding-background-picks").on("click", ev => {
-			ev.stopPropagation();
-		});
-		html.find(".stonetop-onboarding-background-pick-option").on("click", ev => {
-			if (ev.target.type === "checkbox") return;
-			const checkbox = ev.currentTarget.querySelector("input[type='checkbox']");
-			if (checkbox && !checkbox.disabled) {
-				checkbox.checked = !checkbox.checked;
-				checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-			}
-		});
-		html.find(".stonetop-onboarding-background-pick-option input[type='checkbox']").on("change", ev => {
-			const { backgroundSlug } = ev.currentTarget.dataset;
-			const prevBackground = this._selections.backgroundSlug;
-			// Ticking a background's word picks that background, as its other inner controls do.
-			if (prevBackground !== backgroundSlug) this._applyBackgroundChange(backgroundSlug);
-			this._setBackgroundPick(ev.currentTarget.value, ev.currentTarget.checked);
-			_paintBackgroundPicks();
-			_syncBackgroundSelection(prevBackground, backgroundSlug);
-			_refreshNextButton();
-		});
-
-		html.find(".stonetop-onboarding-background-move-choices").on("click", ev => {
-			ev.stopPropagation();
-		});
-		html.find(".stonetop-onboarding-background-choice-option").on("click", ev => {
-			if (ev.target.type === "radio") return;
-			const radio = ev.currentTarget.querySelector("input[type='radio']");
-			if (radio && !radio.checked) {
-				radio.checked = true;
-				radio.dispatchEvent(new Event("change", { bubbles: true }));
-			}
-		});
-		html.find(".stonetop-onboarding-background-choice-option input[type='radio']").on("change", ev => {
-			const { backgroundSlug, choiceKey, choiceLabel } = ev.currentTarget.dataset;
-			const prevBackground = this._selections.backgroundSlug;
-			this._applyBackgroundChange(backgroundSlug);
-			this._selections.backgroundChoices[choiceKey] = {
-				label: choiceLabel,
-				value: ev.currentTarget.value,
-			};
-			html.find(`[name='${ev.currentTarget.name}']`).each((_, radio) => {
-				radio.closest(".stonetop-onboarding-background-choice-option")
-					?.classList.toggle("is-selected", radio.checked);
-			});
-			// The topic picked is the background's box now: out of the "1 more topic" list.
-			this._ensureBackgroundMoveChoices();
-			_paintExtraMarks(ev.currentTarget.closest(".stonetop-onboarding-background-move-choice"), backgroundSlug, choiceKey);
-			_syncBackgroundSelection(prevBackground, backgroundSlug);
-			_refreshNextButton();
-		});
-
 		// Well Versed's "1 more topic" beside the background's: the background's own box is shown
 		// but can't be picked, and a pick equal to it is dropped (_ensureBackgroundMoveChoices).
 		const _paintExtraMarks = (container, backgroundSlug, choiceKey) => {
@@ -2736,68 +2707,98 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				option?.classList.toggle("is-selected", radio.checked);
 			});
 		};
-		html.find(".stonetop-onboarding-background-extra-mark").on("click", ev => {
-			if (ev.target.type === "radio") return;
-			const radio = ev.currentTarget.querySelector("input[type='radio']");
-			if (radio && !radio.checked && !radio.disabled) {
-				radio.checked = true;
-				radio.dispatchEvent(new Event("change", { bubbles: true }));
-			}
+
+		// ── Background ────────────────────────────────────────────────
+		html.find("[name='onboard-background']").on("change", ev => {
+			this._applyBackgroundChange(ev.currentTarget.value);
+			_paintBackgroundPicks();
+			_refreshNextButton();
 		});
-		html.find(".stonetop-onboarding-background-extra-mark input[type='radio']").on("change", ev => {
-			const { backgroundSlug, choiceKey } = ev.currentTarget.dataset;
+
+		// A card's inner options (its "choose N" picks, move choices and extra topic, setup and
+		// neighbor picks, Beast-Bonded's actions, the Seeker's major arcanum) are <span>s, not
+		// <label>s, because the background card is already a <label> and nesting labels is invalid
+		// HTML. So each block keeps its clicks from the card's label, and a click on an option's
+		// text is forwarded to its input by hand.
+		html.find([
+			".stonetop-onboarding-background-picks",
+			".stonetop-onboarding-background-move-choices",
+			".stonetop-onboarding-background-setup",
+			".stonetop-onboarding-background-actions",
+			".stonetop-onboarding-background-arcana",
+		].join(", ")).on("click", ev => {
+			ev.stopPropagation();
+		});
+		html.find([
+			".stonetop-onboarding-background-pick-option",
+			".stonetop-onboarding-background-choice-option",
+			".stonetop-onboarding-background-extra-mark",
+			".stonetop-onboarding-background-setup-option",
+			".stonetop-onboarding-background-neighbor-option",
+			".stonetop-onboarding-background-action-option",
+			".stonetop-onboarding-background-arcana .stonetop-onboarding-arcana-option",
+		].join(", ")).on("click", ev => {
+			const input = ev.currentTarget.querySelector("input[type='checkbox'], input[type='radio']");
+			if (!input || ev.target === input || input.disabled) return;
+			if (input.type === "radio") {
+				if (input.checked) return;
+				input.checked = true;
+			} else {
+				input.checked = !input.checked;
+			}
+			input.dispatchEvent(new Event("change", { bubbles: true }));
+		});
+
+		// An inner control engaged on a background card takes that background, as clicking the card
+		// would (only when it is another one: _applyBackgroundChange starts the background's
+		// dependents over); `apply(el, backgroundSlug)` then records the control's own answer.
+		const onBackgroundControl = (sel, type, apply) => html.find(sel).on(type, ev => {
+			const el = ev.currentTarget;
+			const { backgroundSlug } = el.dataset;
 			const prevBackground = this._selections.backgroundSlug;
 			if (prevBackground !== backgroundSlug) this._applyBackgroundChange(backgroundSlug);
-			this._selections.backgroundMoveMarks ??= {};
-			this._selections.backgroundMoveMarks[choiceKey] = ev.currentTarget.value;
-			_paintExtraMarks(ev.currentTarget.closest(".stonetop-onboarding-background-move-choice"), backgroundSlug, choiceKey);
+			apply(el, backgroundSlug);
 			_syncBackgroundSelection(prevBackground, backgroundSlug);
 			_refreshNextButton();
 		});
 
-		html.find(".stonetop-onboarding-background-setup").on("click", ev => {
-			ev.stopPropagation();
+		// The background's own "choose N" list. Ticking a word picks that background, as its other
+		// inner controls do.
+		onBackgroundControl(".stonetop-onboarding-background-pick-option input[type='checkbox']", "change", el => {
+			this._setBackgroundPick(el.value, el.checked);
+			_paintBackgroundPicks();
 		});
-		html.find(".stonetop-onboarding-background-setup-option").on("click", ev => {
-			if (ev.target.type === "radio") return;
-			const radio = ev.currentTarget.querySelector("input[type='radio']");
-			if (radio && !radio.checked) {
-				radio.checked = true;
-				radio.dispatchEvent(new Event("change", { bubbles: true }));
-			}
+
+		onBackgroundControl(".stonetop-onboarding-background-choice-option input[type='radio']", "change", (el, backgroundSlug) => {
+			const { choiceKey, choiceLabel } = el.dataset;
+			this._selections.backgroundChoices[choiceKey] = { label: choiceLabel, value: el.value };
+			paintChecked(el.name, ".stonetop-onboarding-background-choice-option");
+			// The topic picked is the background's box now: out of the "1 more topic" list.
+			this._ensureBackgroundMoveChoices();
+			_paintExtraMarks(el.closest(".stonetop-onboarding-background-move-choice"), backgroundSlug, choiceKey);
 		});
-		html.find(".stonetop-onboarding-background-setup-option input[type='radio']").on("change", ev => {
-			const { backgroundSlug, choiceKey } = ev.currentTarget.dataset;
-			const prevBackground = this._selections.backgroundSlug;
-			this._applyBackgroundChange(backgroundSlug);
-			this._selections.backgroundSetup.choices[choiceKey] = ev.currentTarget.value;
-			html.find(`[name='${ev.currentTarget.name}']`).each((_, radio) => {
-				radio.closest(".stonetop-onboarding-background-setup-option")
-					?.classList.toggle("is-selected", radio.checked);
-			});
-			_syncBackgroundSelection(prevBackground, backgroundSlug);
-			_refreshNextButton();
+
+		onBackgroundControl(".stonetop-onboarding-background-extra-mark input[type='radio']", "change", (el, backgroundSlug) => {
+			const { choiceKey } = el.dataset;
+			this._selections.backgroundMoveMarks ??= {};
+			this._selections.backgroundMoveMarks[choiceKey] = el.value;
+			_paintExtraMarks(el.closest(".stonetop-onboarding-background-move-choice"), backgroundSlug, choiceKey);
 		});
-		html.find(".onboard-background-setup-text").on("input", ev => {
-			const { backgroundSlug, textKey } = ev.currentTarget.dataset;
-			const prevBackground = this._selections.backgroundSlug;
-			this._applyBackgroundChange(backgroundSlug);
-			this._selections.backgroundSetup.texts[textKey] = ev.currentTarget.value;
-			_syncBackgroundSelection(prevBackground, backgroundSlug);
-			_refreshNextButton();
+
+		onBackgroundControl(".stonetop-onboarding-background-setup-option input[type='radio']", "change", el => {
+			this._selections.backgroundSetup.choices[el.dataset.choiceKey] = el.value;
+			paintChecked(el.name, ".stonetop-onboarding-background-setup-option");
+		});
+		onBackgroundControl(".onboard-background-setup-text", "input", el => {
+			this._selections.backgroundSetup.texts[el.dataset.textKey] = el.value;
 		});
 		// Free-type combo: pick a listed trait from the suggestion popup or type a
 		// custom one. The suggestions come from our own scrollable popup rather than a
 		// native <datalist> — Chromium's datalist popup has no scrollbar when the list
 		// is taller than it (longstanding bug crbug.com/375637), so the bottom of our
 		// ~90 trait suggestions was unreachable.
-		html.find(".onboard-background-neighbor-trait").on("input", ev => {
-			const { backgroundSlug, traitKey } = ev.currentTarget.dataset;
-			const prevBackground = this._selections.backgroundSlug;
-			this._applyBackgroundChange(backgroundSlug);
-			this._selections.backgroundSetup.neighborTraits[traitKey] = ev.currentTarget.value.trim();
-			_syncBackgroundSelection(prevBackground, backgroundSlug);
-			_refreshNextButton();
+		onBackgroundControl(".onboard-background-neighbor-trait", "input", el => {
+			this._selections.backgroundSetup.neighborTraits[el.dataset.traitKey] = el.value.trim();
 		});
 		// Roll-a-trait die beside each neighbor's field (the Ranger's Wide Wanderer names
 		// five neighbors, so typing five traits is a slog). It draws from the same pool the
@@ -2817,74 +2818,19 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			StonetopAutocomplete.close();
 		});
 		this._attachTraitAutocomplete(html);
-		html.find(".stonetop-onboarding-background-neighbor-option").on("click", ev => {
-			if (ev.target.type === "checkbox") return;
-			const checkbox = ev.currentTarget.querySelector("input[type='checkbox']");
-			if (checkbox) {
-				checkbox.checked = !checkbox.checked;
-				checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-			}
-		});
-		html.find(".stonetop-onboarding-background-neighbor-option input[type='checkbox']").on("change", ev => {
-			const { backgroundSlug, choiceKey } = ev.currentTarget.dataset;
-			const max = Number(ev.currentTarget.dataset.choiceCount ?? 1);
-			const prevBackground = this._selections.backgroundSlug;
-			this._applyBackgroundChange(backgroundSlug);
-			const current = this._selections.backgroundSetup.neighborPicks[choiceKey] ?? [];
-			const value = ev.currentTarget.value;
-			const next = ev.currentTarget.checked
-				? [...current.filter(v => v !== value), value]
-				: current.filter(v => v !== value);
-			if (next.length > max) {
-				const removed = next.shift();
-				const removedInput = html[0].querySelector(
-					`input[name='${ev.currentTarget.name}'][value='${removed}']`
-				);
-				if (removedInput) removedInput.checked = false;
-			}
-			this._selections.backgroundSetup.neighborPicks[choiceKey] = next;
-			html.find(`[name='${ev.currentTarget.name}']`).each((_, checkbox) => {
-				checkbox.closest(".stonetop-onboarding-background-neighbor-option")
-					?.classList.toggle("is-selected", checkbox.checked);
-			});
-			_syncBackgroundSelection(prevBackground, backgroundSlug);
-			_refreshNextButton();
+		onBackgroundControl(".stonetop-onboarding-background-neighbor-option input[type='checkbox']", "change", el => {
+			const picks = this._selections.backgroundSetup.neighborPicks;
+			const { choiceKey } = el.dataset;
+			picks[choiceKey] = pickDroppingOldest(picks[choiceKey] ?? [], el, Number(el.dataset.choiceCount ?? 1));
+			paintChecked(el.name, ".stonetop-onboarding-background-neighbor-option");
 		});
 
-		// Beast-Bonded "mark an action" list. Like the arcana/neighbor options, these
-		// are <span>s inside the background <label>, so stop the click bubbling to the
-		// label and forward it to the checkbox manually.
-		html.find(".stonetop-onboarding-background-actions").on("click", ev => {
-			ev.stopPropagation();
-		});
-		html.find(".stonetop-onboarding-background-action-option").on("click", ev => {
-			if (ev.target.type === "checkbox") return;
-			const checkbox = ev.currentTarget.querySelector("input[type='checkbox']");
-			if (checkbox && !checkbox.disabled) {
-				checkbox.checked = !checkbox.checked;
-				checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-			}
-		});
-		html.find(".stonetop-onboarding-background-action-option input[type='checkbox']").on("change", ev => {
-			const { backgroundSlug } = ev.currentTarget.dataset;
-			const prevBackground = this._selections.backgroundSlug;
-			// Engaging a background's action picks that background, mirroring the
-			// setup/neighbor/arcana inputs on the other cards.
-			this._applyBackgroundChange(backgroundSlug);
+		// Beast-Bonded's "mark an action" list, held to the level-1 mark limit by dropping the
+		// oldest mark.
+		onBackgroundControl(".stonetop-onboarding-background-action-option input[type='checkbox']", "change", (el, backgroundSlug) => {
 			const bg  = this._backgrounds.find(b => b.slug === backgroundSlug);
 			const max = allowedMarkableActions(bg?.markableActions, 1);
-			const value = ev.currentTarget.value;
-			const next = ev.currentTarget.checked
-				? [...this._selections.markedActions.filter(v => v !== value), value]
-				: this._selections.markedActions.filter(v => v !== value);
-			// Enforce the level-1 mark limit by dropping the oldest mark.
-			while (next.length > max) {
-				const removed = next.shift();
-				const removedInput = html[0].querySelector(
-					`input[name='onboard-background-action'][value='${removed}']`
-				);
-				if (removedInput) removedInput.checked = false;
-			}
+			const next = pickDroppingOldest(this._selections.markedActions, el, max);
 			this._selections.markedActions = next;
 			const atLimit = next.length >= max;
 			html.find("input[name='onboard-background-action']").each((_, cb) => {
@@ -2893,46 +2839,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				if (!cb.checked) cb.disabled = atLimit;
 			});
 			html.find(".stonetop-onboarding-background-actions-count").text(next.length);
-			_syncBackgroundSelection(prevBackground, backgroundSlug);
-			_refreshNextButton();
 		});
 
-		// Arcana options are <span>s (not <label>s) because the background card is already
-		// a <label> — nesting labels is invalid HTML. Stop the click from bubbling to the
-		// background label, and forward it to the radio manually.
-		html.find(".stonetop-onboarding-background-arcana").on("click", ev => {
-			ev.stopPropagation();
-		});
-		html.find(".stonetop-onboarding-background-arcana .stonetop-onboarding-arcana-option").on("click", ev => {
-			if (ev.target.type === "radio") return;
-			const radio = ev.currentTarget.querySelector("input[type='radio']");
-			if (radio && !radio.checked) {
-				radio.checked = true;
-				radio.dispatchEvent(new Event("change", { bubbles: true }));
-			}
-		});
-
-		html.find("[name='onboard-background-major-arcanum']").on("change", ev => {
-			const prevBackground = this._selections.backgroundSlug;
-			const { backgroundSlug } = ev.currentTarget.dataset;
-			this._applyBackgroundChange(backgroundSlug);
-			this._selections.arcana.major = ev.currentTarget.value;
-
-			// Update arcana is-selected without re-rendering.
-			html.find("[name='onboard-background-major-arcanum']").each((_, radio) => {
-				radio.closest(".stonetop-onboarding-arcana-option")
-					?.classList.toggle("is-selected", radio.checked);
-			});
-
-			// If the background itself changed, sync the background card selection too.
-			if (prevBackground !== backgroundSlug) {
-				html.find("[name='onboard-background']").each((_, radio) => {
-					radio.closest(".stonetop-onboarding-card")
-						?.classList.toggle("is-selected", radio.value === backgroundSlug);
-				});
-			}
-
-			_refreshNextButton();
+		onBackgroundControl("[name='onboard-background-major-arcanum']", "change", el => {
+			this._selections.arcana.major = el.value;
+			paintChecked("onboard-background-major-arcanum", ".stonetop-onboarding-arcana-option");
 		});
 
 		// ── Instinct ──────────────────────────────────────────────────
@@ -3000,32 +2911,21 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		// ── Stats ─────────────────────────────────────────────────────
-		const _updateStatDropdowns = () => {
-			const poolCount = this._statPoolCount;
-			const statKeys = ["str", "dex", "con", "int", "wis", "cha"];
-			for (const key of statKeys) {
+		// Each stat's dropdown redrawn with the scores still open to it (_statOptionValues), and a
+		// chip hidden for each copy of a score already spent.
+		const _paintStats = () => {
+			for (const key of STAT_KEYS) {
 				const selectEl = html.find(`[name="onboard-stat-${key}"]`)[0];
 				if (!selectEl) continue;
 				const currentVal = this._selections.stats[key];
-				const otherCount = {};
-				for (const k of statKeys) {
-					if (k === key) continue;
-					const v = this._selections.stats[k];
-					if (v !== null) otherCount[v] = (otherCount[v] ?? 0) + 1;
-				}
-				const validValues = Object.keys(poolCount)
-					.map(Number)
-					.filter(v => (poolCount[v] - (otherCount[v] ?? 0)) >= 1)
-					.sort((a, b) => b - a);
 				selectEl.innerHTML = '<option value="">—</option>' +
-					validValues.map(v => {
-						const lbl     = statScoreLabel(v);
-						const selAttr = currentVal === v ? ' selected' : '';
-						return `<option value="${v}"${selAttr}>${lbl}</option>`;
-					}).join('');
+					this._statOptionValues(key).map(v =>
+						`<option value="${v}"${currentVal === v ? " selected" : ""}>${statScoreLabel(v)}</option>`
+					).join("");
 			}
+			_paintStatChips();
 		};
-		const _updateStatScoreChips = () => {
+		const _paintStatChips = () => {
 			const usedCount = {};
 			for (const value of Object.values(this._selections.stats)) {
 				if (value === null) continue;
@@ -3039,25 +2939,6 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 				chip.hidden = shownCount[value] > remaining;
 			});
 		};
-		const _assignStat = (key, value) => {
-			if (!key || value === null || value === undefined || Number.isNaN(value)) return false;
-			const otherCount = {};
-			for (const [otherKey, otherValue] of Object.entries(this._selections.stats)) {
-				if (otherKey === key || otherValue === null) continue;
-				otherCount[otherValue] = (otherCount[otherValue] ?? 0) + 1;
-			}
-			if ((this._statPoolCount[value] ?? 0) - (otherCount[value] ?? 0) < 1) return false;
-			this._selections.stats[key] = value;
-			const selectEl = html.find(`[name="onboard-stat-${key}"]`)[0];
-			const box = selectEl?.closest(".stonetop-onboarding-stat-box")
-				?? html.find(`.stonetop-onboarding-stat-box[data-stat-key="${key}"]`)[0];
-			box?.classList.add("is-filled");
-			_updateStatDropdowns();
-			_updateStatScoreChips();
-			if (selectEl) selectEl.value = String(value);
-			_refreshNextButton();
-			return true;
-		};
 
 		html.find("[name^='onboard-stat-']").on("change", ev => {
 			const key = ev.currentTarget.name.replace("onboard-stat-", "");
@@ -3065,20 +2946,18 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			this._selections.stats[key] = raw === "" ? null : Number(raw);
 			ev.currentTarget.closest(".stonetop-onboarding-stat-box")
 				?.classList.toggle("is-filled", raw !== "");
-			_updateStatDropdowns();
-			_updateStatScoreChips();
+			_paintStats();
 			_refreshNextButton();
 		});
 
 		html.find(".stonetop-onboarding-stats-reset").on("click", () => {
 			for (const key of Object.keys(this._selections.stats)) this._selections.stats[key] = null;
 			html.find(".stonetop-onboarding-stat-box").removeClass("is-filled is-drag-over");
-			_updateStatDropdowns();
-			_updateStatScoreChips();
+			_paintStats();
 			_refreshNextButton();
 		});
 
-		// ── Special Possessions ───────────────────────────────────────
+		// A score chip dragged onto a stat's box assigns it, when a copy of it is still open.
 		html.find(".stonetop-onboarding-stats-chip").on("dragstart", ev => {
 			const score = ev.currentTarget.dataset.score;
 			ev.originalEvent.dataTransfer.setData("text/plain", score);
@@ -3096,35 +2975,34 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			})
 			.on("drop", ev => {
 				ev.preventDefault();
-				ev.currentTarget.classList.remove("is-drag-over");
-				const raw = ev.originalEvent.dataTransfer.getData("text/plain");
+				const box = ev.currentTarget;
+				box.classList.remove("is-drag-over");
+				const raw   = ev.originalEvent.dataTransfer.getData("text/plain");
 				const value = Number(String(raw).replace("+", ""));
-				_assignStat(ev.currentTarget.dataset.statKey, value);
+				const key   = box.dataset.statKey;
+				if (!key || !this._statOptionValues(key).includes(value)) return;
+				this._selections.stats[key] = value;
+				box.classList.add("is-filled");
+				_paintStats();
+				_refreshNextButton();
 			});
-		_updateStatScoreChips();
+		_paintStatChips();
 
+		// ── Special Possessions ───────────────────────────────────────
 		html.find("[name='onboard-possession']").on("change", ev => {
-			const slug    = ev.currentTarget.value;
-			const checked = ev.currentTarget.checked;
-			const pickCount = this._rawPossessions?.pickCount ?? 0;
-			if (checked) {
-				// The write-in shares the pick budget, so check the total, not just the list.
-				if (this._possessionPickTotal() < pickCount && !this._selections.possessions.includes(slug)) {
-					this._selections.possessions.push(slug);
-				} else { ev.currentTarget.checked = false; return; }
-			} else {
-				this._selections.possessions = this._selections.possessions.filter(s => s !== slug);
-				// Dropping the possession drops its bundled "pick N" sub-choices too, so a
-				// later re-pick starts fresh and a deselected bundle never lingers in state.
-				if (this._selections.possessionChoices[slug]) {
-					delete this._selections.possessionChoices[slug];
-					this._clearPossessionSubUi(html, slug);
-				}
+			const el   = ev.currentTarget;
+			const slug = el.value;
+			// The write-in shares the pick budget, so the list gets what the write-in leaves.
+			const customPicks = this._selections.customPossession?.trim() ? 1 : 0;
+			if (!togglePickBox(this._selections, "possessions", el, (this._rawPossessions?.pickCount ?? 0) - customPicks)) return;
+			// Dropping the possession drops its bundled "pick N" sub-choices too, so a
+			// later re-pick starts fresh and a deselected bundle never lingers in state.
+			if (!el.checked && this._selections.possessionChoices[slug]) {
+				delete this._selections.possessionChoices[slug];
+				this._clearPossessionSubUi(html, slug);
 			}
-			ev.currentTarget.closest(".stonetop-onboarding-possession-group")
-				?.classList.toggle("is-selected", ev.currentTarget.checked);
-			ev.currentTarget.closest(".stonetop-onboarding-card--possession")
-				?.classList.toggle("is-selected", ev.currentTarget.checked);
+			el.closest(".stonetop-onboarding-possession-group")?.classList.toggle("is-selected", el.checked);
+			el.closest(".stonetop-onboarding-card--possession")?.classList.toggle("is-selected", el.checked);
 			// Lock/unlock this possession's always-visible sub-choice list to match.
 			this._refreshPossessionSubUi(html, slug);
 			this._refreshPossessionLimitUi(html);
@@ -3145,21 +3023,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		html.find("[name='onboard-possession-sub']").on("change", ev => {
-			const possessionSlug = ev.currentTarget.dataset.possession;
-			const choiceSlug     = ev.currentTarget.value;
-			const checked        = ev.currentTarget.checked;
+			const el = ev.currentTarget;
+			const possessionSlug = el.dataset.possession;
 			const opt = (this._rawPossessions?.options ?? []).find(o => o.slug === possessionSlug);
-			const pickCount = opt?.choices?.pickCount ?? 0;
-			const current = this._selections.possessionChoices[possessionSlug] ?? [];
-			if (checked) {
-				if (current.length < pickCount && !current.includes(choiceSlug)) {
-					this._selections.possessionChoices[possessionSlug] = [...current, choiceSlug];
-				} else { ev.currentTarget.checked = false; return; }
-			} else {
-				this._selections.possessionChoices[possessionSlug] = current.filter(s => s !== choiceSlug);
-			}
-			ev.currentTarget.closest(".stonetop-onboarding-suboption")
-				?.classList.toggle("is-selected", ev.currentTarget.checked);
+			if (!togglePickBox(this._selections.possessionChoices, possessionSlug, el, opt?.choices?.pickCount ?? 0)) return;
+			el.closest(".stonetop-onboarding-suboption")?.classList.toggle("is-selected", el.checked);
 			this._refreshPossessionSubUi(html, possessionSlug);
 			_refreshNextButton();
 		});
@@ -3178,9 +3046,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			const siblingSet = new Set((siblings ?? "").split(",").filter(Boolean));
 			const current = (this._selections.possessionChoices[possession] ?? []).filter(s => !siblingSet.has(s));
 			this._selections.possessionChoices[possession] = [...current, ev.currentTarget.value];
-			html.find(`[name='${ev.currentTarget.name}']`).each((_, radio) => {
-				radio.closest(".stonetop-onboarding-suboption")?.classList.toggle("is-selected", radio.checked);
-			});
+			paintChecked(ev.currentTarget.name, ".stonetop-onboarding-suboption");
 			_refreshNextButton();
 		});
 
@@ -3208,50 +3074,49 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		// ── Starting Moves ────────────────────────────────────────────
-		html.find("[name='onboard-move']").on("change", async ev => {
-			const id      = ev.currentTarget.value;
-			const checked = ev.currentTarget.checked;
-			const limit   = this._movePickCount;
-			if (checked) {
-				if (this._selections.moves.length < limit && !this._selections.moves.includes(id)) {
-					this._selections.moves.push(id);
-				} else { ev.currentTarget.checked = false; return; }
-			} else {
-				this._selections.moves = this._selections.moves.filter(m => m !== id);
+		// A "pick N" card list (`name`'s checkboxes, held at this._selections[key]): a tick past the
+		// limit is refused, and the card, the count and the locks on the unticked cards follow each
+		// pick that stands. `after(el)` runs once it has, before the Next button is refreshed (its
+		// synchronous part does: a re-render it starts swaps the markup only later).
+		const bindPickCards = (name, cardSel, countSel, key, limitOf, after = () => {}) => {
+			html.find(`[name='${name}']`).on("change", ev => {
+				const el    = ev.currentTarget;
+				const limit = limitOf();
+				if (!togglePickBox(this._selections, key, el, limit)) return;
+				el.closest(cardSel)?.classList.toggle("is-selected", el.checked);
+				const picked = this._selections[key].length;
+				html.find(countSel).text(picked);
+				html.find(`[name='${name}']:not(:checked)`).prop("disabled", picked >= limit);
+				const done = after(el);
+				_refreshNextButton();
+				return done;
+			});
+		};
+
+		bindPickCards("onboard-move", ".stonetop-onboarding-card--move", ".stonetop-onboarding-move-count", "moves", () => this._movePickCount, async el => {
+			const id = el.value;
+			if (!el.checked) {
 				this._trimCompanionPicksToLimit();
 				// Dropping a stat-increase move discards its pending "+1 to which stat?" pick,
 				// and clears its radios so re-picking the move starts from an unchosen state.
 				delete this._selections.moveStatChoices[id];
-				const card = ev.currentTarget.closest(".stonetop-onboarding-card--move");
-				card?.querySelectorAll(".onboard-move-stat").forEach(radio => {
+				el.closest(".stonetop-onboarding-card--move")?.querySelectorAll(".onboard-move-stat").forEach(radio => {
 					radio.checked = false;
 					radio.closest(".stonetop-onboarding-move-stat-option")?.classList.remove("is-selected");
 				});
 			}
-			ev.currentTarget.closest(".stonetop-onboarding-card--move")
-				?.classList.toggle("is-selected", ev.currentTarget.checked);
-			html.find(".stonetop-onboarding-move-count").text(this._selections.moves.length);
-			const atLimit = this._selections.moves.length >= limit;
-			html.find("[name='onboard-move']:not(:checked)").prop("disabled", atLimit);
 			// Picking/dropping the Animal Companion move adds or removes its builder
 			// step — only a companion playbook (the Ranger) has that step, so elsewhere
 			// the step list can't change and we skip the rebuild.
 			if (this._rawAnimalCompanion?.types?.length) this._rebuildDynamicSteps();
-			_refreshNextButton();
 			// Picks chain (_freePickOffers): Hound of Aratis opens Like a Dog with a Bone, and
 			// unticking it closes that card again and lets a pick of it go. When the offers
 			// changed, re-render (scroll and focus kept, as the either/or radios do); the step's
 			// render prunes the picks and redraws the count.
-			const shown  = new Set(html.find("[name='onboard-move']").map((_, el) => el.value).get());
+			const shown  = new Set(html.find("[name='onboard-move']").map((_, m) => m.value).get());
 			const offers = this._freePickOffers().map(doc => doc.id);
 			if (offers.length === shown.size && offers.every(o => shown.has(o))) return;
-			const stepEl    = html.find(".stonetop-onboarding-step")[0];
-			const scrollTop = stepEl?.scrollTop ?? 0;
-			await this.render(false);
-			const root      = this.element?.[0];
-			const newStepEl = root?.querySelector(".stonetop-onboarding-step");
-			if (newStepEl) newStepEl.scrollTop = scrollTop;
-			[...(root?.querySelectorAll("[name='onboard-move']") ?? [])].find(el => el.value === id)?.focus({ preventScroll: true });
+			await this._renderKeepingScroll({ name: "onboard-move", value: id });
 		});
 
 		// A stat-increase move's inline "+1 to which stat?" pick (Improved Stat). Records
@@ -3259,46 +3124,42 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// _applyStatIncreaseChoice. The stopPropagation wrapper in the template keeps this
 		// click from also toggling the move's own checkbox.
 		html.find(".onboard-move-stat").on("change", ev => {
-			const moveId = ev.currentTarget.dataset.moveId;
-			this._selections.moveStatChoices[moveId] = ev.currentTarget.value;
-			html.find(`[name='${ev.currentTarget.name}']`).each((_, radio) => {
-				radio.closest(".stonetop-onboarding-move-stat-option")
-					?.classList.toggle("is-selected", radio.checked);
-			});
+			this._selections.moveStatChoices[ev.currentTarget.dataset.moveId] = ev.currentTarget.value;
+			paintChecked(ev.currentTarget.name, ".stonetop-onboarding-move-stat-option");
 			_refreshNextButton();
 		});
 
 		// "Either X OR Y" starting-move choices (one radio group per choice). Re-rendered, since
 		// the pick decides the free picks on offer: Skill at Arms opens Parry & Riposte, the half
 		// just picked leaves the list and the other half joins it, and a free pick that leaned on
-		// the half given up is let go. Scroll kept, as the arcana pickers do.
+		// the half given up is let go. Scroll kept, as the arcana pickers do, and keyboard focus
+		// stays on the radio the player just moved to.
 		html.find("[name^='onboard-move-choice-']").on("change", async ev => {
 			const { name, value } = ev.currentTarget;
 			this._selections.moveChoices[ev.currentTarget.dataset.group] = value;
-			const stepEl    = html.find(".stonetop-onboarding-step")[0];
-			const scrollTop = stepEl?.scrollTop ?? 0;
-			await this.render(false);
-			const root      = this.element?.[0];
-			const newStepEl = root?.querySelector(".stonetop-onboarding-step");
-			if (newStepEl) newStepEl.scrollTop = scrollTop;
-			// Keyboard focus stays on the radio the player just moved to.
-			[...(root?.querySelectorAll(`[name='${name}']`) ?? [])].find(r => r.value === value)?.focus({ preventScroll: true });
+			await this._renderKeepingScroll({ name, value });
 		});
 
 		// Filter the move cards by the search text and the active group chip. Pure
 		// DOM show/hide — never re-renders, so selection and disabled state survive.
-		// A card shows only when it satisfies both the query and the active chip.
+		// A card shows only when it satisfies both the query and the active chip. Each
+		// card's text and groups are read once, not on every keystroke.
 		let activeMoveGroup = null;
+		const moveCards = html.find(".stonetop-onboarding-card--move").toArray().map(el => ({
+			el,
+			text:   el.textContent.toLowerCase(),
+			groups: (el.dataset.moveGroups ?? "").split(/\s+/).filter(Boolean),
+		}));
+		const moveSearch = html.find(".onboard-move-search");
 		const applyMoveFilter = () => {
-			const query = (html.find(".onboard-move-search").val() ?? "").trim().toLowerCase();
-			html.find(".stonetop-onboarding-card--move").each((_, el) => {
-				const textMatch  = !query || el.textContent.toLowerCase().includes(query);
-				const groups     = (el.dataset.moveGroups ?? "").split(/\s+/).filter(Boolean);
+			const query = (moveSearch.val() ?? "").trim().toLowerCase();
+			for (const { el, text, groups } of moveCards) {
+				const textMatch  = !query || text.includes(query);
 				const groupMatch = !activeMoveGroup || groups.includes(activeMoveGroup);
 				el.classList.toggle("is-filtered-out", !(textMatch && groupMatch));
-			});
+			}
 		};
-		html.find(".onboard-move-search").on("input", applyMoveFilter);
+		moveSearch.on("input", applyMoveFilter);
 		html.find(".stonetop-onboarding-move-chip").on("click", ev => {
 			const key = ev.currentTarget.dataset.moveGroup;
 			activeMoveGroup = activeMoveGroup === key ? null : key; // tap again to clear
@@ -3312,45 +3173,12 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		// ── Invocations ───────────────────────────────────────────────
-		html.find("[name='onboard-invocation']").on("change", ev => {
-			const slug    = ev.currentTarget.value;
-			const checked = ev.currentTarget.checked;
-			const limit   = this._rawInvocations?.startingCount ?? 2;
-			if (checked) {
-				if (this._selections.invocations.length < limit && !this._selections.invocations.includes(slug)) {
-					this._selections.invocations.push(slug);
-				} else { ev.currentTarget.checked = false; return; }
-			} else {
-				this._selections.invocations = this._selections.invocations.filter(s => s !== slug);
-			}
-			ev.currentTarget.closest(".stonetop-onboarding-card--invocation")
-				?.classList.toggle("is-selected", ev.currentTarget.checked);
-			html.find(".stonetop-onboarding-invocation-count").text(this._selections.invocations.length);
-			const atLimit = this._selections.invocations.length >= limit;
-			html.find("[name='onboard-invocation']:not(:checked)").prop("disabled", atLimit);
-			_refreshNextButton();
-		});
+		bindPickCards("onboard-invocation", ".stonetop-onboarding-card--invocation", ".stonetop-onboarding-invocation-count",
+			"invocations", () => this._rawInvocations?.startingCount ?? 2);
 
 		// ── Initiates ─────────────────────────────────────────────────
-		html.find("[name='onboard-initiate']").on("change", ev => {
-			const slug    = ev.currentTarget.value;
-			const checked = ev.currentTarget.checked;
-			const bg      = this._getInitiatesData();
-			const [, maxCount] = this._initiatesCountRange(bg);
-			if (checked) {
-				if (this._selections.initiates.length < maxCount && !this._selections.initiates.includes(slug)) {
-					this._selections.initiates.push(slug);
-				} else { ev.currentTarget.checked = false; return; }
-			} else {
-				this._selections.initiates = this._selections.initiates.filter(s => s !== slug);
-			}
-			ev.currentTarget.closest(".stonetop-onboarding-card--initiate")
-				?.classList.toggle("is-selected", ev.currentTarget.checked);
-			html.find(".stonetop-onboarding-initiate-count").text(this._selections.initiates.length);
-			const atLimit = this._selections.initiates.length >= maxCount;
-			html.find("[name='onboard-initiate']:not(:checked)").prop("disabled", atLimit);
-			_refreshNextButton();
-		});
+		bindPickCards("onboard-initiate", ".stonetop-onboarding-card--initiate", ".stonetop-onboarding-initiate-count",
+			"initiates", () => this._initiatesCountRange(this._getInitiatesData())[1]);
 
 		// ── Initiate Details ─────────────────────────────────────────
 		html.find("[data-onboard-initiate-radio]").on("change", ev => {
@@ -3384,6 +3212,16 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			this._selections.crew.name = ev.currentTarget.value;
 		});
 
+		// The tag picks drawn as the crew and companion setup dialogs draw theirs (paintPickLimit),
+		// with the step's Next button for their create button.
+		const crewPickEls = {
+			count:  html.find(".stonetop-onboarding-crew-tag-count"),
+			boxes:  html.find("[name='onboard-crew-tag']:not([data-auto])"),
+			custom: html.find(".onboard-crew-tag-custom"),
+			create: nextButtons,
+		};
+		const paintCrewPicks = () =>
+			paintPickLimit(crewPickEls, this._crewPickedTags().length, this._crewTagLimit(), this._isStepComplete());
 		html.find("[name='onboard-crew-tag']").on("change", ev => {
 			if (!this._toggleCrewTag(ev.currentTarget.value, ev.currentTarget.checked)) {
 				ev.currentTarget.checked = false;
@@ -3391,30 +3229,18 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			}
 			ev.currentTarget.closest(".stonetop-onboarding-tag-option")
 				?.classList.toggle("is-selected", ev.currentTarget.checked);
-			const picked  = this._crewPickedTags().length;
-			html.find(".stonetop-onboarding-crew-tag-count").text(picked);
-			const atLimit = picked >= this._crewTagLimit();
-			html.find("[name='onboard-crew-tag']:not([data-auto])").each((_, el) => {
-				if (!el.checked) el.disabled = atLimit;
-			});
-			const tagCustom = html.find(".onboard-crew-tag-custom");
-			tagCustom.prop("disabled", atLimit && !tagCustom.val().trim());
-			_refreshNextButton();
+			paintCrewPicks();
 		});
 		// Custom crew tag write-in: spends one of the "pick N" tag picks, same as the
 		// companion trait write-in. Re-derive tags as [listed picks] + this write-in.
 		html.find(".onboard-crew-tag-custom").on("input", ev => {
 			const value = ev.currentTarget.value.trim();
 			const known = new Set(this._rawCrew?.availableTags ?? []);
-			const limit = this._crewTagLimit();
 			const bgTag = this._crewBgTag();
 			const tags  = this._selections.crew.tags.filter(t => known.has(t) && t !== bgTag);
-			if (value && tags.length < limit) tags.push(value);
+			if (value && tags.length < this._crewTagLimit()) tags.push(value);
 			this._selections.crew.tags = tags;
-			const picked = this._crewPickedTags().length;
-			html.find(".stonetop-onboarding-crew-tag-count").text(picked);
-			html.find("[name='onboard-crew-tag']:not([data-auto]):not(:checked)").prop("disabled", picked >= limit);
-			_refreshNextButton();
+			paintCrewPicks();
 		});
 		// Suggestion-radio + "or write your own" custom-input pair (crew/AC instinct &
 		// cost): picking a radio saves that value and clears the write-in; typing a write-in
@@ -3433,72 +3259,53 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			this._selections.animalCompanion.kind   = "";
 			this.render(false);
 		});
-		const _refreshAnimalCompanionKind = () => {
-			html.find(".stonetop-onboarding-ac-kind-options .stonetop-onboarding-appearance-option")
-				.removeClass("is-selected");
-			html.find("[name='onboard-ac-kind']:checked")
-				.closest(".stonetop-onboarding-appearance-option")
-				.addClass("is-selected");
-		};
 		html.find("[name='onboard-ac-kind']").on("change", ev => {
 			const value = ev.currentTarget.value;
 			this._selections.animalCompanion.kind = value === "custom"
 				? html.find(".onboard-ac-kind-custom-input").val().trim()
 				: value;
-			_refreshAnimalCompanionKind();
+			paintChecked("onboard-ac-kind", ".stonetop-onboarding-appearance-option");
 			_refreshNextButton();
 		});
 		html.find(".onboard-ac-kind-custom-input").on("input", ev => {
-			const value = ev.currentTarget.value.trim();
-			this._selections.animalCompanion.kind = value;
+			this._selections.animalCompanion.kind = ev.currentTarget.value.trim();
 			html.find("[name='onboard-ac-kind'][value='custom']").prop("checked", true);
-			_refreshAnimalCompanionKind();
+			paintChecked("onboard-ac-kind", ".stonetop-onboarding-appearance-option");
 			_refreshNextButton();
 		});
-		// The "more options than your companion can have" line (the step's `overCount`), kept in step
-		// as picks are unticked, since these handlers don't re-render.
-		const _refreshCompanionOver = (picked, limit) => {
+		// The option picks, drawn as the companion setup dialog draws its own (paintPickLimit), plus
+		// the "more options than your companion can have" line (the step's `overCount`), kept in
+		// step as picks are unticked, since these handlers don't re-render.
+		const acPickEls = {
+			count:  html.find(".stonetop-onboarding-ac-trait-count"),
+			boxes:  html.find("[name='onboard-ac-trait']"),
+			custom: html.find(".onboard-ac-trait-custom"),
+			create: nextButtons,
+		};
+		const acTypeData = () => this._rawAnimalCompanion?.types?.find(t => t.slug === this._selections.animalCompanion.type);
+		const paintCompanionPicks = limit => {
+			const picked = this._selections.animalCompanion.traits.length;
 			const over = Math.max(0, picked - limit);
 			html.find(".stonetop-onboarding-ac-over").prop("hidden", !over);
 			html.find(".stonetop-onboarding-ac-over-count").text(over);
+			paintPickLimit(acPickEls, picked, limit, this._isStepComplete());
 		};
 		html.find("[name='onboard-ac-trait']").on("change", ev => {
-			const trait   = ev.currentTarget.value;
-			const checked = ev.currentTarget.checked;
-			const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === this._selections.animalCompanion.type);
-			const limit = this._companionTraitLimit(typeData);
-			if (checked) {
-				if (this._selections.animalCompanion.traits.length < limit && !this._selections.animalCompanion.traits.includes(trait)) {
-					this._selections.animalCompanion.traits.push(trait);
-				} else { ev.currentTarget.checked = false; return; }
-			} else {
-				this._selections.animalCompanion.traits = this._selections.animalCompanion.traits.filter(t => t !== trait);
-			}
+			const limit = this._companionTraitLimit(acTypeData());
+			if (!togglePickBox(this._selections.animalCompanion, "traits", ev.currentTarget, limit)) return;
 			ev.currentTarget.closest(".stonetop-onboarding-tag-option")
 				?.classList.toggle("is-selected", ev.currentTarget.checked);
-			html.find(".stonetop-onboarding-ac-trait-count").text(this._selections.animalCompanion.traits.length);
-			_refreshCompanionOver(this._selections.animalCompanion.traits.length, limit);
-			const atLimit = this._selections.animalCompanion.traits.length >= limit;
-			html.find("[name='onboard-ac-trait']:not(:checked)").prop("disabled", atLimit);
-			const traitCustom = html.find(".onboard-ac-trait-custom");
-			traitCustom.prop("disabled", atLimit && !traitCustom.val().trim());
-			_refreshNextButton();
+			paintCompanionPicks(limit);
 		});
 		// Custom trait write-in: the value isn't one of the listed options, so it spends
-		// one pick like any checkbox. Re-derive the traits array as [listed picks] + this
-		// write-in, keeping it within the pickCount, then refresh the count and locks.
+		// one pick like any checkbox (writeInPick: the listed picks, plus this write-in
+		// while there is room for it).
 		html.find(".onboard-ac-trait-custom").on("input", ev => {
-			const value    = ev.currentTarget.value.trim();
-			const typeData = this._rawAnimalCompanion?.types?.find(t => t.slug === this._selections.animalCompanion.type);
-			const known    = new Set(typeData?.traits ?? []);
+			const typeData = acTypeData();
 			const limit    = this._companionTraitLimit(typeData);
-			const traits   = this._selections.animalCompanion.traits.filter(t => known.has(t));
-			if (value && traits.length < limit) traits.push(value);
-			this._selections.animalCompanion.traits = traits;
-			html.find(".stonetop-onboarding-ac-trait-count").text(traits.length);
-			_refreshCompanionOver(traits.length, limit);
-			html.find("[name='onboard-ac-trait']:not(:checked)").prop("disabled", traits.length >= limit);
-			_refreshNextButton();
+			this._selections.animalCompanion.traits =
+				writeInPick(this._selections.animalCompanion, "traits", ev.currentTarget.value, typeData?.traits, limit).traits;
+			paintCompanionPicks(limit);
 		});
 		bindSuggestionOrCustom("onboard-ac-instinct", ".onboard-ac-instinct-custom", v => this._selections.animalCompanion.instinct = v);
 		bindSuggestionOrCustom("onboard-ac-cost", ".onboard-ac-cost-custom", v => this._selections.animalCompanion.cost = v);
@@ -3542,22 +3349,15 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			_refreshNextButton();
 		});
 
-		// ── Name chips ────────────────────────────────────────────────
+		// ── Seeker arcana ─────────────────────────────────────────────
 		html.find("[name='onboard-seeker-major-arcanum']").on("change", async ev => {
 			this._selections.arcana.major = ev.currentTarget.value;
-			html.find("[name='onboard-seeker-major-arcanum']").each((_, el) => {
-				el.closest(".stonetop-onboarding-arcana-option")
-					?.classList.toggle("is-selected", el.checked);
-			});
+			paintChecked("onboard-seeker-major-arcanum", ".stonetop-onboarding-arcana-option");
 			// Re-render so the "begin to unlock the mysteries" marks reflect the newly
 			// chosen arcanum (a different insert with its own ○ circles / □ tasks).
-			// getData reconciles the marks to the new major's default. Preserve scroll
-			// like the "Draw again" handler so the page doesn't jump to the top.
-			const stepEl    = html.find(".stonetop-onboarding-step")[0];
-			const scrollTop = stepEl?.scrollTop ?? 0;
-			await this.render(false);
-			const newStepEl = this.element?.[0]?.querySelector(".stonetop-onboarding-step");
-			if (newStepEl) newStepEl.scrollTop = scrollTop;
+			// getData reconciles the marks to the new major's default. Scroll kept so the
+			// page doesn't jump to the top.
+			await this._renderKeepingScroll();
 		});
 
 		// Marking a ○ circle / □ task inline on the chosen major's card front, right in
@@ -3595,12 +3395,9 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		});
 
 		html.find(".stonetop-onboarding-redraw-minor").on("click", async () => {
-			const stepEl = html.find(".stonetop-onboarding-step")[0];
-			const scrollTop = stepEl?.scrollTop ?? 0;
 			const arcana = await this._loadArcanaOptions();
 			this._drawSeekerMinorArcana(arcana.minor);
-			await this.render(false);
-			if (stepEl) stepEl.scrollTop = scrollTop;
+			await this._renderKeepingScroll();
 		});
 
 		html.find(".stonetop-onboarding-minor-swap-select").on("change", async ev => {
@@ -3610,14 +3407,11 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			// The card is still hovered while its <select> is open, so a preview popup may be
 			// up; clear it before the re-render replaces the card it was anchored to.
 			this._removeArcanaPreview();
-			const stepEl    = html.find(".stonetop-onboarding-step")[0];
-			const scrollTop = stepEl?.scrollTop ?? 0;
 			this._swapSeekerMinorArcana(oldSlug, newSlug);
-			await this.render(false);
-			const newStepEl = this.element?.[0]?.querySelector(".stonetop-onboarding-step");
-			if (newStepEl) newStepEl.scrollTop = scrollTop;
+			await this._renderKeepingScroll();
 		});
 
+		// ── Name chips ────────────────────────────────────────────────
 		html.find(".onboard-name-chip").on("click", ev => {
 			const { name: word, combine } = ev.currentTarget.dataset;
 			const name = combineNameChip(this._selections.name, word, Number(combine) || 0);
@@ -3643,12 +3437,10 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// move name itself becomes the hover target, matching the character sheet. The
 		// span's text is exactly the move name, which _lookupWord resolves by exact
 		// match, so the shared bold-word binding handles it without a separate path.
-		html.find(".stonetop-onboarding-card-desc").each((_, el) => {
-			if (el.dataset.moveRefsEnriched) return;
-			el.dataset.moveRefsEnriched = "1";
-			enrichMoveRefsInEl(el);
-		});
+		html.find(".stonetop-onboarding-card-desc").each((_, el) => enrichMoveRefsInEl(el));
 
+		// Bound once per element: a bold word bound as soon as its description is known may
+		// already carry the lookup class.
 		const bindWordTooltip = (el) => {
 			if (el.dataset.tooltipBound) return;
 			el.dataset.tooltipBound = "1";
@@ -3667,8 +3459,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			});
 		};
 
-		html.find(".stonetop-onboarding-lookup").each((_, el) => bindWordTooltip(el));
-		html.find(".stonetop-move-ref").each((_, el) => bindWordTooltip(el));
+		html.find(".stonetop-onboarding-lookup, .stonetop-move-ref").each((_, el) => bindWordTooltip(el));
 
 		const pendingLookups = [];
 		html.find(".stonetop-onboarding-card-desc strong").each((_, el) => {
@@ -3692,6 +3483,21 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	}
 
 	// ── Shared DOM helpers ────────────────────────────────────────────
+
+	// Re-render in place for a pick that changes what the step offers, keeping the step's scroll
+	// (a bare render jumps it to the top) and, given `focus`, keyboard focus on the input named
+	// `focus.name` with `focus.value` in the new markup. Read off the window, not the stale
+	// markup: the render replaces the step element itself.
+	async _renderKeepingScroll(focus = null) {
+		const scrollTop = this.element?.[0]?.querySelector(".stonetop-onboarding-step")?.scrollTop ?? 0;
+		await this.render(false);
+		const root   = this.element?.[0];
+		const stepEl = root?.querySelector(".stonetop-onboarding-step");
+		if (stepEl) stepEl.scrollTop = scrollTop;
+		if (!focus) return;
+		[...(root?.querySelectorAll(`[name='${focus.name}']`) ?? [])]
+			.find(el => el.value === focus.value)?.focus({ preventScroll: true });
+	}
 
 	_setSelectedOption(container, selectedEl = null) {
 		if (!container) return;
@@ -3818,12 +3624,17 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 
 	// ── Word tooltip ──────────────────────────────────────────────────
 
+	// Each popup is held by reference rather than found by its class on <body>: the character
+	// sheet keeps its own hidden `.stonetop-word-tooltip` panel there, and a document-wide lookup
+	// took the sheet's panel (the first in the document) in place of this dialog's tooltip.
 	_removeTooltip() {
-		document.querySelector(".stonetop-word-tooltip")?.remove();
+		this._wordTooltip?.remove();
+		this._wordTooltip = null;
 	}
 
 	_removeArcanaPreview() {
-		document.querySelector(".stonetop-arcana-preview-popup")?.remove();
+		this._arcanaPreview?.remove();
+		this._arcanaPreview = null;
 	}
 
 	// ── FAQ popup ─────────────────────────────────────────────────────
@@ -3835,7 +3646,8 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 	_removeFaqPopup() {
 		clearTimeout(this._faqPopupHideTimer);
 		this._faqPopupHideTimer = null;
-		document.querySelector(".stonetop-onboarding-faq-popup")?.remove();
+		this._faqPopup?.remove();
+		this._faqPopup = null;
 	}
 
 	_scheduleFaqPopupHide() {
@@ -3869,6 +3681,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 			this._faqPopupHideTimer = null;
 		});
 		popup.addEventListener("mouseleave", () => this._scheduleFaqPopupHide());
+		this._faqPopup = popup;
 		this._positionPopup(popup, anchor, { align: "right", gap: 8, placement: "below" });
 	}
 
@@ -3899,6 +3712,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// `stonetop-hover-popup` is the shared marker Reduce Motion suppresses (styles/stonetop.css).
 		popup.className = "stonetop-hover-popup stonetop-arcana-preview-popup";
 		popup.innerHTML = source.innerHTML;
+		this._arcanaPreview = popup;
 		// Drop the preview just below the hovered card (these grids sit near the top of
 		// their step); flips above only if it would run off the bottom of the viewport.
 		this._positionPopup(popup, anchor, { align: "center", gap: 8, placement: "below" });
@@ -3916,6 +3730,7 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		// nothing else would drop the collapsibles or redraw the ◇ / □ a move like Outfit is
 		// written with.
 		prepareMoveHoverBody(tip);
+		this._wordTooltip = tip;
 		this._positionPopup(tip, anchor, { gap: 6, placement: "above" });
 	}
 
@@ -3947,25 +3762,42 @@ export class CharacterOnboardingDialog extends StonetopDialog {
 		el.style.setProperty("z-index", String(Math.max(10000, dialogZ + 2)), "important");
 	}
 
+	// A word's description (null when no system item is named it), looked up once: each render
+	// looks up the cards' bold words together, and the same word on several cards, or one hovered
+	// while its lookup is still out, shares the first lookup's answer.
 	async _lookupWord(text) {
 		const key = text.toLowerCase();
 		if (this._wordCache.has(key)) return this._wordCache.get(key);
-		const packs = game.packs.filter(
-			p => p.metadata.packageName === SYSTEM_ID && p.metadata.type === "Item"
-		);
-		for (const pack of packs) {
-			// ensurePackIndex, not `pack.getIndex()` — a fieldless call narrows this pack's tracked
-			// index fields to the core set and costs later readers their system.* fields. Same
-			// helper this file already uses for the arcana and items packs above.
-			await ensurePackIndex(pack.collection);
+		this._wordLookups ??= new Map();
+		if (!this._wordLookups.has(key)) {
+			this._wordLookups.set(key, this._findWordDescription(key)
+				.then(desc => { this._wordCache.set(key, desc); return desc; })
+				.finally(() => this._wordLookups.delete(key)));
+		}
+		return this._wordLookups.get(key);
+	}
+
+	async _findWordDescription(key) {
+		for (const pack of await this._wordPacks()) {
 			const entry = pack.index.find(e => e.name.toLowerCase() === key);
 			if (!entry) continue;
-			const doc  = await pack.getDocument(entry._id);
-			const desc = doc?.system?.description ?? null;
-			this._wordCache.set(key, desc);
-			return desc;
+			const doc = await pack.getDocument(entry._id);
+			return doc?.system?.description ?? null;
 		}
-		this._wordCache.set(key, null);
 		return null;
+	}
+
+	// The system's Item packs, in their listed order, each indexed together and once for the
+	// dialog: a name lookup reads only the names, and the answers are cached for good anyway.
+	// ensurePackIndex, not `pack.getIndex()` — a fieldless call narrows this pack's tracked index
+	// fields to the core set and costs later readers their system.* fields. Same helper this file
+	// already uses for the arcana and items packs above. A failed index is let go, so the next
+	// lookup asks again.
+	_wordPacks() {
+		this._wordPacksReady ??= Promise.all(game.packs
+			.filter(p => p.metadata.packageName === SYSTEM_ID && p.metadata.type === "Item")
+			.map(async pack => { await ensurePackIndex(pack.collection); return pack; }))
+			.catch(err => { this._wordPacksReady = null; throw err; });
+		return this._wordPacksReady;
 	}
 }
