@@ -5,7 +5,7 @@ import {rollStat, sign, postSeasonsRollPrompt, resultsLegendHtml, SEASONAL_GAIN_
 import {SteadingLedger} from "./SteadingLedger.js";
 import {TIER_KEYS} from "../../utils/move-results.js";
 import {moveTiersHtml} from "../../utils/move-tiers.js";
-import {prepareMoveHoverBody} from "../../utils/move-hover.js";
+import {wireBasicMoveHoverPanel, removeHoverPanels} from "../../utils/move-hover.js";
 import {openLedgerDialog} from "../../utils/ledger-dialog.js";
 import {wireTabSearch} from "../../utils/tab-search.js";
 import {injectHeaderToggle} from "../../utils/sheet-chrome.js";
@@ -873,8 +873,7 @@ export function createStonetopSteadingSheetClass(Base) {
 			// Same for the classic layout's move hover panel, which is also a document.body
 			// singleton. activateListeners clears it on each render, but a sheet that is closed
 			// rather than re-rendered never reaches that — so it has to be dropped here too.
-			this._movePanel?.remove();
-			this._movePanel = null;
+			removeHoverPanels(this);
 			return super.close(options);
 		}
 
@@ -1219,37 +1218,10 @@ export function createStonetopSteadingSheetClass(Base) {
 			// name, so its text has to come from somewhere. Gated on the ROWS EXISTING, not on
 			// the setting alone — the modern layout renders move cards that carry their own
 			// text, and building this on document.body for a layout that never shows it just
-			// leaks a div.
-			this._movePanel?.remove();
-			this._movePanel = null;
+			// leaks a div. The panel itself is the character sheet's (utils/move-hover.js).
+			removeHoverPanels(this);
 			if (html[0].querySelector(".steading-move-row") && getHoverDescriptionSetting("hoverDescriptionsBasicMoves")) {
-				const panel = document.createElement("div");
-				this._movePanel = panel;
-				panel.className = "stonetop-basic-move-panel";
-				panel.hidden = true;
-				document.body.appendChild(panel);
-
-				html.find(".steading-move-row").on("mouseenter", ev => {
-					const li = ev.currentTarget;
-					const descEl = li.querySelector(".stonetop-basic-move-desc");
-					if (!descEl) return;
-					const nameText = li.querySelector(".stonetop-move-name")?.textContent?.trim() ?? "";
-					const nameEl = document.createElement("strong");
-					nameEl.className = "stonetop-basic-move-panel-name";
-					nameEl.textContent = nameText;
-					panel.replaceChildren(nameEl, ...Array.from(descEl.cloneNode(true).childNodes));
-					// The same hover-panel pass the character sheet's two panels run: drop the
-					// collapsibles a panel that closes on mouseleave can't open, redraw the ◇/□
-					// a move is written with. This is the fourth surface to show a move's text
-					// this way and the only one that had neither.
-					prepareMoveHoverBody(panel);
-					panel.hidden = false;
-					const rect = li.getBoundingClientRect();
-					panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
-					panel.style.right = `${window.innerWidth - rect.left + 8}px`;
-				}).on("mouseleave", () => {
-					panel.hidden = true;
-				});
+				wireBasicMoveHoverPanel(this, html[0], ".steading-move-row");
 			}
 
 			// Improvement card expand/collapse. The open state is mirrored into

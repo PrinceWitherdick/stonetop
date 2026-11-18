@@ -38,3 +38,85 @@ export function prepareMoveHoverBody(panel) {
 	wrapStonetopGlyphsInEl(panel);
 	return panel;
 }
+
+// Every hover panel a sheet has portaled to <body>, keyed by the sheet, so one call takes the
+// lot down. A panel lives OUTSIDE the sheet's subtree, so neither a re-render nor a close
+// removes it on its own. The character sheet's move cross-reference tooltip leaked on close for
+// exactly that reason: its teardown named one panel field, and the sheet had grown a second.
+const OWNED_PANELS = new WeakMap();
+
+/**
+ * Register a body-portaled hover panel as belonging to `owner` (a sheet), so
+ * `removeHoverPanels(owner)` takes it down with the rest.
+ *
+ * @param {object}      owner  the sheet instance
+ * @param {HTMLElement} panel
+ * @returns {HTMLElement} `panel`
+ */
+export function adoptHoverPanel(owner, panel) {
+	if (!owner || !panel) return panel;
+	let panels = OWNED_PANELS.get(owner);
+	if (!panels) OWNED_PANELS.set(owner, panels = new Set());
+	panels.add(panel);
+	return panel;
+}
+
+/**
+ * Remove every hover panel `owner` adopted. Call it before each render builds its own (the
+ * previous render's panels are stale) and from `close()` — a closed sheet never re-renders, so
+ * nothing else would ever reach them.
+ *
+ * @param {object} owner  the sheet instance
+ */
+export function removeHoverPanels(owner) {
+	const panels = owner && OWNED_PANELS.get(owner);
+	if (!panels) return;
+	for (const panel of panels) panel.remove();
+	panels.clear();
+}
+
+/**
+ * The basic-move hover panel: a fixed panel on <body> showing a move row's name and its hidden
+ * `.stonetop-basic-move-desc` while the pointer is over the row, sat to the row's LEFT (the rows
+ * live in a right-hand sidebar). Shared by the character sheet's sidebar and the steading's
+ * classic move rows, which had grown near-verbatim copies of it.
+ *
+ * A custom panel rather than `data-tooltip` because the descriptions are rich HTML and
+ * Foundry's TooltipManager escapes content.
+ *
+ * The panel is adopted by `owner`, so `removeHoverPanels(owner)` is its teardown.
+ *
+ * @param {object}      owner        the sheet instance
+ * @param {HTMLElement} root         the sheet's rendered root
+ * @param {string}      rowSelector  the move rows to wire
+ * @returns {HTMLElement} the panel
+ */
+export function wireBasicMoveHoverPanel(owner, root, rowSelector) {
+	const panel = document.createElement("div");
+	panel.className = "stonetop-basic-move-panel";
+	panel.hidden = true;
+	document.body.appendChild(panel);
+	adoptHoverPanel(owner, panel);
+
+	for (const li of root.querySelectorAll(rowSelector)) {
+		li.addEventListener("mouseenter", () => {
+			const descEl = li.querySelector(".stonetop-basic-move-desc");
+			if (!descEl) return;
+			const nameText = li.querySelector(".stonetop-move-name")?.textContent?.trim() ?? "";
+			// Built through the DOM so the name is never treated as HTML.
+			const nameEl = document.createElement("strong");
+			nameEl.className = "stonetop-basic-move-panel-name";
+			nameEl.textContent = nameText;
+			panel.replaceChildren(nameEl, ...Array.from(descEl.cloneNode(true).childNodes));
+			// Run on the PANEL rather than on the clone because the spread above keeps the
+			// clone's children and discards its `.stonetop-basic-move-desc` wrapper.
+			prepareMoveHoverBody(panel);
+			panel.hidden = false;
+			const rect = li.getBoundingClientRect();
+			panel.style.top   = `${Math.max(4, Math.min(rect.top, window.innerHeight - panel.offsetHeight - 8))}px`;
+			panel.style.right = `${window.innerWidth - rect.left + 8}px`;
+		});
+		li.addEventListener("mouseleave", () => { panel.hidden = true; });
+	}
+	return panel;
+}

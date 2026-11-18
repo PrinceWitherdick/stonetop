@@ -15,7 +15,7 @@ import { headerPortraitContext, wirePortraitPopout } from "../../utils/actor-por
 import { updateRichTextField, updateMoveField } from "../../utils/stat-block-edit.js";
 import { getOpenSheetsInEditMode, isClassicLayout, layoutClasses, stampLayoutClass } from "../../settings.js";
 import { enrichHTML } from "../../utils/foundry-compat.js";
-import { buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, relationshipDropResult, relationshipDropNotice, wireRelationshipDropHighlight } from "../../utils/relationship-hearts.js";
+import { buildRelationshipRows, wireRelationshipTable, wireRelationshipLinks, handleRelationshipDrop, wireRelationshipDropHighlight } from "../../utils/relationship-hearts.js";
 import { relationshipViewContext, wireRelationshipBoard } from "../../utils/relationship-board.js";
 import { getDragEventData } from "../../utils/foundry-compat.js";
 import { openLedgerDialog } from "../../utils/ledger-dialog.js";
@@ -399,11 +399,9 @@ export function createStonetopNpcSheetClass(Base) {
 					const data = getDragEventData(ev);
 					if (data?.type !== "Actor" || !data.uuid) return;
 					const doc = await fromUuid(data.uuid);
-					const result = await relationshipDropResult(this.actor, doc, this._buildRelationshipRows(), {
+					await handleRelationshipDrop(this.actor, doc, this._buildRelationshipRows(), {
 						editable: this.isEditable,
 					});
-					const [level, message] = relationshipDropNotice(result, this.actor, doc);
-					ui.notifications?.[level]?.(message);
 				}, true);
 			}
 

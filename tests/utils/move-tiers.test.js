@@ -672,19 +672,26 @@ describe("the ladder on a hover panel", () => {
 			"module/actors/character/StonetopCharacterSheet.js",
 			"module/actors/character/dialogs/CharacterOnboardingDialog.js",
 			"module/actors/steading/StonetopSteadingSheet.js",
+			// The basic-move panel the character sheet's sidebar and the steading's classic
+			// rows both build (wireBasicMoveHoverPanel) makes its one call from here.
+			"module/utils/move-hover.js",
 		];
 		const sites = [];
 		for (const rel of SOURCES) {
 			const src = readRepo(rel);
-			for (const [, ident] of src.matchAll(/prepareMoveHoverBody\(\s*([A-Za-z_$][\w$]*)\s*\)/g)) {
+			// The lookbehind skips prepareMoveHoverBody's own declaration, whose parameter would
+			// otherwise read as a call site.
+			for (const [, ident] of src.matchAll(/(?<!function\s+)prepareMoveHoverBody\(\s*([A-Za-z_$][\w$]*)\s*\)/g)) {
 				const named = src.match(new RegExp(`\\b${ident}\\.className\\s*=\\s*"([^"]+)"`));
 				expect(named, `${rel}: no class literal found for ${ident}`).not.toBeNull();
 				sites.push(`.${named[1]}`);
 			}
 		}
-		// Four call sites, and between them only the two hosts the CSS de-tints. The count is
-		// asserted so the scan cannot pass by finding nothing at all.
-		expect(sites.length).toBe(4);
+		// Three call sites — the shared basic-move panel, the character sheet's move
+		// cross-reference tooltip and onboarding's word tooltip — and between them only the two
+		// hosts the CSS de-tints. The count is asserted so the scan cannot pass by finding
+		// nothing at all.
+		expect(sites.length).toBe(3);
 		for (const host of sites) expect(HOSTS).toContain(host);
 	});
 });
