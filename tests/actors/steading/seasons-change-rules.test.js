@@ -10,6 +10,7 @@ import { postSeasonsRollPrompt } from "../../../module/utils/roll-engine.js";
 // Winter's own rules are winter-debt.test.js's and season-effects.test.js's.
 
 const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
+const DIALOG = read("module/actors/steading/seasons-change-dialog.js");
 
 function steadingWith({ season = "autumn", year = 1, steading = {} } = {}) {
 	const flags = {
@@ -47,11 +48,12 @@ describe("autumn's harvest", () => {
 
 	it("is rolled from the header, the window, or winter's catch-up, all one way", () => {
 		expect(SHEET).toContain(`"roll-harvest":       () => this._rollHarvestFromHeader()`);
-		expect(SHEET).toContain(`step("harvestLate", "Autumn's harvest"`);
+		expect(DIALOG).toContain(`step("harvestLate", "Autumn's harvest"`);
 		// All three doors go through the one method, which asks before it rolls: the header, and
 		// the window's two buttons through their one wiring.
-		expect((SHEET.match(/this\._rollSeasonSurplus\(\{/g) ?? []).length).toBe(2);
-		expect((SHEET.match(/wireSurplusBtn\(/g) ?? []).length).toBe(2);
+		expect((SHEET.match(/this\._rollSeasonSurplus\(\{/g) ?? []).length).toBe(1);
+		expect((DIALOG.match(/sheet\._rollSeasonSurplus\(\{/g) ?? []).length).toBe(1);
+		expect((DIALOG.match(/wireSurplusBtn\(/g) ?? []).length).toBe(2);
 		const at = SHEET.indexOf("async _rollSeasonSurplusOnce(");
 		expect(SHEET.slice(at, at + 400)).toContain("promptSurplusRoll(");
 	});
@@ -258,18 +260,22 @@ describe("StonetopSteading#openingFortunes", () => {
 	});
 
 	it("is what the herd's growth rolls off", () => {
-		expect(SHEET).toContain("this._advanceHerdSummer(steading.openingFortunes(year, seasonId))");
+		expect(DIALOG).toContain("advanceHerdSummer(steading, steading.openingFortunes(year, seasonId), ctx.repaint)");
 	});
 
 	// Noted when the roll is made (or handed over), or by the reset, and never by opening the
 	// window: one opened early to look would lock in a mid-play figure.
 	it("is noted with the roll, not when the window opens", () => {
-		const open = SHEET.indexOf("async _showSeasonDialog(");
-		expect(SHEET.slice(open, open + 1600)).not.toContain("openingFortunesFlags(");
+		for (const fn of ["export function seasonsChangeView(", "export async function openSeasonsChangeDialog("]) {
+			const open = DIALOG.indexOf(fn);
+			expect(open, fn).toBeGreaterThan(-1);
+			expect(DIALOG.slice(open, DIALOG.indexOf("\n}\n", open)), fn).not.toContain("openingFortunesFlags(");
+		}
 		const withRoll = `await steading.setFlags({ ...opening, ...steading.seasonStepFlags("fortunesRoll", year, seasonId) });`;
-		expect(SHEET.split(withRoll).length - 1).toBe(2);
-		const reset = SHEET.indexOf("resetFortunesBtn?.addEventListener(\"click\"");
-		expect(SHEET.slice(reset, reset + 2400)).toContain("...steading.openingFortunesFlags(year, seasonId),");
+		expect(DIALOG.split(withRoll).length - 1).toBe(2);
+		const reset = DIALOG.indexOf("wireOnceButton(ctx, resetFortunesBtn");
+		expect(reset).toBeGreaterThan(-1);
+		expect(DIALOG.slice(reset, reset + 2400)).toContain("...steading.openingFortunesFlags(year, seasonId),");
 	});
 });
 
@@ -289,8 +295,9 @@ describe("spring's hand-off", () => {
 	});
 
 	it("asks the GM before handing it over", () => {
-		const at = SHEET.indexOf("data-action='ask-hopeful'");
-		const body = SHEET.slice(at, at + 2600);
+		const at = DIALOG.indexOf("wireOnceButton(ctx, askHopefulBtn");
+		expect(at).toBeGreaterThan(-1);
+		const body = DIALOG.slice(at, at + 2600);
 		expect(body).toContain("promptRoll({ title: \"Seasons Change: Spring\", askModifier: true, offers: [stormMiss] })");
 		expect(body).toContain("modifier: prompted.situational");
 	});
@@ -308,22 +315,23 @@ describe("the window's guard rails", () => {
 	// the roll can be made from the Moves tab or a player's card, which this window cannot see, so
 	// the reset is never locked: it asks, and a yes closes the roll here too.
 	it("asks before a reset this window has not seen the roll for", () => {
-		expect(SHEET).toContain("function refreshResetLock()");
-		const at = SHEET.indexOf("function refreshResetLock()");
-		const body = SHEET.slice(at, at + 3200);
-		expect(body).not.toContain("resetFortunesBtn.disabled = !rolled");
+		expect(DIALOG).toContain("function refreshResetLock()");
+		const lock = DIALOG.indexOf("function refreshResetLock()");
+		expect(DIALOG.slice(lock, DIALOG.indexOf("\n\t}\n", lock))).not.toContain("resetFortunesBtn.disabled = !rolled");
+		const at = DIALOG.indexOf("wireOnceButton(ctx, resetFortunesBtn");
+		const body = DIALOG.slice(at, at + 3200);
 		expect(body).toContain("const madeElsewhere = await confirmOutcome({");
 		expect(body).toContain("if (!rolled) flags.seasonSteps.fortunesRoll = `${year}:${seasonId}`;");
 		expect(body).toContain("if (!rolled) fortunesRollBtns.forEach(b => { b.disabled = true; });");
 	});
 
 	it("warns when more gains are ticked than the roll picks", () => {
-		expect(SHEET).toContain("data-season-gains-over");
-		expect(SHEET).toContain(`const gainsMax = seasonId === "summer" ? 2 : 1;`);
+		expect(DIALOG).toContain("data-season-gains-over");
+		expect(DIALOG).toContain(`const gainsMax = seasonId === "summer" ? 2 : 1;`);
 	});
 
 	it("posts the upkeep reminder once a season, however often the window opens", () => {
 		expect(REMINDER_SEASON_STEP).toBe("reminderPosted");
-		expect(SHEET).toContain("if (!reminded) postSeasonsChangeReminder(seasonId);");
+		expect(DIALOG).toContain("if (!reminded) postSeasonsChangeReminder(seasonId);");
 	});
 });

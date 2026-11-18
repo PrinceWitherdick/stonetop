@@ -399,7 +399,10 @@ describe("what asks before it rolls", () => {
 	// flow dialogs, Requisition and Seasons Change. A path that forgot would be a move that
 	// could never take the one-off modifier, and never the per-roll advantage either.
 	it("asks on every steading move-roll path", () => {
-		expect((STEADING_JS.match(/await promptRoll\(/g) ?? []).length).toBeGreaterThanOrEqual(4);
+		// The Seasons Change window's two (the roll, and spring's hand-off) live in its own module.
+		const seasons = read("module/actors/steading/seasons-change-dialog.js");
+		expect((STEADING_JS.match(/await promptRoll\(/g) ?? []).length).toBeGreaterThanOrEqual(3);
+		expect((seasons.match(/await promptRoll\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
 		expect(read("module/actors/character/dialogs/RequisitionDialog.js")).toContain("promptRoll(");
 	});
 

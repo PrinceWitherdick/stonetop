@@ -9,7 +9,7 @@ import { builtInImprovementRules } from "../../../module/actors/steading/Stoneto
 // EVERY season, unlike the herd's summer/winter steps, and a genuine choice rather than a
 // failure state: a steading that would rather keep the Surplus can let the watch go.
 
-const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
+const SHEET = read("module/actors/steading/seasons-change-dialog.js");
 const STEADING = read("module/actors/steading/StonetopSteading.js");
 
 describe("the Standing Watch seasonal upkeep", () => {
@@ -21,7 +21,7 @@ describe("the Standing Watch seasonal upkeep", () => {
 			expect(upkeepsDue(builtInImprovementRules(["standingWatch"]), season).map(u => u.slug), season).toEqual(["standingWatch"]);
 			expect(upkeepsDue(builtInImprovementRules([]), season), season).toEqual([]);
 		}
-		expect(SHEET).toContain("const upkeeps = upkeepsDue(rules, seasonId);");
+		expect(SHEET).toContain("upkeeps: upkeepsDue(rules, seasonId),");
 		expect(SHEET).toContain("const watchBlock = upkeeps.filter(u => u.start)");
 	});
 
@@ -60,7 +60,7 @@ describe("the Standing Watch seasonal upkeep", () => {
 	// One step key for both buttons: answering the season's question either way closes it, so
 	// a close+reopen can't feed the watch twice, nor feed it after disbanding it.
 	it("settles one shared season step whichever way the table answers", () => {
-		const at = SHEET.indexOf("for (const due of upkeeps)");
+		const at = SHEET.indexOf("for (const due of view.upkeeps)");
 		expect(at).toBeGreaterThan(-1);
 		const block = SHEET.slice(at, at + 3400);
 		// Both answers close the SAME key: paying closes it inside the one spendSurplus write,
@@ -70,10 +70,10 @@ describe("the Standing Watch seasonal upkeep", () => {
 		expect(block).toContain(`step: due.key, year, seasonId`);
 		expect(block).toContain(`seasonStep: { step: due.key, year, seasonId }`);
 		expect(block).not.toContain(`setSeasonStepApplied(due.key`);
-		expect(block).toContain(`_disableIfSeasonStepDone(loseBtn, due.key`);
+		expect(block).toContain(`disableIfSeasonStepDone(steading, loseBtn, due.key`);
 		expect(upkeepStepKey("standingWatch")).toBe(WATCH_SEASON_STEP);
-		// The feed button's own guard lives in _wireSurplusUpkeep, which takes the same key.
-		expect(SHEET).toContain("_disableIfSeasonStepDone(btn, step, year, seasonId);");
+		// The feed button's own guard lives in wireSurplusUpkeep, which takes the same key.
+		expect(SHEET).toContain("disableIfSeasonStepDone(steading, btn, step, year, seasonId);");
 		expect(STEADING).toContain(`export const WATCH_SEASON_STEP = "standingWatch";`);
 	});
 
@@ -82,16 +82,16 @@ describe("the Standing Watch seasonal upkeep", () => {
 	// re-read lives in StonetopSteading#spendSurplus, which every seasonal spend goes through;
 	// a null answer there means it could not be afforded and nothing was written.
 	it("re-reads Surplus at click time", () => {
-		// The spend, the null answer and the re-lock are _wireSurplusUpkeep's — the one shape
+		// The spend, the null answer and the re-lock are wireSurplusUpkeep's — the one shape
 		// all three seasonal dues go through. The watch supplies only its own two sentences and
 		// the short-unlock that leaves it disbandable but not re-feedable.
-		const at = SHEET.indexOf("_wireSurplusUpkeep(payBtn");
+		const at = SHEET.indexOf("wireSurplusUpkeep(ctx, payBtn");
 		expect(at).toBeGreaterThan(-1);
 		expect(SHEET.slice(at, at + 900)).toContain("shortWarning:");
 		expect(SHEET.slice(at, at + 900)).toContain("amount: due.surplus");
-		const wire = SHEET.indexOf("_wireSurplusUpkeep(btn, {");
+		const wire = SHEET.indexOf("function wireSurplusUpkeep(ctx, btn, {");
 		const block = SHEET.slice(wire, wire + 900);
-		expect(block).toContain("spendSurplus(amount, { ...seasonsMove, step, year, seasonId })");
+		expect(block).toContain("spendSurplus(amount, { ...seasonsMove(), step, year, seasonId })");
 		expect(block).toContain("left === null");
 		const spend = STEADING.indexOf("async spendSurplus(");
 		expect(spend).toBeGreaterThan(-1);

@@ -23,7 +23,7 @@ import {
 } from "../../utils/improvement-def.js";
 import {readCurrentSeason, seasonStampKey, seasonStampParts} from "../../seasons/current-season.js";
 import {seasonLabel} from "../../seasons/seasons-change-reminders.js";
-import {markedDebilities} from "./steading-debilities.js";
+import {markedDebilities, debilityPath} from "./steading-debilities.js";
 import {innGatheringState, INN_SEASON_STEP} from "./inn-gathering.js";
 import {steadingHolds} from "./steading-holds.js";
 import {MILITIA_SEASON_STEP, militiaTactics} from "./season-effects.js";
@@ -2081,6 +2081,15 @@ export class StonetopSteading {
 			}
 		}
 		return changed ? { improvements } : {};
+	}
+
+	/**
+	 * What "reset Fortunes to +1" resets it to NOW: +0 while the steading is malcontent ("Reset
+	 * Fortunes to +1, or +0 if the village is currently malcontent"). Read when asked, never
+	 * kept: a winter shortfall at −1 can mark malcontent while the Seasons Change window is open.
+	 */
+	fortunesResetTarget() {
+		return this.getSystemValue(debilityPath("malcontent"), false) ? 0 : 1;
 	}
 
 	/**
