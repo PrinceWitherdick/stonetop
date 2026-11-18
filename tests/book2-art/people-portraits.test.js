@@ -24,6 +24,7 @@ describe("square rect validity", () => {
 		expect(isValidRect([0.9, 0, 0.1, 0.26])).toBe(false);   // x1 <= x0
 		expect(isValidRect([0.1, 0.2, 0.1, 0.9])).toBe(false);  // zero width
 		expect(isValidRect([-0.1, 0, 0.8, 0.3])).toBe(false);   // outside the image
+		expect(isValidRect([0, 0, 1.2, 1])).toBe(false);        // past the right edge
 		expect(isValidRect([0, 0, 1])).toBe(false);             // three numbers
 		expect(isValidRect(null)).toBe(false);
 		expect(isValidRect([0, 0, "x", 1])).toBe(false);

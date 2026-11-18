@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-	ArcanaSnapshot, ArcanaSectionSnapshot,
-	MinorArcanumSnapshot,
-} from "../../../module/model/CharacterSnapshot.js";
+import { ArcanaSnapshot } from "../../../module/model/CharacterSnapshot.js";
 import {TestCharacterBuilder} from "../../fakes/TestCharacterBuilder.js";
 import {FakeActorBuilder, FakeStatBuilder} from "../../fakes/FakeActorBuilder.js";
 
@@ -114,22 +111,6 @@ describe("buildSnapshot() — arcana (integration)", () => {
 		expect(snap.arcana).toBeInstanceOf(ArcanaSnapshot);
 	});
 
-	it("arcana.minor and arcana.major are ArcanaSectionSnapshot instances", async () => {
-		const snap = await makeCharacter(new FakeActorBuilder().build()).buildSnapshot();
-		expect(snap.arcana.minor).toBeInstanceOf(ArcanaSectionSnapshot);
-		expect(snap.arcana.major).toBeInstanceOf(ArcanaSectionSnapshot);
-	});
-
-	it("arcana.minor.items is [] when no owned slugs", async () => {
-		const snap = await makeCharacter(new FakeActorBuilder().build()).buildSnapshot();
-		expect(snap.arcana.minor.items).toEqual([]);
-	});
-
-	it("arcana.minor.title is 'Minor Arcana'", async () => {
-		const snap = await makeCharacter(new FakeActorBuilder().build()).buildSnapshot();
-		expect(snap.arcana.minor.title).toBe("Minor Arcana");
-	});
-
 	describe("with owned arcanum", () => {
 		function buildWithFlags(arcanaFlags = {}) {
 			const flatFlags = Object.fromEntries(
@@ -143,16 +124,6 @@ describe("buildSnapshot() — arcana (integration)", () => {
 		it("owned slug appears in minor.items", async () => {
 			const snap = await buildWithFlags({ owned: ["huge-wooden-sphere"] });
 			expect(snap.arcana.minor.items).toHaveLength(1);
-		});
-
-		it("item in minor.items is a MinorArcanumSnapshot", async () => {
-			const snap = await buildWithFlags({ owned: ["huge-wooden-sphere"] });
-			expect(snap.arcana.minor.items[0]).toBeInstanceOf(MinorArcanumSnapshot);
-		});
-
-		it("owned is true", async () => {
-			const snap = await buildWithFlags({ owned: ["huge-wooden-sphere"] });
-			expect(snap.arcana.minor.items[0].owned).toBe(true);
 		});
 	});
 

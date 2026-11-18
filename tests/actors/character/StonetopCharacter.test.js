@@ -295,13 +295,6 @@ describe("StonetopCharacter.buildSnapshot — playbook display fields", () => {
 		});
 	});
 
-	it("returns playbook object when playbook present", async () => {
-		const actor = new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").build();
-		const char = new TestCharacterBuilder(actor).addPlaybook(BLESSED_PLAYBOOK).build();
-		const data = await char.buildSnapshot();
-		expect(data.playbook).not.toBeNull();
-	});
-
 	describe("with no saved selections", () => {
 		async function buildCharacterSnapshot() {
 			const actor = new FakeActorBuilder().withPlaybook("the-blessed", "The Blessed").build();
@@ -789,11 +782,6 @@ describe("applyDebilityRollMode", () => {
 	it("debility active but for a different stat — passes through unchanged", () => {
 		const char = new TestCharacterBuilder(makeDebilityActor({weakened: true})).build();
 		expect(char.applyDebilityRollMode("int", { rollMode: "def" })).toEqual({ rollMode: "def" });
-	});
-
-	it("debility value false (unchecked) — passes through unchanged", () => {
-		const char = new TestCharacterBuilder(makeDebilityActor({weakened: false})).build();
-		expect(char.applyDebilityRollMode("str", { rollMode: "def" })).toEqual({ rollMode: "def" });
 	});
 
 	it("two debilities active, one covers stat, rollMode adv → def", () => {

@@ -74,22 +74,6 @@ describe("crop slug parsing", () => {
 	});
 });
 
-describe("crop rect validation", () => {
-	it("accepts a well-formed rect", () => {
-		expect(isValidRect([0, 0.1, 0.5, 1])).toBe(true);
-	});
-
-	it("rejects malformed, inverted, zero-area and out-of-range rects", () => {
-		expect(isValidRect(null)).toBe(false);
-		expect(isValidRect([0, 0, 1])).toBe(false);
-		expect(isValidRect([0.5, 0, 0.2, 1])).toBe(false);   // x1 <= x0
-		expect(isValidRect([0.2, 0.4, 0.2, 0.9])).toBe(false); // zero width
-		expect(isValidRect([-0.1, 0, 0.5, 1])).toBe(false);
-		expect(isValidRect([0, 0, 1.2, 1])).toBe(false);
-		expect(isValidRect(["a", 0, 1, 1])).toBe(false);
-	});
-});
-
 describe("plannedCropRebuilds", () => {
 	it("plans a crop whose file is missing but whose parent is present", () => {
 		const people = [person("p1-c100-100-900-900", [0.1, 0.1, 0.9, 0.9])];

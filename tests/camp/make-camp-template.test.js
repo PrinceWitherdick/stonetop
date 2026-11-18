@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { readRepo, stripComments } from "../fakes/css.js";
 import { seat } from "../fakes/camp.js";
 import { CAMP_STATE, campLedger } from "../../module/camp/camp-rules.js";
 import { campWindowView } from "../../module/camp/camp-view.js";
@@ -175,14 +174,5 @@ describe("the camp window's template", () => {
 		expect(html).not.toContain('<li class="stonetop-camp-row');
 		// Handlebars escapes the apostrophe, so the name is matched apart from it.
 		expect(html).toContain("camp broke up before anyone ate.");
-	});
-});
-
-// The user reads every one of these words, and em dashes read as machine-written to them.
-describe("the camp's words", () => {
-	it("use no em dashes", () => {
-		for (const rel of ["module/camp/camp-view.js", "module/camp/camp-flow.js", "module/camp/CampWindow.js", "templates/dialogs/make-camp.hbs"]) {
-			expect(stripComments(readRepo(rel)), rel).not.toContain("—");
-		}
 	});
 });

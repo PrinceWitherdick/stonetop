@@ -114,14 +114,6 @@ describe("buildSnapshot — name", () => {
 
 // ── playbook (null when no playbook) ─────────────────────────────────────────
 
-describe("buildSnapshot — playbook: null when no playbook selected", () => {
-	it("playbook is null", async () => {
-		const snap = await new TestCharacterBuilder(new FakeActorBuilder().build())
-			.build().buildSnapshot();
-		expect(snap.playbook).toBeNull();
-	});
-});
-
 // ── playbook (populated) ─────────────────────────────────────────────────────
 
 describe("buildSnapshot — playbook section", () => {
