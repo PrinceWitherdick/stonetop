@@ -1,3 +1,4 @@
+import { escHtml } from "./strings.js";
 import { themedDialogClasses } from "./window-theme.js";
 
 /**
@@ -94,5 +95,31 @@ export function confirmOutcome({ title, content, yes, no, defaultYes = false, cl
 			{ key: "no",  label: no.label,  icon: no.icon ?? "fa-xmark",  className: no.className,  value: false },
 		],
 		defaultKey: defaultYes ? "yes" : "no",
+	});
+}
+
+/**
+ * The confirm in front of a removal: "Remove <strong>Name</strong> from your moves? This can't be
+ * undone." One sentence, written once, so the half-dozen places that take something off a sheet
+ * cannot drift apart in wording or forget to escape the name.
+ *
+ * @param {object} o
+ * @param {string} o.title
+ * @param {string} o.name  what is being removed, as plain text (escaped here: it is user text)
+ * @param {string} [o.from]  where it is removed from ("your moves"), plain text; left out, the
+ *   sentence ends at the name
+ * @param {string} [o.verb]  "Remove" unless the act is called something else ("Delete")
+ * @param {boolean} [o.permanent]  whether to say "This can't be undone." (the default)
+ * @param {{label: string, icon?: string, className?: string}} o.yes
+ * @param {{label: string, icon?: string, className?: string}} o.no
+ * @param {string[]} [o.classes]
+ * @returns {Promise<boolean|null>}  as confirmOutcome; Enter lands on `no`
+ */
+export function confirmRemoval({ title, name, from = null, verb = "Remove", permanent = true, yes, no, classes = [] }) {
+	const where = from ? ` from ${escHtml(from)}` : "";
+	const undo  = permanent ? " This can't be undone." : "";
+	return confirmOutcome({
+		title, yes, no, classes,
+		content: `<p>${escHtml(verb)} <strong>${escHtml(name)}</strong>${where}?${undo}</p>`,
 	});
 }

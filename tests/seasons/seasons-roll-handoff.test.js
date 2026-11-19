@@ -61,8 +61,8 @@ describe("postSeasonsRollPrompt", () => {
 });
 
 describe("how the hand-off is wired", () => {
-	const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
-	const BOOT  = read("stonetop.js");
+	const DIALOG = read("module/actors/steading/seasons-change-dialog.js");
+	const BOOT   = read("stonetop.js");
 
 	it("builds the chat roll's dice from the mode the card carried", () => {
 		expect(BOOT).toContain("pbtaDiceFormula(btn.dataset.rollMode)");
@@ -73,12 +73,13 @@ describe("how the hand-off is wired", () => {
 	// Handing the roll over IS making it, so the hold is spent at that moment — on the GM's
 	// machine, which is the only one that may write the steading.
 	it("spends the held advantage when the roll is handed to the table", () => {
-		const at = SHEET.indexOf("data-action='ask-hopeful'");
+		expect(DIALOG).toContain(`wireOnceButton(ctx, askHopefulBtn, "fortunesRoll", handOffSpringRoll(ctx,`);
+		const at = DIALOG.indexOf("export function handOffSpringRoll(");
 		expect(at).toBeGreaterThan(-1);
-		const body = SHEET.slice(at, at + 2600);
+		const body = DIALOG.slice(at, at + 3200);
 		// Settled (and spent) as every steading roll is: tests/actors/steading/steading-roll.test.js.
-		expect(body).toContain("settleSteadingRoll(this._stonetopSteading");
-		expect(body).toContain("canSpend: !!this.actor.isOwner");
+		expect(body).toContain("settleSteadingRoll(steading");
+		expect(body).toContain("canSpend: !!actor.isOwner");
 	});
 });
 
@@ -89,23 +90,24 @@ describe("how the hand-off is wired", () => {
 // closed the window between winter's halves could not reach the second one from anywhere —
 // including the +Fortunes roll and the button that records what winter still wants.
 describe("reopening a winter whose consumption is settled", () => {
-	const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
+	const DIALOG = read("module/actors/steading/seasons-change-dialog.js");
 
 	it("opens on what is left instead of on a dead button", () => {
-		const at = SHEET.indexOf(`_disableIfSeasonStepDone(rollConsumptionBtn`);
+		const at = DIALOG.indexOf(`if (disableIfSeasonStepDone(steading, rollConsumptionBtn, "consumption", year, seasonId)) {`);
 		expect(at).toBeGreaterThan(-1);
-		const body = SHEET.slice(at - 200, at + 500);
-		expect(body).toContain("#stonetop-winter-step3");
-		expect(body).toContain("#stonetop-winter-settled");
+		const body = DIALOG.slice(at, DIALOG.indexOf("}", at));
+		expect(body).toContain("show(w.step1, false);");
+		expect(body).toContain("show(w.settled);");
+		expect(body).toContain("unlockWinterFortunes();");
 	});
 
 	// A user read winter's window as having no +Fortunes roll: the second half was hidden until
 	// the toll was settled. It is on screen from the start now, greyed and inert, and every way
 	// of settling the toll unlocks it.
 	it("shows the +Fortunes roll from the start, locked until the toll is settled", () => {
-		expect(SHEET).toMatch(/id="stonetop-winter-step3" class="stonetop-season-later" inert>/);
-		expect(SHEET).not.toContain('show("#stonetop-winter-step3")');
-		expect(SHEET.match(/unlockWinterFortunes\(\);/g)).toHaveLength(3);
+		expect(DIALOG).toMatch(/id="stonetop-winter-step3" class="stonetop-season-later" inert>/);
+		expect(DIALOG).not.toContain("show(w.step3");
+		expect(DIALOG.match(/unlockWinterFortunes\(\);/g)).toHaveLength(3);
 		expect(declarations(readCss(), ".stonetop-season-later .stonetop-season-later-note"))
 			.toMatch(/display:\s*block/);
 	});

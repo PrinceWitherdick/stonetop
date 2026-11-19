@@ -6,6 +6,7 @@ import { GM_CORE_LOOP, GM_FLOW_OF_PLAY } from "../../../module/gm-toolkit/gm-loo
 import { BOOK2_ART_APPLY_MANIFEST } from "../../../module/book2-art/manifest.js";
 import { DURABLE_ART_DIRS } from "../../../module/book2-art/browse.js";
 import { ART_INDEX_SETTINGS } from "../../../module/book2-art/reapply.js";
+import { registeredSettings } from "../../fakes/registered-settings.js";
 
 // The GM Toolkit's Core Loop tab, and the chain that feeds it.
 //
@@ -21,7 +22,6 @@ const SHEET_JS  = read("module/actors/gmtoolkit/StonetopGmToolkitSheet.js");
 const SHEET_HBS = read("templates/actor/gm-toolkit.hbs");
 const LOOP_HBS  = read("templates/actor/partials/gm-toolkit-tab-loop.hbs");
 const STONETOP_JS = read("stonetop.js");
-const SETTINGS_JS = read("module/settings.js");
 const CSS       = readCss();
 
 // The tab's template and the sheet both discuss the browser tab this feature replaced, so the
@@ -68,8 +68,7 @@ describe("the GM playbook diagrams", () => {
 	// Writing an art index has to bust the browse cache, and that hook reads this one list.
 	it("declares its index alongside the other document-less art indexes", () => {
 		expect(ART_INDEX_SETTINGS).toContain("gmDiagramArt");
-		expect(SETTINGS_JS).toContain('game.settings.register(SYSTEM_ID, "gmDiagramArt"');
-		expect(SETTINGS_JS).toMatch(/"gmDiagramArt",\s*\{[^}]*scope:\s*"world"/s);
+		expect(registeredSettings().settings.get("gmDiagramArt")?.scope).toBe("world");
 	});
 
 	// Publishing the index has to REPAINT the tab, and this is the only art in the system where

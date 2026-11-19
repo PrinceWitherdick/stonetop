@@ -19,6 +19,7 @@ import { makeColumnsSortable } from "./sortable-columns.js";
 import { wireAvatarPreview, removeAvatarPreview } from "./avatar-preview.js";
 import { openLinkedActorSheet } from "./actor-link.js";
 import { imagePopout } from "./foundry-compat.js";
+import { onActivate } from "./activation.js";
 
 // One to five, defaulting to three, clamped to 1-5 (a relationship always has at
 // least one heart — you can't drop it to zero).
@@ -213,13 +214,34 @@ export function relationshipDropNotice(result, actor, doc) {
 // person here" is discoverable rather than found by accident. Returns a clear() the host
 // must call from its own drop handling: a sheet-level handler often consumes the drop
 // before it would ever reach a listener here, so dragleave alone can't be trusted.
-export function wireRelationshipDropHighlight(section) {
+//
+// dragenter and dragleave bubble up from every child, and crossing into a child fires the
+// child's dragenter BEFORE the parent's dragleave — so the nesting depth is counted and the
+// class only goes once the drag has truly left. A bare add-on-enter/remove-on-leave flickers
+// off every time the pointer crosses a child.
+//
+// `className` lets any other drop surface borrow the same counting: the character sheet's
+// whole-sheet "a drag is in progress" class and its playbook drop zone both do.
+export function wireRelationshipDropHighlight(section, className = "is-drop-target") {
 	if (!section) return () => {};
 	let depth = 0;
-	const clear = () => { depth = 0; section.classList.remove("is-drop-target"); };
-	section.addEventListener("dragenter", () => { depth++; section.classList.add("is-drop-target"); });
+	const clear = () => { depth = 0; section.classList.remove(className); };
+	section.addEventListener("dragenter", () => { depth++; section.classList.add(className); });
 	section.addEventListener("dragleave", () => { if (--depth <= 0) clear(); });
 	return clear;
+}
+
+// What a person dropped onto a relationships section does: put them on the list (or say why
+// not), and tell the user which. Shared by the character and NPC sheets, whose drop handlers
+// had each grown the same three steps. The caller cancels the browser's default and resolves
+// the drop data itself, because both of those are bound to its own event handling.
+//
+// @returns {Promise<string>} the relationshipDropResult status
+export async function handleRelationshipDrop(actor, doc, rows, { editable = true } = {}) {
+	const result = await relationshipDropResult(actor, doc, rows, { editable });
+	const [level, message] = relationshipDropNotice(result, actor, doc);
+	ui.notifications?.[level]?.(message);
+	return result;
 }
 
 // Patch one field of a relationship entry. Writes the entry OBJECT under the row's id
@@ -420,28 +442,13 @@ function wireRelationshipLinksIn(root) {
 		await openLinkedActorSheet(link);
 	};
 
-	root.addEventListener("click", async ev => {
-		const link = ev.target.closest(".stonetop-rel-open");
-		if (!link) return;
-		ev.preventDefault();
-		ev.stopPropagation();
-		await open(link);
-	}, true);
-
 	// The link carries no href — one would make it natively draggable and fight the board
 	// card's own drag — so the browser gives it neither a tab stop nor Enter/Space activation.
-	// The template supplies the tab stop with tabindex; this supplies the keys, or the name
-	// would be reachable by keyboard and still do nothing when pressed.
-	root.addEventListener("keydown", async ev => {
-		if (ev.key !== "Enter" && ev.key !== " ") return;
-		const link = ev.target.closest?.(".stonetop-rel-open");
-		if (!link) return;
-		// Space would scroll the sheet under the newly-raised window. Propagation is stopped
-		// for the board's sake: its own keydown handler is delegated off the WRAPPER and only
-		// checks `closest(".stonetop-rel-card")`, so a press on a link inside a card reaches it
-		// as though the card itself were focused.
-		ev.preventDefault();
-		ev.stopPropagation();
-		await open(link);
-	}, true);
+	// The template supplies the tab stop with tabindex; onActivate supplies the click and the
+	// keys, or the name would be reachable by keyboard and still do nothing when pressed. Space
+	// would scroll the sheet under the newly-raised window, hence its preventDefault. Propagation
+	// is stopped for the board's sake: its own keydown handler is delegated off the WRAPPER and
+	// only checks `closest(".stonetop-rel-card")`, so a press on a link inside a card would reach
+	// it as though the card itself were focused.
+	onActivate(root, ".stonetop-rel-open", link => open(link));
 }

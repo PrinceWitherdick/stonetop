@@ -42,7 +42,7 @@ describe("the modules the Import Book Art macro borrows", () => {
 	});
 
 	it("are put on game.stonetop at ready", () => {
-		expect(read("module/hooks/Ready.js")).toMatch(/game\.stonetop\.macroModules\s*=\s*MACRO_MODULES;/);
+		expect(read("module/hooks/stonetop-api.js")).toMatch(/game\.stonetop\.macroModules\s*=\s*MACRO_MODULES;/);
 	});
 
 	it("leave the shipped macro a command that still parses", () => {

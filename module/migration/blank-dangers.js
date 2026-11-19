@@ -16,7 +16,7 @@
  * SAFE FOR THE MANAGED BOOK UPDATES: no shipped Dangers list has a blank entry, so a page still
  * as shipped is never written, and stays pristine.
  *
- * Idempotent: a second pass finds nothing. Run once per version from Ready.js.
+ * Idempotent: a second pass finds nothing. Run once per version from hooks/world-sweeps.js.
  */
 
 import { isPrimaryGM } from "../utils/primary-gm.js";

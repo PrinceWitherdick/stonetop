@@ -212,7 +212,7 @@ describe("followerMarkerImg", () => {
 
 	// The art moved off sprout.svg, and that file is gone. An actor stamped before the move
 	// still names it, so the old path has to stay recognisable under every id this package
-	// has shipped under (hooks/Ready.js lifts them onto the current file).
+	// has shipped under (hooks/world-sweeps.js lifts them onto the current file).
 	it("still recognises the path the marker used to live at", () => {
 		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop_pwd/assets/icons/followers/sprout.svg");
 		expect(LEGACY_SHOOT_MARKERS).toContain("systems/stonetop/assets/icons/followers/sprout.svg");

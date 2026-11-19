@@ -246,22 +246,23 @@ describe("militiaTactics", () => {
 // ── How the window uses it ──────────────────────────────────────────────────────
 describe("how the seasonal effects are wired", () => {
 	const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
+	const DIALOG = read("module/actors/steading/seasons-change-dialog.js");
 
 	it("rolls the harvest and the consumption from the builders, not from a literal", () => {
 		expect(SHEET).toContain("autumnHarvest({ rules, builtOnTheFields: this._builtOnTheFields() })");
 		expect(SHEET).toContain("_harvestRoll(rules = this._improvementRules())");
-		expect(SHEET).toContain("const harvest = this._harvestRoll(rules);");
-		expect(SHEET).toContain("winterConsumption({ population, rules, size })");
+		expect(DIALOG).toContain("harvest: sheet._harvestRoll(rules),");
+		expect(DIALOG).toContain("winterConsumption({ population, rules, size })");
 		// Both are written onto their button, so the label and the roll cannot disagree.
-		expect(SHEET).toContain(`data-action="roll-surplus" data-formula=`);
-		expect(SHEET).toContain(`data-action="roll-consumption" data-formula=`);
+		expect(DIALOG).toContain(`data-action="roll-surplus" data-formula=`);
+		expect(DIALOG).toContain(`data-action="roll-consumption" data-formula=`);
 	});
 
 	it("takes each yield on its own button and its own season marker", () => {
-		const at = SHEET.indexOf(`data-action='take-yield'`);
+		const at = DIALOG.indexOf(`data-action='take-yield'`);
 		expect(at).toBeGreaterThan(-1);
-		const body = SHEET.slice(at, at + 1200);
-		expect(body).toContain("_disableIfSeasonStepDone(btn, key, year, seasonId)");
+		const body = DIALOG.slice(at, at + 1200);
+		expect(body).toContain("wireOnceButton(ctx, btn, key,");
 		// The gain and its marker go out as ONE write, the way spendSurplus does it.
 		expect(body).toContain("seasonStepFlags(key, year, seasonId)");
 		expect(body).toContain("applyChanges({");
@@ -272,23 +273,27 @@ describe("how the seasonal effects are wired", () => {
 	// The watch's shape: two ways to answer, one step key, so a reopen can neither drill twice
 	// nor forget a second tactic after paying.
 	it("settles the militia's summer either way, on one marker", () => {
-		const at = SHEET.indexOf(`data-action='drill-militia'`);
+		const at = DIALOG.indexOf("function wireMilitia");
 		expect(at).toBeGreaterThan(-1);
-		const body = SHEET.slice(at, at + 2600);
-		// The spend goes through the shared _wireSurplusUpkeep, as the watch's and the
+		const body = DIALOG.slice(at, DIALOG.indexOf("\n}\n", at));
+		expect(body).toContain(`data-action='drill-militia'`);
+		// The spend goes through the shared wireSurplusUpkeep, as the watch's and the
 		// weapons' do; the tactic half writes its own marker on the same step key.
-		expect(body).toContain("_wireSurplusUpkeep(drillMilitiaBtn");
+		expect(body).toContain("wireSurplusUpkeep(ctx, drillMilitiaBtn");
 		expect(body).toContain("MILITIA_SEASON_STEP");
 		expect(body).toContain(`_onImprovementReq("wellTrainedMilitia"`);
+		// Whether the drill is offered follows the live Surplus, not the figure at open.
+		expect(body).toContain("liveRefreshers?.push");
+		expect(body).toContain(`getStatValue("surplus") >= 1`);
 	});
 
 	// Book I p. 158: "Henceforth, when the seasons change, whoever is friendliest rolls +Fortunes".
 	// With the move, so off the Fortunes the season opened with, and once a season (a re-post
 	// stays possible, for a lost card).
 	it("hands the Inn's questions to the table on the Inn's own ladder, once a season", () => {
-		const at = SHEET.indexOf(`data-action='ask-friendliest'`);
+		const at = DIALOG.indexOf(`data-action='ask-friendliest'`);
 		expect(at).toBeGreaterThan(-1);
-		const body = SHEET.slice(at, at + 1400);
+		const body = DIALOG.slice(at, at + 1400);
 		expect(body).toContain(`table: "inn"`);
 		expect(body).toContain("steading.openingFortunes(year, seasonId) ?? steading.getStatValue(\"fortunes\")");
 		expect(body).toContain("setSeasonStepApplied(INN_ROLL_SEASON_STEP, year, seasonId)");
@@ -309,7 +314,7 @@ describe("every improvement with a seasonal rule reaches the window", () => {
 	// neither of which any of the other phrasings catch.
 	const SEASONAL = /seasons change|(each|every|this) (season|spring|summer|autumn|winter)|(spring|summer|autumn|winter) (comes|breaks forth|grips)|start of each season|autumn harvest|in (spring|summer|autumn|winter)/i;
 	const plain = html => String(html ?? "").replace(/<[^>]*>/g, " ");
-	const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
+	const DIALOG = read("module/actors/steading/seasons-change-dialog.js");
 
 	// EXCUSED, each with the reason, because an empty escape hatch is one somebody fills in
 	// silently. Nothing is excused today — Aurochs Hunting came closest and is surfaced as a
@@ -340,7 +345,7 @@ describe("every improvement with a seasonal rule reaches the window", () => {
 		const missing = seasonal.filter(slug =>
 			!EXCUSED.has(slug) && !viaYield.has(slug)
 			&& !EFFECTS.includes(`rulesHas(rules)("${slug}")`)
-			&& !SHEET.includes(`_hasImprovement("${slug}")`));
+			&& !DIALOG.includes(`built("${slug}")`));
 		expect(missing).toEqual([]);
 	});
 
@@ -348,9 +353,9 @@ describe("every improvement with a seasonal rule reaches the window", () => {
 	// not a thing the turning of the season does to the steading — the distinction inn-gathering.js
 	// draws — so spring says it is open and sends the table to its own card.
 	it("tells a spring GM the aurochs hunt is open, without making it a step", () => {
-		expect(SHEET).toContain("aurochsNote");
-		const at = SHEET.indexOf("const aurochsNote");
-		const body = SHEET.slice(at, at + 700);
+		expect(DIALOG).toContain("aurochsNote");
+		const at = DIALOG.indexOf("const aurochsNote");
+		const body = DIALOG.slice(at, at + 700);
 		expect(body).toContain(`seasonId === "spring"`);
 		expect(body).toContain("Improvements tab");
 		expect(body).not.toContain("data-action");

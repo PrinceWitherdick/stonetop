@@ -41,7 +41,7 @@ import { updatePlacedTokens } from "../utils/placed-tokens.js";
  * why. The pass rewrites documents the GM owns, so its reach is stated rather than implied.
  *
  * Idempotent by construction, which is this codebase's convention for a migration (see the
- * `_migrate*` passes in hooks/Ready.js): every write is computed from the resolved art rather than
+ * `_migrate*` passes in hooks/world-sweeps.js): every write is computed from the resolved art rather than
  * from the input, so a portrait already in the target layout produces an empty update and drops
  * out of the plan. No version flag, and a world that lands here from EITHER direction — a portrait
  * still on the whole illustration, or one an earlier build already moved onto the square —

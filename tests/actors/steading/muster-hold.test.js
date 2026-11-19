@@ -8,6 +8,7 @@ import { readRepo as read } from "../../fakes/css.js";
 
 const STEADING = read("module/actors/steading/StonetopSteading.js");
 const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
+const DIALOG = read("module/actors/steading/seasons-change-dialog.js");
 const MAIN = read("stonetop.js");
 
 describe("raising the muster", () => {
@@ -123,8 +124,9 @@ describe("the muster's three exits", () => {
 	// give-back as pending CHANGES and folds them into the season's own single write, so the
 	// returned Defenses cards with the rest of the season instead of on its own.
 	it("is stood down by the Seasons Change, not merely forgotten", () => {
-		const at = SHEET.indexOf("_saveSeasonChange(seasonId");
-		const body = SHEET.slice(at, at + 4000);
+		const at = DIALOG.indexOf("export async function recordSeason(");
+		expect(at).toBeGreaterThan(-1);
+		const body = DIALOG.slice(at, at + 4000);
 		expect(body).toContain("musterLapseChanges()");
 		expect(body).toContain("Object.assign(updates, lapse.system)");
 		expect(body).toContain("lapse.held.defenses");
@@ -136,9 +138,9 @@ describe("Tor's blessing", () => {
 	// behaviour is tests/actors/steading/seasonal-gains.test.js's. Here: the window still goes
 	// through it, and the lapse rides in the same write.
 	it("is granted when its gain is ticked at the Seasons Change", () => {
-		const at = SHEET.indexOf("_saveSeasonChange(seasonId");
-		const body = SHEET.slice(at, at + 4000);
-		expect(body).toContain("applySeasonalGains(this._stonetopSteading, checkedKeys");
+		const at = DIALOG.indexOf("export async function recordSeason(");
+		const body = DIALOG.slice(at, at + 4000);
+		expect(body).toContain("applySeasonalGains(steading, checkedKeys");
 		expect(body).toContain("also: { system: updates, flags: flagUpdates, notices }");
 		const gains = read("module/actors/steading/seasonal-gains.js");
 		expect(gains).toContain(`picked.has("tor")`);
@@ -155,30 +157,30 @@ describe("Weapons of War upkeep", () => {
 	it("appears in spring only, once the weapons exist, offering to pay or to lose them", () => {
 		// Its `upkeep` grant: spring only, 1 Surplus. The window's block is the shared upkeep shape.
 		expect(STEADING).toContain(`weaponsOfWar:      { stats: { defenses: 1 }, fortifications: ["Weapons of War"], upkeep: { seasons: ["spring"], surplus: 1 } },`);
-		const at = SHEET.indexOf("const upkeepHtml = due =>");
+		const at = DIALOG.indexOf("const upkeepHtml = due =>");
 		expect(at).toBeGreaterThan(-1);
-		const block = SHEET.slice(at, at + 1400);
+		const block = DIALOG.slice(at, at + 1400);
 		expect(block).toContain(`data-action="pay-upkeep"`);
 		// The watch's shape: the second answer names its outcome, and is there with no Surplus.
 		expect(block).toContain(`data-action="lose-upkeep"`);
-		const copy = SHEET.slice(SHEET.indexOf(`if (due.slug === "weaponsOfWar")`), SHEET.indexOf(`if (due.slug === "weaponsOfWar")`) + 900);
+		const copy = DIALOG.slice(DIALOG.indexOf(`if (due.slug === "weaponsOfWar")`), DIALOG.indexOf(`if (due.slug === "weaponsOfWar")`) + 900);
 		expect(copy).toContain("Don't pay: lose Weapons of War");
 		expect(copy).not.toContain("the GM's call");
 	});
 
 	it("settles its own once-per-season step either way, losing the improvement in one write", () => {
-		const at = SHEET.indexOf("for (const due of upkeeps)");
+		const at = DIALOG.indexOf("for (const due of view.upkeeps)");
 		expect(at).toBeGreaterThan(-1);
-		const block = SHEET.slice(at, at + 3400);
+		const block = DIALOG.slice(at, at + 3400);
 		// Spent and settled in the one shared write; the live Surplus re-read and the
-		// spendSurplus call live in _wireSurplusUpkeep, which every due goes through.
-		expect(block).toContain("_wireSurplusUpkeep(payBtn");
-		expect(block).toContain("step: due.key, year, seasonId");
-		expect(SHEET).toContain("spendSurplus(amount, { ...seasonsMove, step, year, seasonId })");
+		// spendSurplus call live in wireSurplusUpkeep, which every due goes through.
+		expect(block).toContain("wireSurplusUpkeep(ctx, payBtn");
+		expect(block).toContain("step: due.key, amount: due.surplus");
+		expect(DIALOG).toContain("spendSurplus(amount, { ...seasonsMove(), step, year, seasonId })");
 		// Not paying loses it, with the season's marker in that same write.
 		expect(block).toContain("loseImprovement(due.slug, {");
 		expect(block).toContain("seasonStep: { step: due.key, year, seasonId }");
-		expect(block).toContain("_disableIfSeasonStepDone(loseBtn, due.key");
+		expect(block).toContain("disableIfSeasonStepDone(steading, loseBtn, due.key");
 		// The weapons keep the step key they were always stamped under.
 		expect(read("module/actors/steading/improvement-rules.js")).toContain(`weaponsOfWar: "weaponsUpkeep"`);
 	});

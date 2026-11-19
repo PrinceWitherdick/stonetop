@@ -9,9 +9,12 @@ import { sign } from "../../utils/strings.js";
 // The other two (trade opportunity, interesting news) are the GM's to play out and leave nothing.
 //
 // ONE place for this, because two flows make the move: the steading's Seasons Change window
-// (StonetopSteadingSheet._saveSeasonChange) and the session-zero first spring
+// (seasons-change-dialog.js#recordSeason) and the session-zero first spring
 // (SpringBurstDialog). The second used to record the gains' NAMES in the Chronicle and apply
 // none of them, so a Tor's blessing taken at the very first spring never held.
+
+/** The gains that change the sheet when ticked, the three above; the rest leave nothing. */
+export const MECHANICAL_GAIN_KEYS = Object.freeze(["population", "bounty", "tor"]);
 
 /** The move every gain is filed under in the ledger. */
 export const SEASONAL_GAINS_MOVE = "Seasons Change";

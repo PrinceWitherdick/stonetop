@@ -26,7 +26,7 @@ import { whisperGm } from "../utils/chat.js";
  *
  * Most of these offers are one whispered chat card, so `card` is the shorthand for that shape:
  * hand it a function from the work to the card's HTML and this does the not-ready guard and the
- * GM whisper. Three callers in Ready.js had that same closure written out longhand, differing
+ * GM whisper. Three callers in hooks/startup-cards.js had that same closure written out longhand, differing
  * only in which `_build…Content` they called, which put the not-ready return value and the
  * whisper recipients in three places — the same asymmetry across call sites this helper exists
  * to remove. `offer` remains for anything that is not a chat card (WorldSetup asks a dialog).
@@ -47,7 +47,7 @@ export async function offerDurableArtOnce({ setting, findWork, card, offer }) {
 	// ONE GM asks. The latch is world-scoped but it is only written at the END, after findWork
 	// and offer have both awaited — so two GMs joining together both pass the check below and
 	// both whisper the same card to the GM group. The gate belongs here rather than at each call
-	// site: WorldSetup's caller had it and both of Ready.js's did not, which is precisely the
+	// site: WorldSetup's caller had it and both of startup-cards.js's did not, which is precisely the
 	// asymmetry a shared helper exists to remove.
 	//
 	// Paired with isGM because isPrimaryGM() alone is true when NO GM is connected, which would

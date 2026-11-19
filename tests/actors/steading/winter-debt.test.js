@@ -158,9 +158,9 @@ describe("the Winter's end step", () => {
 	});
 
 	it("is opened by spring's Seasons Change, off last winter's stamp", () => {
-		const sheet = read("module/actors/steading/StonetopSteadingSheet.js");
+		const sheet = read("module/actors/steading/seasons-change-dialog.js");
 		expect(sheet).toContain("const lastWinter = `${year - 1}:winter`;");
-		expect(sheet).toContain(`seasonId === "spring" ? this._stonetopSteading.winterDebtFor(lastWinter)`);
+		expect(sheet).toContain(`seasonId === "spring" ? steading.winterDebtFor(lastWinter)`);
 		expect(sheet).toContain(`step("winterEnd", "Winter's end"`);
 		expect(sheet).toContain("data-season-debt-unpaid");
 	});
@@ -182,7 +182,7 @@ describe("StonetopSteading#winterConsumptionRolled", () => {
 	});
 
 	it("is resumed on a reopen instead of offering a fresh roll", () => {
-		const sheet = read("module/actors/steading/StonetopSteadingSheet.js");
+		const sheet = read("module/actors/steading/seasons-change-dialog.js");
 		expect(sheet).toContain("winterConsumptionRolled(year, seasonId)");
 		expect(sheet).toContain("setWinterConsumptionRolled(consumption, year, seasonId)");
 	});
@@ -289,7 +289,7 @@ describe("applyWinterShortfall", () => {
 		expect(src.slice(at, at + 700)).toContain("if (out.disaster)");
 		expect(src.slice(at, at + 700)).toContain("openDisasterPicker(");
 		expect(src).toContain("await sufferWinterShortfall(steading, consequenceId");
-		expect(read("module/actors/steading/StonetopSteadingSheet.js")).toContain("await sufferWinterShortfall(this._stonetopSteading");
+		expect(read("module/actors/steading/seasons-change-dialog.js")).toContain("await sufferWinterShortfall(steading, choice.dataset.consequence");
 	});
 
 	// The dialog stays open while the sheet behind it changes, so the arithmetic has to be done
@@ -305,13 +305,14 @@ describe("how the debt is wired", () => {
 	const DEBT = read("module/actors/steading/winter-debt.js");
 	const STEADING = read("module/actors/steading/StonetopSteading.js");
 	const SHEET = read("module/actors/steading/StonetopSteadingSheet.js");
+	const DIALOG = read("module/actors/steading/seasons-change-dialog.js");
 
 	// The dialog cannot read the roll's tier: the +Fortunes roll is posted to chat, and the
 	// same roll can be made from the Moves tab or handed to a player. So recording the debt is
 	// a deliberate GM button, like every other mechanical effect in that walkthrough.
 	it("is recorded by a button in the Seasons Change window, not inferred from the roll", () => {
-		expect(SHEET).toContain(`data-action="record-winter-debt"`);
-		expect(SHEET).toContain("setWinterDebt(owed, year, seasonId)");
+		expect(DIALOG).toContain(`data-action="record-winter-debt"`);
+		expect(DIALOG).toContain("setWinterDebt(owed, year, seasonId)");
 	});
 
 	// The same builder the first consumption uses, so a Township's 2d6 and Additional Housing's
@@ -319,29 +320,29 @@ describe("how the debt is wired", () => {
 	// Wall's flat −1 from it; see the note on winterConsumption for why one wall must not pay
 	// twice for one winter.
 	it("rolls what the first consumption rolls, off the same builder", () => {
-		const at = SHEET.indexOf("record-winter-debt']");
+		const at = DIALOG.indexOf("record-winter-debt']");
 		expect(at).toBeGreaterThan(-1);
-		const body = SHEET.slice(at, at + 2000);
-		expect(body).toContain("const { formula } = winterAgainNow();");
+		const body = DIALOG.slice(at, at + 2000);
+		expect(body).toContain("const { formula } = ctx.winterAgainNow();");
 	});
 
 	// This button sits BELOW the shortfall list in the same window, and taking "Population loss"
 	// there is the likeliest route to needing it — so the Population it rolls has to be the one
 	// the steading has NOW, not the one captured when the window opened.
 	it("reads Population live, not off the value the window opened with", () => {
-		const at = SHEET.indexOf("const winterAgainNow = () => winterConsumption({");
+		const at = DIALOG.indexOf("winterAgainNow: () => winterConsumption({");
 		expect(at).toBeGreaterThan(-1);
-		expect(SHEET.slice(at, at + 300)).toContain(`population: this._stonetopSteading.getStatValue("population"), rules, size, second: true`);
+		expect(DIALOG.slice(at, at + 300)).toContain(`population: steading.getStatValue("population"), rules: view.rules, size: view.size, second: true`);
 	});
 
 	// A roll of 0 is a real outcome at Population -1, and a debt of nothing is not a debt.
 	it("records nothing when the roll comes up zero", () => {
-		const at = SHEET.indexOf("record-winter-debt']");
-		expect(SHEET.slice(at, at + 2200)).toContain("if (!owed)");
+		const at = DIALOG.indexOf("record-winter-debt']");
+		expect(DIALOG.slice(at, at + 2200)).toContain("if (!owed)");
 	});
 
 	it("is rolled once a winter", () => {
-		expect(SHEET).toContain("_disableIfSeasonStepDone(winterDebtBtn, WINTER_DEBT_STEP, year, seasonId)");
+		expect(DIALOG).toContain(`wireOnceButton(ctx, root.querySelector("[data-action='record-winter-debt']"), WINTER_DEBT_STEP,`);
 	});
 
 	it("is settled from the header glyph, which is the only way back to it", () => {
@@ -415,7 +416,7 @@ describe("settling the debt from spring's step", () => {
 	});
 
 	it("is wired with the stamp, not the amount the window opened with", () => {
-		expect(read("module/actors/steading/StonetopSteadingSheet.js")).toContain("stamp: lastWinter,");
+		expect(read("module/actors/steading/seasons-change-dialog.js")).toContain("stamp: view.lastWinter,");
 		expect(read("module/actors/steading/winter-debt.js")).toContain("await payWinterDebt(steading, held.stamp)");
 	});
 });
@@ -426,12 +427,13 @@ describe("the shared winter consequences", () => {
 	// rules list is how two windows start disagreeing about what a bad winter costs.
 	it("is one table, read by both the season window and the settle window", () => {
 		expect(WINTER_CONSEQUENCES.map(c => c.id)).toEqual(["population", "resource", "npc", "pc"]);
-		expect(read("module/actors/steading/StonetopSteadingSheet.js")).toContain("winterConsequencesHtml()");
+		expect(read("module/actors/steading/seasons-change-dialog.js")).toContain("winterConsequencesHtml()");
 	});
 
 	it("leaves no hand-written copy behind in the season dialog", () => {
-		const sheet = read("module/actors/steading/StonetopSteadingSheet.js");
-		expect(sheet).not.toContain(`<span class="stonetop-disaster-choice-label">Population loss</span>`);
+		for (const rel of ["module/actors/steading/StonetopSteadingSheet.js", "module/actors/steading/seasons-change-dialog.js"]) {
+			expect(read(rel), rel).not.toContain(`<span class="stonetop-disaster-choice-label">Population loss</span>`);
+		}
 	});
 
 	it("renders the hook both windows' listeners bind to", () => {

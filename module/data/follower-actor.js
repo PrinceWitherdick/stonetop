@@ -36,7 +36,7 @@ const SHOOT_SUFFIX = "assets/icons/followers/new-shoot.svg";
 export const NEW_SHOOT_MARKER = `systems/${SYSTEM_ID}/${SHOOT_SUFFIX}`;
 
 /**
- * The path this marker used to live at, kept so hooks/Ready.js can lift an actor stamped
+ * The path this marker used to live at, kept so hooks/world-sweeps.js can lift an actor stamped
  * before the art changed onto the current file. Nothing else may read it: it is a migration
  * rung, not a fallback, and the file it names no longer exists.
  */

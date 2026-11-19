@@ -3,6 +3,7 @@ import { declarations, readCss, readRepo, repoFileExists, ownRule } from "../fak
 import { fakeEl } from "../fakes/dom.js";
 import { contrastRatio, parseColor, ratioText } from "../fakes/contrast.js";
 import { applySheetContrast, watchFoundryTheme } from "../../module/settings.js";
+import { registeredSettings } from "../fakes/registered-settings.js";
 
 /**
  * The dark ("Lamplit") palette, checked against the arithmetic it claims.
@@ -901,9 +902,8 @@ describe("the setting", () => {
 	// The setting's label is "Dark Mode" (key still `sheetContrast`), so a search for "dark" finds
 	// it. High contrast is its own checkbox (2026-10-04), so no page carries it as a choice.
 	it("offers every page on the setting, and no high-contrast combination", () => {
-		const src = readRepo("module/settings.js");
-		const choices = src.match(/register\(SYSTEM_ID, "sheetContrast"[\s\S]*?choices: \{([^}]*)\}/)?.[1] ?? "";
-		for (const value of ["normal", "dark", "slate", "auto"]) expect(choices, value).toContain(`"${value}":`);
-		expect(choices).not.toMatch(/high/i);
+		const choices = Object.keys(registeredSettings().settings.get("sheetContrast")?.choices ?? {});
+		for (const value of ["normal", "dark", "slate", "auto"]) expect(choices, value).toContain(value);
+		expect(choices.join()).not.toMatch(/high/i);
 	});
 });

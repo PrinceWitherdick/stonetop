@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { _reconcileWorldGroupFights } from "../../module/hooks/Ready.js";
+import { _reconcileWorldGroupFights } from "../../module/hooks/world-sweeps.js";
 
 // The sweep that unticks the monster sheet's Group fight switch on WORLD monsters while the Fight tab
 // is on. With the tab on, a group's scale is chosen token by token (the "how many?" window, Merge and

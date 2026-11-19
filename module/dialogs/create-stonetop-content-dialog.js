@@ -282,7 +282,7 @@ function _mayCreateArcana() {
 
 /**
  * A blank card, opened in the editor; its Identity page picks the tier. Mirrors the
- * `game.stonetop.createArcanum` console helper (see Ready.js).
+ * `game.stonetop.createArcanum` console helper (see hooks/stonetop-api.js).
  */
 async function _createBlankArcanum() {
 	if (!_mayCreateArcana()) return;
@@ -292,7 +292,7 @@ async function _createBlankArcanum() {
 
 /**
  * The Artifact Creation wizard, whose rolled results pre-fill the card before the editor opens.
- * Mirrors the `game.stonetop.inspireArcanum` console helper (see Ready.js).
+ * Mirrors the `game.stonetop.inspireArcanum` console helper (see hooks/stonetop-api.js).
  */
 async function _openArcanaInspire() {
 	if (!_mayCreateArcana()) return;

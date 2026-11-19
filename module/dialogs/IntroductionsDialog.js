@@ -193,7 +193,7 @@ export class IntroductionsDialog extends StonetopDialog {
 		return findOpenApp(w => w instanceof IntroductionsDialog);
 	}
 
-	// onChange handler for the world cursor (wired in Ready.js). Runs on every client.
+	// onChange handler for the world cursor (wired in hooks/stonetop-api.js). Runs on every client.
 	// The PRIMARY GM authors the cursor, so it ignores its own writes; everyone else —
 	// players AND any secondary/assistant GM — follows it (so a second GM can't drive a
 	// conflicting turn). A player opens/focuses the dialog when it becomes their turn on any
@@ -271,7 +271,7 @@ export class IntroductionsDialog extends StonetopDialog {
 		if (cursor.active && !IntroductionsDialog._current()) IntroductionsDialog.open();
 	}
 
-	// onChange handler for the saved turn order (wired in Ready.js). Runs on every client,
+	// onChange handler for the saved turn order (wired in hooks/stonetop-api.js). Runs on every client,
 	// the writer's included. Only the pre-check shows the order; a running session follows
 	// the cursor's own pcOrder, so a change made elsewhere mid-session must not repaint it.
 	static onOrderChanged() {

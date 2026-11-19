@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { declarations, readCss } from "../../fakes/css.js";
 import { promptRoll, DEFAULT_ROLL_MODE } from "../../../module/dialogs/RollDialog.js";
+import { registeredSettings } from "../../fakes/registered-settings.js";
 
 // Advantage and disadvantage live in ONE of two places, and which one is the "Ask How to Roll
 // Each Time" client setting:
@@ -342,7 +343,7 @@ describe("the sticky controls, and the setting that hides them", () => {
 	// One setting, read in one place per sheet, and both sheets stamp the same context key so a
 	// template can be moved between them without the gate changing name.
 	it("hangs the whole switch off one client setting", () => {
-		expect(SETTINGS_JS).toContain('game.settings.register(SYSTEM_ID, "askRollModeEachRoll"');
+		expect(registeredSettings().settings.has("askRollModeEachRoll")).toBe(true);
 		expect(SETTINGS_JS).toContain("export function getAskRollModeEachRollSetting()");
 		expect(EN.stonetop.settings.askRollModeEachRoll.name).toBeTypeOf("string");
 		for (const [name, js] of [["steading", STEADING_JS], ["character", CHARACTER_SHEET_JS]])
@@ -352,9 +353,9 @@ describe("the sticky controls, and the setting that hides them", () => {
 	// Per client, not per world: it decides what THIS user's sheets draw and what THIS user's
 	// clicks open. The flag it governs stays on the actor, so a table can mix the two.
 	it("keeps that setting client-scoped", () => {
-		const block = SETTINGS_JS.slice(SETTINGS_JS.indexOf('"askRollModeEachRoll"'));
-		expect(block.slice(0, 400)).toMatch(/scope:\s*"client"/);
-		expect(block.slice(0, 400)).toMatch(/default:\s*false/);
+		const reg = registeredSettings().settings.get("askRollModeEachRoll");
+		expect(reg.scope).toBe("client");
+		expect(reg.default).toBe(false);
 	});
 
 	// The selector is what writes the flag; a ROLL never does, in either mode. A roll that wrote
@@ -366,14 +367,14 @@ describe("the sticky controls, and the setting that hides them", () => {
 		expect(CHARACTER_SHEET_JS).toContain("setRollMode(ev.currentTarget.value)");
 		// Both shapes are bound. Binding only one is the silent failure: the other renders,
 		// highlights correctly off the server-stamped state, and never writes.
-		expect(STEADING_JS).toContain('closest(".stonetop-roll-mode-btn")');
+		expect(STEADING_JS).toContain('onCapture(html[0], "click", ".stonetop-roll-mode-btn"');
 		expect(STEADING_JS).toContain('.stonetop-roll-mode-input');
 		expect(CHARACTER_SHEET_JS).toContain('.stonetop-roll-mode-input');
 	});
 
 	// The one-off modifier is its own opt-in, as it was before the mode joined it in the window.
 	it("keeps the modifier prompt on its own setting", () => {
-		expect(SETTINGS_JS).toContain('game.settings.register(SYSTEM_ID, "promptRollModifier"');
+		expect(registeredSettings().settings.has("promptRollModifier")).toBe(true);
 		expect(SETTINGS_JS).toContain("export function getPromptRollModifierSetting()");
 		expect(EN.stonetop.settings.promptRollModifier.name).toBeTypeOf("string");
 	});
@@ -398,7 +399,10 @@ describe("what asks before it rolls", () => {
 	// flow dialogs, Requisition and Seasons Change. A path that forgot would be a move that
 	// could never take the one-off modifier, and never the per-roll advantage either.
 	it("asks on every steading move-roll path", () => {
-		expect((STEADING_JS.match(/await promptRoll\(/g) ?? []).length).toBeGreaterThanOrEqual(4);
+		// The Seasons Change window's two (the roll, and spring's hand-off) live in its own module.
+		const seasons = read("module/actors/steading/seasons-change-dialog.js");
+		expect((STEADING_JS.match(/await promptRoll\(/g) ?? []).length).toBeGreaterThanOrEqual(3);
+		expect((seasons.match(/await promptRoll\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
 		expect(read("module/actors/character/dialogs/RequisitionDialog.js")).toContain("promptRoll(");
 	});
 

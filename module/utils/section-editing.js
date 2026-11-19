@@ -1,4 +1,5 @@
 import {getSheetSectionsCollapsed, setSheetSectionsCollapsed} from "../settings.js";
+import {onActivate} from "./activation.js";
 
 /**
  * Mixin for actor sheets that expose per-section edit pencils alongside the
@@ -44,15 +45,45 @@ export function withSectionEditing(Base) {
 				if (!toggle) return;
 				ev.stopPropagation();
 				const section = toggle.dataset.section;
-				if (this._editingSections.has(section)) {
-					this._editingSections.delete(section);
-					this._onSectionEditClosed(section);
-				} else {
-					this._editingSections.add(section);
-					this._onSectionEditOpened(section);
-				}
+				if (this._editingSections.has(section)) this.closeSectionEdit(section, { render: false });
+				else                                     this.openSectionEdit(section, { render: false });
 				this.render(false);
 			}, true);
+		}
+
+		/**
+		 * Open a section's pencil from code — the same state change, hook and repaint as
+		 * clicking it. A no-op (and no render) when the pencil is already open.
+		 *
+		 * @param {string}  section
+		 * @param {object}  [options]
+		 * @param {boolean} [options.render=true]  repaint now; pass false when the caller has
+		 *                                         more to set up before its own render
+		 * @returns {boolean} whether the pencil was opened by this call
+		 */
+		openSectionEdit(section, { render = true } = {}) {
+			if (this._editingSections.has(section)) return false;
+			this._editingSections.add(section);
+			this._onSectionEditOpened(section);
+			if (render) this.render(false);
+			return true;
+		}
+
+		/**
+		 * Close a section's pencil from code; the counterpart of `openSectionEdit`. A no-op
+		 * (and no render) when the pencil is not open.
+		 *
+		 * @param {string}  section
+		 * @param {object}  [options]
+		 * @param {boolean} [options.render=true]
+		 * @returns {boolean} whether the pencil was closed by this call
+		 */
+		closeSectionEdit(section, { render = true } = {}) {
+			if (!this._editingSections.has(section)) return false;
+			this._editingSections.delete(section);
+			this._onSectionEditClosed(section);
+			if (render) this.render(false);
+			return true;
 		}
 
 		// Deliberately empty override points. The `_` prefix is only there to say "unused here" —
@@ -185,21 +216,7 @@ export function withSectionEditing(Base) {
 			};
 			// Class-toggled in place rather than re-rendered: a fold changes nothing
 			// the template computes, and a re-render would cost a scroll jump.
-			root.addEventListener("click", ev => {
-				const caret = ev.target.closest(".stonetop-section-collapse");
-				if (!caret) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				toggle(caret);
-			}, true);
-			root.addEventListener("keydown", ev => {
-				if (ev.key !== "Enter" && ev.key !== " ") return;
-				const caret = ev.target.closest(".stonetop-section-collapse");
-				if (!caret) return;
-				ev.preventDefault();
-				ev.stopPropagation();
-				toggle(caret);
-			}, true);
+			onActivate(root, ".stonetop-section-collapse", caret => toggle(caret));
 		}
 	};
 }

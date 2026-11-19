@@ -1,0 +1,52 @@
+{{!-- Name this Crew Member: an anonymous member of the crew becomes a named individual. See
+      dialogs/CrewMemberNameDialog.js. The .dialog-content / .dialog-buttons shell is the v1
+      Dialog's own, kept because the .stonetop-individual-dialog rules are written against it. --}}
+<div class="dialog-content">
+  <form class="stonetop-individual-form">
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" name="ind-name" list="ind-names" placeholder="Enter a name…">
+      <datalist id="ind-names">{{#each names}}<option value="{{this}}">{{/each}}</datalist>
+    </div>
+    <div class="form-group">
+      <label>Tag</label>
+      <input type="text" name="ind-tag" list="ind-tags" placeholder="Choose or type a tag…" autocomplete="off">
+      <datalist id="ind-tags">{{#each tags}}<option value="{{this}}"></option>{{/each}}</datalist>
+    </div>
+    <div class="form-group stonetop-individual-traits-group">
+      <label>Traits <em>(choose one or more)</em></label>
+      <div class="stonetop-individual-traits-grid">
+        {{~#each traits}}
+        {{#if simple}}
+        <span class="stonetop-trait-chip-group">
+          <label class="stonetop-individual-trait-chip">
+            <input type="checkbox" class="stonetop-check" name="traits" value="{{value}}"> {{value}}
+          </label>
+        </span>
+        {{else}}
+        <span class="stonetop-trait-chip-group" data-trait="{{value}}">
+          <label class="stonetop-individual-trait-chip">
+            <input type="checkbox" class="stonetop-check" name="traits" value="{{value}}">
+            {{~#each parts~}}
+              {{~#if blank~}}
+                <span class="stonetop-trait-blank">___</span><input type="text" class="stonetop-trait-fill" data-slot="{{slot}}" style="display:none" placeholder="…">
+              {{~else if opts~}}
+                <span class="stonetop-trait-blank">{{display}}</span><input type="text" class="stonetop-trait-select" data-slot="{{slot}}" list="{{listId}}" style="display:none" placeholder="…" autocomplete="off"><datalist id="{{listId}}">{{#each options}}<option value="{{this}}"></option>{{/each}}</datalist>
+              {{~else~}}
+                <span class="stonetop-trait-text">{{text}}</span>
+              {{~/if~}}
+            {{~/each}}
+          </label>
+        </span>
+        {{/if}}
+        {{~/each~}}
+      </div>
+    </div>
+  </form>
+</div>
+<div class="dialog-buttons">
+  <button class="dialog-button save default" data-button="save" autofocus>
+    <i class="fas fa-user-pen"></i>
+    Save
+  </button>
+</div>
