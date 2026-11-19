@@ -67,12 +67,4 @@ describe("the label above it still does", () => {
 		expect(rule, `${LABEL} has been frozen along with the name below it`)
 			.toMatch(/font-size:\s*calc\(0\.65rem \* var\(--stonetop-font-scale, 1\)\)\s*;/);
 	});
-
-	// The label is the smaller of the two by a wide margin, which is the whole reason it is not
-	// swept in with the name. If it ever grows to a size where the header argument would apply to
-	// it as well, that is a decision to make deliberately rather than to inherit from this file.
-	it("is the small half of the plate, which is why the two are treated differently", () => {
-		expect(block(LABEL)).toMatch(/font-size:\s*calc\(0\.65rem/);
-		expect(block(NAME)).toMatch(/font-size:\s*40px/);
-	});
 });

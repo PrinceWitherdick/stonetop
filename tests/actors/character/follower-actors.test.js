@@ -580,14 +580,22 @@ describe("syncFollowerActors", () => {
 		];
 		const npc = makeFollowerActor("Actor.a");
 		character = makeCharacter({ f1: "Actor.a" });
-		// The first client's write lands while this one is still waiting its turn.
-		setTimeout(() => {
-			npc.items.push({ id: "theirs", name: "Stand fast", type: "npcMove" });
-			npc.flags["stonetop_pwd"].followerCard =
-				followerNpcActorData(card({ moves: ["Stand fast"] })).flags["stonetop_pwd"].followerCard;
-		}, 0);
+		// Fake timers, so the stagger is waited out without spending its real half second.
+		vi.useFakeTimers();
+		try {
+			// The first client's write lands while this one is still waiting its turn.
+			setTimeout(() => {
+				npc.items.push({ id: "theirs", name: "Stand fast", type: "npcMove" });
+				npc.flags["stonetop_pwd"].followerCard =
+					followerNpcActorData(card({ moves: ["Stand fast"] })).flags["stonetop_pwd"].followerCard;
+			}, 0);
 
-		expect(await syncFollowerActors(character, [snap({ moves: ["Stand fast"] })])).toBe(0);
-		expect(npc.createEmbeddedDocuments).not.toHaveBeenCalled();
+			const synced = syncFollowerActors(character, [snap({ moves: ["Stand fast"] })]);
+			await vi.runAllTimersAsync();
+			expect(await synced).toBe(0);
+			expect(npc.createEmbeddedDocuments).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

@@ -30,7 +30,8 @@ describe("every timeline template compiles", () => {
 	for (const rel of TEMPLATES) {
 		it(`compiles ${rel.split("/").pop()}`, () => {
 			expect(repoFileExists(rel), `${rel} is not on disk`).toBe(true);
-			expect(() => Handlebars.compile(readRepo(rel))).not.toThrow();
+			// parse, not compile: compile is lazy and only throws on a mismatched block at render.
+			expect(() => Handlebars.parse(readRepo(rel))).not.toThrow();
 		});
 	}
 });

@@ -3,6 +3,7 @@ import {
 	HOLY_LIGHT_FLAG, CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS,
 	ownsMoveNamed, canWieldHolyLight, showHolyLight,
 } from "../../../module/actors/character/holy-light.js";
+import { loadPlaybookMoveDocs } from "../../fakes/sourcePack.js";
 
 const actorWith = (...items) => ({ items });
 const move = name => ({ type: "move", name });
@@ -52,6 +53,9 @@ describe("the names the gate matches on", () => {
 		expect(CONSECRATED_FLAME).toBe("Consecrated Flame");
 		expect(INVOKE_THE_SUN_GOD).toBe("Invoke the Sun God");
 		expect(EMPOWERED_INVOCATIONS).toBe("Empowered Invocations");
+		// Against the pack source too, so a rename on that side fails here rather than going dark.
+		const packMoves = loadPlaybookMoveDocs().map(d => d.name);
+		for (const name of [CONSECRATED_FLAME, INVOKE_THE_SUN_GOD, EMPOWERED_INVOCATIONS]) expect(packMoves, name).toContain(name);
 	});
 
 	it("keys the flag on holyLight", () => {

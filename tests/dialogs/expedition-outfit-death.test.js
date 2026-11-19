@@ -126,8 +126,11 @@ describe("the Outfit step and the dead", () => {
 });
 
 describe("the tag a returned character sets out wearing", () => {
+	// The sheet's rules, cut once: each lookup re-running this over the whole stylesheet cost
+	// about half a second a test.
+	const ALL_RULES = CSS.match(/^[^\n]*\{[\s\S]*?\}/gm) ?? [];
 	/** Every rule in the stylesheet whose selector mentions `sel`. */
-	const rules = sel => (CSS.match(/^[^\n]*\{[\s\S]*?\}/gm) ?? []).filter(r => r.split("{")[0].includes(sel));
+	const rules = sel => ALL_RULES.filter(r => r.split("{")[0].includes(sel));
 
 	it("puts the row's kind on the row and the chip's on the chip", () => {
 		expect(PARTIAL).toContain("{{#if undead}} is-undead is-undead--{{undead.kind}}{{/if}}");

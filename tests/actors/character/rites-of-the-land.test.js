@@ -5,6 +5,7 @@ import {
 	ritesSeasonStep, overseeRites,
 } from "../../../module/actors/character/rites-of-the-land.js";
 import { StonetopSteading } from "../../../module/actors/steading/StonetopSteading.js";
+import { loadPlaybookMoveDocs } from "../../fakes/sourcePack.js";
 
 // Rites of the Land is two triggers in one move, and its effects land on three documents:
 // The Boon on the CHARACTER, Surplus and any cleared debility on the STEADING, and a promise of
@@ -132,6 +133,9 @@ describe("how it is wired", () => {
 
 	it("names the move once, where both halves read it", () => {
 		expect(RITES_MOVE).toBe("Rites of the Land");
+		// Against the pack source too, so a rename on that side fails here rather than going dark.
+		const packMoves = loadPlaybookMoveDocs().map(d => d.name);
+		for (const name of [RITES_MOVE]) expect(packMoves, name).toContain(name);
 	});
 });
 

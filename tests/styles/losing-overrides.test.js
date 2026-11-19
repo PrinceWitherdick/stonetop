@@ -127,7 +127,9 @@ describe("the improvement builder's remove buttons keep their red", () => {
 	it("paints the two removes red and their neighbours not", () => {
 		for (const [, remove] of CASES) {
 			const red = RULES.find(r => r.selector.includes(remove) && /:hover/.test(r.selector));
-			expect(CSS.slice(CSS.indexOf(red.selector)), `.${remove} lost its red`).toMatch(/--st-red-text/);
+			// The rule's own body: slicing from the selector to the end of the sheet found the
+			// variable in whatever rule happened to use it last.
+			expect(red.body, `.${remove} lost its red`).toMatch(/color:\s*var\(--st-red-text/);
 		}
 	});
 });

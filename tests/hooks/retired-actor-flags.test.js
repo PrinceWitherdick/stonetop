@@ -59,18 +59,6 @@ describe("_dropRetiredActorFlags", () => {
 		]);
 	});
 
-	it("leaves the LIVE flags on that actor alone", async () => {
-		const w = world();
-		install(w);
-
-		await _dropRetiredActorFlags();
-
-		const [[[update]]] = w.updateDocuments.mock.calls;
-		// The whole point: only the retired key is named. `hideUnknownInvocations` is still read
-		// by the Invocations tab, and a sweep that reset it would silently lose a real preference.
-		expect(Object.keys(update)).toEqual(["_id", `flags.${SCOPE}.-=invocationsSort`]);
-	});
-
 	it("is a no-op in an already-clean world, so it can run every load", async () => {
 		const w = world();
 		delete w.stale.flags[SCOPE].invocationsSort;

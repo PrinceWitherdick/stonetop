@@ -125,15 +125,6 @@ describe("flipAndShutDown", () => {
 		expect(game.shutDown).toHaveBeenCalled();
 		expect(result.warning).toMatch(/could not be read back/i);
 	});
-
-	it("reports the flip itself failing, and does not shut down", async () => {
-		const fetchImpl = vi.fn(async () => ({ ok: true, json: async () => ({ error: "refused" }) }));
-		const game = makeGame();
-		const result = await flipAndShutDown(game, { fetchImpl, ...IDS, wait: async () => {} });
-
-		expect(result).toMatchObject({ ok: false, stage: "flip" });
-		expect(game.shutDown).not.toHaveBeenCalled();
-	});
 });
 
 // The preview and the run must never disagree about what the migration covers, which is

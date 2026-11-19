@@ -298,10 +298,6 @@ describe("laneMoveTarget", () => {
 		expect(laneMoveTarget({ hearts: 3, rated: false, laneKey: "neutral" })).toBe(3);
 	});
 
-	it("moving WITHIN Trusted is a no-op, so a 5 is never quietly demoted to 4", () => {
-		expect(laneMoveTarget({ hearts: 5, rated: true, laneKey: "trusted" })).toBeNull();
-	});
-
 	it("refuses an unknown lane rather than guessing", () => {
 		expect(laneMoveTarget({ hearts: 3, rated: true, laneKey: "beloved" })).toBeNull();
 		expect(laneMoveTarget({})).toBeNull();

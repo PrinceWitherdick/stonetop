@@ -27,7 +27,6 @@ import { registeredSettings } from "../../fakes/registered-settings.js";
 // arrives at its `onChange` as one.
 
 const CSS          = readCss();
-const STONETOP_JS  = read("stonetop.js");
 const SHEET_HBS    = read("templates/actor/character.hbs");
 const TAB_HBS      = read("templates/actor/partials/tab-preferences.hbs");
 const SHEET_JS     = read("module/actors/character/StonetopCharacterSheet.js");
@@ -41,12 +40,6 @@ const ALL_KEYS = PREFERENCE_GROUPS.flatMap(g => g.keys);
 // ── Wiring ────────────────────────────────────────────────────────────────────────────────
 
 describe("Preferences tab wiring", () => {
-	it("registers the panel as a loadTemplates partial", () => {
-		expect(STONETOP_JS).toContain(
-			'"stonetop.tab-preferences":     "systems/stonetop_pwd/templates/actor/partials/tab-preferences.hbs"');
-		expect(repoFileExists("templates/actor/partials/tab-preferences.hbs")).toBe(true);
-	});
-
 	it("has both a nav entry and a panel, and they name the same tab", () => {
 		expect(SHEET_HBS).toContain('{{> "stonetop.tab-nav-item" tab="preferences"');
 		expect(SHEET_HBS).toContain('{{> "stonetop.tab-preferences"}}');

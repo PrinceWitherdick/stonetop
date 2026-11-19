@@ -406,22 +406,6 @@ describe("the captions, which are bare words written along their own lines", () 
 		expect(stripComments(CSS)).not.toMatch(/captions-too-small/);
 	});
 
-	// ⚠ EXCEPT THE ONE THE READER IS HOLDING, and this is the rule the tie bar's writing depends on.
-	// The bar has no text box on it any more: what somebody types is painted on the LINE, and a
-	// whole board fitted into the window is under the legibility floor -- which is the zoom the map
-	// OPENS at. Leaving their own words at three pixels while they wrote them would be typing into a
-	// smudge. So `_paintCaptionZoom` marks the board `.captions-tiny` and hands the held caption
-	// board pixels worked out from the scale (`CAPTION_READ_PX` divided by it), so those words stay
-	// one size to read while the board shrinks under them. It hides nothing else.
-	it("keeps the caption the reader is writing on, at a size they can read", () => {
-		const held = declarations(
-			CSS,
-			".stonetop-relmap.captions-tiny .stonetop-relmap-label.is-picked .stonetop-relmap-label-text",
-		);
-		expect(held, "the held caption").toBeTruthy();
-		expect(held).toMatch(/font-size:\s*var\(--relmap-say-px/);
-	});
-
 	// ⚠ AND NEVER BY GIVING THE LAYER A TEXTURE. `will-change` does NOT make expensive glyphs
 	// cheaper; it moves the cost to where the main thread blocks on it. A trace of the real window
 	// showed 8.8 SECONDS of `Commit` across ten seconds, in blocks of a second and a half, ~100

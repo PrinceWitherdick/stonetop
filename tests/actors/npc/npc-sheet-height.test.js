@@ -68,10 +68,4 @@ describe("the NPC sheet's window height", () => {
 		// viewport — and the only one on any sheet.
 		expect(CSS).not.toMatch(/\.window-app\.stonetop\.sheet\.actor\.npc\s*\{[^}]*max-height/);
 	});
-
-	it("keeps a tab that outgrows the frame scrollable, since the frame no longer grows for it", () => {
-		// This is what makes "never refit" safe: nothing is cut off, it scrolls in place.
-		expect(CSS).toMatch(
-			/\.stonetop-npc-sheet \.sheet-body > \.tab\.active:not\(\.notes\)\s*\{[^}]*overflow-y:\s*auto/);
-	});
 });

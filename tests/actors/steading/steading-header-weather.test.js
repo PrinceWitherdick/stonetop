@@ -35,10 +35,6 @@ describe("the steading header's weather glyph", () => {
 		expect(clock.indexOf("steading-header-weather")).toBeLessThan(clock.indexOf("steading-header-season"));
 	});
 
-	it("shows in both layouts", () => {
-		expect(clock).not.toContain("classicLayout");
-	});
-
 	// A GM gets a button that opens the Weather picker — the window that decides this glyph, so
 	// the readout is the way back to what set it. Everyone else gets plain text: the picker
 	// rolls, posts to chat and writes the steading, none of which is a player's to do. Two

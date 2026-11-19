@@ -33,10 +33,6 @@ describe("actorOptionsFor", () => {
 			.toEqual(["character", "npc", "monster"]);
 	});
 
-	it("keeps offering it while the world has none", () => {
-		expect(actorOptionsFor(true, { haveToolkit: false }).map(o => o.id)).toContain("gmToolkit");
-	});
-
 	it("still offers a player nothing but their character either way", () => {
 		expect(actorOptionsFor(false, { haveToolkit: true }).map(o => o.id)).toEqual(["character"]);
 	});

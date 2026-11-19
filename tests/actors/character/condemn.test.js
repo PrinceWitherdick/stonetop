@@ -6,6 +6,7 @@ import {
 	addCondemned, removeCondemned, noteCondemned,
 	condemnersOf, condemnedContext, findBrandTarget, isBranded,
 } from "../../../module/actors/character/condemn.js";
+import { loadPlaybookMoveDocs } from "../../fakes/sourcePack.js";
 
 const actorWith = (...items) => ({ items });
 const move = name => ({ type: "move", name });
@@ -408,6 +409,9 @@ describe("the names and keys the feature matches on", () => {
 		expect(CONDEMN).toBe("Condemn");
 		expect(CENSURE).toBe("Censure");
 		expect(PROCLAMATION).toBe("Proclamation");
+		// Against the pack source too, so a rename on that side fails here rather than going dark.
+		const packMoves = loadPlaybookMoveDocs().map(d => d.name);
+		for (const name of [CONDEMN, CENSURE, PROCLAMATION]) expect(packMoves, name).toContain(name);
 	});
 
 	it("keys the flag on condemned", () => {

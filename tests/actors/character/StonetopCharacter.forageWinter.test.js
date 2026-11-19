@@ -3,7 +3,7 @@
 // Wolves' advantage (StonetopCharacter#seasonMoveDisadvantage), so the two cancel and a Disadvantage
 // the player picked for the same winter does not count twice. Before this the player set it by hand.
 
-import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
 import { buildLiveCharacter } from "../../fakes/LiveCharacter.js";
 
 // The steading as getStonetopSteadingActor finds it, with the clock stamped (or not).
@@ -143,9 +143,16 @@ describe("winter on On the Hoof", () => {
 	});
 	afterEach(() => { globalThis.Dialog = savedDialog; });
 
+	// Loaded once, in a hook: the sheet module is large, and importing it inside the first test
+	// charged its whole transform to that test's timeout.
+	let createStonetopCharacterSheetClass;
+	let makeLiveItem;
+	beforeAll(async () => {
+		({ createStonetopCharacterSheetClass } = await import("../../../module/actors/character/StonetopCharacterSheet.js"));
+		({ makeLiveItem } = await import("../../fakes/LiveCharacter.js"));
+	});
+
 	async function hoofWindow({ learned = true } = {}) {
-		const { createStonetopCharacterSheetClass } = await import("../../../module/actors/character/StonetopCharacterSheet.js");
-		const { makeLiveItem } = await import("../../fakes/LiveCharacter.js");
 		const { char, actor } = forager();
 		actor.items.push(makeLiveItem({ name: "On the Hoof", type: "move", system: { moveType: "playbook" }, flags: learned ? undefined : { "stonetop_pwd": { learned: false } } }));
 		actor.typedActor = char;

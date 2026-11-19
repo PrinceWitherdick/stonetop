@@ -23,9 +23,11 @@ function tagWith(html, cls) {
 	return html.slice(html.lastIndexOf("<", at), html.indexOf(">", at) + 1);
 }
 
-/** Every rule block whose selector names one of the walkthrough's own classes. */
+/** Every rule block whose selector names one of the walkthrough's own classes. Scanned once. */
+let walkthroughRuleCache;
 function walkthroughRules() {
-	const rules = [];
+	if (walkthroughRuleCache) return walkthroughRuleCache;
+	const rules = walkthroughRuleCache = [];
 	const re = /([^{}]+)\{([^{}]*)\}/g;
 	let m;
 	while ((m = re.exec(CSS))) {

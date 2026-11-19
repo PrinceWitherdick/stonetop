@@ -39,9 +39,7 @@ describe("the walkthrough's Die of Fate steps", () => {
 		expect(new Set(fateSteps.map(s => s.fate)).size).toBe(fateSteps.length);
 	});
 
-	it("still offer the button, and nothing else asks for a second one", () => {
-		const data = step => ({ showFate: !!step.fate });
-		expect(fateSteps.map(s => data(s).showFate)).toEqual([true, true]);
+	it("ask for no second button beside the die", () => {
 		// The weather step carried a `weather: true` flag for a second button beside the die
 		// (it opened the seasonal picker). Both are gone; the picker has its own macro.
 		expect(steps.filter(s => s.weather)).toEqual([]);

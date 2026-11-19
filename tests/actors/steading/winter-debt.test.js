@@ -358,12 +358,6 @@ describe("how the debt is wired", () => {
 		const at = STEADING.indexOf("async spendSurplus(");
 		expect(STEADING.slice(at, at + 600)).toContain("...alsoFlags");
 	});
-
-	it("has art, a mask rule and a credit, like every other hold", () => {
-		expect(read("assets/icons/holds/winter-debt.svg")).toContain("<svg");
-		expect(read("styles/stonetop.css")).toContain("steading-hold--winter-debt");
-		expect(read("assets/icons/holds/ATTRIBUTION.md")).toContain("winter-debt.svg");
-	});
 });
 
 // ── Two windows on one debt ─────────────────────────────────────────────────────

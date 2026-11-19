@@ -192,10 +192,6 @@ describe("the Encounters tab: wiring", () => {
 		expect(game.i18n.localize("stonetop.gmToolkit.tabs.encounters")).toBe("Encounters");
 	});
 
-	it("gets its panel gutter from the shared tab-padding rule", () => {
-		expect(declarations(CSS, ".stonetop-gm-toolkit-sheet .sheet-body > .tab")).toMatch(/padding:/);
-	});
-
 	// The pencil is `position: absolute` against its section, and this panel only BECOMES that
 	// section's containing block by joining the shared `:is()`. Left out, the pencil floats
 	// against whatever positioned ancestor is next up the frame, with nothing logged.

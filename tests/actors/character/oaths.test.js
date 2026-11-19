@@ -3,6 +3,7 @@ import {
 	OATHS_FLAG, BINDING_ARBITRATION,
 	canBindOaths, showOaths, readOaths, addOath, removeOath, noteOath, setOathBroken, brokenCount,
 } from "../../../module/actors/character/oaths.js";
+import { loadPlaybookMoveDocs } from "../../fakes/sourcePack.js";
 
 const actorWith = (...items) => ({ items });
 const move = name => ({ type: "move", name });
@@ -106,6 +107,9 @@ describe("the stored list", () => {
 describe("the names the gate matches on", () => {
 	it("spells the move exactly as the packs do", () => {
 		expect(BINDING_ARBITRATION).toBe("Binding Arbitration");
+		// Against the pack source too, so a rename on that side fails here rather than going dark.
+		const packMoves = loadPlaybookMoveDocs().map(d => d.name);
+		for (const name of [BINDING_ARBITRATION]) expect(packMoves, name).toContain(name);
 	});
 
 	it("keys the flag on oaths", () => {

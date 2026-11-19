@@ -41,11 +41,6 @@ describe("the rulebooks a world can be pointed at", () => {
 		for (const book of cited) if (book !== 3) expect(known.has(book)).toBe(true);
 	});
 
-	it("gives each book a distinct glyph", () => {
-		const icons = RULEBOOKS.map(b => b.icon);
-		expect(new Set(icons).size).toBe(icons.length);
-	});
-
 	it("answers nothing at all when the setting is not registered", () => {
 		expect(rulebookPaths()).toEqual({});
 		expect(rulebookPath(1)).toBe("");

@@ -21,7 +21,7 @@ import { BESTIARY_ROOT_NAME, BESTIARY_FOLDER_COLOR, planBestiaryFolderTree } fro
 // of in a GM's sidebar. Raising this cap should be a deliberate decision, made with
 // the render-depth risk in mind.
 const MAX_SEEDED_DEPTH = 3;
-const FOUNDRY_HARD_LIMIT = 4; // CONST.FOLDER_MAX_DEPTH, documented for context only.
+// Foundry's own hard limit (CONST.FOLDER_MAX_DEPTH) is 4.
 
 const SRC = path.resolve("packs/src");
 
@@ -58,10 +58,6 @@ describe("seeded folder trees stay within Foundry's render depth", () => {
 	// automatically.
 	const journalPack = PACKS.find(p => p.type === "JournalEntry");
 	const journalSources = journalPack.sources ?? [journalPack.name];
-
-	it("keeps the cap one level below Foundry's hard limit", () => {
-		expect(MAX_SEEDED_DEPTH).toBeLessThan(FOUNDRY_HARD_LIMIT);
-	});
 
 	it(`no journal source nests folders deeper than ${MAX_SEEDED_DEPTH}`, async () => {
 		const tooDeep = [];

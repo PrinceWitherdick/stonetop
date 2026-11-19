@@ -84,6 +84,8 @@ describe("the reader window", () => {
 	});
 
 	it("names a template that is actually there", () => {
+		// The window's own path, not this file's copy of it: a typo there is what would ship.
+		expect(BookReaderWindow.defaultOptions.template).toBe(`systems/stonetop_pwd/${READER_HBS}`);
 		expect(repoFileExists(READER_HBS)).toBe(true);
 	});
 
@@ -529,6 +531,7 @@ describe("the rulebooks window", () => {
 	afterEach(() => { delete game.settings; delete global.game.user; });
 
 	it("names a template that is actually there, and wears the system's chrome", () => {
+		expect(RulebooksDialog.defaultOptions.template).toBe(`systems/stonetop_pwd/${SETUP_HBS}`);
 		expect(repoFileExists(SETUP_HBS)).toBe(true);
 		expect(RulebooksDialog.defaultOptions.classes).toContain("stonetop");
 		expect(RulebooksDialog.defaultOptions.resizable).toBe(true);

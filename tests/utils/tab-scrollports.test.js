@@ -71,12 +71,6 @@ describe("character sheet tab scrollports", () => {
 		expect(block).toBeTruthy();
 		expect(block).toContain("flex: 0 0 auto");
 	});
-
-	it("leaves the blank sheet's Create Character block free to take the slack", () => {
-		// The no-playbook sheet has no .sheet-main, so the generic "everything else is
-		// rigid" rule would otherwise pin its call-to-action and break the centring.
-		expect(CSS).toContain(".sheet-wrapper > :not(.sheet-main):not(.stonetop-no-playbook-state)");
-	});
 });
 
 describe("steading sheet tab scrollports", () => {

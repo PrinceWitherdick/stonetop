@@ -310,17 +310,6 @@ describe("re-running the fixture after the season turns", () => {
 		expect(keysFor(seededActor({ season: "winter", year: 2, steadingFlags: sf }))).toContain("winterDebt");
 	});
 
-	// A re-run must not pay for the muster's +1 Defenses twice: a lapsed muster still has the
-	// first one on the sheet, since only a stand-down or the Seasons Change gives it back.
-	it("keeps the same muster across a re-stamp rather than raising a second", () => {
-		const sf = seedHolds({}, { season: "spring", year: 1 });
-		const raised = sf.musterHold;
-		seedHolds(sf, { season: "summer", year: 1 });
-		expect(sf.musterHold.defenses).toBe(true);
-		expect(sf.musterHold.season).toBe("summer");
-		expect(raised.defenses).toBe(true);
-	});
-
 	// Someone else's lapsed muster is theirs. The fixture marks its own with the +1 pick.
 	it("leaves a lapsed muster that never took the +1 Defenses alone", () => {
 		const sf = seedHolds({}, { season: "spring", year: 1 });

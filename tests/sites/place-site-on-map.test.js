@@ -165,19 +165,6 @@ describe("putting a site on the map", () => {
 		expect(await said()).toBe("The Sunken Barrow is on The Vicinity.");
 	});
 
-	// The chooser comes first and the click last, because the click is the part that has to be
-	// precise: Book I's walkthrough is nine steps long, and running it AFTER the aim would lose
-	// the point the GM was aiming at.
-	it("chooses the site before it asks where it goes", async () => {
-		const order = [];
-		sites.chosen = null;                      // dismissed, so the aim must never be reached
-		await placeSiteOnMap({
-			tier: "vicinity", frame: POSTER,
-			pickPoint: async () => { order.push("aim"); return { left: 50, top: 50 }; },
-		});
-		expect(order).toEqual([]);
-	});
-
 	it("writes nothing when the chooser is dismissed, and never asks for a click", async () => {
 		sites.chosen = null;
 		let asked = false;

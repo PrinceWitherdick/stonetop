@@ -6,17 +6,12 @@ import { describeRebuild } from "../../module/book2-art/run-rebuild.js";
 // into saying different things about the same run.
 
 describe("describing a rebuild", () => {
+	// PICTURES, not portraits: detail portraits, square faces and creature token squares all land
+	// in `written`, and a GM reading "Rebuilt 214 portraits" after framing creature tokens would
+	// reasonably think the token pass had not run.
 	it("reports a normal run", () => {
 		expect(describeRebuild({ written: 153, failed: 0, repointed: 0 }))
 			.toBe("Rebuilt 153 pictures from art already on disk.");
-	});
-
-	it("counts PICTURES, not portraits, because one run cuts three different things", () => {
-		// Detail portraits, square faces and creature token squares all land in `written`. Calling
-		// that total "portraits" was true when portraits were all there was, and is now wrong about
-		// most of a typical run — a GM reading "Rebuilt 214 portraits" after framing creature
-		// tokens would reasonably think the token pass had not run.
-		expect(describeRebuild({ written: 214, failed: 0 })).not.toMatch(/portraits from art/);
 	});
 
 	it("mentions art already in play that moved to its close-up", () => {

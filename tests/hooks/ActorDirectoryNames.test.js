@@ -200,11 +200,13 @@ describe("onUpdateActorPlaybookName", () => {
 		const root = render(actors);
 		onRenderActorDirectoryNames(sidebar(actors, root), root);
 
-		// No `ui` at all: if the guard let these through, collecting the rendered directories
-		// would be reached and this would matter. It must return before that.
-		expect(() => onUpdateActorPlaybookName(actors[0], { system: { attributes: { hp: { value: 3 } } } })).not.toThrow();
-		expect(() => onUpdateActorPlaybookName(actors[0], { img: "new.webp" })).not.toThrow();
-		expect(() => onUpdateActorPlaybookName({ id: "a2", type: "npc" }, { system: { playbook: {} } })).not.toThrow();
+		// The directory is live and the actor now reads as a different playbook, so a repaint
+		// that the guard failed to stop would show on the row.
+		const drifted = pc("a1", "Pim", "The Fox");
+		globalThis.ui = { actors: sidebar([drifted], root) };
+		onUpdateActorPlaybookName(drifted, { system: { attributes: { hp: { value: 3 } } } });
+		onUpdateActorPlaybookName(drifted, { img: "new.webp" });
+		onUpdateActorPlaybookName({ id: "a1", type: "npc" }, { system: { playbook: {} } });
 		expect(rowName(root)).toBe("Pim The Lightbearer");
 	});
 });

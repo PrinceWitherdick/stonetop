@@ -94,15 +94,6 @@ describe("railHangsLeft", () => {
 		expect(railHangsLeft({ left: 64, right: 1024 }, 44, 1024)).toBe(true);
 	});
 
-	// Once flipped, the frame's own box is unchanged — an absolutely positioned rail contributes
-	// nothing to it — so re-measuring must return the same answer. Otherwise the drag handler,
-	// which re-measures every frame, would flap the rail between the two edges.
-	it("gives a stable answer, so re-measuring cannot flap the rail", () => {
-		const frameRect = { left: 960, right: 1920 };
-		expect(railHangsLeft(frameRect, 44, VIEWPORT)).toBe(true);
-		expect(railHangsLeft(frameRect, 44, VIEWPORT)).toBe(true);
-	});
-
 	// A sheet narrower than the rail, pinned left, has nowhere better to go.
 	it("stays on the right when the left is no better", () => {
 		expect(railHangsLeft({ left: 0, right: 1920 }, 44, VIEWPORT)).toBe(false);

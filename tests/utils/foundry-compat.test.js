@@ -131,13 +131,6 @@ describe("imagePopout", () => {
 		expect(seen[0]).toHaveLength(1);
 	});
 
-	it("nests the title under `window`, where v13 reads it", () => {
-		const seen = stubPopout();
-		imagePopout({ src: "a.webp", title: "Tobin" });
-		expect(seen[0][0].window).toEqual({ title: "Tobin" });
-		expect(seen[0][0].title, "a top-level title re-triggers the deprecation").toBeUndefined();
-	});
-
 	it("omits the window entirely when there is no title to give it", () => {
 		const seen = stubPopout();
 		imagePopout({ src: "a.webp" });

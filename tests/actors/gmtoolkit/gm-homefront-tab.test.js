@@ -158,13 +158,10 @@ describe("Homefront tab — wiring", () => {
 		expect(SHEET_JS).toContain('initial: "moves"');
 	});
 
-	// The glyph is still per-tab and has to be asserted as one. The gutter is not: it reaches
-	// every panel through the bare `> .tab`, so there is nothing this tab has to be remembered
-	// in. It used to be an `:is()` naming all six, which is how four separate test files each
-	// came to check that their own tab was in the list.
-	it("has a rail glyph, and gets its padding from the shared tab rule", () => {
+	// The glyph is per-tab and has to be asserted as one. The gutter is not: it reaches every
+	// panel through the bare `> .tab`, which gm-prep-tabs.test.js checks once for all of them.
+	it("has a rail glyph", () => {
 		expect(CSS).toMatch(/\.stonetop-tab-rail \.item\[data-tab="homefront"\][^}]*--st-tab-icon/);
-		expect(declarations(CSS, ".stonetop-gm-toolkit-sheet .sheet-body > .tab")).toMatch(/padding:/);
 	});
 
 	// "Questions to ask" is a whole section of them, and the partial says in prose that they get

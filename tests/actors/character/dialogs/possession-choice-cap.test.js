@@ -43,10 +43,6 @@ describe("effectiveSubgroupMax", () => {
 		expect(effectiveSubgroupMax(line, { "Big Magic": 2, "Other": 1 })).toBe(4);
 		expect(effectiveSubgroupMax({ maxSelect: 0 }, {})).toBe(0);
 	});
-
-	it("treats a maxSelect of 0 as a real (non-null) cap", () => {
-		expect(effectiveSubgroupMax({ maxSelect: 0 })).toBe(0);
-	});
 });
 
 describe("buildChoiceGroupsView", () => {

@@ -65,10 +65,6 @@ describe("normalizePlaceName", () => {
 		expect(normalizePlaceName("Pavilion of the Gods")).toBe("pavilion of the gods");
 	});
 
-	it("drops only a LEADING article, not one mid-name", () => {
-		expect(normalizePlaceName("Pavilion of the Gods")).toContain("of the gods");
-	});
-
 	it("is empty for a blank slot", () => {
 		expect(normalizePlaceName("")).toBe("");
 		expect(normalizePlaceName(null)).toBe("");

@@ -72,8 +72,14 @@ function groups(d) {
 /** The trip as it now stands in the setting. */
 const saved = () => store.expeditionAnswers.list[0];
 
-/** The step as it renders. */
+/** The step as it renders. The template is compiled once. */
+let compiled;
 function render(d) {
+	const step = d._steps[CHART];
+	return (compiled ??= compileStep())({ step, qa: d._qaContext(step.qa) });
+}
+
+function compileStep() {
 	const hb = Handlebars.create();
 	hb.registerPartial("stonetop.guide-toc", "");
 	hb.registerPartial("stonetop.expedition-journey", "");
@@ -83,8 +89,7 @@ function render(d) {
 	hb.registerHelper("eq", (a, b) => a === b);
 	hb.registerHelper("and", (...a) => a.slice(0, -1).every(Boolean));
 	hb.registerHelper("boldMissText", s => s);
-	const step = d._steps[CHART];
-	return hb.compile(HBS)({ step, qa: d._qaContext(step.qa) });
+	return hb.compile(HBS);
 }
 
 /** The rendered <li> for one row, by the id it was stored under. */

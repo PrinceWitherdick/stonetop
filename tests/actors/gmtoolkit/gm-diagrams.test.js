@@ -1,6 +1,6 @@
 import Handlebars from "handlebars";
 import { describe, it, expect } from "vitest";
-import { readRepo as read, readCss, ownRule, declarations, stripComments } from "../../fakes/css.js";
+import { readRepo as read, readCss, ownRule, stripComments } from "../../fakes/css.js";
 import { GM_DIAGRAMS, gmDiagrams } from "../../../module/gm-toolkit/gm-diagrams.js";
 import { GM_CORE_LOOP, GM_FLOW_OF_PLAY } from "../../../module/gm-toolkit/gm-loop-text.js";
 import { BOOK2_ART_APPLY_MANIFEST } from "../../../module/book2-art/manifest.js";
@@ -261,15 +261,6 @@ describe("the Core Loop tab", () => {
 	// The rail is icon-only, so a tab with no label has no name anywhere on screen.
 	it("has a localized name", () => {
 		expect(game.i18n.localize("stonetop.gmToolkit.tabs.loop")).toBe("Core Loop");
-	});
-
-	// The gutter is declared once on the bare `> .tab`, which every panel on this sheet is, so
-	// there is no membership to assert — only that the rule is still the general one. It used to
-	// be an `:is()` naming every tab, and a tab left out of it rendered flush against both edges
-	// of the frame with nothing logged.
-	it("gets its panel gutter from the shared tab-padding rule", () => {
-		expect(declarations(CSS, ".stonetop-gm-toolkit-sheet .sheet-body > .tab")).toMatch(/padding:/);
-		expect(CSS).not.toMatch(/\.stonetop-gm-toolkit-sheet \.sheet-body > :is\([^)]*\)\s*\{[^}]*padding:/);
 	});
 
 	// Core's `body.game .app img` paints a 1px black border on every image inside a sheet, so a

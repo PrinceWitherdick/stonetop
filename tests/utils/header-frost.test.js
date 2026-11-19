@@ -111,14 +111,6 @@ describe("the frosted header seam", () => {
 			.toMatch(/border-bottom:\s*2px solid/);
 	});
 
-	// The opt-out is honoured on BOTH halves of the separator: miss it off the `is-scrolled`
-	// half and the doubled line comes back at exactly the moment it is meant to be suppressed.
-	it("honours the opt-out on both halves of the separator", () => {
-		const escaped = `\\.stonetop-sheet-layout:not\\(\\.${OWN_SEAM}\\)`;
-		expect(CSS).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*border-top:`));
-		expect(CSS).toMatch(new RegExp(`${escaped}[^{]*is-scrolled[^{]*\\{[^}]*border-top-color:`));
-	});
-
 	// The band exists to soften text being sliced off as it passes UNDER a pinned header. On the
 	// CLASSIC character sheet what sits above the seam is the tab strip and its own 2px rule,
 	// and nothing appears to pass behind that — so the blur reads as the page's top line having

@@ -78,10 +78,6 @@ describe("LoreOptionSnapshot.requires", () => {
 		expect(CONSEQUENCE_OPTION_UNSTABLE.requires).toBe("breakdown");
 	});
 
-	it("defaults requires to null when not set", () => {
-		expect(CONSEQUENCE_OPTION_BREAKDOWN.requires).toBeNull();
-	});
-
 	it("defaults requires to null when builder omits withRequires", () => {
 		const opt = new LoreOptionSnapshotBuilder()
 			.withSlug("quarry")

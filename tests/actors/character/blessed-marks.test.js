@@ -6,6 +6,7 @@ import {
 	canMarkBlessed, showBlessedMarks, availableKinds, markKind, markSign,
 	readMarks, addMark, removeMark, noteMark, setMarkLoyalty, setMarkSign, groupMarks,
 } from "../../../module/actors/character/blessed-marks.js";
+import { loadPlaybookMoveDocs } from "../../fakes/sourcePack.js";
 
 const actorWith = (...items) => ({ items });
 const move = name => ({ type: "move", name });
@@ -294,6 +295,9 @@ describe("the names the gate matches on", () => {
 		expect(MARK_KINDS.map(k => k.move)).toEqual([
 			"Barkskin", "Trackless Step", "Shared Souls", "Amulets & Talismans", "Wards & Bindings",
 		]);
+		// Against the pack source too, so a rename on that side fails here rather than going dark.
+		const packMoves = loadPlaybookMoveDocs().map(d => d.name);
+		for (const { move } of MARK_KINDS) expect(packMoves, move).toContain(move);
 	});
 
 	it("keys the flag on blessedMarks, and every kind resolves", () => {

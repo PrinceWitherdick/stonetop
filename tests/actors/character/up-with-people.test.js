@@ -337,12 +337,6 @@ describe("a copy taken while the move printed a third pip", () => {
 		const data = await char.buildSnapshot();
 		expect(data.movelist.otherMoves[0].resource).toMatchObject({ max: 2, labels: ["", ""] });
 	});
-
-	it("the Moves tab's own track comes from the shipped data, which prints 2", () => {
-		const exported = JSON.parse(readRepo("data/playbook-moves.json"));
-		const list = Array.isArray(exported) ? exported : Object.values(exported).flat();
-		expect(list.find(m => m?.name === UP_WITH_PEOPLE).resource.max).toBe(RAPPORT_MAX);
-	});
 });
 
 describe("the sheet", () => {

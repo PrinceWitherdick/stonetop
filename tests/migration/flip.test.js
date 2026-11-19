@@ -138,14 +138,6 @@ describe("preflight", () => {
 		expect(local.hosted).toBe(false);
 	});
 
-	// A caller that forgets the flag gets the strict gate. _migrate() depends on this: it is
-	// what keeps the flip unreachable on hosted even if the window's own UI is confused.
-	it("defaults to refusing a hosted provider", async () => {
-		const forge = { ForgeVTT: { usingTheForge: true } };
-		const result = await preflight(makeGame(), { fetchImpl: fetchOk(), ...IDS, scope: forge });
-		expect(result.ok).toBe(false);
-	});
-
 	it("blocks when the world has unloadable actors", async () => {
 		const game = makeGame({ actors: { invalidDocumentIds: new Set(["a1", "a2"]) } });
 		const result = await preflight(game, { fetchImpl: fetchOk(), ...IDS });

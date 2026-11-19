@@ -85,11 +85,13 @@ describe("faqItemsForStep", () => {
 		expect(faqItemsForStep(undefined, items)).toEqual([]);
 	});
 
-	it("de-duplicates when several keys hit the same question", () => {
-		// "stats" lists "advantage" and "6 or less"; each is a distinct question,
-		// but no question should appear twice in the result.
-		const qs = faqItemsForStep("stats", items).map(i => i.question);
-		expect(new Set(qs).size).toBe(qs.length);
+	// The FAQ is a journal page in the world, which a GM can edit, so the same question can turn up
+	// twice. The step shows it once.
+	it("shows a question that appears twice on the page only once", () => {
+		const once = faqItemsForStep("origin", items).map(i => i.question);
+		const twice = faqItemsForStep("origin", [...items, ...items]).map(i => i.question);
+		expect(once.length).toBeGreaterThan(0);
+		expect(twice).toEqual(once);
 	});
 });
 
